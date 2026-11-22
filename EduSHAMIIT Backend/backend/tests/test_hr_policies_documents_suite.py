@@ -272,8 +272,8 @@ def run_tests():
 
     # 26. Employee View Pending Acknowledgement
     if pending_acks:
-        first_ack = pending_acks[0]
-        assigned_uid = first_ack["user_id"]
+        first_ack = next((a for a in pending_acks if a.get("user_role") in ("teacher", "staff", "employee")), pending_acks[0])
+        assigned_uid = str(first_ack["user_id"])
         assigned_role = first_ack.get("user_role") or "teacher"
         headers_assigned = {"Authorization": f"Bearer {make_token(assigned_uid, SCHOOL_A, assigned_role)}"}
 

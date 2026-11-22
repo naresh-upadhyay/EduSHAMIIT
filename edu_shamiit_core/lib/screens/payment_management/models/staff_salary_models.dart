@@ -68,6 +68,15 @@ class StaffSalaryRosterItem {
   final String? transactionReference;
   final String? bankName;
   final String? accountNumber;
+  final String? ifscCode;
+  final String? panNumber;
+  final double da;
+  final double ta;
+  final double specialAllowance;
+  final double bonus;
+  final double pfDeduction;
+  final double tds;
+  final double professionalTax;
   final double activeAdvanceDeduction;
 
   StaffSalaryRosterItem({
@@ -82,6 +91,13 @@ class StaffSalaryRosterItem {
     this.avatarUrl,
     this.basicPay = 35000.0,
     this.hra = 14000.0,
+    this.da = 5000.0,
+    this.ta = 2500.0,
+    this.specialAllowance = 3000.0,
+    this.bonus = 0.0,
+    this.pfDeduction = 4200.0,
+    this.tds = 2500.0,
+    this.professionalTax = 200.0,
     this.grossSalary = 63000.0,
     this.totalDeductions = 7900.0,
     this.netSalary = 55100.0,
@@ -94,6 +110,8 @@ class StaffSalaryRosterItem {
     this.transactionReference,
     this.bankName,
     this.accountNumber,
+    this.ifscCode,
+    this.panNumber,
     this.activeAdvanceDeduction = 0.0,
   });
 
@@ -102,6 +120,20 @@ class StaffSalaryRosterItem {
   String get netSalaryFormatted => '₹ ${NumberFormat('#,##,###').format(actualNetPay.toInt())}';
 
   factory StaffSalaryRosterItem.fromJson(Map<String, dynamic> json) {
+    final double basic = (json['basic_pay'] as num?)?.toDouble() ?? 35000.0;
+    final double hraVal = (json['hra'] as num?)?.toDouble() ?? 14000.0;
+    final double daVal = (json['da'] as num?)?.toDouble() ?? 5000.0;
+    final double taVal = (json['ta'] as num?)?.toDouble() ?? 2500.0;
+    final double specVal = (json['special_allowance'] as num?)?.toDouble() ?? 3000.0;
+    final double bonusVal = (json['bonus'] as num?)?.toDouble() ?? 0.0;
+    final double gross = (json['gross_salary'] as num?)?.toDouble() ?? (basic + hraVal + daVal + taVal + specVal + bonusVal);
+    final double pfVal = (json['pf_deduction'] as num?)?.toDouble() ?? 4200.0;
+    final double tdsVal = (json['tds'] as num?)?.toDouble() ?? 2500.0;
+    final double ptaxVal = (json['professional_tax'] as num?)?.toDouble() ?? 200.0;
+    final double deductions = (json['total_deductions'] as num?)?.toDouble() ?? (pfVal + tdsVal + ptaxVal);
+    final double computedNet = (gross > deductions) ? (gross - deductions) : 0.0;
+    final double finalNet = (json['actual_net_pay'] ?? json['net_pay'] ?? json['net_salary'] as num?)?.toDouble() ?? computedNet;
+
     return StaffSalaryRosterItem(
       staffId: json['staff_id']?.toString() ?? '',
       staffName: json['staff_name']?.toString() ?? 'Faculty Member',
@@ -112,12 +144,19 @@ class StaffSalaryRosterItem {
       designation: json['designation']?.toString() ?? 'Senior Faculty',
       employeeId: json['employee_id']?.toString() ?? '',
       avatarUrl: json['avatar_url']?.toString(),
-      basicPay: (json['basic_pay'] as num?)?.toDouble() ?? 35000.0,
-      hra: (json['hra'] as num?)?.toDouble() ?? 14000.0,
-      grossSalary: (json['gross_salary'] as num?)?.toDouble() ?? 63000.0,
-      totalDeductions: (json['total_deductions'] as num?)?.toDouble() ?? 7900.0,
-      netSalary: (json['net_salary'] as num?)?.toDouble() ?? 55100.0,
-      actualNetPay: (json['actual_net_pay'] as num?)?.toDouble() ?? 55100.0,
+      basicPay: basic,
+      hra: hraVal,
+      da: daVal,
+      ta: taVal,
+      specialAllowance: specVal,
+      bonus: bonusVal,
+      pfDeduction: pfVal,
+      tds: tdsVal,
+      professionalTax: ptaxVal,
+      grossSalary: gross,
+      totalDeductions: deductions,
+      netSalary: finalNet,
+      actualNetPay: finalNet,
       status: json['status']?.toString() ?? 'Pending',
       payoutId: json['payout_id']?.toString(),
       payslipNumber: json['payslip_number']?.toString(),
@@ -126,6 +165,8 @@ class StaffSalaryRosterItem {
       transactionReference: json['transaction_reference']?.toString(),
       bankName: json['bank_name']?.toString(),
       accountNumber: json['account_number']?.toString(),
+      ifscCode: json['ifsc_code']?.toString(),
+      panNumber: json['pan_number']?.toString(),
       activeAdvanceDeduction: (json['active_advance_deduction'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -204,7 +245,9 @@ class StaffSalaryStructureItem {
       professionalTax: (json['professional_tax'] as num?)?.toDouble() ?? 200.0,
       insuranceDeduction: (json['insurance_deduction'] as num?)?.toDouble() ?? 1000.0,
       totalDeductions: (json['total_deductions'] as num?)?.toDouble() ?? 7900.0,
-      netSalary: (json['net_salary'] as num?)?.toDouble() ?? 55100.0,
+      netSalary: (json['net_salary'] as num?)?.toDouble() ??
+          (((json['gross_salary'] as num?)?.toDouble() ?? 63000.0) -
+              ((json['total_deductions'] as num?)?.toDouble() ?? 7900.0)),
       paymentMode: json['payment_mode']?.toString() ?? 'Direct Bank Transfer (NEFT/RTGS)',
       bankName: json['bank_name']?.toString() ?? 'HDFC Bank',
       accountNumber: json['account_number']?.toString() ?? '',
@@ -344,6 +387,8 @@ class StaffSalaryAdvanceItem {
   final int repaymentMonths;
   final double monthlyDeduction;
   final double amountRepaid;
+  final double outstandingBalance;
+  final double progressPct;
   final String status;
   final String? disbursedAt;
 
@@ -358,24 +403,36 @@ class StaffSalaryAdvanceItem {
     this.repaymentMonths = 3,
     this.monthlyDeduction = 0.0,
     this.amountRepaid = 0.0,
+    this.outstandingBalance = 0.0,
+    this.progressPct = 0.0,
     this.status = 'Approved',
     this.disbursedAt,
   });
 
   String get amountFormatted => '₹ ${NumberFormat('#,##,###').format(amount.toInt())}';
+  String get amountRepaidFormatted => '₹ ${NumberFormat('#,##,###').format(amountRepaid.toInt())}';
+  String get outstandingBalanceFormatted => '₹ ${NumberFormat('#,##,###').format(outstandingBalance.toInt())}';
+  String get progressPctFormatted => '${progressPct.toStringAsFixed(1)}%';
 
   factory StaffSalaryAdvanceItem.fromJson(Map<String, dynamic> json) {
+    final double amt = (json['amount'] as num?)?.toDouble() ?? 0.0;
+    final double repaid = (json['amount_repaid'] as num?)?.toDouble() ?? 0.0;
+    final double balance = (json['outstanding_balance'] as num?)?.toDouble() ?? (amt > repaid ? amt - repaid : 0.0);
+    final double pct = (json['progress_pct'] as num?)?.toDouble() ?? (amt > 0 ? (repaid / amt * 100.0) : 0.0);
+
     return StaffSalaryAdvanceItem(
       id: json['id']?.toString() ?? '',
       staffName: json['staff_name']?.toString() ?? '',
       employeeId: json['employee_id']?.toString() ?? '',
       department: json['department']?.toString() ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: amt,
       purposeType: json['purpose_type']?.toString() ?? 'Medical Emergency',
       reason: json['reason']?.toString(),
       repaymentMonths: (json['repayment_months'] as num?)?.toInt() ?? 3,
       monthlyDeduction: (json['monthly_deduction'] as num?)?.toDouble() ?? 0.0,
-      amountRepaid: (json['amount_repaid'] as num?)?.toDouble() ?? 0.0,
+      amountRepaid: repaid,
+      outstandingBalance: balance,
+      progressPct: pct,
       status: json['status']?.toString() ?? 'Approved',
       disbursedAt: json['disbursed_at']?.toString(),
     );

@@ -2821,7 +2821,7 @@ async def user_acknowledge_policy(
         raise HTTPException(status_code=404, detail="Acknowledgement record not found.")
     ack = rows[0]
 
-    if ack["user_id"] != user.get("id") and (user.get("role") or "").lower() not in HR_ADMIN_ROLES:
+    if str(ack["user_id"]) != str(user.get("id")) and (user.get("role") or "").lower() not in HR_ADMIN_ROLES:
         raise HTTPException(status_code=403, detail="You can only acknowledge policies assigned to your profile.")
 
     ip_addr = request.client.host if request.client else "unknown"

@@ -1,21 +1,31 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
-import '../../services/work_api_service.dart';
 import '../../utils/work_sprint_date_helper.dart';
+import '../../utils/work_filter_helper.dart';
 import '../drawers/work_item_detail_drawer.dart';
 
 class WorkListTabView extends ConsumerStatefulWidget {
   final Function(WorkItemModel item) onOpenDetail;
   final VoidCallback? onOpenFilters;
   final Function(String type) onQuickAction;
+  final Function({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  })? onCreateItem;
 
   const WorkListTabView({
     super.key,
     required this.onOpenDetail,
     this.onOpenFilters,
     required this.onQuickAction,
+    this.onCreateItem,
   });
 
   @override
@@ -29,6 +39,33 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   String _selectedStatus = 'All Status';
   String _selectedAssignee = 'All Assignees';
 
+  void _handleCreateItem({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  }) {
+    final effectiveType = type ?? (_typeFilter != 'All' ? _typeFilter : (_selectedType != 'All Types' ? _selectedType : 'TASK'));
+    final effectiveStatus = status ?? (_statusFilter != 'All' ? _statusFilter : (_selectedStatus != 'All Status' ? _selectedStatus : (_selectedKpi != 'ALL' && _selectedKpi != 'TOTAL' && _selectedKpi != 'OVERDUE' ? _selectedKpi : null)));
+    final effectivePriority = priority ?? (_priorityFilter != 'All' ? _priorityFilter : null);
+    final effectiveCategory = category ?? (_categoryFilter != 'All' ? _categoryFilter : null);
+
+    if (widget.onCreateItem != null) {
+      widget.onCreateItem!(
+        type: effectiveType,
+        status: effectiveStatus,
+        priority: effectivePriority,
+        category: effectiveCategory,
+        sprintId: sprintId,
+        parentId: parentId,
+      );
+    } else {
+      widget.onQuickAction(effectiveType);
+    }
+  }
+
   // Azure DevOps Filter Bar State
   bool _isFilterBarOpen = true;
   String _keywordFilter = '';
@@ -37,9 +74,30 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   String _statusFilter = 'All';
   String _priorityFilter = 'All';
   String _categoryFilter = 'All';
+  String _roleFilter = 'All';
+  String _departmentFilter = 'All';
+  String _classFilter = 'All';
+  String _sectionFilter = 'All';
+  String _teamFilter = 'All';
+  List<WorkAcademicClassModel> _classesList = [];
+  List<String> _teamsList = WorkFilterHelper.defaultTeams;
 
   final TextEditingController _searchController = TextEditingController();
   List<WorkAssigneeModel> _assigneesList = [];
+  Timer? _searchDebounce;
+
+  void _onKeywordSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        setState(() {
+          _keywordFilter = v.trim();
+          _clientPage = 1;
+        });
+      }
+    });
+  }
+
   int _clientPage = 1;
   int _clientPageSize = 10;
 
@@ -65,6 +123,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -72,8 +131,14 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   Future<void> _loadAssignees() async {
     try {
       final api = ref.read(workApiServiceProvider);
-      final users = await api.getAssignableUsers(limit: 60);
-      if (mounted) setState(() => _assigneesList = users);
+      final meta = await WorkFilterHelper.loadMetadata(api);
+      if (mounted) {
+        setState(() {
+          _assigneesList = meta.assignees;
+          _classesList = meta.classes;
+          _teamsList = meta.teams;
+        });
+      }
     } catch (_) {}
   }
 
@@ -85,6 +150,11 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     if (_statusFilter != 'All') count++;
     if (_priorityFilter != 'All') count++;
     if (_categoryFilter != 'All') count++;
+    if (_roleFilter != 'All') count++;
+    if (_departmentFilter != 'All') count++;
+    if (_classFilter != 'All') count++;
+    if (_sectionFilter != 'All') count++;
+    if (_teamFilter != 'All') count++;
     return count;
   }
 
@@ -97,6 +167,12 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       _statusFilter = 'All';
       _priorityFilter = 'All';
       _categoryFilter = 'All';
+      _roleFilter = 'All';
+      _departmentFilter = 'All';
+      _classFilter = 'All';
+      _sectionFilter = 'All';
+      _teamFilter = 'All';
+      _clientPage = 1;
     });
   }
 
@@ -215,6 +291,20 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           if (!hasMatch) return false;
         }
       }
+
+      // Advanced Filters (Role, Department, Class, Section, Team, Board)
+      if (!WorkFilterHelper.matchesAdvancedFilters(
+        item: item,
+        roleFilter: _roleFilter,
+        departmentFilter: _departmentFilter,
+        classFilter: _classFilter,
+        sectionFilter: _sectionFilter,
+        teamFilter: _teamFilter,
+        boardFilter: _selectedBoard,
+      )) {
+        return false;
+      }
+
       return true;
     }).toList();
 
@@ -331,8 +421,9 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _buildSelector('Board', _selectedBoard, ['Institute Work Board', 'Academic Board'], (v) {
+            _buildSelector('Board', _selectedBoard, WorkFilterHelper.boardOptions, (v) {
               setState(() => _selectedBoard = v!);
+              ref.read(workListProvider.notifier).setFilter(boardId: WorkFilterHelper.resolveBoardId(v));
             }, isDark),
             _buildSelector('View', _selectedView, ['All Work Items', 'My Tasks', 'High Priority'], (v) {
               setState(() => _selectedView = v!);
@@ -413,6 +504,19 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
               ),
             ),
             const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () => _handleCreateItem(),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Item', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+            ),
+            const SizedBox(width: 8),
             IconButton(
               onPressed: () {},
               icon: const Icon(Icons.tune_rounded, size: 20),
@@ -435,7 +539,11 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         } else {
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [filters, buttons],
+            children: [
+              Expanded(child: filters),
+              const SizedBox(width: 12),
+              buttons,
+            ],
           );
         }
       },
@@ -476,7 +584,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 height: 36,
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) => setState(() => _keywordFilter = v.trim()),
+                  onChanged: _onKeywordSearchChanged,
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
                   decoration: InputDecoration(
                     hintText: 'Filter by keyword...',
@@ -525,10 +633,90 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
               // 4. Assigned To
               _buildAssigneeFilterDropdown(isDark),
 
-              // 5. Priority
+              // 5. Role Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Role',
+                value: _roleFilter,
+                items: WorkFilterHelper.roleOptions,
+                onChanged: (v) {
+                  setState(() {
+                    _roleFilter = v ?? 'All';
+                    if (_roleFilter.toLowerCase() != 'student') {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                    }
+                    _clientPage = 1;
+                  });
+                },
+                isDark: isDark,
+                prefixIcon: Icons.badge_outlined,
+              ),
+
+              // 6. Department Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Department',
+                value: _departmentFilter,
+                items: WorkFilterHelper.defaultDepartments,
+                onChanged: (v) => setState(() {
+                  _departmentFilter = v ?? 'All';
+                  _clientPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.apartment_rounded,
+              ),
+
+              // 7. Team Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Team',
+                value: _teamFilter,
+                items: _teamsList,
+                onChanged: (v) => setState(() {
+                  _teamFilter = v ?? 'All';
+                  _clientPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.groups_rounded,
+                accentColor: const Color(0xFF6366F1),
+              ),
+
+              // 8. Cascaded Class Filter (Visible when Role is Student)
+              if (_roleFilter.toLowerCase() == 'student') ...[
+                WorkFilterHelper.buildFilterDropdown(
+                  label: 'Class',
+                  value: _classFilter,
+                  items: ['All', ..._classesList.map((c) => c.name)],
+                  onChanged: (v) {
+                    setState(() {
+                      _classFilter = v ?? 'All';
+                      _sectionFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  },
+                  isDark: isDark,
+                  prefixIcon: Icons.school_outlined,
+                  accentColor: const Color(0xFF2563EB),
+                ),
+
+                // 8. Cascaded Section Filter (Visible when Class is chosen)
+                if (_classFilter != 'All')
+                  WorkFilterHelper.buildFilterDropdown(
+                    label: 'Section',
+                    value: _sectionFilter,
+                    items: WorkFilterHelper.getSectionsForClass(_classesList, _classFilter),
+                    onChanged: (v) => setState(() {
+                      _sectionFilter = v ?? 'All';
+                      _clientPage = 1;
+                    }),
+                    isDark: isDark,
+                    prefixIcon: Icons.groups_outlined,
+                    accentColor: const Color(0xFF10B981),
+                  ),
+              ],
+
+              // 9. Priority
               _buildPriorityFilterDropdown(isDark),
 
-              // 6. Area
+              // 10. Area
               _buildDevOpsFilterDropdown(
                 label: 'Area',
                 value: _categoryFilter,
@@ -542,7 +730,10 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                   'Facilities',
                   'Examination'
                 ],
-                onChanged: (v) => setState(() => _categoryFilter = v!),
+                onChanged: (v) => setState(() {
+                  _categoryFilter = v!;
+                  _clientPage = 1;
+                }),
                 isDark: isDark,
               ),
 
@@ -592,6 +783,44 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                   _buildActiveFilterChip('Status: $_statusFilter', () => setState(() => _statusFilter = 'All')),
                 if (_assigneeFilter != 'All')
                   _buildActiveFilterChip('Assigned: $_assigneeFilter', () => setState(() => _assigneeFilter = 'All')),
+                if (_roleFilter != 'All')
+                  _buildActiveFilterChip('Role: $_roleFilter', () {
+                    setState(() {
+                      _roleFilter = 'All';
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  }),
+                if (_departmentFilter != 'All')
+                  _buildActiveFilterChip('Dept: $_departmentFilter', () {
+                    setState(() {
+                      _departmentFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  }),
+                if (_teamFilter != 'All')
+                  _buildActiveFilterChip('Team: $_teamFilter', () {
+                    setState(() {
+                      _teamFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  }),
+                if (_classFilter != 'All')
+                  _buildActiveFilterChip('Class: $_classFilter', () {
+                    setState(() {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  }),
+                if (_sectionFilter != 'All')
+                  _buildActiveFilterChip('Section: $_sectionFilter', () {
+                    setState(() {
+                      _sectionFilter = 'All';
+                      _clientPage = 1;
+                    });
+                  }),
                 if (_priorityFilter != 'All')
                   _buildActiveFilterChip('Priority: $_priorityFilter', () => setState(() => _priorityFilter = 'All')),
                 if (_categoryFilter != 'All')
@@ -1358,9 +1587,28 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   ),
     if (items.isEmpty && !listState.isLoading)
       Container(
-        height: 200,
+        height: 220,
         alignment: Alignment.center,
-        child: const Text('No work items found matching current filters', style: TextStyle(color: Color(0xFF64748B))),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            const SizedBox(height: 10),
+            const Text('No work items found matching current filters', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _handleCreateItem(),
+              icon: const Icon(Icons.add, size: 14),
+              label: const Text('Create Work Item', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                side: const BorderSide(color: Color(0xFF2563EB)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              ),
+            ),
+          ],
+        ),
       ),
     ],
   );
@@ -1602,6 +1850,16 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             ),
           ),
           OutlinedButton.icon(
+            onPressed: () => _openBulkTagTeamDialog(_selectedItemIds.toList()),
+            icon: const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF6366F1)),
+            label: const Text('Tag Team', style: TextStyle(fontSize: 11.5, color: Color(0xFF4338CA))),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              side: const BorderSide(color: Color(0xFFC7D2FE)),
+              backgroundColor: Colors.white,
+            ),
+          ),
+          OutlinedButton.icon(
             onPressed: () => _confirmBulkDelete(_selectedItemIds.toList()),
             icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFEF4444)),
             label: const Text('Delete', style: TextStyle(fontSize: 11.5, color: Color(0xFFEF4444))),
@@ -1647,17 +1905,17 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(ctx);
                 final success = await ref.read(workListProvider.notifier).bulkUpdate(
                   itemIds: itemIds,
                   status: selectedStatus,
                 );
-                if (mounted) {
-                  setState(() => _selectedItemIds.clear());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(success ? 'Status updated for ${itemIds.length} items!' : 'Failed to update status.')),
-                  );
-                }
+                if (!mounted) return;
+                setState(() => _selectedItemIds.clear());
+                messenger.showSnackBar(
+                  SnackBar(content: Text(success ? 'Status updated for ${itemIds.length} items!' : 'Failed to update status.')),
+                );
               },
               child: const Text('Apply Status', style: TextStyle(color: Colors.white)),
             ),
@@ -1697,17 +1955,17 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(ctx);
                 final success = await ref.read(workListProvider.notifier).bulkUpdate(
                   itemIds: itemIds,
                   priority: selectedPriority,
                 );
-                if (mounted) {
-                  setState(() => _selectedItemIds.clear());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(success ? 'Priority updated for ${itemIds.length} items!' : 'Failed to update priority.')),
-                  );
-                }
+                if (!mounted) return;
+                setState(() => _selectedItemIds.clear());
+                messenger.showSnackBar(
+                  SnackBar(content: Text(success ? 'Priority updated for ${itemIds.length} items!' : 'Failed to update priority.')),
+                );
               },
               child: const Text('Apply Priority', style: TextStyle(color: Colors.white)),
             ),
@@ -1718,7 +1976,8 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   }
 
   void _openBulkMoveSprintDialog(List<String> itemIds) async {
-    final sprints = await WorkApiService.instance.getSprints();
+    final cachedSprints = ref.read(allSprintsProvider).sprints;
+    final sprints = cachedSprints.isNotEmpty ? cachedSprints : await ref.read(workApiServiceProvider).getSprints();
     String? selectedSprintId = sprints.isNotEmpty ? sprints.first.id : 'BACKLOG';
     if (!mounted) return;
 
@@ -1736,7 +1995,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             ),
             items: [
               const DropdownMenuItem(value: 'BACKLOG', child: Text('Product Backlog (Unassign Sprint)')),
-              ...sprints.map((s) => DropdownMenuItem(value: s.id, child: Text('${s.name} (${s.status})'))),
+              ...sprints.map((s) => DropdownMenuItem(value: s.id, child: Text(s.displayLabel))),
             ],
             onChanged: (v) => setDlgState(() => selectedSprintId = v),
           ),
@@ -1748,17 +2007,17 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(ctx);
                 final success = await ref.read(workListProvider.notifier).bulkUpdate(
                   itemIds: itemIds,
                   sprintId: selectedSprintId,
                 );
-                if (mounted) {
-                  setState(() => _selectedItemIds.clear());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(success ? 'Moved ${itemIds.length} items!' : 'Failed to move items.')),
-                  );
-                }
+                if (!mounted) return;
+                setState(() => _selectedItemIds.clear());
+                messenger.showSnackBar(
+                  SnackBar(content: Text(success ? 'Moved ${itemIds.length} items!' : 'Failed to move items.')),
+                );
               },
               child: const Text('Move Items', style: TextStyle(color: Colors.white)),
             ),
@@ -1795,23 +2054,40 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(ctx);
                 final success = await ref.read(workListProvider.notifier).bulkUpdate(
                   itemIds: itemIds,
                   assigneeId: selectedUserId,
                 );
-                if (mounted) {
-                  setState(() => _selectedItemIds.clear());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(success ? 'Assigned ${itemIds.length} items successfully!' : 'Failed to assign items.')),
-                  );
-                }
+                if (!mounted) return;
+                setState(() => _selectedItemIds.clear());
+                messenger.showSnackBar(
+                  SnackBar(content: Text(success ? 'Assigned ${itemIds.length} items successfully!' : 'Failed to assign items.')),
+                );
               },
               child: const Text('Assign Items', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _openBulkTagTeamDialog(List<String> itemIds) {
+    WorkFilterHelper.openBulkTagTeamDialog(
+      context: context,
+      itemIds: itemIds,
+      isDark: Theme.of(context).brightness == Brightness.dark,
+      onApply: ({required List<String> itemIds, String? teamName}) async {
+        return await ref.read(workListProvider.notifier).bulkUpdate(
+          itemIds: itemIds,
+          teamName: teamName,
+        );
+      },
+      onSuccess: () {
+        if (mounted) setState(() => _selectedItemIds.clear());
+      },
     );
   }
 

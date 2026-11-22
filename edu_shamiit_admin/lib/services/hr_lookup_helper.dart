@@ -84,6 +84,31 @@ class HRLookupHelper extends ChangeNotifier {
       return _cache[upperKey]!;
     }
 
+    if (upperKey == 'DEPARTMENT' || upperKey == 'DEPARTMENTS') {
+      try {
+        final res = await _api.get('/departments', useCache: false);
+        final dynamic rawData = res['data'] ?? (res is List ? res : null);
+        if (rawData is List && rawData.isNotEmpty) {
+          final list = rawData.map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return HRLookupItem(
+              id: m['id']?.toString() ?? '',
+              code: m['code']?.toString() ?? (m['name']?.toString() ?? ''),
+              label: m['name']?.toString() ?? '',
+              description: m['description']?.toString() ?? '',
+              sortOrder: m['sort_order'] is int ? m['sort_order'] as int : int.tryParse(m['sort_order']?.toString() ?? '0') ?? 0,
+              status: m['status']?.toString() ?? 'ACTIVE',
+            );
+          }).where((item) => item.isActive && item.label.isNotEmpty).toList();
+
+          if (list.isNotEmpty) {
+            _cache[upperKey] = list;
+            return list;
+          }
+        }
+      } catch (_) {}
+    }
+
     try {
       final res = await _api.get(
         '/lookups/code/$upperKey',

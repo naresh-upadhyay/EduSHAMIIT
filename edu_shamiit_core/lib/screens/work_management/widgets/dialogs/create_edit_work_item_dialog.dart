@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
+import '../../utils/work_filter_helper.dart';
 
 class CreateEditWorkItemDialog extends ConsumerStatefulWidget {
   final String? initialWorkType;
+  final String? initialStatus;
+  final String? initialPriority;
+  final String? initialCategory;
   final String? boardId;
   final String? sprintId;
   final String? parentId;
@@ -14,6 +18,9 @@ class CreateEditWorkItemDialog extends ConsumerStatefulWidget {
   const CreateEditWorkItemDialog({
     super.key,
     this.initialWorkType,
+    this.initialStatus,
+    this.initialPriority,
+    this.initialCategory,
     this.boardId,
     this.sprintId,
     this.parentId,
@@ -29,6 +36,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
 
   late String _workType;
   late String _priority;
+  late String _status;
   late String _category;
   String _assignmentMode = 'INDIVIDUAL'; // 'INDIVIDUAL', 'ROLE', 'CLASS_SECTION'
 
@@ -64,6 +72,20 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   String? _selectedSectionName;
   String _targetClassRole = 'student';
 
+  // Dynamic Subjects per Class and School
+  List<Map<String, dynamic>> _allSubjects = [];
+  Map<String, List<Map<String, dynamic>>> _classSubjectsMap = {};
+  List<Map<String, dynamic>> _currentClassSubjects = [];
+  String? _selectedSubjectId;
+
+  // Sprints & Parent Work Items
+  List<WorkSprintModel> _availableSprints = [];
+  List<BacklogEpicModel> _availableEpics = [];
+  List<WorkItemModel> _availableStories = [];
+  String? _selectedSprintId;
+  String? _selectedParentId;
+  String? _selectedTeamName;
+
   // Filters for Individual mode
   String _userRoleFilter = 'All';
   String _userDeptFilter = 'All';
@@ -85,6 +107,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   ];
 
   final List<String> _priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'];
+  final List<String> _statuses = ['NEW', 'ACTIVE', 'RESOLVED', 'COMPLETED', 'BLOCKED', 'CLOSED'];
 
   final List<String> _categories = [
     'Academic',
@@ -110,9 +133,21 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   @override
   void initState() {
     super.initState();
-    _workType = (widget.initialWorkType ?? widget.existingItem?.workType ?? 'TASK').toUpperCase();
-    _priority = (widget.existingItem?.priority ?? 'MEDIUM').toUpperCase();
-    _category = widget.existingItem?.category ?? (_workType == 'HOMEWORK' || _workType == 'ASSIGNMENT' ? 'Academic' : 'General');
+    final rawType = (widget.initialWorkType ?? widget.existingItem?.workType ?? 'TASK').toUpperCase();
+    _workType = _types.contains(rawType) ? rawType : 'TASK';
+
+    final rawPriority = (widget.initialPriority ?? widget.existingItem?.priority ?? 'MEDIUM').toUpperCase();
+    _priority = _priorities.contains(rawPriority) ? rawPriority : 'MEDIUM';
+
+    String rawStatus = (widget.initialStatus ?? widget.existingItem?.status ?? 'NEW').toUpperCase();
+    if (rawStatus == 'IN PROGRESS' || rawStatus == 'IN_PROGRESS') rawStatus = 'ACTIVE';
+    if (rawStatus == 'DONE') rawStatus = 'COMPLETED';
+    _status = _statuses.contains(rawStatus) ? rawStatus : 'NEW';
+
+    _category = widget.initialCategory ?? widget.existingItem?.category ?? (_workType == 'HOMEWORK' || _workType == 'ASSIGNMENT' ? 'Academic' : 'General');
+    _selectedSprintId = widget.sprintId ?? widget.existingItem?.sprintId;
+    _selectedParentId = widget.parentId ?? widget.existingItem?.parentId;
+    _selectedTeamName = widget.existingItem?.teamName;
 
     if (widget.existingItem != null) {
       final item = widget.existingItem!;
@@ -149,11 +184,46 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     final api = ref.read(workApiServiceProvider);
     try {
       final usersFuture = api.getAssignableUsers(limit: 200);
-      final classesFuture = api.getAcademicClasses();
+      final academicOptionsFuture = api.getAcademicOptions();
+      final sprintsFuture = api.getSprints(boardId: widget.boardId);
+      final backlogFuture = api.getBacklogTree(boardId: widget.boardId, pageSize: 100);
 
-      final results = await Future.wait([usersFuture, classesFuture]);
+      final results = await Future.wait([usersFuture, academicOptionsFuture, sprintsFuture, backlogFuture]);
       final users = results[0] as List<WorkAssigneeModel>;
-      final classes = results[1] as List<WorkAcademicClassModel>;
+      final academicData = results[1] as Map<String, dynamic>;
+      final sprints = results[2] as List<WorkSprintModel>;
+      final backlog = results[3] as Map<String, dynamic>;
+      final epics = (backlog['epics'] as List<BacklogEpicModel>?) ?? [];
+      final items = (backlog['items'] as List<WorkItemModel>?) ?? [];
+
+      List<WorkAcademicClassModel> classes = [];
+      if (academicData['classes'] is List) {
+        classes = (academicData['classes'] as List)
+            .map((c) => WorkAcademicClassModel.fromJson(c))
+            .toList();
+      }
+
+      List<Map<String, dynamic>> allSubjects = [];
+      if (academicData['all_subjects'] is List) {
+        allSubjects = (academicData['all_subjects'] as List)
+            .map((s) => s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{})
+            .toList();
+      } else if (academicData['subjects'] is List) {
+        allSubjects = (academicData['subjects'] as List)
+            .map((s) => s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{})
+            .toList();
+      }
+
+      Map<String, List<Map<String, dynamic>>> classSubjectsMap = {};
+      if (academicData['class_subjects'] is Map) {
+        (academicData['class_subjects'] as Map).forEach((k, v) {
+          if (v is List) {
+            classSubjectsMap[k.toString()] = v
+                .map((s) => s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{})
+                .toList();
+          }
+        });
+      }
 
       if (mounted) {
         setState(() {
@@ -162,13 +232,66 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           _isLoadingUsers = false;
 
           _classesList = classes;
+          _allSubjects = allSubjects;
+          _classSubjectsMap = classSubjectsMap;
           _isLoadingClasses = false;
           if (classes.isNotEmpty) {
-            _selectedClassId = classes.first.id;
-            _selectedClassName = classes.first.name;
+            _selectedClassId ??= classes.first.id;
+            _selectedClassName ??= classes.first.name;
             if (classes.first.sections.isNotEmpty) {
-              _selectedSectionId = classes.first.sections.first.id;
-              _selectedSectionName = classes.first.sections.first.name;
+              _selectedSectionId ??= classes.first.sections.first.id;
+              _selectedSectionName ??= classes.first.sections.first.name;
+            }
+          }
+
+          // Compute dynamic subjects for the selected class
+          if (_selectedClassId != null && _classSubjectsMap.containsKey(_selectedClassId) && _classSubjectsMap[_selectedClassId]!.isNotEmpty) {
+            _currentClassSubjects = _classSubjectsMap[_selectedClassId]!;
+          } else {
+            _currentClassSubjects = allSubjects;
+          }
+
+          // Default or match subject for HOMEWORK / ASSIGNMENT
+          if (_subjectController.text.trim().isNotEmpty) {
+            final match = _currentClassSubjects.firstWhere(
+              (s) => s['name']?.toString().toLowerCase() == _subjectController.text.trim().toLowerCase(),
+              orElse: () => _allSubjects.firstWhere(
+                (s) => s['name']?.toString().toLowerCase() == _subjectController.text.trim().toLowerCase(),
+                orElse: () => {},
+              ),
+            );
+            if (match.isNotEmpty) {
+              _selectedSubjectId = match['id']?.toString();
+              _subjectController.text = match['name']?.toString() ?? _subjectController.text;
+            }
+          } else if (_currentClassSubjects.isNotEmpty && (_workType == 'HOMEWORK' || _workType == 'ASSIGNMENT')) {
+            _selectedSubjectId = _currentClassSubjects.first['id']?.toString();
+            _subjectController.text = _currentClassSubjects.first['name']?.toString() ?? '';
+          }
+
+          _availableSprints = sprints;
+          _availableEpics = epics;
+          _availableStories = items.where((i) => i.workType.toUpperCase() == 'STORY').toList();
+
+          // Auto-default Parent Epic if creating a STORY
+          if (_workType == 'STORY') {
+            final activeEpic = ref.read(workBacklogProvider).selectedEpic;
+            if (_selectedParentId == null && activeEpic != null) {
+              final match = epics.firstWhere(
+                (e) => (activeEpic.id.isNotEmpty && e.id == activeEpic.id) ||
+                       (activeEpic.itemNumber.isNotEmpty && e.itemNumber.toUpperCase() == activeEpic.itemNumber.toUpperCase()),
+                orElse: () => activeEpic,
+              );
+              _selectedParentId = match.id.isNotEmpty ? match.id : match.itemNumber;
+            } else if (_selectedParentId != null) {
+              for (final e in epics) {
+                if (e.id == _selectedParentId || e.itemNumber.toUpperCase() == _selectedParentId!.toUpperCase()) {
+                  _selectedParentId = e.id.isNotEmpty ? e.id : e.itemNumber;
+                  break;
+                }
+              }
+            } else if (_selectedParentId == null && epics.isNotEmpty) {
+              _selectedParentId = epics.first.id.isNotEmpty ? epics.first.id : epics.first.itemNumber;
             }
           }
         });
@@ -241,14 +364,6 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
         setState(() {
           _displayedUsers = res;
           _isLoadingUsers = false;
-          // In Class/Section and Role modes, by default select all previewed users
-          if (_assignmentMode == 'CLASS_SECTION' || _assignmentMode == 'ROLE') {
-            for (final u in res) {
-              final uid = u.userId.isNotEmpty ? u.userId : u.id;
-              _selectedUserIds.add(uid);
-              _selectedUsersMap[uid] = u;
-            }
-          }
         });
       }
     } catch (_) {
@@ -297,10 +412,12 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       'description': _descController.text.trim(),
       'work_type': _workType,
       'priority': _priority,
+      'status': _status,
       'category': _category,
       'board_id': widget.boardId,
-      'sprint_id': widget.sprintId,
-      'parent_id': widget.parentId,
+      'sprint_id': _selectedSprintId,
+      'parent_id': _selectedParentId,
+      'team_name': _selectedTeamName,
       'estimated_hours': double.tryParse(_estimateController.text.trim()) ?? 0.0,
       'story_points': double.tryParse(_pointsController.text.trim()) ?? 0.0,
       'start_date': _startDate?.toIso8601String().substring(0, 10),
@@ -312,27 +429,39 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       'class_name': _assignmentMode == 'CLASS_SECTION' ? _selectedClassName : null,
       'section_id': _assignmentMode == 'CLASS_SECTION' ? _selectedSectionId : null,
       'section_name': _assignmentMode == 'CLASS_SECTION' ? _selectedSectionName : null,
-      'is_class_wide': _assignmentMode == 'CLASS_SECTION',
+      'is_class_wide': false,
       'labels': _tagsController.text.isNotEmpty
           ? _tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
           : [],
       // Academic
+      'subject_id': _selectedSubjectId,
       'subject_name': _subjectController.text.trim().isNotEmpty ? _subjectController.text.trim() : null,
       'max_marks': double.tryParse(_maxMarksController.text.trim()),
     };
 
-    final result = await api.createWorkItem(payload);
+    final bool isEdit = widget.existingItem != null;
+    final Map<String, dynamic> result;
+    if (isEdit) {
+      final success = await api.updateItem(widget.existingItem!.id, payload);
+      result = {'success': success, 'item_number': widget.existingItem!.itemNumber};
+    } else {
+      result = await api.createWorkItem(payload);
+    }
+
     if (result.isNotEmpty && result['success'] == true) {
-      ref.read(workBoardProvider.notifier).loadBoard();
-      ref.read(workListProvider.notifier).loadPagedItems();
-      ref.read(workBacklogProvider.notifier).loadBacklog();
-      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard();
+      ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
       if (mounted) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Created ${result['item_number'] ?? 'Work Item'} successfully assigned to ${_selectedUserIds.length} member(s)!',
+              isEdit
+                  ? 'Updated ${widget.existingItem!.itemNumber} successfully!'
+                  : 'Created ${result['item_number'] ?? 'Work Item'} successfully assigned to ${_selectedUserIds.length} member(s)!',
             ),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
@@ -460,7 +589,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                           // Right Column: Smart Assignment Engine (46%)
                           Expanded(
                             flex: 46,
-                            child: Padding(
+                            child: SingleChildScrollView(
                               padding: const EdgeInsets.all(22),
                               child: _buildAssignmentEngineColumn(isDark),
                             ),
@@ -589,9 +718,26 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
               child: InkWell(
                 onTap: () => setState(() {
                   _workType = type;
+                  if (type == 'STORY' && _selectedParentId == null) {
+                    final activeEpic = ref.read(workBacklogProvider).selectedEpic;
+                    if (activeEpic != null) {
+                      final match = _availableEpics.firstWhere(
+                        (e) => (activeEpic.id.isNotEmpty && e.id == activeEpic.id) ||
+                               (activeEpic.itemNumber.isNotEmpty && e.itemNumber.toUpperCase() == activeEpic.itemNumber.toUpperCase()),
+                        orElse: () => activeEpic,
+                      );
+                      _selectedParentId = match.id.isNotEmpty ? match.id : match.itemNumber;
+                    } else if (_availableEpics.isNotEmpty) {
+                      _selectedParentId = _availableEpics.first.id.isNotEmpty ? _availableEpics.first.id : _availableEpics.first.itemNumber;
+                    }
+                  }
                   if (type == 'HOMEWORK' || type == 'ASSIGNMENT') {
                     _category = 'Academic';
                     _assignmentMode = 'CLASS_SECTION';
+                    if (_subjectController.text.trim().isEmpty && _currentClassSubjects.isNotEmpty) {
+                      _selectedSubjectId = _currentClassSubjects.first['id']?.toString();
+                      _subjectController.text = _currentClassSubjects.first['name']?.toString() ?? '';
+                    }
                     _refreshPreview();
                   }
                 }),
@@ -680,13 +826,23 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
         ),
         const SizedBox(height: 18),
 
-        // Priority & Category Row
+        // Status & Priority Row
         Row(
           children: [
             Expanded(
-              child: _buildPriorityDropdown(isDark),
+              child: _buildStatusDropdown(isDark),
             ),
             const SizedBox(width: 14),
+            Expanded(
+              child: _buildPriorityDropdown(isDark),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Category & Target Team Row
+        Row(
+          children: [
             Expanded(
               child: _buildDropdown(
                 label: 'Category',
@@ -695,6 +851,10 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                 onChanged: (v) => setState(() => _category = v!),
                 isDark: isDark,
               ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildTeamDropdown(isDark),
             ),
           ],
         ),
@@ -762,6 +922,21 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
         ),
         const SizedBox(height: 16),
 
+        // Target Sprint & Parent Work Item Row
+        Row(
+          children: [
+            Expanded(
+              child: _buildSprintDropdown(isDark),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildParentDropdown(isDark),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+
         // Academic Extra Fields
         if (isAcademic) ...[
           Container(
@@ -797,11 +972,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                         children: [
                           _buildLabel('Subject', isDark),
                           const SizedBox(height: 4),
-                          TextFormField(
-                            controller: _subjectController,
-                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
-                            decoration: _inputDecoration('e.g. Mathematics', isDark),
-                          ),
+                          _buildSubjectDropdown(isDark),
                         ],
                       ),
                     ),
@@ -878,7 +1049,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           children: [
             Expanded(
               child: Text(
-                '${_assignmentMode == 'CLASS_SECTION' ? 'Student Roster' : (_assignmentMode == 'ROLE' ? 'Role Members' : 'Assignable Users')} (${_displayedUsers.length})',
+                '${_assignmentMode == 'CLASS_SECTION' ? (_targetClassRole.toLowerCase() == 'teacher' ? 'Teacher Roster' : 'Student Roster') : (_assignmentMode == 'ROLE' ? 'Role Members' : 'Assignable Users')} (${_displayedUsers.length})',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -900,130 +1071,140 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           ],
         ),
 
-        // User Selection List
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF13182C).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
-            ),
-            child: _isLoadingUsers
-                ? const Center(child: CircularProgressIndicator())
-                : _displayedUsers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search_off_rounded, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No matching users found',
-                              style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _displayedUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = _displayedUsers[index];
-                          final uid = user.userId.isNotEmpty ? user.userId : user.id;
-                          final isSelected = _selectedUserIds.contains(uid);
-                          final roleColor = _getRoleColor(user.role);
+        // User Selection List Box (Sized to show up to 5 users without scroll)
+        Container(
+          height: 270,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF13182C).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _isLoadingUsers
+              ? const Center(child: CircularProgressIndicator())
+              : _displayedUsers.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off_rounded, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _assignmentMode == 'CLASS_SECTION'
+                                ? (_targetClassRole.toLowerCase() == 'teacher'
+                                    ? 'No teachers assigned to this class / section'
+                                    : 'No students enrolled in this class / section')
+                                : 'No matching users found',
+                            style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      primary: false,
+                      shrinkWrap: true,
+                      itemCount: _displayedUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = _displayedUsers[index];
+                        final uid = user.userId.isNotEmpty ? user.userId : user.id;
+                        final isSelected = _selectedUserIds.contains(uid);
+                        final roleColor = _getRoleColor(user.role);
 
-                          return InkWell(
-                            onTap: () => _toggleUserSelection(user),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.15) : const Color(0xFFEFF6FF))
-                                    : Colors.transparent,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: isDark ? const Color(0xFF1F293D).withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
-                                  ),
+                        return InkWell(
+                          onTap: () => _toggleUserSelection(user),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (isDark ? const Color(0xFF2563EB).withValues(alpha: 0.15) : const Color(0xFFEFF6FF))
+                                  : Colors.transparent,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isDark ? const Color(0xFF1F293D).withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Checkbox(
-                                    value: isSelected,
-                                    onChanged: (_) => _toggleUserSelection(user),
-                                    activeColor: const Color(0xFF2563EB),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                  ),
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: roleColor.withValues(alpha: 0.2),
-                                    backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                                    child: user.avatarUrl == null
-                                        ? Text(
-                                            user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: roleColor),
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          user.fullName,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Row(
-                                          children: [
-                                            if (user.email != null)
-                                              Expanded(
-                                                child: Text(
-                                                  user.email!,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            if (user.className != null)
-                                              Text(
-                                                'Class: ${user.className}',
-                                                style: const TextStyle(fontSize: 10, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: roleColor.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: roleColor.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Text(
-                                      user.role.toUpperCase(),
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: roleColor),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
-                          );
-                        },
-                      ),
-          ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (_) => _toggleUserSelection(user),
+                                  activeColor: const Color(0xFF2563EB),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                ),
+                                const SizedBox(width: 4),
+                                CircleAvatar(
+                                  radius: 15,
+                                  backgroundColor: roleColor.withValues(alpha: 0.2),
+                                  backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                                  child: user.avatarUrl == null
+                                      ? Text(
+                                          user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: roleColor),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user.fullName,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (user.email != null)
+                                            Expanded(
+                                              child: Text(
+                                                user.email!,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          if (user.className != null)
+                                            Text(
+                                              'Class: ${user.className}',
+                                              style: const TextStyle(fontSize: 10, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: roleColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    user.role.toUpperCase(),
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: roleColor),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
         ),
 
         // Selected Chips Summary
@@ -1080,7 +1261,13 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     return Expanded(
       child: InkWell(
         onTap: () {
-          setState(() => _assignmentMode = mode);
+          setState(() {
+            _assignmentMode = mode;
+            if (widget.existingItem == null) {
+              _selectedUserIds.clear();
+              _selectedUsersMap.clear();
+            }
+          });
           _refreshPreview();
         },
         borderRadius: BorderRadius.circular(8),
@@ -1195,7 +1382,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           ),
           const SizedBox(height: 4),
           Text(
-            'Assign this work item to all institutional members holding the selected role.',
+            'Select institutional members holding the target role and department from the roster below.',
             style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           ),
           const SizedBox(height: 10),
@@ -1269,7 +1456,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           ),
           const SizedBox(height: 4),
           Text(
-            'All enrolled students in the selected class and section will automatically receive this work.',
+            'Select enrolled students in the selected class and section from the roster below.',
             style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           ),
           const SizedBox(height: 10),
@@ -1298,7 +1485,11 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                   value: _targetClassRole,
                   items: ['student', 'teacher'],
                   onChanged: (v) {
-                    setState(() => _targetClassRole = v!);
+                    setState(() {
+                      _targetClassRole = v!;
+                      _selectedUserIds.clear();
+                      _selectedUsersMap.clear();
+                    });
                     _refreshPreview();
                   },
                   isDark: isDark,
@@ -1352,6 +1543,24 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                     _selectedSectionId = null;
                     _selectedSectionName = null;
                   }
+
+                  // Dynamically update subjects for this selected class
+                  if (_classSubjectsMap.containsKey(cls.id) && _classSubjectsMap[cls.id]!.isNotEmpty) {
+                    _currentClassSubjects = _classSubjectsMap[cls.id]!;
+                  } else {
+                    _currentClassSubjects = _allSubjects;
+                  }
+                  if (_currentClassSubjects.isNotEmpty) {
+                    _selectedSubjectId = _currentClassSubjects.first['id']?.toString();
+                    _subjectController.text = _currentClassSubjects.first['name']?.toString() ?? '';
+                  } else {
+                    _selectedSubjectId = null;
+                    _subjectController.clear();
+                  }
+
+                  // Clear assignees so students/teachers from previous class aren't left selected
+                  _selectedUserIds.clear();
+                  _selectedUsersMap.clear();
                 });
                 _refreshPreview();
               },
@@ -1398,6 +1607,8 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                 setState(() {
                   _selectedSectionId = sec.id;
                   _selectedSectionName = sec.name;
+                  _selectedUserIds.clear();
+                  _selectedUsersMap.clear();
                 });
                 _refreshPreview();
               },
@@ -1540,6 +1751,66 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     );
   }
 
+  Widget _buildStatusDropdown(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Status', isDark),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _statuses.contains(_status) ? _status : 'NEW',
+              isExpanded: true,
+              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              items: _statuses.map((s) {
+                Color sColor;
+                switch (s) {
+                  case 'NEW':
+                    sColor = const Color(0xFF3B82F6);
+                    break;
+                  case 'ACTIVE':
+                    sColor = const Color(0xFFF59E0B);
+                    break;
+                  case 'RESOLVED':
+                    sColor = const Color(0xFF10B981);
+                    break;
+                  case 'COMPLETED':
+                    sColor = const Color(0xFF8B5CF6);
+                    break;
+                  case 'BLOCKED':
+                    sColor = const Color(0xFFEF4444);
+                    break;
+                  case 'CLOSED':
+                    sColor = const Color(0xFF64748B);
+                    break;
+                  default:
+                    sColor = const Color(0xFF3B82F6);
+                }
+                return DropdownMenuItem<String>(
+                  value: s,
+                  child: Row(
+                    children: [
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: sColor, shape: BoxShape.circle)),
+                      const SizedBox(width: 8),
+                      Text(s, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sColor)),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) => setState(() => _status = v!),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPriorityDropdown(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1624,6 +1895,260 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                 );
               }).toList(),
               onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSprintDropdown(bool isDark) {
+    final providerSprints = ref.watch(allSprintsProvider).sprints;
+    final effectiveSprints = providerSprints.isNotEmpty ? providerSprints : _availableSprints;
+    final sprintOptions = [
+      {'id': null, 'label': 'Product Backlog (Unassigned)'},
+      ...effectiveSprints.map((s) => {'id': s.id, 'label': s.displayLabel}),
+    ];
+    final hasMatch = sprintOptions.any((opt) => opt['id'] == _selectedSprintId);
+    final effectiveValue = hasMatch ? _selectedSprintId : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Target Sprint', isDark),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: effectiveValue,
+              isExpanded: true,
+              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              items: sprintOptions.map((opt) {
+                return DropdownMenuItem<String?>(
+                  value: opt['id'],
+                  child: Text(
+                    opt['label']!,
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedSprintId = v),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParentDropdown(bool isDark) {
+    final showEpicOptions = _workType == 'STORY';
+    final List<Map<String, String?>> parentOptions = [
+      {'id': null, 'itemNumber': null, 'label': 'None (Top Level)'},
+      if (showEpicOptions)
+        ..._availableEpics.map((e) => {
+              'id': e.id.isNotEmpty ? e.id : e.itemNumber,
+              'itemNumber': e.itemNumber,
+              'label': '${e.itemNumber}: ${e.title}'
+            })
+      else
+        ..._availableStories.map((s) => {
+              'id': s.id.isNotEmpty ? s.id : s.itemNumber,
+              'itemNumber': s.itemNumber,
+              'label': '${s.itemNumber}: ${s.title}'
+            }),
+    ];
+
+    String? effectiveValue;
+    if (_selectedParentId != null) {
+      for (final opt in parentOptions) {
+        if (opt['id'] == _selectedParentId ||
+            (opt['itemNumber'] != null && opt['itemNumber']!.toUpperCase() == _selectedParentId!.toUpperCase())) {
+          effectiveValue = opt['id'];
+          break;
+        }
+      }
+    }
+
+    if (effectiveValue == null && showEpicOptions && _availableEpics.isNotEmpty) {
+      final activeEpic = ref.read(workBacklogProvider).selectedEpic;
+      if (activeEpic != null) {
+        for (final opt in parentOptions) {
+          if (opt['id'] == activeEpic.id ||
+              (opt['itemNumber'] != null && opt['itemNumber']!.toUpperCase() == activeEpic.itemNumber.toUpperCase())) {
+            effectiveValue = opt['id'];
+            break;
+          }
+        }
+      }
+      effectiveValue ??= parentOptions.length > 1 ? parentOptions[1]['id'] : null;
+      _selectedParentId = effectiveValue;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(showEpicOptions ? 'Parent Epic' : 'Parent Story / Work Item', isDark),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: effectiveValue,
+              isExpanded: true,
+              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              items: parentOptions.map((opt) {
+                return DropdownMenuItem<String?>(
+                  value: opt['id'],
+                  child: Text(
+                    opt['label'] ?? '',
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedParentId = v),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubjectDropdown(bool isDark) {
+    final availableSubjects = _currentClassSubjects.isNotEmpty ? _currentClassSubjects : _allSubjects;
+
+    final hasMatch = availableSubjects.any((s) => s['name']?.toString().toLowerCase() == _subjectController.text.trim().toLowerCase());
+    final effectiveValue = hasMatch
+        ? availableSubjects.firstWhere((s) => s['name']?.toString().toLowerCase() == _subjectController.text.trim().toLowerCase())['name']?.toString()
+        : (availableSubjects.isNotEmpty ? availableSubjects.first['name']?.toString() : null);
+
+    if (effectiveValue != null && _subjectController.text.trim() != effectiveValue) {
+      _subjectController.text = effectiveValue;
+      final match = availableSubjects.firstWhere((s) => s['name']?.toString() == effectiveValue, orElse: () => {});
+      _selectedSubjectId = match['id']?.toString();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF13182C) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: effectiveValue,
+          isExpanded: true,
+          dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+          icon: const Icon(Icons.arrow_drop_down_rounded),
+          hint: Text('Select Subject', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          items: availableSubjects.map((s) {
+            final name = s['name']?.toString() ?? '';
+            final code = s['code']?.toString() ?? '';
+            return DropdownMenuItem<String>(
+              value: name,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (code.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        code,
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (v) {
+            if (v != null) {
+              setState(() {
+                _subjectController.text = v;
+                final match = availableSubjects.firstWhere((s) => s['name']?.toString() == v, orElse: () => {});
+                _selectedSubjectId = match['id']?.toString();
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamDropdown(bool isDark) {
+    final teamNames = <String>{
+      ...WorkFilterHelper.defaultTeams.where((t) => t != 'All'),
+      if (_selectedTeamName != null && _selectedTeamName!.isNotEmpty && _selectedTeamName != 'Unassigned')
+        _selectedTeamName!,
+      if (widget.existingItem?.teamName != null && widget.existingItem!.teamName!.isNotEmpty && widget.existingItem!.teamName != 'Unassigned')
+        widget.existingItem!.teamName!,
+    }.toList();
+
+    final teamOptions = [
+      {'name': null, 'label': 'No Team (Unassigned)'},
+      ...teamNames.map((t) => {'name': t, 'label': t}),
+    ];
+    final hasMatch = teamOptions.any((opt) => opt['name'] == _selectedTeamName);
+    final effectiveValue = hasMatch ? _selectedTeamName : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Target Team', isDark),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: effectiveValue,
+              isExpanded: true,
+              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              items: teamOptions.map((opt) {
+                return DropdownMenuItem<String?>(
+                  value: opt['name'],
+                  child: Row(
+                    children: [
+                      if (opt['name'] != null) ...[
+                        const Icon(Icons.groups_rounded, size: 15, color: Color(0xFF6366F1)),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          opt['label']!,
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedTeamName = v),
             ),
           ),
         ),

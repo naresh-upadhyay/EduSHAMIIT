@@ -21,54 +21,91 @@ class StaffSalaryManagementScreen extends ConsumerWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
+          final screenHeight = constraints.maxHeight;
           final isDesktop = screenWidth >= 1180;
           final isTablet = screenWidth >= 700 && screenWidth < 1180;
+          final canUseExpanded = isDesktop && screenHeight >= 680;
 
+          // 1. Enterprise Desktop Layout (Pinned Bars + Stretched Work Area - Zero Scroll Contention)
+          if (canUseExpanded) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const StaffSalaryHeaderBar(),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: StaffSalaryKPICards(),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: StaffSalaryFilterBar(),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Expanded(
+                          child: StaffSalaryTable(),
+                        ),
+                        if (state.subTab < 4 && (isDrawerOpen || state.isRightSummaryVisible)) ...[
+                          const SizedBox(width: 14),
+                          SizedBox(
+                            width: 350,
+                            child: isDrawerOpen
+                                ? const StaffSalaryDrawer()
+                                : const StaffSalaryRightSummary(),
+                          ),
+                        ] else if (state.subTab < 4) ...[
+                          const SizedBox(width: 8),
+                          _buildSummaryToggle(context, notifier),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // 2. Responsive Scrollable Layout for Tablets, Mobile & Compact Heights
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Header Bar with Title, Subtitle, and Month Dropdown
               const StaffSalaryHeaderBar(),
-
-              // 2. Body
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () => notifier.loadAllData(),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Top 4 KPI Cards
                         const StaffSalaryKPICards(),
-                        const SizedBox(height: 16),
-
-                        // Sub-Tabs & Filter Bar
+                        const SizedBox(height: 14),
                         const StaffSalaryFilterBar(),
-                        const SizedBox(height: 16),
-
-                        // Main Data Table + Right Column (Summary Donut or 360 Drawer)
-                        if (state.subTab >= 4)
-                          const SizedBox(
-                            height: 800,
-                            child: StaffSalaryTable(),
-                          )
-                        else if (isDesktop)
+                        const SizedBox(height: 14),
+                        if (isDesktop)
                           SizedBox(
-                            height: 800,
+                            height: 720,
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Expanded(
-                                  child: StaffSalaryTable(),
-                                ),
-                                const SizedBox(width: 14),
-                                SizedBox(
-                                  width: 360,
-                                  child: isDrawerOpen
-                                      ? const StaffSalaryDrawer()
-                                      : const StaffSalaryRightSummary(),
-                                ),
+                                const Expanded(child: StaffSalaryTable()),
+                                if (state.subTab < 4 && (isDrawerOpen || state.isRightSummaryVisible)) ...[
+                                  const SizedBox(width: 14),
+                                  SizedBox(
+                                    width: 340,
+                                    child: isDrawerOpen ? const StaffSalaryDrawer() : const StaffSalaryRightSummary(),
+                                  ),
+                                ] else if (state.subTab < 4) ...[
+                                  const SizedBox(width: 8),
+                                  _buildSummaryToggle(context, notifier),
+                                ],
                               ],
                             ),
                           )
@@ -76,11 +113,11 @@ class StaffSalaryManagementScreen extends ConsumerWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const SizedBox(height: 560, child: StaffSalaryTable()),
+                              const SizedBox(height: 580, child: StaffSalaryTable()),
                               const SizedBox(height: 16),
                               if (isDrawerOpen)
                                 const SizedBox(height: 650, child: StaffSalaryDrawer())
-                              else
+                              else if (state.isRightSummaryVisible)
                                 const StaffSalaryRightSummary(),
                             ],
                           )
@@ -88,11 +125,11 @@ class StaffSalaryManagementScreen extends ConsumerWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const SizedBox(height: 480, child: StaffSalaryTable()),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 520, child: StaffSalaryTable()),
+                              const SizedBox(height: 14),
                               if (isDrawerOpen)
-                                const SizedBox(height: 650, child: StaffSalaryDrawer())
-                              else
+                                const SizedBox(height: 620, child: StaffSalaryDrawer())
+                              else if (state.isRightSummaryVisible)
                                 const StaffSalaryRightSummary(),
                             ],
                           ),
@@ -104,6 +141,24 @@ class StaffSalaryManagementScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSummaryToggle(BuildContext context, StaffSalaryNotifier notifier) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.analytics_outlined, size: 20),
+        tooltip: 'Show Summary Analytics Panel',
+        onPressed: () => notifier.toggleRightSummary(),
       ),
     );
   }

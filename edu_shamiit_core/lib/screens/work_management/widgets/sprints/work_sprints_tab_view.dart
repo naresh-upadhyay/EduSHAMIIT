@@ -4,10 +4,12 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../utils/work_sprint_date_helper.dart';
+import '../../utils/work_filter_helper.dart';
 import 'sprint_task_board_view.dart';
 import 'sprint_capacity_tab_view.dart';
 import 'sprint_team_tab_view.dart';
 import 'sprint_retrospective_tab_view.dart';
+import 'all_sprints_grid_view.dart';
 import '../dialogs/edit_sprint_dialog.dart';
 import '../dialogs/complete_sprint_dialog.dart';
 import '../dialogs/add_backlog_items_to_sprint_dialog.dart';
@@ -17,6 +19,14 @@ class WorkSprintsTabView extends ConsumerStatefulWidget {
   final Function(WorkItemModel item) onOpenDetail;
   final VoidCallback? onOpenFilters;
   final Function(String type) onQuickAction;
+  final Function({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  })? onCreateItem;
   final VoidCallback onCreateSprint;
 
   const WorkSprintsTabView({
@@ -24,6 +34,7 @@ class WorkSprintsTabView extends ConsumerStatefulWidget {
     required this.onOpenDetail,
     this.onOpenFilters,
     required this.onQuickAction,
+    this.onCreateItem,
     required this.onCreateSprint,
   });
 
@@ -37,6 +48,35 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   String _selectedTeam = 'All Teams';
   int _activeSubTabIndex = 0;
 
+  void _handleCreateItem({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  }) {
+    final sprintState = ref.read(workSprintDashboardProvider);
+    final effectiveSprintId = sprintId ?? sprintState.sprint?.id;
+    final effectiveType = type ?? (_typeFilter != 'All' ? _typeFilter : 'TASK');
+    final effectiveStatus = status ?? (_statusFilter != 'All' ? _statusFilter : 'NEW');
+    final effectivePriority = priority ?? (_priorityFilter != 'All' ? _priorityFilter : null);
+    final effectiveCategory = category ?? (_categoryFilter != 'All' ? _categoryFilter : null);
+
+    if (widget.onCreateItem != null) {
+      widget.onCreateItem!(
+        type: effectiveType,
+        status: effectiveStatus,
+        priority: effectivePriority,
+        category: effectiveCategory,
+        sprintId: effectiveSprintId,
+        parentId: parentId,
+      );
+    } else {
+      widget.onQuickAction(effectiveType);
+    }
+  }
+
   // Selected work item IDs for bulk actions
   final Set<String> _selectedItemIds = {};
 
@@ -48,6 +88,13 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   String _priorityFilter = 'All';
   String _statusFilter = 'All';
   String _categoryFilter = 'All';
+  String _roleFilter = 'All';
+  String _departmentFilter = 'All';
+  String _classFilter = 'All';
+  String _sectionFilter = 'All';
+  String _teamFilter = 'All';
+  List<WorkAcademicClassModel> _classesList = [];
+  List<String> _teamsList = WorkFilterHelper.defaultTeams;
 
   int get _activeFiltersCount {
     int count = 0;
@@ -57,6 +104,11 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
     if (_priorityFilter != 'All') count++;
     if (_statusFilter != 'All') count++;
     if (_categoryFilter != 'All') count++;
+    if (_roleFilter != 'All') count++;
+    if (_departmentFilter != 'All') count++;
+    if (_teamFilter != 'All') count++;
+    if (_classFilter != 'All') count++;
+    if (_sectionFilter != 'All') count++;
     return count;
   }
 
@@ -69,6 +121,11 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
       _priorityFilter = 'All';
       _statusFilter = 'All';
       _categoryFilter = 'All';
+      _roleFilter = 'All';
+      _departmentFilter = 'All';
+      _teamFilter = 'All';
+      _classFilter = 'All';
+      _sectionFilter = 'All';
       _currentPage = 1;
     });
   }
@@ -81,10 +138,12 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   Future<void> _loadAssignees() async {
     try {
       final api = ref.read(workApiServiceProvider);
-      final list = await api.getAssignableUsers(limit: 60);
+      final meta = await WorkFilterHelper.loadMetadata(api);
       if (mounted) {
         setState(() {
-          _assigneesList = list;
+          _assigneesList = meta.assignees;
+          _classesList = meta.classes;
+          _teamsList = meta.teams;
         });
       }
     } catch (_) {}
@@ -145,6 +204,9 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   void initState() {
     super.initState();
     _loadAssignees();
+    Future.microtask(() {
+      ref.read(allSprintsProvider.notifier).loadSprints();
+    });
   }
 
   @override
@@ -185,6 +247,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
 
   List<WorkItemModel> _filterStories(List<WorkItemModel> rawStories) {
     final kw = _keywordFilter.trim().toLowerCase();
+    final effectiveTeamFilter = _teamFilter != 'All' ? _teamFilter : _selectedTeam;
 
     return rawStories.map((story) {
       final matchingChildren = story.children.where((child) {
@@ -210,6 +273,17 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
         } else if (_assigneeFilter != 'All') {
           final matches = child.assignees.any((a) => a.fullName.toLowerCase() == _assigneeFilter.toLowerCase());
           if (!matches) return false;
+        }
+        if (!WorkFilterHelper.matchesAdvancedFilters(
+          item: child,
+          roleFilter: _roleFilter,
+          departmentFilter: _departmentFilter,
+          classFilter: _classFilter,
+          sectionFilter: _sectionFilter,
+          teamFilter: effectiveTeamFilter,
+          boardFilter: _selectedBoard,
+        )) {
+          return false;
         }
         return true;
       }).toList();
@@ -238,9 +312,20 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
         final matches = story.assignees.any((a) => a.fullName.toLowerCase() == _assigneeFilter.toLowerCase());
         if (!matches) storyMatches = false;
       }
+      if (!WorkFilterHelper.matchesAdvancedFilters(
+        item: story,
+        roleFilter: _roleFilter,
+        departmentFilter: _departmentFilter,
+        classFilter: _classFilter,
+        sectionFilter: _sectionFilter,
+        teamFilter: effectiveTeamFilter,
+        boardFilter: _selectedBoard,
+      )) {
+        storyMatches = false;
+      }
 
       if (storyMatches) {
-        final hasChildFilters = _typeFilter != 'All' || _statusFilter != 'All' || _priorityFilter != 'All' || _assigneeFilter != 'All';
+        final hasChildFilters = _typeFilter != 'All' || _statusFilter != 'All' || _priorityFilter != 'All' || _assigneeFilter != 'All' || _categoryFilter != 'All' || _roleFilter != 'All' || _departmentFilter != 'All' || (effectiveTeamFilter != 'All' && effectiveTeamFilter != 'All Teams') || _classFilter != 'All' || _sectionFilter != 'All';
         return story.copyWith(children: hasChildFilters ? matchingChildren : story.children);
       } else if (matchingChildren.isNotEmpty) {
         _expandedStoryNumbers.add(story.itemNumber);
@@ -261,7 +346,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
     final sid = ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
     ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(
       sprintId: sid,
-      boardId: newBoard == 'Academic Board' ? 'academic' : 'default',
+      boardId: newBoard,
       team: _selectedTeam,
     );
     ref.read(workSprintRetroProvider.notifier).init(sid, teamName: _selectedTeam);
@@ -274,14 +359,30 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
       _currentPage = 1;
       _selectedItemIds.clear();
     });
-    String targetSid = 's8';
-    if (newSprint.contains('Sprint 9')) targetSid = 's9';
-    if (newSprint.contains('Sprint 7')) targetSid = 's7';
-    if (newSprint.contains('Sprint 10')) targetSid = 's10';
+
+    final allSprints = ref.read(allSprintsProvider).sprints;
+    WorkSprintModel? match;
+    for (final s in allSprints) {
+      if (s.displayLabel == newSprint || s.name == newSprint) {
+        match = s;
+        break;
+      }
+    }
+    if (match == null) {
+      for (final s in allSprints) {
+        if (newSprint.contains(s.name) || newSprint.contains('Sprint ${s.sprintNumber}')) {
+          match = s;
+          break;
+        }
+      }
+    }
+
+    final targetSid = match?.id ?? (allSprints.isNotEmpty ? allSprints.first.id : 's8');
+    ref.read(allSprintsProvider.notifier).selectSprint(targetSid);
 
     ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(
       sprintId: targetSid,
-      boardId: _selectedBoard == 'Academic Board' ? 'academic' : 'default',
+      boardId: _selectedBoard,
       team: _selectedTeam,
     );
     ref.read(workSprintRetroProvider.notifier).init(targetSid, teamName: _selectedTeam);
@@ -299,7 +400,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
     final sid = ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
     ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(
       sprintId: sid,
-      boardId: _selectedBoard == 'Academic Board' ? 'academic' : 'default',
+      boardId: _selectedBoard,
       team: teamName,
     );
     ref.read(workSprintRetroProvider.notifier).init(sid, teamName: teamName);
@@ -324,20 +425,44 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
           items: allFilteredItems,
           onOpenDetail: widget.onOpenDetail,
           onQuickAction: widget.onQuickAction,
+          onCreateItem: _handleCreateItem,
           sprintId: sprintId,
         );
       case 2:
+        return AllSprintsGridView(
+          onSelectSprint: (sprintId) {
+            final allSprints = ref.read(allSprintsProvider).sprints;
+            final match = allSprints.firstWhere(
+              (s) => s.id == sprintId,
+              orElse: () => const WorkSprintModel(id: '', name: ''),
+            );
+            _onSprintChanged(match.name.isNotEmpty ? match.displayLabel : sprintId);
+            setState(() {
+              _activeSubTabIndex = 0;
+            });
+          },
+          onOpenCreateSprint: widget.onCreateSprint,
+        );
+      case 3:
         return SprintCapacityTabView(
           sprintId: sprintId,
           selectedTeam: _selectedTeam,
           onTeamChanged: _onTeamFilterChanged,
+          onSprintChanged: (newSid) {
+            final allSprints = ref.read(allSprintsProvider).sprints;
+            final match = allSprints.firstWhere(
+              (s) => s.id == newSid || s.name == newSid,
+              orElse: () => const WorkSprintModel(id: '', name: ''),
+            );
+            _onSprintChanged(match.name.isNotEmpty ? match.displayLabel : newSid);
+          },
         );
-      case 3:
+      case 4:
         return SprintTeamTabView(
           sprintId: sprintId,
           selectedTeam: _selectedTeam,
         );
-      case 4:
+      case 5:
         return SprintRetrospectiveTabView(
           sprintId: sprintId,
           selectedTeam: _selectedTeam,
@@ -355,6 +480,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final allSprintsState = ref.watch(allSprintsProvider);
     final sprintState = ref.watch(workSprintDashboardProvider);
     final rawStories = sprintState.items.isNotEmpty
         ? sprintState.items
@@ -366,26 +492,24 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Sub-filters Bar
-          _buildFilterBar(context, isDark),
-
-          // 2. Inline Collapsible Azure DevOps Filter Bar
-          if (_isFilterBarOpen) ...[
-            _buildAzureDevOpsFilterBar(isDark),
-            const SizedBox(height: 16),
-          ] else ...[
-            const SizedBox(height: 16),
-          ],
-
-          // 3. Sprint Header Cards & KPIs (Always visible across all sprint sub-tabs)
-          _buildSprintHeaderCards(context, sprintState, filteredStories, isDark),
-          const SizedBox(height: 18),
-
-          // 4. Sub-tabs bar
+          // 1. Sub-tabs bar at top for seamless navigation across all devices
           _buildSubTabsBar(isDark),
           const SizedBox(height: 16),
 
-          // 5. Tab Content
+          // 2. Sprint Filter Bar & Header Cards (Only for single-sprint views: Sprint Backlog & Task Board)
+          if (_activeSubTabIndex <= 1) ...[
+            _buildFilterBar(context, isDark, allSprintsState, sprintState),
+            if (_isFilterBarOpen) ...[
+              _buildAzureDevOpsFilterBar(isDark),
+              const SizedBox(height: 16),
+            ] else ...[
+              const SizedBox(height: 16),
+            ],
+            _buildSprintHeaderCards(context, sprintState, filteredStories, isDark),
+            const SizedBox(height: 18),
+          ],
+
+          // 3. Tab Content
           if (_activeSubTabIndex == 0) ...[
             LayoutBuilder(
               builder: (context, constraints) {
@@ -427,24 +551,53 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
     );
   }
 
-  Widget _buildFilterBar(BuildContext context, bool isDark) {
+  Widget _buildFilterBar(
+    BuildContext context,
+    bool isDark,
+    WorkAllSprintsState allSprintsState,
+    WorkSprintDashboardState sprintState,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 950;
+        final List<String> sprintOptions = allSprintsState.sprints.isNotEmpty
+            ? allSprintsState.sprints.map((s) => s.displayLabel).toList()
+            : [
+                'Sprint 8 (Active)',
+                'Sprint 9 (Planned)',
+                'Sprint 10 11 (Active)',
+              ];
+
+        // Ensure the dropdown value is ALWAYS bound to the sprint currently loaded in sprintState.sprint
+        final currentSprint = sprintState.sprint ?? allSprintsState.activeSprint;
+        final currentSprintLabel = currentSprint?.displayLabel;
+
+        if (currentSprintLabel != null && currentSprintLabel.isNotEmpty && !sprintOptions.contains(currentSprintLabel)) {
+          sprintOptions.insert(0, currentSprintLabel);
+        }
+
+        final effectiveSprintValue = (currentSprintLabel != null && sprintOptions.contains(currentSprintLabel))
+            ? currentSprintLabel
+            : (sprintOptions.contains(_selectedSprint)
+                ? _selectedSprint
+                : (allSprintsState.activeSprint?.displayLabel ?? (sprintOptions.isNotEmpty ? sprintOptions.first : '')));
+
+        if (_selectedSprint != effectiveSprintValue) {
+          _selectedSprint = effectiveSprintValue;
+        }
+
         final leftSelectors = Wrap(
           spacing: 12,
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _buildSelector('Board', _selectedBoard, ['Institute Work Board', 'Academic Board'], (v) {
+            _buildSelector('Board', _selectedBoard, WorkFilterHelper.boardOptions, (v) {
               _onBoardChanged(v);
             }, isDark),
-            _buildSelector('Sprint', _selectedSprint, [
-              'Current Sprint (Sprint 8)',
-              'Sprint 9 (Planned)',
-              'Sprint 7 (Closed)',
-            ], (v) {
-              _onSprintChanged(v);
+            _buildSelector('Sprint', effectiveSprintValue, sprintOptions, (v) {
+              if (v != null && v != effectiveSprintValue) {
+                _onSprintChanged(v);
+              }
             }, isDark),
             _buildSearchableTeamSelector(context, isDark),
           ],
@@ -633,10 +786,90 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
               // 4. Assigned To
               _buildAssigneeFilterDropdown(isDark),
 
-              // 5. Priority
+              // 5. Role Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Role',
+                value: _roleFilter,
+                items: WorkFilterHelper.roleOptions,
+                onChanged: (v) {
+                  setState(() {
+                    _roleFilter = v ?? 'All';
+                    if (_roleFilter.toLowerCase() != 'student') {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                    }
+                    _currentPage = 1;
+                  });
+                },
+                isDark: isDark,
+                prefixIcon: Icons.badge_outlined,
+              ),
+
+              // 6. Department Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Department',
+                value: _departmentFilter,
+                items: WorkFilterHelper.defaultDepartments,
+                onChanged: (v) => setState(() {
+                  _departmentFilter = v ?? 'All';
+                  _currentPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.apartment_rounded,
+              ),
+
+              // 7. Team Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Team',
+                value: _teamFilter,
+                items: _teamsList,
+                onChanged: (v) => setState(() {
+                  _teamFilter = v ?? 'All';
+                  _currentPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.groups_rounded,
+                accentColor: const Color(0xFF6366F1),
+              ),
+
+              // 8. Cascaded Class Filter (Visible when Role is Student)
+              if (_roleFilter.toLowerCase() == 'student') ...[
+                WorkFilterHelper.buildFilterDropdown(
+                  label: 'Class',
+                  value: _classFilter,
+                  items: ['All', ..._classesList.map((c) => c.name)],
+                  onChanged: (v) {
+                    setState(() {
+                      _classFilter = v ?? 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  },
+                  isDark: isDark,
+                  prefixIcon: Icons.school_outlined,
+                  accentColor: const Color(0xFF2563EB),
+                ),
+
+                // 8. Cascaded Section Filter (Visible when Class is chosen)
+                if (_classFilter != 'All')
+                  WorkFilterHelper.buildFilterDropdown(
+                    label: 'Section',
+                    value: _sectionFilter,
+                    items: WorkFilterHelper.getSectionsForClass(_classesList, _classFilter),
+                    onChanged: (v) => setState(() {
+                      _sectionFilter = v ?? 'All';
+                      _currentPage = 1;
+                    }),
+                    isDark: isDark,
+                    prefixIcon: Icons.groups_outlined,
+                    accentColor: const Color(0xFF10B981),
+                  ),
+              ],
+
+              // 9. Priority
               _buildPriorityFilterDropdown(isDark),
 
-              // 6. Area
+              // 10. Area
               _buildDevOpsFilterDropdown(
                 label: 'Area',
                 value: _categoryFilter,
@@ -711,6 +944,44 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                   _buildActiveFilterChip('Priority: $_priorityFilter', () => setState(() => _priorityFilter = 'All'), isDark),
                 if (_assigneeFilter != 'All')
                   _buildActiveFilterChip('Assigned: $_assigneeFilter', () => setState(() => _assigneeFilter = 'All'), isDark),
+                if (_roleFilter != 'All')
+                  _buildActiveFilterChip('Role: $_roleFilter', () {
+                    setState(() {
+                      _roleFilter = 'All';
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_departmentFilter != 'All')
+                  _buildActiveFilterChip('Dept: $_departmentFilter', () {
+                    setState(() {
+                      _departmentFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_teamFilter != 'All')
+                  _buildActiveFilterChip('Team: $_teamFilter', () {
+                    setState(() {
+                      _teamFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_classFilter != 'All')
+                  _buildActiveFilterChip('Class: $_classFilter', () {
+                    setState(() {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_sectionFilter != 'All')
+                  _buildActiveFilterChip('Section: $_sectionFilter', () {
+                    setState(() {
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
                 if (_categoryFilter != 'All')
                   _buildActiveFilterChip('Area: $_categoryFilter', () => setState(() => _categoryFilter = 'All'), isDark),
               ],
@@ -1704,6 +1975,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
     final subTabs = [
       'Sprint Backlog',
       'Boards (Task Board)',
+      'All Sprints (Grid)',
       'Capacity',
       'Team',
       'Retrospective',
@@ -1717,35 +1989,38 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
           ),
         ),
       ),
-      child: Row(
-        children: subTabs.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final label = entry.value;
-          final isActive = idx == _activeSubTabIndex;
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: subTabs.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final label = entry.value;
+            final isActive = idx == _activeSubTabIndex;
 
-          return InkWell(
-            onTap: () => setState(() => _activeSubTabIndex = idx),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-                    width: 2.5,
+            return InkWell(
+              onTap: () => setState(() => _activeSubTabIndex = idx),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   ),
                 ),
               ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -1829,17 +2104,33 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                     // Add Work Item Popup Menu
                     PopupMenuButton<String>(
                       tooltip: 'Add Work Item',
-                      onSelected: (val) {
+                      onSelected: (val) async {
                         if (val == 'BACKLOG') {
                           final sprint = sprintState.sprint;
                           if (sprint != null) {
-                            showDialog(
+                            final messenger = ScaffoldMessenger.of(context);
+                            final res = await showDialog<bool>(
                               context: context,
                               builder: (_) => AddBacklogItemsToSprintDialog(sprintId: sprint.id),
                             );
+                            if (!mounted) return;
+                            if (res == true) {
+                              setState(() => _selectedItemIds.clear());
+                              ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                              ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                              ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                              ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                              ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Backlog items added to sprint successfully.'),
+                                  backgroundColor: Color(0xFF10B981),
+                                ),
+                              );
+                            }
                           }
                         } else {
-                          widget.onQuickAction(val);
+                          _handleCreateItem(type: val, sprintId: sprintState.sprint?.id);
                         }
                       },
                       itemBuilder: (ctx) => [
@@ -1939,7 +2230,7 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
 
                     // Move to Another Sprint Button
                     OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         final sprint = sprintState.sprint;
                         if (sprint == null) return;
                         final idsToMove = _selectedItemIds.isNotEmpty
@@ -1953,13 +2244,29 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                           return;
                         }
 
-                        showDialog(
+                        final messenger = ScaffoldMessenger.of(context);
+                        final res = await showDialog<bool>(
                           context: context,
                           builder: (_) => MoveSprintItemsDialog(
                             currentSprintId: sprint.id,
                             itemIds: idsToMove,
                           ),
                         );
+                        if (!mounted) return;
+                        if (res == true) {
+                          setState(() => _selectedItemIds.clear());
+                          ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                          ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Work items moved successfully.'),
+                              backgroundColor: Color(0xFF10B981),
+                            ),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.drive_file_move_outlined, size: 14, color: Color(0xFF64748B)),
                       label: Text('Move to Another Sprint', style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : const Color(0xFF475569))),
@@ -1984,23 +2291,60 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                         if (sprint == null) return;
 
                         if (action == 'MOVE') {
-                          showDialog(
+                          final messenger = ScaffoldMessenger.of(context);
+                          final res = await showDialog<bool>(
                             context: context,
                             builder: (_) => MoveSprintItemsDialog(
                               currentSprintId: sprint.id,
                               itemIds: _selectedItemIds.toList(),
                             ),
                           );
+                          if (!mounted) return;
+                          if (res == true) {
+                            setState(() => _selectedItemIds.clear());
+                            ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                            ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                            ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                            ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                            ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Work items moved successfully.'),
+                                backgroundColor: Color(0xFF10B981),
+                              ),
+                            );
+                          }
                         } else if (action == 'REMOVE') {
-                          for (final id in _selectedItemIds) {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ids = _selectedItemIds.toList();
+                          setState(() => _selectedItemIds.clear());
+                          for (final id in ids) {
                             await ref.read(workSprintDashboardProvider.notifier).removeItemFromSprint(sprint.id, id);
                           }
-                          setState(() => _selectedItemIds.clear());
+                          ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                          ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Work items removed from sprint.'),
+                                backgroundColor: Color(0xFF10B981),
+                              ),
+                            );
+                          }
                         } else if (action == 'COMPLETE') {
                           final api = ref.read(workApiServiceProvider);
                           await api.bulkUpdateWorkItems(itemIds: _selectedItemIds.toList(), status: 'COMPLETED');
-                          ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id);
+                          await ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                          ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
                           setState(() => _selectedItemIds.clear());
+                        } else if (action == 'TAG_TEAM') {
+                          _openBulkTagTeamDialog(_selectedItemIds.toList());
                         } else if (action == 'DELETE') {
                           _confirmBulkDeleteSelected(context);
                         }
@@ -2013,6 +2357,16 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                               Icon(Icons.drive_file_move_outlined, size: 16, color: Color(0xFF2563EB)),
                               SizedBox(width: 8),
                               Text('Move to Another Sprint', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'TAG_TEAM',
+                          child: Row(
+                            children: [
+                              Icon(Icons.groups_rounded, size: 16, color: Color(0xFF6366F1)),
+                              SizedBox(width: 8),
+                              Text('Tag to Team', style: TextStyle(fontSize: 12.5)),
                             ],
                           ),
                         ),
@@ -2117,10 +2471,25 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                   const SizedBox(height: 8),
                   const Text('No sprint items match the current filters.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                   const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: _clearAllFilters,
-                    icon: const Icon(Icons.refresh_rounded, size: 14),
-                    label: const Text('Clear Filters', style: TextStyle(fontSize: 11.5)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _clearAllFilters,
+                        icon: const Icon(Icons.refresh_rounded, size: 14),
+                        label: const Text('Clear Filters', style: TextStyle(fontSize: 11.5)),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _handleCreateItem(sprintId: sprintState.sprint?.id),
+                        icon: const Icon(Icons.add, size: 14),
+                        label: const Text('Add Work Item', style: TextStyle(fontSize: 11.5)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2656,16 +3025,32 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
           ),
           // 1. Move to Sprint
           ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               final sprint = ref.read(workSprintDashboardProvider).sprint;
               if (sprint == null) return;
-              showDialog(
+              final messenger = ScaffoldMessenger.of(context);
+              final res = await showDialog<bool>(
                 context: context,
                 builder: (_) => MoveSprintItemsDialog(
                   currentSprintId: sprint.id,
                   itemIds: _selectedItemIds.toList(),
                 ),
               );
+              if (!mounted) return;
+              if (res == true) {
+                setState(() => _selectedItemIds.clear());
+                ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Work items moved successfully.'),
+                    backgroundColor: Color(0xFF10B981),
+                  ),
+                );
+              }
             },
             icon: const Icon(Icons.drive_file_move_outlined, size: 13, color: Colors.white),
             label: const Text('Move to Sprint', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
@@ -2687,7 +3072,11 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
               );
               if (success) {
                 final sid = ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
-                ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sid);
+                await ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sid, forceRefresh: true);
+                ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
                 if (mounted) {
                   setState(() => _selectedItemIds.clear());
                   messenger.showSnackBar(
@@ -2867,6 +3256,28 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openBulkTagTeamDialog(List<String> itemIds) {
+    final sprint = ref.read(workSprintDashboardProvider).sprint;
+    WorkFilterHelper.openBulkTagTeamDialog(
+      context: context,
+      itemIds: itemIds,
+      isDark: Theme.of(context).brightness == Brightness.dark,
+      onApply: ({required List<String> itemIds, String? teamName}) async {
+        final api = ref.read(workApiServiceProvider);
+        return await api.bulkUpdateWorkItems(
+          itemIds: itemIds,
+          teamName: teamName,
+        );
+      },
+      onSuccess: () {
+        if (mounted) setState(() => _selectedItemIds.clear());
+        if (sprint != null) {
+          ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id);
+        }
+      },
     );
   }
 
@@ -3072,12 +3483,19 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                     ),
                   ),
                   InkWell(
-                    onTap: () {
+                    onTap: () async {
                       if (sprint != null) {
-                        showDialog(
+                        final res = await showDialog<bool>(
                           context: context,
                           builder: (_) => EditSprintDialog(sprint: sprint),
                         );
+                        if (res == true && mounted) {
+                          await ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint.id, forceRefresh: true);
+                          ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                        }
                       }
                     },
                     child: const Row(
@@ -3143,6 +3561,10 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       await ref.read(workSprintDashboardProvider.notifier).startSprint(sprint!.id);
+                      ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                      ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                      ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                      ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
                     },
                     icon: const Icon(Icons.play_arrow_rounded, size: 14, color: Colors.white),
                     label: const Text('Start Sprint', style: TextStyle(fontSize: 11.5, color: Colors.white)),
@@ -3158,8 +3580,8 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
+                        onPressed: () async {
+                          final res = await showDialog<bool>(
                             context: context,
                             builder: (_) => CompleteSprintDialog(
                               sprintId: sprint!.id,
@@ -3168,6 +3590,13 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                               incompleteCount: (totalItems - completedItems).clamp(0, 9999),
                             ),
                           );
+                          if (res == true && mounted) {
+                            await ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprint!.id, forceRefresh: true);
+                            ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                            ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                            ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                            ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                          }
                         },
                         icon: const Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.white),
                         label: const Text('Complete Sprint', style: TextStyle(fontSize: 11.5, color: Colors.white)),
@@ -3198,6 +3627,10 @@ class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
                         );
                         if (confirm == true) {
                           await ref.read(workSprintDashboardProvider.notifier).cancelSprint(sprint!.id);
+                          ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
                         }
                       },
                       style: OutlinedButton.styleFrom(

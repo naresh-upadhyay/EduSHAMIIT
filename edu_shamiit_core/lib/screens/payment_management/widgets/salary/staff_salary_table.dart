@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../providers/staff_salary_provider.dart';
 import 'dialogs/process_staff_payout_dialog.dart';
 import 'dialogs/edit_staff_salary_structure_dialog.dart';
 import 'dialogs/request_salary_advance_dialog.dart';
 import 'dialogs/change_staff_payout_status_dialog.dart';
 import 'dialogs/staff_payslip_dialog.dart';
+import 'dialogs/settle_staff_advance_dialog.dart';
+import 'dialogs/automated_payroll_dialog.dart';
 
 class StaffSalaryTable extends ConsumerWidget {
   const StaffSalaryTable({super.key});
@@ -45,6 +48,13 @@ class StaffSalaryTable extends ConsumerWidget {
           if (state.selectedStaffIds.isNotEmpty)
             _buildMultiSelectionBar(context, state, notifier, isDark),
 
+          if (state.isLoading && staff.isNotEmpty)
+            const LinearProgressIndicator(
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
+            ),
+
           Expanded(
             child: state.isLoading && staff.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -68,16 +78,19 @@ class StaffSalaryTable extends ConsumerWidget {
                       )
                     : SingleChildScrollView(
                         scrollDirection: Axis.vertical,
+                        primary: false,
+                        physics: const ClampingScrollPhysics(),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
+                          primary: false,
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(minWidth: 920),
+                            constraints: const BoxConstraints(minWidth: 1080),
                             child: DataTable(
                               headingRowHeight: 44,
                               dataRowMinHeight: 52,
                               dataRowMaxHeight: 58,
                               horizontalMargin: 16,
-                              columnSpacing: 18,
+                              columnSpacing: 22,
                               headingRowColor: WidgetStateProperty.all(
                                 isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                               ),
@@ -89,25 +102,20 @@ class StaffSalaryTable extends ConsumerWidget {
                                   ),
                                 ),
                                 DataColumn(
-                                  label: _buildSortableHeader('STAFF MEMBER', 'name', state),
-                                  onSort: (_, __) => notifier.toggleSort('name'),
+                                  label: _buildSortableHeader('STAFF MEMBER', 'name', state, () => notifier.toggleSort('name')),
                                 ),
                                 const DataColumn(label: Text('DEPARTMENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                                 DataColumn(
-                                  label: _buildSortableHeader('GROSS SALARY', 'gross', state),
-                                  onSort: (_, __) => notifier.toggleSort('gross'),
+                                  label: _buildSortableHeader('GROSS SALARY', 'gross', state, () => notifier.toggleSort('gross')),
                                 ),
                                 DataColumn(
-                                  label: _buildSortableHeader('DEDUCTIONS', 'deductions', state),
-                                  onSort: (_, __) => notifier.toggleSort('deductions'),
+                                  label: _buildSortableHeader('DEDUCTIONS', 'deductions', state, () => notifier.toggleSort('deductions')),
                                 ),
                                 DataColumn(
-                                  label: _buildSortableHeader('NET PAY', 'net', state),
-                                  onSort: (_, __) => notifier.toggleSort('net'),
+                                  label: _buildSortableHeader('NET PAY', 'net', state, () => notifier.toggleSort('net')),
                                 ),
                                 DataColumn(
-                                  label: _buildSortableHeader('STATUS', 'status', state),
-                                  onSort: (_, __) => notifier.toggleSort('status'),
+                                  label: _buildSortableHeader('STATUS', 'status', state, () => notifier.toggleSort('status')),
                                 ),
                                 const DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                               ],
@@ -237,11 +245,21 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'employee_id': s.employeeId,
                                                       'designation': s.designation,
                                                       'department': s.department,
-                                                      'payslip_number': s.payslipNumber ?? 'PS-${state.selectedMonthStr}-${s.employeeId}',
+                                                      'role': s.role,
+                                                      'payslip_number': s.payslipNumber ?? 'PS--',
                                                       'month_str': state.selectedMonthStr,
                                                       'basic_pay': s.basicPay,
                                                       'hra': s.hra,
+                                                      'da': s.da,
+                                                      'ta': s.ta,
+                                                      'special_allowance': s.specialAllowance,
+                                                      'bonus': s.bonus,
                                                       'gross_earnings': s.grossSalary,
+                                                      'pf_deduction': s.pfDeduction,
+                                                      'tds': s.tds,
+                                                      'professional_tax': s.professionalTax,
+                                                      'advance_deduction': s.activeAdvanceDeduction,
+                                                      'other_deductions': 0.0,
                                                       'total_deductions': s.totalDeductions,
                                                       'net_pay': s.actualNetPay,
                                                       'payment_mode': s.paymentMode,
@@ -249,6 +267,9 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'payment_date': s.paymentDate,
                                                       'bank_name': s.bankName,
                                                       'account_number': s.accountNumber,
+                                                      'ifsc_code': s.ifscCode,
+                                                      'pan_number': s.panNumber,
+                                                      'status': s.status,
                                                     },
                                                   ),
                                                 );
@@ -301,11 +322,21 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'employee_id': s.employeeId,
                                                       'designation': s.designation,
                                                       'department': s.department,
-                                                      'payslip_number': s.payslipNumber ?? 'PS-${state.selectedMonthStr}-${s.employeeId}',
+                                                      'role': s.role,
+                                                      'payslip_number': s.payslipNumber ?? 'PS--',
                                                       'month_str': state.selectedMonthStr,
                                                       'basic_pay': s.basicPay,
                                                       'hra': s.hra,
+                                                      'da': s.da,
+                                                      'ta': s.ta,
+                                                      'special_allowance': s.specialAllowance,
+                                                      'bonus': s.bonus,
                                                       'gross_earnings': s.grossSalary,
+                                                      'pf_deduction': s.pfDeduction,
+                                                      'tds': s.tds,
+                                                      'professional_tax': s.professionalTax,
+                                                      'advance_deduction': s.activeAdvanceDeduction,
+                                                      'other_deductions': 0.0,
                                                       'total_deductions': s.totalDeductions,
                                                       'net_pay': s.actualNetPay,
                                                       'payment_mode': s.paymentMode,
@@ -313,6 +344,9 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'payment_date': s.paymentDate,
                                                       'bank_name': s.bankName,
                                                       'account_number': s.accountNumber,
+                                                      'ifsc_code': s.ifscCode,
+                                                      'pan_number': s.panNumber,
+                                                      'status': s.status,
                                                     },
                                                   ),
                                                 );
@@ -356,21 +390,34 @@ class StaffSalaryTable extends ConsumerWidget {
     );
   }
 
-  Widget _buildSortableHeader(String label, String columnKey, StaffSalaryState state) {
+  Widget _buildSortableHeader(String label, String columnKey, StaffSalaryState state, VoidCallback onTap) {
     final isSorted = state.sortColumn == columnKey;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-        const SizedBox(width: 4),
-        Icon(
-          isSorted
-              ? (state.sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
-              : Icons.unfold_more_rounded,
-          size: 14,
-          color: isSorted ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isSorted
+                  ? (state.sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 14,
+              color: isSorted ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -723,63 +770,289 @@ class StaffSalaryTable extends ConsumerWidget {
     );
   }
 
+  Widget _buildSortableHeaderGeneric(
+    String label,
+    String columnKey,
+    String currentSortCol,
+    bool currentSortAsc, [
+    VoidCallback? onTap,
+  ]) {
+    final isSorted = currentSortCol == columnKey;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: isSorted ? const Color(0xFF16A34A) : null,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isSorted
+                  ? (currentSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 14,
+              color: isSorted ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSalaryStructuresCatalog(BuildContext context, WidgetRef ref, StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
+    final structures = state.salaryStructures;
+    final total = state.structuresTotal;
+    final page = state.structuresPage;
+    final pageSize = state.structuresPageSize;
+    final totalPages = state.structuresTotalPages;
+    final startItem = total == 0 ? 0 : (page - 1) * pageSize + 1;
+    final endItem = total == 0 ? 0 : (startItem + structures.length - 1);
+
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Staff Salary Structures Catalog', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-              Text('${state.salaryStructures.length} Configured Structures', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            ],
+          // Top Header Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF8B5CF6), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Salary Structures Catalog', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                    Text('$total Configured Structures in Database', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  ],
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('+ Add Structure', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (c) => const EditStaffSalaryStructureDialog(),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  tooltip: 'Refresh Structures',
+                  onPressed: () => notifier.loadSalaryStructures(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const Divider(height: 1),
+          if (state.isLoading && structures.isNotEmpty)
+            const LinearProgressIndicator(
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+            ),
+
+          // Table
           Expanded(
-            child: ListView.separated(
-              itemCount: state.salaryStructures.length,
-              separatorBuilder: (_, __) => const Divider(height: 16),
-              itemBuilder: (ctx, idx) {
-                final s = state.salaryStructures[idx];
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFF8B5CF6).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.settings_suggest_rounded, color: Color(0xFF8B5CF6)),
-                  ),
-                  title: Text('${s.staffName} (${s.designation})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: Text('Basic: ₹ ${s.basicPay.toInt()} | HRA: ₹ ${s.hra.toInt()} | Bank: ${s.bankName}', style: const TextStyle(fontSize: 12)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(s.netFormatted, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF16A34A))),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF2563EB)),
-                        tooltip: 'Edit Base Pay & Allowances',
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (c) => EditStaffSalaryStructureDialog(
-                              staffId: s.staffId,
-                              staffName: s.staffName,
-                              currentBasic: s.basicPay,
-                              currentHra: s.hra,
+            child: state.isLoading && structures.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : structures.isEmpty
+                    ? Center(
+                        child: Text('No salary structures found', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 1000),
+                            child: DataTable(
+                              headingRowHeight: 44,
+                              dataRowMinHeight: 52,
+                              dataRowMaxHeight: 58,
+                              horizontalMargin: 16,
+                              columnSpacing: 18,
+                              headingRowColor: WidgetStateProperty.all(
+                                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              ),
+                              columns: [
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('STAFF MEMBER', 'name', state.structuresSortColumn, state.structuresSortAscending),
+                                  onSort: (_, __) => notifier.toggleStructuresSort('name'),
+                                ),
+                                const DataColumn(label: Text('DEPARTMENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('BASIC PAY', 'basic', state.structuresSortColumn, state.structuresSortAscending),
+                                  onSort: (_, __) => notifier.toggleStructuresSort('basic'),
+                                ),
+                                const DataColumn(label: Text('ALLOWANCES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('GROSS SALARY', 'gross', state.structuresSortColumn, state.structuresSortAscending),
+                                  onSort: (_, __) => notifier.toggleStructuresSort('gross'),
+                                ),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('DEDUCTIONS', 'deductions', state.structuresSortColumn, state.structuresSortAscending),
+                                  onSort: (_, __) => notifier.toggleStructuresSort('deductions'),
+                                ),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('NET SALARY', 'net', state.structuresSortColumn, state.structuresSortAscending),
+                                  onSort: (_, __) => notifier.toggleStructuresSort('net'),
+                                ),
+                                const DataColumn(label: Text('BANK / DISBURSAL', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                              ],
+                              rows: structures.map((s) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 16,
+                                            backgroundColor: const Color(0xFF8B5CF6),
+                                            child: Text(
+                                              s.staffName.isNotEmpty ? s.staffName[0].toUpperCase() : 'S',
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(s.staffName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                              Text('${s.designation} | ${s.employeeId}', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(s.department, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    DataCell(Text('₹ ${NumberFormat('#,##,###').format(s.basicPay.toInt())}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                                    DataCell(
+                                      Tooltip(
+                                        message: 'HRA: ₹${s.hra.toInt()} | DA: ₹${s.da.toInt()} | TA: ₹${s.ta.toInt()}',
+                                        child: Text('+ ₹ ${NumberFormat('#,##,###').format((s.hra + s.da + s.ta + s.specialAllowance + s.medicalAllowance).toInt())}', style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    DataCell(Text(s.grossFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+                                    DataCell(Text('- ₹ ${NumberFormat('#,##,###').format(s.totalDeductions.toInt())}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)))),
+                                    DataCell(Text(s.netFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)))),
+                                    DataCell(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(s.bankName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                          Text(s.accountNumber.isNotEmpty ? s.accountNumber : 'No A/C configured', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF2563EB)),
+                                        tooltip: 'Edit Base Pay & Allowances',
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (c) => EditStaffSalaryStructureDialog(
+                                              initialStructure: s,
+                                              staffId: s.staffId,
+                                              staffName: s.staffName,
+                                              currentBasic: s.basicPay,
+                                              currentHra: s.hra,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
+          ),
+          const Divider(height: 1),
+
+          // Pagination Footer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: pageSize,
+                      underline: const SizedBox(),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      items: [10, 25, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s', style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) {
+                        if (v != null) notifier.setStructuresPageSize(v);
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    Text('Showing $startItem-$endItem of $total structures', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: page > 1 ? () => notifier.setStructuresPage(page - 1) : null,
+                    ),
+                    Text('$page / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: page < totalPages ? () => notifier.setStructuresPage(page + 1) : null,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -788,87 +1061,282 @@ class StaffSalaryTable extends ConsumerWidget {
   }
 
   Widget _buildPayslipsMasterTable(BuildContext context, WidgetRef ref, StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
+    final payslips = state.payslipsList;
+    final total = state.payslipsTotal;
+    final page = state.payslipsPage;
+    final pageSize = state.payslipsPageSize;
+    final totalPages = state.payslipsTotalPages;
+    final startItem = total == 0 ? 0 : (page - 1) * pageSize + 1;
+    final endItem = total == 0 ? 0 : (startItem + payslips.length - 1);
+
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Monthly Payslips Registry', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-              Text('${state.payslipsList.length} Generated Payslips', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            ],
+          // Top Header Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.receipt_rounded, color: Color(0xFF16A34A), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Monthly Payslips Registry', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                    Text('$total Generated Payslips (${state.selectedMonthStr})', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  ],
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.auto_mode_rounded, size: 18),
+                  label: const Text('Automate Payroll Run', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (c) => const AutomatedPayrollDialog(),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('Export Bank File (CSV)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  onPressed: () {
+                    notifier.exportBankDisbursalFile();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Downloading Bank Disbursal File...'), backgroundColor: Color(0xFF2563EB)),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  tooltip: 'Refresh Payslips',
+                  onPressed: () => notifier.loadPayslips(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const Divider(height: 1),
+          if (state.isLoading && payslips.isNotEmpty)
+            const LinearProgressIndicator(
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+            ),
+
+          // Table
           Expanded(
-            child: ListView.separated(
-              itemCount: state.payslipsList.length,
-              separatorBuilder: (_, __) => const Divider(height: 16),
-              itemBuilder: (ctx, idx) {
-                final p = state.payslipsList[idx];
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFF16A34A).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.receipt_rounded, color: Color(0xFF16A34A)),
-                  ),
-                  title: Text('${p.payslipNumber} - ${p.staffName} (${p.employeeId})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: Text('Period: ${p.monthStr} | Disbursed via: ${p.paymentMode}', style: const TextStyle(fontSize: 12)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(p.netFormatted, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF16A34A))),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.print_rounded, size: 18, color: Color(0xFF2563EB)),
-                        tooltip: 'View & Print Payslip',
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (c) => StaffPayslipDialog(
-                              payslip: p.rawJson.isNotEmpty ? p.rawJson : {
-                                'staff_name': p.staffName,
-                                'employee_id': p.employeeId,
-                                'designation': p.designation,
-                                'department': p.department,
-                                'role': p.role,
-                                'payslip_number': p.payslipNumber,
-                                'month_str': p.monthStr,
-                                'basic_pay': p.basicPay,
-                                'hra': p.hra,
-                                'da': p.da,
-                                'ta': p.ta,
-                                'special_allowance': p.specialAllowance,
-                                'bonus': p.bonus,
-                                'gross_earnings': p.grossEarnings,
-                                'pf_deduction': p.pfDeduction,
-                                'tds': p.tds,
-                                'professional_tax': p.professionalTax,
-                                'advance_deduction': p.advanceDeduction,
-                                'other_deductions': p.otherDeductions,
-                                'total_deductions': p.totalDeductions,
-                                'net_pay': p.netPay,
-                                'payment_mode': p.paymentMode,
-                                'transaction_reference': p.transactionReference,
-                                'bank_name': p.bankName,
-                                'account_number': p.accountNumber,
-                                'ifsc_code': p.ifscCode,
-                                'pan_number': p.panNumber,
-                              },
+            child: state.isLoading && payslips.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : payslips.isEmpty
+                    ? Center(
+                        child: Text('No payslips generated for ${state.selectedMonthStr}', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 1050),
+                            child: DataTable(
+                              headingRowHeight: 44,
+                              dataRowMinHeight: 52,
+                              dataRowMaxHeight: 58,
+                              horizontalMargin: 16,
+                              columnSpacing: 18,
+                              headingRowColor: WidgetStateProperty.all(
+                                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              ),
+                              columns: [
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('PAYSLIP #', 'payslip_number', state.payslipsSortColumn, state.payslipsSortAscending),
+                                  onSort: (_, __) => notifier.togglePayslipsSort('payslip_number'),
+                                ),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('STAFF MEMBER', 'name', state.payslipsSortColumn, state.payslipsSortAscending),
+                                  onSort: (_, __) => notifier.togglePayslipsSort('name'),
+                                ),
+                                const DataColumn(label: Text('DEPARTMENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('PERIOD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('GROSS', 'gross', state.payslipsSortColumn, state.payslipsSortAscending),
+                                  onSort: (_, __) => notifier.togglePayslipsSort('gross'),
+                                ),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('DEDUCTIONS', 'deductions', state.payslipsSortColumn, state.payslipsSortAscending),
+                                  onSort: (_, __) => notifier.togglePayslipsSort('deductions'),
+                                ),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('NET PAY', 'net', state.payslipsSortColumn, state.payslipsSortAscending),
+                                  onSort: (_, __) => notifier.togglePayslipsSort('net'),
+                                ),
+                                const DataColumn(label: Text('MODE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                              ],
+                              rows: payslips.map((p) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(p.payslipNumber, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF2563EB))),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 16,
+                                            backgroundColor: const Color(0xFF16A34A),
+                                            child: Text(
+                                              p.staffName.isNotEmpty ? p.staffName[0].toUpperCase() : 'S',
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(p.staffName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                              Text(p.employeeId, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(p.department, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    DataCell(Text(p.monthStr, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataCell(Text(p.grossFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+                                    DataCell(Text('- ₹ ${NumberFormat('#,##,###').format(p.totalDeductions.toInt())}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)))),
+                                    DataCell(Text(p.netFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)))),
+                                    DataCell(Text(p.paymentMode, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
+                                    DataCell(_buildStatusBadge(p.paymentStatus)),
+                                    DataCell(
+                                      IconButton(
+                                        icon: const Icon(Icons.print_rounded, size: 18, color: Color(0xFF2563EB)),
+                                        tooltip: 'View & Print Payslip',
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (c) => StaffPayslipDialog(
+                                              payslip: p.rawJson.isNotEmpty ? p.rawJson : {
+                                                'staff_name': p.staffName,
+                                                'employee_id': p.employeeId,
+                                                'designation': p.designation,
+                                                'department': p.department,
+                                                'role': p.role,
+                                                'payslip_number': p.payslipNumber,
+                                                'month_str': p.monthStr,
+                                                'basic_pay': p.basicPay,
+                                                'hra': p.hra,
+                                                'da': p.da,
+                                                'ta': p.ta,
+                                                'special_allowance': p.specialAllowance,
+                                                'bonus': p.bonus,
+                                                'gross_earnings': p.grossEarnings,
+                                                'pf_deduction': p.pfDeduction,
+                                                'tds': p.tds,
+                                                'professional_tax': p.professionalTax,
+                                                'advance_deduction': p.advanceDeduction,
+                                                'other_deductions': p.otherDeductions,
+                                                'total_deductions': p.totalDeductions,
+                                                'net_pay': p.netPay,
+                                                'payment_mode': p.paymentMode,
+                                                'transaction_reference': p.transactionReference,
+                                                'bank_name': p.bankName,
+                                                'account_number': p.accountNumber,
+                                                'ifsc_code': p.ifscCode,
+                                                'pan_number': p.panNumber,
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
+          ),
+          const Divider(height: 1),
+
+          // Pagination Footer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: pageSize,
+                      underline: const SizedBox(),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      items: [10, 25, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s', style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) {
+                        if (v != null) notifier.setPayslipsPageSize(v);
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    Text('Showing $startItem-$endItem of $total payslips', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: page > 1 ? () => notifier.setPayslipsPage(page - 1) : null,
+                    ),
+                    Text('$page / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: page < totalPages ? () => notifier.setPayslipsPage(page + 1) : null,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -877,63 +1345,272 @@ class StaffSalaryTable extends ConsumerWidget {
   }
 
   Widget _buildAdvancesMasterTable(BuildContext context, WidgetRef ref, StaffSalaryState state, StaffSalaryNotifier notifier, bool isDark) {
+    final advances = state.advancesList;
+    final total = state.advancesTotal;
+    final page = state.advancesPage;
+    final pageSize = state.advancesPageSize;
+    final totalPages = state.advancesTotalPages;
+    final startItem = total == 0 ? 0 : (page - 1) * pageSize + 1;
+    final endItem = total == 0 ? 0 : (startItem + advances.length - 1);
+
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Salary Advance Disbursals & Recovery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-              Text('${state.advancesList.length} Active Advances', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            ],
+          // Top Header Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.request_quote_rounded, color: Color(0xFF059669), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Salary Advances & Recovery Ledger', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                    Text('$total Active Advance Requests', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  ],
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Request Advance', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (c) => const RequestSalaryAdvanceDialog(),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  tooltip: 'Refresh Advances',
+                  onPressed: () => notifier.loadAdvances(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const Divider(height: 1),
+          if (state.isLoading && advances.isNotEmpty)
+            const LinearProgressIndicator(
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
+            ),
+
+          // Table
           Expanded(
-            child: ListView.separated(
-              itemCount: state.advancesList.length,
-              separatorBuilder: (_, __) => const Divider(height: 16),
-              itemBuilder: (ctx, idx) {
-                final a = state.advancesList[idx];
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFF059669).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.request_quote_rounded, color: Color(0xFF059669)),
-                  ),
-                  title: Text('${a.staffName} (${a.department})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: Text('${a.purposeType} | ${a.repaymentMonths} months EMI (₹ ${a.monthlyDeduction}/mo) | Status: ${a.status}', style: const TextStyle(fontSize: 12)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(a.amountFormatted, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF059669))),
-                      const SizedBox(width: 8),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded, size: 18),
-                        itemBuilder: (ctx) => [
-                          const PopupMenuItem(value: 'Approved', child: Text('Approve Advance')),
-                          const PopupMenuItem(value: 'Rejected', child: Text('Reject Advance')),
-                          const PopupMenuItem(value: 'Settled', child: Text('Mark as Settled')),
-                        ],
-                        onSelected: (newStatus) async {
-                          final ok = await notifier.updateAdvanceStatus(a.id, newStatus);
-                          if (ok && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Advance marked as $newStatus'), backgroundColor: const Color(0xFF16A34A)),
-                            );
-                          }
-                        },
+            child: state.isLoading && advances.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : advances.isEmpty
+                    ? Center(
+                        child: Text('No salary advance records found', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        primary: false,
+                        physics: const ClampingScrollPhysics(),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          primary: false,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 1050),
+                            child: DataTable(
+                              headingRowHeight: 44,
+                              dataRowMinHeight: 52,
+                              dataRowMaxHeight: 58,
+                              horizontalMargin: 16,
+                              columnSpacing: 18,
+                              headingRowColor: WidgetStateProperty.all(
+                                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              ),
+                              columns: [
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('STAFF MEMBER', 'name', state.advancesSortColumn, state.advancesSortAscending, () => notifier.toggleAdvancesSort('name')),
+                                ),
+                                const DataColumn(label: Text('DEPARTMENT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('PURPOSE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('ADVANCE AMOUNT', 'amount', state.advancesSortColumn, state.advancesSortAscending, () => notifier.toggleAdvancesSort('amount')),
+                                ),
+                                const DataColumn(label: Text('REPAID', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('OUTSTANDING', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('REPAYMENT PROGRESS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                const DataColumn(label: Text('MONTHLY EMI', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                                DataColumn(
+                                  label: _buildSortableHeaderGeneric('STATUS', 'status', state.advancesSortColumn, state.advancesSortAscending, () => notifier.toggleAdvancesSort('status')),
+                                ),
+                                const DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                              ],
+                              rows: advances.map((a) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 16,
+                                            backgroundColor: const Color(0xFF059669),
+                                            child: Text(
+                                              a.staffName.isNotEmpty ? a.staffName[0].toUpperCase() : 'S',
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(a.staffName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+                                              Text(a.employeeId, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(a.department, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    DataCell(Text(a.purposeType, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                                    DataCell(Text(a.amountFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700))),
+                                    DataCell(Text(a.amountRepaidFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF16A34A)))),
+                                    DataCell(Text(a.outstandingBalanceFormatted, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)))),
+                                    DataCell(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 100,
+                                            child: LinearProgressIndicator(
+                                              value: (a.progressPct / 100.0).clamp(0.0, 1.0),
+                                              backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                              color: a.progressPct >= 100 ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                                              minHeight: 6,
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text('${a.progressPct.toStringAsFixed(0)}% recovered', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(Text('₹ ${NumberFormat('#,##,###').format(a.monthlyDeduction.toInt())} (${a.repaymentMonths} mo)', style: const TextStyle(fontSize: 12))),
+                                    DataCell(_buildStatusBadge(a.status)),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (a.status == 'Approved' && a.outstandingBalance > 0)
+                                            TextButton.icon(
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: const Color(0xFF2563EB),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                visualDensity: VisualDensity.compact,
+                                              ),
+                                              icon: const Icon(Icons.price_check_rounded, size: 16),
+                                              label: const Text('Settle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (c) => SettleStaffAdvanceDialog(advance: a),
+                                                );
+                                              },
+                                            ),
+                                          PopupMenuButton<String>(
+                                            icon: const Icon(Icons.more_vert_rounded, size: 18),
+                                            itemBuilder: (ctx) => [
+                                              if (a.status != 'Approved')
+                                                const PopupMenuItem(value: 'Approved', child: Text('Approve Advance')),
+                                              if (a.status != 'Rejected')
+                                                const PopupMenuItem(value: 'Rejected', child: Text('Reject Advance')),
+                                              if (a.status != 'Settled')
+                                                const PopupMenuItem(value: 'Settled', child: Text('Mark as Settled')),
+                                            ],
+                                            onSelected: (newStatus) async {
+                                              final ok = await notifier.updateAdvanceStatus(a.id, newStatus);
+                                              if (ok && context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Advance marked as $newStatus'), backgroundColor: const Color(0xFF16A34A)),
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
+          ),
+          const Divider(height: 1),
+
+          // Pagination Footer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: pageSize,
+                      underline: const SizedBox(),
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      items: [10, 25, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s', style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) {
+                        if (v != null) notifier.setAdvancesPageSize(v);
+                      },
+                    ),
+                    const SizedBox(width: 16),
+                    Text('Showing $startItem-$endItem of $total advances', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: page > 1 ? () => notifier.setAdvancesPage(page - 1) : null,
+                    ),
+                    Text('$page / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: page < totalPages ? () => notifier.setAdvancesPage(page + 1) : null,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

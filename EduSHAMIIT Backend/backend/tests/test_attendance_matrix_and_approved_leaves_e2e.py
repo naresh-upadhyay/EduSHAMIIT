@@ -55,7 +55,6 @@ async def test_quick_mark_and_reset_flow():
         FROM public.student_class_assignments sca
         JOIN public.profiles p ON p.id = sca.student_id
         WHERE sca.school_id = %s AND sca.status = 'ACTIVE'
-          AND sca.section_id = '8fa1014e-d3f6-4d5e-b5b1-eeaf18004c0d'
         ORDER BY sca.assigned_at DESC LIMIT 1;
     """, (school_id,))
     student = students[0]

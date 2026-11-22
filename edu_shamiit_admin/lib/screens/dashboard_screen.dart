@@ -72,8 +72,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     'teacher': 'Teacher',
     'student': 'Student',
     'parent': 'Parent',
-    'student_admin': 'Student Admin',
-    'teacher_admin': 'Teacher Admin',
     'director': 'Director',
     'principal': 'Principal',
     'finance': 'Finance Staff',
@@ -765,7 +763,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/alerts-notifications' ||
                item.route == '/admin/emergency' ||
                item.route == '/admin/my-profile';
-      } else if (role == 'teacher' || role == 'teacher_admin') {
+      } else if (role == 'teacher') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/calendar' ||
                item.route == '/admin/messaging' ||

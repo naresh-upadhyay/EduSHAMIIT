@@ -89,7 +89,7 @@ class BoardBottomWidgets extends StatelessWidget {
             },
             {
               'actor_name': 'Prof. R. Iyer',
-              'action': 'changed due date of WM-1038 to Jan 08',
+              'action': 'updated schedule and due date of WM-1038',
               'time_ago': '25 min ago',
               'avatar': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100'
             },

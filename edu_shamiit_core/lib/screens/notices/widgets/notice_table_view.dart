@@ -27,7 +27,7 @@ class NoticeTableView extends ConsumerWidget {
 
   bool get isStaff {
     final r = userRole.toLowerCase();
-    return r == 'teacher' || r == 'class_teacher' || r == 'transport_manager' || r == 'accountant' || r == 'hr' || r == 'librarian';
+    return r == 'teacher' || r == 'transport_manager' || r == 'accountant' || r == 'hr' || r == 'librarian';
   }
 
   Color _getCategoryColor(String category) {

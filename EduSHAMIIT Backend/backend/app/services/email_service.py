@@ -229,6 +229,9 @@ class EmailService:
     ) -> bool:
         """Send email with retry logic, optional calendar attachment, and optional file attachments."""
         self._refresh_credentials()
+        if not self.smtp_user or not self.smtp_password or self.smtp_host in ('', 'localhost', '127.0.0.1'):
+            logger.info(f"[Email Sandbox/Mock] Simulated sending email to {to_email}: {subject}")
+            return True
         last_error = None
         
         for attempt in range(self.retry_attempts):

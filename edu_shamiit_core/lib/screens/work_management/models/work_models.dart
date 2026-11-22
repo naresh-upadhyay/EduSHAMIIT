@@ -16,6 +16,7 @@ class WorkItemModel {
   final String? severity;
   final String? reason;
   final String? boardId;
+  final String? boardName;
   final String? sprintId;
   final String? startDate;
   final String? dueDate;
@@ -40,6 +41,14 @@ class WorkItemModel {
   final List<WorkAttachmentModel> attachments;
   final List<WorkCommentModel> comments;
   final List<WorkActivityModel> activity;
+  final String? teamId;
+  final String? teamName;
+  final String? classId;
+  final String? className;
+  final String? sectionId;
+  final String? sectionName;
+  final String? targetRole;
+  final String? assignmentMode;
 
   const WorkItemModel({
     required this.id,
@@ -59,6 +68,7 @@ class WorkItemModel {
     this.severity = 'Medium',
     this.reason,
     this.boardId,
+    this.boardName,
     this.sprintId,
     this.startDate,
     this.dueDate,
@@ -83,6 +93,14 @@ class WorkItemModel {
     this.attachments = const [],
     this.comments = const [],
     this.activity = const [],
+    this.teamId,
+    this.teamName,
+    this.classId,
+    this.className,
+    this.sectionId,
+    this.sectionName,
+    this.targetRole,
+    this.assignmentMode,
   });
 
   factory WorkItemModel.fromJson(Map<String, dynamic> json) {
@@ -159,6 +177,7 @@ class WorkItemModel {
       severity: json['severity']?.toString() ?? 'Medium',
       reason: json['reason']?.toString(),
       boardId: json['board_id']?.toString(),
+      boardName: json['board_name']?.toString() ?? json['board']?.toString(),
       sprintId: json['sprint_id']?.toString(),
       startDate: json['start_date']?.toString(),
       dueDate: json['due_date']?.toString(),
@@ -183,6 +202,14 @@ class WorkItemModel {
       attachments: atList,
       comments: cmList,
       activity: acList,
+      teamId: json['team_id']?.toString(),
+      teamName: json['team_name']?.toString() ?? json['team']?.toString(),
+      classId: json['class_id']?.toString(),
+      className: json['class_name']?.toString() ?? json['class']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      sectionName: json['section_name']?.toString() ?? json['section']?.toString(),
+      targetRole: json['target_role']?.toString(),
+      assignmentMode: json['assignment_mode']?.toString(),
     );
   }
 
@@ -197,10 +224,23 @@ class WorkItemModel {
     double? actualHours,
     double? storyPoints,
     String? boardId,
+    String? boardName,
     String? sprintId,
     List<WorkAssigneeModel>? assignees,
     List<WorkChecklistModel>? checklists,
     List<WorkItemModel>? children,
+    String? teamId,
+    String? teamName,
+    bool clearTeam = false,
+    String? classId,
+    String? className,
+    String? sectionId,
+    String? sectionName,
+    String? targetRole,
+    String? assignmentMode,
+    String? parentId,
+    String? parentCode,
+    String? parentTitle,
   }) {
     return WorkItemModel(
       id: id,
@@ -220,6 +260,7 @@ class WorkItemModel {
       severity: severity,
       reason: reason,
       boardId: boardId ?? this.boardId,
+      boardName: boardName ?? this.boardName,
       sprintId: sprintId ?? this.sprintId,
       startDate: startDate,
       dueDate: dueDate,
@@ -236,14 +277,22 @@ class WorkItemModel {
       attachmentsCount: attachmentsCount,
       children: children ?? this.children,
       dependencies: dependencies,
-      parentId: parentId,
-      parentCode: parentCode,
-      parentTitle: parentTitle,
+      parentId: parentId ?? this.parentId,
+      parentCode: parentCode ?? this.parentCode,
+      parentTitle: parentTitle ?? this.parentTitle,
       labels: labels,
       checklists: checklists ?? this.checklists,
       attachments: attachments,
       comments: comments,
       activity: activity,
+      teamId: clearTeam ? null : (teamId ?? this.teamId),
+      teamName: clearTeam ? null : (teamName ?? this.teamName),
+      classId: classId ?? this.classId,
+      className: className ?? this.className,
+      sectionId: sectionId ?? this.sectionId,
+      sectionName: sectionName ?? this.sectionName,
+      targetRole: targetRole ?? this.targetRole,
+      assignmentMode: assignmentMode ?? this.assignmentMode,
     );
   }
 }
@@ -283,11 +332,14 @@ class WorkSprintModel {
   final int sprintNumber;
   final String goal;
   final String status;
+  final String? teamId;
   final String teamName;
   final String? boardId;
   final String? boardName;
   final String startDateFmt;
   final String endDateFmt;
+  final String? startDate;
+  final String? endDate;
   final int durationDays;
   final double capacityHours;
   final double totalPoints;
@@ -296,6 +348,8 @@ class WorkSprintModel {
   final int workingDays;
   final double workingHoursPerDay;
   final String color;
+  final int totalItems;
+  final int completedItems;
 
   const WorkSprintModel({
     required this.id,
@@ -303,11 +357,14 @@ class WorkSprintModel {
     this.sprintNumber = 1,
     this.goal = '',
     this.status = 'PLANNED',
+    this.teamId,
     this.teamName = 'All Teams',
     this.boardId,
     this.boardName,
     this.startDateFmt = '',
     this.endDateFmt = '',
+    this.startDate,
+    this.endDate,
     this.durationDays = 14,
     this.capacityHours = 160.0,
     this.totalPoints = 0.0,
@@ -316,7 +373,21 @@ class WorkSprintModel {
     this.workingDays = 10,
     this.workingHoursPerDay = 8.0,
     this.color = '#2563EB',
+    this.totalItems = 0,
+    this.completedItems = 0,
   });
+
+  double get progressPercentage =>
+      totalItems > 0 ? ((completedItems / totalItems) * 100).clamp(0.0, 100.0) : 0.0;
+
+  String get displayLabel {
+    final s = status.toUpperCase();
+    if (s == 'ACTIVE') return '$name (Active)';
+    if (s == 'PLANNED') return '$name (Planned)';
+    if (s == 'COMPLETED') return '$name (Completed)';
+    if (s == 'CLOSED') return '$name (Closed)';
+    return '$name ($status)';
+  }
 
   factory WorkSprintModel.fromJson(Map<String, dynamic> json) {
     return WorkSprintModel(
@@ -325,11 +396,14 @@ class WorkSprintModel {
       sprintNumber: (json['sprint_number'] as num?)?.toInt() ?? 1,
       goal: json['goal']?.toString() ?? '',
       status: json['status']?.toString().toUpperCase() ?? 'PLANNED',
+      teamId: json['team_id']?.toString(),
       teamName: json['team_name']?.toString() ?? 'All Teams',
       boardId: json['board_id']?.toString(),
-      boardName: json['board_name']?.toString(),
+      boardName: json['board_name']?.toString() ?? json['board']?.toString(),
       startDateFmt: json['start_date_fmt']?.toString() ?? '',
       endDateFmt: json['end_date_fmt']?.toString() ?? '',
+      startDate: json['start_date']?.toString(),
+      endDate: json['end_date']?.toString(),
       durationDays: (json['duration_days'] as num?)?.toInt() ?? 14,
       capacityHours: (json['capacity_hours'] as num?)?.toDouble() ?? 160.0,
       totalPoints: (json['total_points'] as num?)?.toDouble() ?? 0.0,
@@ -338,6 +412,60 @@ class WorkSprintModel {
       workingDays: (json['working_days'] as num?)?.toInt() ?? 10,
       workingHoursPerDay: (json['working_hours_per_day'] as num?)?.toDouble() ?? 8.0,
       color: json['color']?.toString() ?? '#2563EB',
+      totalItems: (json['total_items'] as num?)?.toInt() ?? 0,
+      completedItems: (json['completed_items'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  WorkSprintModel copyWith({
+    String? id,
+    String? name,
+    int? sprintNumber,
+    String? goal,
+    String? status,
+    String? teamId,
+    String? teamName,
+    String? boardId,
+    String? boardName,
+    String? startDateFmt,
+    String? endDateFmt,
+    String? startDate,
+    String? endDate,
+    int? durationDays,
+    double? capacityHours,
+    double? totalPoints,
+    String? ownerName,
+    String? capacityUnit,
+    int? workingDays,
+    double? workingHoursPerDay,
+    String? color,
+    int? totalItems,
+    int? completedItems,
+  }) {
+    return WorkSprintModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      sprintNumber: sprintNumber ?? this.sprintNumber,
+      goal: goal ?? this.goal,
+      status: status ?? this.status,
+      teamId: teamId ?? this.teamId,
+      teamName: teamName ?? this.teamName,
+      boardId: boardId ?? this.boardId,
+      boardName: boardName ?? this.boardName,
+      startDateFmt: startDateFmt ?? this.startDateFmt,
+      endDateFmt: endDateFmt ?? this.endDateFmt,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      durationDays: durationDays ?? this.durationDays,
+      capacityHours: capacityHours ?? this.capacityHours,
+      totalPoints: totalPoints ?? this.totalPoints,
+      ownerName: ownerName ?? this.ownerName,
+      capacityUnit: capacityUnit ?? this.capacityUnit,
+      workingDays: workingDays ?? this.workingDays,
+      workingHoursPerDay: workingHoursPerDay ?? this.workingHoursPerDay,
+      color: color ?? this.color,
+      totalItems: totalItems ?? this.totalItems,
+      completedItems: completedItems ?? this.completedItems,
     );
   }
 }
@@ -502,6 +630,7 @@ class WorkAssigneeModel {
   final String? email;
   final String? department;
   final String? className;
+  final String? sectionName;
   final String? rollNumber;
   final String? avatarUrl;
   final String roleType;
@@ -514,6 +643,7 @@ class WorkAssigneeModel {
     this.email,
     this.department,
     this.className,
+    this.sectionName,
     this.rollNumber,
     this.avatarUrl,
     this.roleType = 'PRIMARY',
@@ -528,6 +658,7 @@ class WorkAssigneeModel {
       email: json['email']?.toString(),
       department: json['department']?.toString(),
       className: json['class_name']?.toString() ?? json['class']?.toString(),
+      sectionName: json['section_name']?.toString() ?? json['section']?.toString(),
       rollNumber: json['roll_number']?.toString(),
       avatarUrl: json['avatar_url']?.toString(),
       roleType: json['role_type']?.toString() ?? 'PRIMARY',
@@ -828,6 +959,14 @@ class BacklogEpicModel {
   final String itemNumber;
   final String title;
   final String description;
+  final String status;
+  final String priority;
+  final String category;
+  final String? teamName;
+  final double estimatedHours;
+  final double storyPoints;
+  final String? startDate;
+  final String? dueDate;
   final int count;
   final bool isSelected;
 
@@ -836,6 +975,14 @@ class BacklogEpicModel {
     required this.itemNumber,
     required this.title,
     this.description = '',
+    this.status = 'NEW',
+    this.priority = 'MEDIUM',
+    this.category = 'General',
+    this.teamName,
+    this.estimatedHours = 0.0,
+    this.storyPoints = 0.0,
+    this.startDate,
+    this.dueDate,
     this.count = 0,
     this.isSelected = false,
   });
@@ -846,8 +993,76 @@ class BacklogEpicModel {
       itemNumber: json['item_number']?.toString() ?? json['epic_number']?.toString() ?? '',
       title: json['title']?.toString() ?? json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
-      count: (json['items_count'] as num?)?.toInt() ?? (json['count'] as num?)?.toInt() ?? (json['total_items_count'] as num?)?.toInt() ?? (json['total_items'] as num?)?.toInt() ?? 0,
+      status: json['status']?.toString() ?? 'NEW',
+      priority: json['priority']?.toString() ?? 'MEDIUM',
+      category: json['category']?.toString() ?? 'General',
+      teamName: json['team_name']?.toString(),
+      estimatedHours: (json['estimated_hours'] as num?)?.toDouble() ?? 0.0,
+      storyPoints: (json['story_points'] as num?)?.toDouble() ?? 0.0,
+      startDate: json['start_date']?.toString(),
+      dueDate: json['due_date']?.toString(),
+      count: (json['items_count'] as num?)?.toInt() ??
+          (json['count'] as num?)?.toInt() ??
+          (json['total_items_count'] as num?)?.toInt() ??
+          (json['total_items'] as num?)?.toInt() ??
+          0,
       isSelected: json['is_selected'] == true,
+    );
+  }
+
+  BacklogEpicModel copyWith({
+    String? id,
+    String? itemNumber,
+    String? title,
+    String? description,
+    String? status,
+    String? priority,
+    String? category,
+    String? teamName,
+    double? estimatedHours,
+    double? storyPoints,
+    String? startDate,
+    String? dueDate,
+    int? count,
+    bool? isSelected,
+  }) {
+    return BacklogEpicModel(
+      id: id ?? this.id,
+      itemNumber: itemNumber ?? this.itemNumber,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+      category: category ?? this.category,
+      teamName: teamName ?? this.teamName,
+      estimatedHours: estimatedHours ?? this.estimatedHours,
+      storyPoints: storyPoints ?? this.storyPoints,
+      startDate: startDate ?? this.startDate,
+      dueDate: dueDate ?? this.dueDate,
+      count: count ?? this.count,
+      isSelected: isSelected ?? this.isSelected,
+    );
+  }
+
+  WorkItemModel toWorkItem() {
+    return WorkItemModel(
+      id: id,
+      itemNumber: itemNumber,
+      title: title,
+      description: description,
+      workType: 'EPIC',
+      status: status,
+      priority: priority,
+      category: category,
+      teamName: teamName,
+      estimatedHours: estimatedHours,
+      storyPoints: storyPoints,
+      startDate: startDate,
+      dueDate: dueDate,
+      startDateFmt: startDate,
+      dueDateFmt: dueDate,
+      children: const [],
+      assignees: const [],
     );
   }
 }
@@ -1088,6 +1303,58 @@ class SprintCapacityInsightModel {
   }
 }
 
+class SprintCapacityPaginationModel {
+  final int page;
+  final int limit;
+  final int totalMembers;
+  final int totalPages;
+
+  const SprintCapacityPaginationModel({
+    this.page = 1,
+    this.limit = 10,
+    this.totalMembers = 0,
+    this.totalPages = 1,
+  });
+
+  factory SprintCapacityPaginationModel.fromJson(Map<String, dynamic> json) {
+    return SprintCapacityPaginationModel(
+      page: (json['page'] as num?)?.toInt() ?? 1,
+      limit: (json['limit'] as num?)?.toInt() ?? 10,
+      totalMembers: (json['total_members'] as num?)?.toInt() ?? 0,
+      totalPages: (json['total_pages'] as num?)?.toInt() ?? 1,
+    );
+  }
+}
+
+class SprintCapacitySprintItemModel {
+  final String id;
+  final String name;
+  final String status;
+  final String startDate;
+  final String endDate;
+  final bool isSelected;
+
+  const SprintCapacitySprintItemModel({
+    required this.id,
+    required this.name,
+    this.status = 'ACTIVE',
+    this.startDate = '',
+    this.endDate = '',
+    this.isSelected = false,
+  });
+
+  factory SprintCapacitySprintItemModel.fromJson(Map<String, dynamic> json) {
+    return SprintCapacitySprintItemModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'ACTIVE',
+      startDate: json['start_date']?.toString() ?? '',
+      endDate: json['end_date']?.toString() ?? '',
+      isSelected: json['is_selected'] == true,
+    );
+  }
+}
+
 class SprintCapacityDashboardModel {
   final String sprintId;
   final String sprintName;
@@ -1101,6 +1368,8 @@ class SprintCapacityDashboardModel {
   final SprintCapacityUtilizationModel utilization;
   final SprintCapacitySummaryModel summary;
   final List<SprintCapacityInsightModel> insights;
+  final SprintCapacityPaginationModel pagination;
+  final List<SprintCapacitySprintItemModel> sprints;
 
   const SprintCapacityDashboardModel({
     required this.sprintId,
@@ -1115,12 +1384,49 @@ class SprintCapacityDashboardModel {
     required this.utilization,
     required this.summary,
     required this.insights,
+    this.pagination = const SprintCapacityPaginationModel(),
+    this.sprints = const [],
   });
+
+  SprintCapacityDashboardModel copyWith({
+    String? sprintId,
+    String? sprintName,
+    String? sprintDuration,
+    String? boardName,
+    String? selectedTeam,
+    SprintCapacityKpisModel? kpis,
+    List<SprintCapacityTeamModel>? teams,
+    List<SprintCapacityMemberModel>? members,
+    List<SprintCapacityDailyPointModel>? dailyChart,
+    SprintCapacityUtilizationModel? utilization,
+    SprintCapacitySummaryModel? summary,
+    List<SprintCapacityInsightModel>? insights,
+    SprintCapacityPaginationModel? pagination,
+    List<SprintCapacitySprintItemModel>? sprints,
+  }) {
+    return SprintCapacityDashboardModel(
+      sprintId: sprintId ?? this.sprintId,
+      sprintName: sprintName ?? this.sprintName,
+      sprintDuration: sprintDuration ?? this.sprintDuration,
+      boardName: boardName ?? this.boardName,
+      selectedTeam: selectedTeam ?? this.selectedTeam,
+      kpis: kpis ?? this.kpis,
+      teams: teams ?? this.teams,
+      members: members ?? this.members,
+      dailyChart: dailyChart ?? this.dailyChart,
+      utilization: utilization ?? this.utilization,
+      summary: summary ?? this.summary,
+      insights: insights ?? this.insights,
+      pagination: pagination ?? this.pagination,
+      sprints: sprints ?? this.sprints,
+    );
+  }
 
   factory SprintCapacityDashboardModel.fromJson(Map<String, dynamic> json) {
     final kpisJson = json['kpis'] as Map<String, dynamic>? ?? {};
     final utilJson = json['capacity_utilization'] as Map<String, dynamic>? ?? {};
     final summaryJson = json['capacity_summary'] as Map<String, dynamic>? ?? {};
+    final paginationJson = json['pagination'] as Map<String, dynamic>? ?? {};
 
     return SprintCapacityDashboardModel(
       sprintId: json['sprint_id']?.toString() ?? '',
@@ -1142,6 +1448,10 @@ class SprintCapacityDashboardModel {
       summary: SprintCapacitySummaryModel.fromJson(summaryJson),
       insights: (json['insights'] as List<dynamic>? ?? [])
           .map((i) => SprintCapacityInsightModel.fromJson(i as Map<String, dynamic>))
+          .toList(),
+      pagination: SprintCapacityPaginationModel.fromJson(paginationJson),
+      sprints: (json['sprints'] as List<dynamic>? ?? [])
+          .map((s) => SprintCapacitySprintItemModel.fromJson(s as Map<String, dynamic>))
           .toList(),
     );
   }

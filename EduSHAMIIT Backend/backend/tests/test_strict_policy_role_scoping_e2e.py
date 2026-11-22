@@ -33,16 +33,30 @@ async def run_strict_role_scoping_tests():
 
     school_id = "11111111-1111-1111-1111-111111111111"
 
+    # Ensure test leave policies exist
+    await exec_sql("""
+        INSERT INTO public.leave_types (school_id, name, code, applicable_roles, is_active, annual_entitlement)
+        VALUES 
+        (%s::UUID, 'kop', 'KOP_TEST', ARRAY['teacher'], true, 10.0)
+        ON CONFLICT (school_id, code) DO UPDATE SET applicable_roles = ARRAY['teacher'], is_active = true;
+    """, (school_id,))
+    await exec_sql("""
+        INSERT INTO public.leave_types (school_id, name, code, applicable_roles, is_active, annual_entitlement)
+        VALUES 
+        (%s::UUID, 'TEST OP', 'TEST_OP', ARRAY['super_admin'], true, 5.0)
+        ON CONFLICT (school_id, code) DO UPDATE SET applicable_roles = ARRAY['super_admin'], is_active = true;
+    """, (school_id,))
+
     # Fetch users of different roles
-    admin_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%King Doe%' LIMIT 1;")
+    admin_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s::UUID AND role IN ('super_admin', 'admin') ORDER BY (role = 'super_admin') DESC LIMIT 1;", (school_id,))
     admin_id = str(admin_res[0]["id"])
     admin_user = {"id": admin_id, "role": "super_admin", "school_id": school_id, "permissions": ["*"]}
 
-    driver_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE role = 'driver' LIMIT 1;")
+    driver_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s::UUID AND role = 'driver' LIMIT 1;", (school_id,))
     driver_id = str(driver_res[0]["id"])
     driver_user = {"id": driver_id, "role": "driver", "school_id": school_id, "permissions": ["attendance.leave.view"]}
 
-    teacher_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    teacher_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE school_id = %s::UUID AND role = 'teacher' LIMIT 1;", (school_id,))
     teacher_id = str(teacher_res[0]["id"])
     teacher_user = {"id": teacher_id, "role": "teacher", "school_id": school_id, "permissions": ["attendance.leave.view"]}
 

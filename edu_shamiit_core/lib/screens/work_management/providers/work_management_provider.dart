@@ -30,6 +30,7 @@ class WorkBoardState {
 }
 
 class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
+  final Ref? _ref;
   final WorkApiService _api;
 
   String _lastBoardId = 'default';
@@ -39,7 +40,8 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
   String? _lastSearch;
 
   WorkBoardNotifier([Ref? ref, WorkApiService? api])
-      : _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
+      : _ref = ref,
+        _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkBoardState(isLoading: true)) {
     loadBoard();
   }
@@ -50,6 +52,7 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
     String? view,
     String? groupBy,
     String? search,
+    bool forceRefresh = false,
   }) async {
     if (boardId != null) _lastBoardId = boardId;
     if (sprintId != null) _lastSprintId = sprintId;
@@ -65,11 +68,19 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
         view: _lastView,
         groupBy: _lastGroupBy,
         search: _lastSearch,
+        forceRefresh: forceRefresh,
       );
+      if (!mounted) return;
       state = WorkBoardState(isLoading: false, columns: cols);
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
     }
+  }
+
+  bool _statusMatchesNormalized(String a, String b) {
+    return a.replaceAll('_', ' ').trim().toUpperCase() == b.replaceAll('_', ' ').trim().toUpperCase();
   }
 
   Future<bool> transitionStatus(String itemId, String newStatus, {String? notes}) async {
@@ -89,11 +100,11 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
 
     if (targetItem != null) {
       final newCols = updatedCols.map((col) {
-        if (col.statusKey.toUpperCase() == newStatus.toUpperCase()) {
+        if (_statusMatchesNormalized(col.statusKey, newStatus)) {
           final items = List<WorkItemModel>.from(col.items);
           final updated = targetItem!.copyWith(
             status: newStatus.toUpperCase(),
-            progressPercentage: newStatus.toUpperCase() == 'COMPLETED' || newStatus.toUpperCase() == 'RESOLVED'
+            progressPercentage: (newStatus.toUpperCase() == 'COMPLETED' || newStatus.toUpperCase() == 'RESOLVED')
                 ? 100
                 : (newStatus.toUpperCase() == 'NEW' ? 0 : 50),
           );
@@ -108,9 +119,14 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
 
     // 2. Persist to DB via Stored Procedure
     final success = await _api.transitionStatus(itemId, newStatus, notes: notes);
+    if (!mounted) return success;
     if (!success) {
       // Rollback on failure
       loadBoard();
+    } else {
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(quiet: true, forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
     }
     return success;
   }
@@ -146,8 +162,13 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
 
     // 2. Persist to DB
     final success = await _api.updateItem(itemId, {'priority': newPriority.toUpperCase()});
+    if (!mounted) return success;
     if (!success) {
       loadBoard();
+    } else {
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(quiet: true, forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
     }
     return success;
   }
@@ -183,8 +204,13 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
 
     // 2. Persist to DB
     final success = await _api.updateItem(itemId, {'work_type': newType.toUpperCase()});
+    if (!mounted) return success;
     if (!success) {
       loadBoard();
+    } else {
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(quiet: true, forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
     }
     return success;
   }
@@ -207,6 +233,7 @@ class WorkOverviewNotifier extends StateNotifier<Map<String, dynamic>> {
   Future<void> loadOverview({String? boardId, String? sprintId}) async {
     try {
       final res = await _api.getOverview(boardId: boardId, sprintId: sprintId);
+      if (!mounted) return;
       state = res;
     } catch (_) {}
   }
@@ -231,6 +258,7 @@ class WorkListState {
   final String workType;
   final String status;
   final String? assigneeId;
+  final String? boardId;
 
   const WorkListState({
     this.isLoading = false,
@@ -243,6 +271,7 @@ class WorkListState {
     this.workType = 'All',
     this.status = 'All',
     this.assigneeId,
+    this.boardId,
   });
 
   WorkListState copyWith({
@@ -256,6 +285,7 @@ class WorkListState {
     String? workType,
     String? status,
     String? assigneeId,
+    String? boardId,
   }) {
     return WorkListState(
       isLoading: isLoading ?? this.isLoading,
@@ -268,34 +298,41 @@ class WorkListState {
       workType: workType ?? this.workType,
       status: status ?? this.status,
       assigneeId: assigneeId ?? this.assigneeId,
+      boardId: boardId ?? this.boardId,
     );
   }
 }
 
 class WorkListNotifier extends StateNotifier<WorkListState> {
+  final Ref? _ref;
   final WorkApiService _api;
 
   WorkListNotifier([Ref? ref, WorkApiService? api])
-      : _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
+      : _ref = ref,
+        _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkListState(isLoading: true)) {
     loadPagedItems();
   }
 
-  Future<void> loadPagedItems() async {
-    state = state.copyWith(isLoading: true);
+  Future<void> loadPagedItems({String? boardId, bool forceRefresh = false}) async {
+    final effectiveBoardId = boardId ?? state.boardId;
+    state = state.copyWith(isLoading: true, boardId: effectiveBoardId);
     try {
       final res = await _api.getItemsPaged(
+        boardId: effectiveBoardId,
         type: state.workType,
         status: state.status,
         assigneeId: state.assigneeId,
         page: state.page,
         pageSize: state.pageSize,
+        forceRefresh: forceRefresh,
       );
 
       final total = (res['total'] as num?)?.toInt() ?? 66;
       final pages = (total / state.pageSize).ceil().clamp(1, 99);
       final items = (res['items'] as List<WorkItemModel>?) ?? [];
 
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         items: items,
@@ -304,15 +341,18 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
         kpis: res['kpis'] as Map<String, dynamic>? ?? {},
       );
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
-  void setFilter({String? workType, String? status, String? assigneeId}) {
+  void setFilter({String? workType, String? status, String? assigneeId, String? boardId}) {
     state = state.copyWith(
       workType: workType ?? state.workType,
       status: status ?? state.status,
       assigneeId: assigneeId,
+      boardId: boardId ?? state.boardId,
       page: 1,
     );
     loadPagedItems();
@@ -332,6 +372,8 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
     String? priority,
     String? assigneeId,
     String? sprintId,
+    String? teamId,
+    String? teamName,
   }) async {
     final success = await _api.bulkUpdateWorkItems(
       itemIds: itemIds,
@@ -339,19 +381,31 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       priority: priority,
       assigneeId: assigneeId,
       sprintId: sprintId,
+      teamId: teamId,
+      teamName: teamName,
     );
     if (success) {
       final updated = state.items.map((item) {
         if (itemIds.contains(item.id)) {
+          final isUnassign = teamName == 'UNASSIGN' || teamId == 'UNASSIGN';
           return item.copyWith(
             status: status ?? item.status,
             priority: priority ?? item.priority,
             sprintId: sprintId ?? item.sprintId,
+            teamId: isUnassign ? null : (teamId ?? item.teamId),
+            teamName: isUnassign ? null : (teamName ?? item.teamName),
+            clearTeam: isUnassign,
           );
         }
         return item;
       }).toList();
       state = state.copyWith(items: updated);
+      if (mounted) {
+        _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+        _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+        _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+        _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      }
     }
     return success;
   }
@@ -362,8 +416,15 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       final ok = await _api.deleteItem(id);
       if (!ok) allSuccess = false;
     }
+    if (!mounted) return allSuccess;
     final remaining = state.items.where((i) => !itemIds.contains(i.id)).toList();
     state = state.copyWith(items: remaining, totalCount: remaining.length);
+    if (mounted) {
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+    }
     return allSuccess;
   }
 
@@ -387,6 +448,7 @@ class WorkBacklogState {
   final String? currentEpicId;
   final int totalCount;
   final Map<String, dynamic> kpis;
+  final String? boardId;
 
   const WorkBacklogState({
     this.isLoading = false,
@@ -396,6 +458,7 @@ class WorkBacklogState {
     this.currentEpicId,
     this.totalCount = 0,
     this.kpis = const {},
+    this.boardId,
   });
 
   WorkBacklogState copyWith({
@@ -406,6 +469,7 @@ class WorkBacklogState {
     String? currentEpicId,
     int? totalCount,
     Map<String, dynamic>? kpis,
+    String? boardId,
   }) {
     return WorkBacklogState(
       isLoading: isLoading ?? this.isLoading,
@@ -415,21 +479,39 @@ class WorkBacklogState {
       currentEpicId: currentEpicId ?? this.currentEpicId,
       totalCount: totalCount ?? this.totalCount,
       kpis: kpis ?? this.kpis,
+      boardId: boardId ?? this.boardId,
     );
   }
 }
 
 class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
-  final WorkApiService _api = WorkApiService.instance;
+  final Ref? _ref;
+  final WorkApiService _api;
 
-  WorkBacklogNotifier() : super(const WorkBacklogState(isLoading: true)) {
+  WorkBacklogNotifier([Ref? ref, WorkApiService? api])
+      : _ref = ref,
+        _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
+        super(const WorkBacklogState(isLoading: true)) {
     loadBacklog();
   }
 
-  Future<void> loadBacklog({String? epicId, String? search}) async {
-    state = state.copyWith(isLoading: true, currentEpicId: epicId ?? state.currentEpicId);
+  void selectEpic(BacklogEpicModel epic) {
+    state = state.copyWith(
+      selectedEpic: epic,
+      currentEpicId: epic.id.isNotEmpty ? epic.id : epic.itemNumber,
+    );
+  }
+
+  Future<void> loadBacklog({String? boardId, String? epicId, String? search, bool forceRefresh = false}) async {
+    final effectiveBoardId = boardId ?? state.boardId;
+    state = state.copyWith(isLoading: true, currentEpicId: epicId ?? state.currentEpicId, boardId: effectiveBoardId);
     try {
-      final res = await _api.getBacklogTree(epicId: epicId ?? state.currentEpicId, search: search);
+      final res = await _api.getBacklogTree(
+        boardId: effectiveBoardId,
+        epicId: epicId ?? state.currentEpicId,
+        search: search,
+        forceRefresh: forceRefresh,
+      );
       final items = (res['items'] as List<WorkItemModel>?) ?? [];
       final epics = (res['epics'] as List<BacklogEpicModel>?) ?? [];
       final kpis = (res['kpis'] as Map<String, dynamic>?) ?? {};
@@ -437,8 +519,21 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
       BacklogEpicModel? selectedEpic;
       if (res['selected_epic'] is Map && (res['selected_epic'] as Map).isNotEmpty) {
         selectedEpic = BacklogEpicModel.fromJson(res['selected_epic'] as Map<String, dynamic>);
+      } else if (epicId != null && epics.isNotEmpty) {
+        selectedEpic = epics.firstWhere(
+          (e) => e.id == epicId || e.itemNumber.toUpperCase() == epicId.toUpperCase(),
+          orElse: () => epics.first,
+        );
+      } else if (state.selectedEpic != null && epics.any((e) => e.id == state.selectedEpic!.id || e.itemNumber == state.selectedEpic!.itemNumber)) {
+        selectedEpic = epics.firstWhere(
+          (e) => e.id == state.selectedEpic!.id || e.itemNumber == state.selectedEpic!.itemNumber,
+          orElse: () => state.selectedEpic!,
+        );
+      } else if (epics.isNotEmpty) {
+        selectedEpic = epics.first;
       }
 
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         stories: items,
@@ -448,7 +543,9 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
         kpis: kpis,
       );
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
@@ -458,6 +555,8 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
     String? priority,
     String? assigneeId,
     String? sprintId,
+    String? teamId,
+    String? teamName,
   }) async {
     final success = await _api.bulkUpdateWorkItems(
       itemIds: itemIds,
@@ -465,17 +564,30 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
       priority: priority,
       assigneeId: assigneeId,
       sprintId: sprintId,
+      teamId: teamId,
+      teamName: teamName,
     );
     if (success) {
-      await loadBacklog();
+      await loadBacklog(forceRefresh: true);
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
 
   Future<bool> bulkDelete(List<String> itemIds) async {
     final success = await _api.bulkDeleteWorkItems(itemIds);
+    if (!mounted) return success;
     if (success) {
-      await loadBacklog();
+      await loadBacklog(forceRefresh: true);
+      if (mounted) {
+        _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+        _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+        _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+        _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      }
     }
     return success;
   }
@@ -490,15 +602,90 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
       newRank: newRank,
       newParentId: newParentId,
     );
+    if (!mounted) return success;
     if (success) {
-      await loadBacklog();
+      await loadBacklog(forceRefresh: true);
+      if (mounted) {
+        _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+        _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+        _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      }
     }
     return success;
+  }
+
+  Future<bool> reparentStoryTask({
+    required WorkItemModel task,
+    required WorkItemModel targetStory,
+  }) async {
+    final previousStories = state.stories;
+
+    final updatedTask = task.copyWith(
+      parentId: targetStory.id.isNotEmpty ? targetStory.id : targetStory.itemNumber,
+      parentCode: targetStory.itemNumber,
+      parentTitle: targetStory.title,
+    );
+
+    final updatedStories = state.stories.map((story) {
+      final isTarget = story.id == targetStory.id ||
+          story.itemNumber.toUpperCase() == targetStory.itemNumber.toUpperCase();
+      final isSource = story.children.any((c) =>
+          c.id == task.id ||
+          c.itemNumber.toUpperCase() == task.itemNumber.toUpperCase());
+
+      if (isTarget) {
+        final newChildren = List<WorkItemModel>.from(story.children)
+          ..removeWhere((c) =>
+              c.id == task.id ||
+              c.itemNumber.toUpperCase() == task.itemNumber.toUpperCase())
+          ..add(updatedTask);
+        return story.copyWith(children: newChildren);
+      } else if (isSource) {
+        final newChildren = story.children
+            .where((c) =>
+                c.id != task.id &&
+                c.itemNumber.toUpperCase() != task.itemNumber.toUpperCase())
+            .toList();
+        return story.copyWith(children: newChildren);
+      }
+      return story;
+    }).toList();
+
+    state = state.copyWith(stories: updatedStories);
+
+    try {
+      final targetRank = targetStory.children.isNotEmpty
+          ? (targetStory.children.last.rank + 10.0)
+          : (task.rank > 0 ? task.rank : 1000.0);
+
+      final success = await _api.reorderBacklogItem(
+        itemId: task.id.isNotEmpty ? task.id : task.itemNumber,
+        newRank: targetRank,
+        newParentId: targetStory.id.isNotEmpty ? targetStory.id : targetStory.itemNumber,
+      );
+
+      if (!mounted) return success;
+
+      if (!success) {
+        state = state.copyWith(stories: previousStories);
+        return false;
+      }
+      if (mounted) {
+        _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+        _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+        _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      }
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      return true;
+    } catch (_) {
+      state = state.copyWith(stories: previousStories);
+      return false;
+    }
   }
 }
 
 final workBacklogProvider = StateNotifierProvider<WorkBacklogNotifier, WorkBacklogState>((ref) {
-  return WorkBacklogNotifier();
+  return WorkBacklogNotifier(ref, ref.read(workApiServiceProvider));
 });
 
 // ==========================================
@@ -561,12 +748,45 @@ class WorkSprintDashboardState {
 }
 
 class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState> {
+  final Ref? _ref;
   final WorkApiService _api;
 
+  String _lastSprintId = 'active';
+  String? _lastBoardId;
+  String? _lastTeam;
+  String? _lastSearch;
+  int _lastPage = 1;
+  int _lastPageSize = 10;
+
   WorkSprintDashboardNotifier([Ref? ref, WorkApiService? api])
-      : _api = api ?? WorkApiService.instance,
+      : _ref = ref,
+        _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkSprintDashboardState(isLoading: true)) {
     loadSprintDashboard();
+  }
+
+  void optimisticallyUpdateItemStatus(String itemId, String newStatus) {
+    final cleanStatus = newStatus.trim().toUpperCase();
+    final updatedItems = state.items.map((story) {
+      if (story.id == itemId) {
+        return story.copyWith(
+          status: cleanStatus,
+          progressPercentage: (cleanStatus == 'COMPLETED' || cleanStatus == 'RESOLVED') ? 100 : (cleanStatus == 'NEW' ? 0 : 50),
+        );
+      }
+      final updatedChildren = story.children.map((child) {
+        if (child.id == itemId) {
+          return child.copyWith(
+            status: cleanStatus,
+            progressPercentage: (cleanStatus == 'COMPLETED' || cleanStatus == 'RESOLVED') ? 100 : (cleanStatus == 'NEW' ? 0 : 50),
+          );
+        }
+        return child;
+      }).toList();
+      return story.copyWith(children: updatedChildren);
+    }).toList();
+
+    state = state.copyWith(items: updatedItems);
   }
 
   Future<void> loadSprintDashboard({
@@ -576,16 +796,37 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
     String? search,
     int page = 1,
     int pageSize = 10,
+    bool quiet = false,
+    bool forceRefresh = false,
   }) async {
-    state = state.copyWith(isLoading: true);
+    if (sprintId.isNotEmpty && sprintId != 's8') {
+      _lastSprintId = sprintId;
+    } else if (sprintId == 's8' && _lastSprintId != 's8') {
+      // Keep _lastSprintId unless explicitly requested
+    } else {
+      _lastSprintId = sprintId;
+    }
+    if (boardId != null) _lastBoardId = boardId;
+    if (team != null) _lastTeam = team;
+    if (search != null) _lastSearch = search;
+    _lastPage = page;
+    _lastPageSize = pageSize;
+
+    if (!quiet) {
+      state = state.copyWith(isLoading: true);
+    }
     try {
+      if (forceRefresh) {
+        _api.invalidateCache();
+      }
       final res = await _api.getSprintDashboard(
-        sprintId,
-        boardId: boardId,
-        team: team ?? 'All Teams',
-        search: search,
-        page: page,
-        pageSize: pageSize,
+        _lastSprintId,
+        boardId: _lastBoardId,
+        team: _lastTeam ?? 'All Teams',
+        search: _lastSearch,
+        page: _lastPage,
+        pageSize: _lastPageSize,
+        forceRefresh: forceRefresh,
       );
       final items = (res['items'] as List<WorkItemModel>?) ?? [];
       final burndown = (res['burndown'] as List<BurndownPointModel>?) ?? [];
@@ -605,7 +846,7 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
       }
 
       final sprintModel = WorkSprintModel(
-        id: res['sprint_id']?.toString() ?? sprintId,
+        id: res['sprint_id']?.toString() ?? _lastSprintId,
         name: res['sprint_name'] ?? 'Sprint 8',
         sprintNumber: (res['sprint_number'] as num?)?.toInt() ?? 8,
         status: res['status'] ?? 'ACTIVE',
@@ -628,6 +869,9 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
         color: res['color'] ?? '#2563EB',
       );
 
+      _lastSprintId = sprintModel.id;
+
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         sprint: sprintModel,
@@ -641,15 +885,25 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
         upcomingSprints: upcomingSprints,
         totalCount: (res['total_items_count'] as num?)?.toInt() ?? items.length,
       );
+
+      if (_ref != null && sprintModel.id.isNotEmpty && mounted) {
+        _ref!.read(allSprintsProvider.notifier).selectSprint(sprintModel.id);
+      }
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
   Future<bool> updateSprint(String sprintId, Map<String, dynamic> data) async {
     final success = await _api.updateSprint(sprintId, data);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
@@ -657,7 +911,11 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   Future<bool> startSprint(String sprintId) async {
     final success = await _api.startSprint(sprintId);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
@@ -665,7 +923,11 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   Future<bool> completeSprint(String sprintId, {String? moveIncompleteToSprintId, String? notes}) async {
     final success = await _api.completeSprint(sprintId, moveIncompleteToSprintId: moveIncompleteToSprintId, notes: notes);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
@@ -673,7 +935,11 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   Future<bool> cancelSprint(String sprintId, {String? reason}) async {
     final success = await _api.cancelSprint(sprintId, reason: reason);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
@@ -681,23 +947,67 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   Future<bool> addItemsToSprint(String sprintId, List<String> itemIds) async {
     final success = await _api.addItemsToSprint(sprintId, itemIds);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
   }
 
   Future<bool> removeItemFromSprint(String sprintId, String itemId) async {
+    // 1. Optimistic removal from state.items immediately
+    final previousItems = state.items;
+    final previousTotal = state.totalCount;
+    final idUpper = itemId.toUpperCase();
+    final updatedItems = state.items.where((i) => i.id.toUpperCase() != idUpper && i.itemNumber.toUpperCase() != idUpper).map((story) {
+      final updatedChildren = story.children.where((c) => c.id.toUpperCase() != idUpper && c.itemNumber.toUpperCase() != idUpper).toList();
+      return story.copyWith(children: updatedChildren);
+    }).toList();
+    final removedCount = previousItems.length - updatedItems.length;
+    state = state.copyWith(
+      items: updatedItems,
+      totalCount: (previousTotal - (removedCount > 0 ? removedCount : 1)).clamp(0, 999999),
+    );
+
     final success = await _api.removeItemFromSprint(sprintId, itemId);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+    } else {
+      state = state.copyWith(items: previousItems, totalCount: previousTotal);
     }
     return success;
   }
 
   Future<bool> moveItemsToSprint(String sprintId, String targetSprintId, List<String> itemIds) async {
+    // 1. Optimistic removal from state.items immediately
+    final previousItems = state.items;
+    final previousTotal = state.totalCount;
+    final idSet = itemIds.map((id) => id.toUpperCase()).toSet();
+    final updatedItems = state.items.where((i) => !idSet.contains(i.id.toUpperCase()) && !idSet.contains(i.itemNumber.toUpperCase())).map((story) {
+      final updatedChildren = story.children.where((c) => !idSet.contains(c.id.toUpperCase()) && !idSet.contains(c.itemNumber.toUpperCase())).toList();
+      return story.copyWith(children: updatedChildren);
+    }).toList();
+    final removedCount = previousItems.length - updatedItems.length;
+    state = state.copyWith(
+      items: updatedItems,
+      totalCount: (previousTotal - (removedCount > 0 ? removedCount : itemIds.length)).clamp(0, 999999),
+    );
+
     final success = await _api.moveItemsToSprint(sprintId, targetSprintId, itemIds);
     if (success) {
-      await loadSprintDashboard(sprintId: sprintId);
+      await loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+    } else {
+      state = state.copyWith(items: previousItems, totalCount: previousTotal);
     }
     return success;
   }
@@ -843,7 +1153,7 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
 
 final workSprintDashboardProvider =
     StateNotifierProvider<WorkSprintDashboardNotifier, WorkSprintDashboardState>((ref) {
-  return WorkSprintDashboardNotifier();
+  return WorkSprintDashboardNotifier(ref, ref.read(workApiServiceProvider));
 });
 
 // ==========================================
@@ -857,6 +1167,13 @@ class WorkSprintCapacityState {
   final String sprintId;
   final String? errorMessage;
   final String searchQuery;
+  final String selectedRole;
+  final String selectedStatus;
+  final String sortBy;
+  final String sortOrder;
+  final int currentPage;
+  final int rowsPerPage;
+  final List<SprintCapacityMemberModel> allMembers;
 
   const WorkSprintCapacityState({
     this.isLoading = false,
@@ -866,6 +1183,13 @@ class WorkSprintCapacityState {
     this.sprintId = 's8',
     this.errorMessage,
     this.searchQuery = '',
+    this.selectedRole = 'All',
+    this.selectedStatus = 'All',
+    this.sortBy = 'name',
+    this.sortOrder = 'asc',
+    this.currentPage = 1,
+    this.rowsPerPage = 10,
+    this.allMembers = const [],
   });
 
   WorkSprintCapacityState copyWith({
@@ -876,6 +1200,13 @@ class WorkSprintCapacityState {
     String? sprintId,
     String? errorMessage,
     String? searchQuery,
+    String? selectedRole,
+    String? selectedStatus,
+    String? sortBy,
+    String? sortOrder,
+    int? currentPage,
+    int? rowsPerPage,
+    List<SprintCapacityMemberModel>? allMembers,
   }) {
     return WorkSprintCapacityState(
       isLoading: isLoading ?? this.isLoading,
@@ -885,6 +1216,13 @@ class WorkSprintCapacityState {
       sprintId: sprintId ?? this.sprintId,
       errorMessage: errorMessage,
       searchQuery: searchQuery ?? this.searchQuery,
+      selectedRole: selectedRole ?? this.selectedRole,
+      selectedStatus: selectedStatus ?? this.selectedStatus,
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
+      currentPage: currentPage ?? this.currentPage,
+      rowsPerPage: rowsPerPage ?? this.rowsPerPage,
+      allMembers: allMembers ?? this.allMembers,
     );
   }
 }
@@ -1060,35 +1398,127 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
     } catch (_) {}
   }
 
-  Future<void> loadCapacity({String? sprintId, String? team, String? search}) async {
+  Future<void> loadCapacity({
+    String? sprintId,
+    String? team,
+    String? search,
+    String? role,
+    String? status,
+    String? sortBy,
+    String? sortOrder,
+    int? page,
+    int? limit,
+    bool forceRefresh = false,
+  }) async {
     final sid = sprintId ?? state.sprintId;
     final t = team ?? state.selectedTeam;
     final q = search ?? state.searchQuery;
+    final r = role ?? state.selectedRole;
+    final st = status ?? state.selectedStatus;
+    final sb = sortBy ?? state.sortBy;
+    final so = sortOrder ?? state.sortOrder;
+    final p = page ?? state.currentPage;
+    final l = limit ?? state.rowsPerPage;
 
     try {
-      final dash = await _api.getSprintCapacityDashboard(sid, team: t, search: q);
+      final dash = await _api.getSprintCapacityDashboard(
+        sid,
+        team: t,
+        search: q,
+        role: r,
+        status: st,
+        sortBy: sb,
+        sortOrder: so,
+        page: p,
+        limit: l,
+        forceRefresh: forceRefresh,
+      );
+      final finalDash = dash ?? _buildDefaultDashboard(sid, t);
       state = state.copyWith(
         isLoading: false,
-        dashboard: dash ?? _buildDefaultDashboard(sid, t),
+        dashboard: finalDash,
         sprintId: sid,
         selectedTeam: t,
         searchQuery: q,
+        selectedRole: r,
+        selectedStatus: st,
+        sortBy: sb,
+        sortOrder: so,
+        currentPage: p,
+        rowsPerPage: l,
+        allMembers: finalDash.members.isNotEmpty ? finalDash.members : state.allMembers,
       );
     } catch (e) {
+      final defDash = _buildDefaultDashboard(sid, t);
       state = state.copyWith(
         isLoading: false,
-        dashboard: _buildDefaultDashboard(sid, t),
+        dashboard: defDash,
         sprintId: sid,
         selectedTeam: t,
         searchQuery: q,
+        selectedRole: r,
+        selectedStatus: st,
+        sortBy: sb,
+        sortOrder: so,
+        currentPage: p,
+        rowsPerPage: l,
       );
     }
   }
 
+  void selectSprint(String sprintId) {
+    if (state.sprintId == sprintId) return;
+    state = state.copyWith(sprintId: sprintId, currentPage: 1);
+    loadCapacity(sprintId: sprintId, page: 1, forceRefresh: true);
+  }
+
   void selectTeam(String team) {
     if (state.selectedTeam == team) return;
-    state = state.copyWith(selectedTeam: team);
-    loadCapacity(team: team);
+    state = state.copyWith(selectedTeam: team, currentPage: 1);
+    loadCapacity(team: team, page: 1, forceRefresh: true);
+  }
+
+  void setSearch(String q) {
+    state = state.copyWith(searchQuery: q, currentPage: 1);
+    loadCapacity(search: q, page: 1);
+  }
+
+  void setRoleFilter(String role) {
+    state = state.copyWith(selectedRole: role, currentPage: 1);
+    loadCapacity(role: role, page: 1);
+  }
+
+  void setStatusFilter(String status) {
+    state = state.copyWith(selectedStatus: status, currentPage: 1);
+    loadCapacity(status: status, page: 1);
+  }
+
+  void setSorting(String column) {
+    final newOrder = (state.sortBy == column && state.sortOrder == 'asc') ? 'desc' : 'asc';
+    state = state.copyWith(sortBy: column, sortOrder: newOrder);
+    loadCapacity(sortBy: column, sortOrder: newOrder);
+  }
+
+  void setPage(int page) {
+    if (page == state.currentPage || page < 1) return;
+    state = state.copyWith(currentPage: page);
+    loadCapacity(page: page);
+  }
+
+  void setRowsPerPage(int limit) {
+    if (limit == state.rowsPerPage) return;
+    state = state.copyWith(rowsPerPage: limit, currentPage: 1);
+    loadCapacity(limit: limit, page: 1);
+  }
+
+  void resetFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      selectedRole: 'All',
+      selectedStatus: 'All',
+      currentPage: 1,
+    );
+    loadCapacity(search: '', role: 'All', status: 'All', page: 1);
   }
 
   Future<bool> manageMemberCapacity({
@@ -1923,3 +2353,173 @@ final workSprintRetroProvider =
     StateNotifierProvider<WorkSprintRetroNotifier, WorkSprintRetroState>((ref) {
   return WorkSprintRetroNotifier(ref, ref.read(workApiServiceProvider));
 });
+
+// ==========================================
+// 10. ALL SPRINTS GLOBAL SYNC PROVIDER (CRUD & UNIFIED SELECTION)
+// ==========================================
+class WorkAllSprintsState {
+  final bool isLoading;
+  final List<WorkSprintModel> sprints;
+  final String? selectedSprintId;
+  final String? errorMessage;
+
+  const WorkAllSprintsState({
+    this.isLoading = false,
+    this.sprints = const [],
+    this.selectedSprintId,
+    this.errorMessage,
+  });
+
+  WorkSprintModel? get activeSprint {
+    if (sprints.isEmpty) return null;
+    if (selectedSprintId != null) {
+      final match = sprints.where(
+        (s) =>
+            s.id == selectedSprintId ||
+            s.name.toLowerCase() == selectedSprintId!.toLowerCase() ||
+            s.id.toLowerCase().contains(selectedSprintId!.toLowerCase()),
+      );
+      if (match.isNotEmpty) return match.first;
+    }
+    return sprints.firstWhere((s) => s.status == 'ACTIVE', orElse: () => sprints.first);
+  }
+
+  WorkAllSprintsState copyWith({
+    bool? isLoading,
+    List<WorkSprintModel>? sprints,
+    String? selectedSprintId,
+    String? errorMessage,
+  }) {
+    return WorkAllSprintsState(
+      isLoading: isLoading ?? this.isLoading,
+      sprints: sprints ?? this.sprints,
+      selectedSprintId: selectedSprintId ?? this.selectedSprintId,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+}
+
+class WorkAllSprintsNotifier extends StateNotifier<WorkAllSprintsState> {
+  final Ref? ref;
+  final WorkApiService _api;
+
+  WorkAllSprintsNotifier(this.ref, [WorkApiService? api, WorkAllSprintsState? initialState])
+      : _api = api ?? WorkApiService.instance,
+        super(initialState ?? const WorkAllSprintsState(isLoading: true)) {
+    if (initialState == null) {
+      loadSprints();
+    }
+  }
+
+  Future<void> loadSprints({String? boardId, bool forceRefresh = false}) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final sprints = await _api.getSprints(boardId: boardId, forceRefresh: forceRefresh);
+      final active = sprints.firstWhere(
+        (s) => s.status == 'ACTIVE',
+        orElse: () => sprints.isNotEmpty ? sprints.first : const WorkSprintModel(id: 's8', name: 'Sprint 8'),
+      );
+      final targetSprintId = state.selectedSprintId != null && sprints.any((s) => s.id == state.selectedSprintId)
+          ? state.selectedSprintId!
+          : active.id;
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        sprints: sprints,
+        selectedSprintId: targetSprintId,
+      );
+    } catch (e) {
+      if (mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
+    }
+  }
+
+  void selectSprint(String sprintId) {
+    if (state.selectedSprintId != sprintId) {
+      state = state.copyWith(selectedSprintId: sprintId);
+    }
+  }
+
+  Future<bool> createSprint(Map<String, dynamic> data) async {
+    final success = await _api.createSprint(data);
+    if (success) {
+      await loadSprints(forceRefresh: true);
+      final latest = state.sprints.isNotEmpty ? state.sprints.last : null;
+      if (latest != null) {
+        selectSprint(latest.id);
+        await ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: latest.id, forceRefresh: true);
+      } else {
+        await ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      }
+      ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    }
+    return success;
+  }
+
+  Future<bool> updateSprint(String sprintId, Map<String, dynamic> data) async {
+    final success = await _api.updateSprint(sprintId, data);
+    if (success) {
+      selectSprint(sprintId);
+      await loadSprints(forceRefresh: true);
+      await ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    }
+    return success;
+  }
+
+  Future<bool> deleteSprint(String sprintId) async {
+    final success = await _api.deleteSprint(sprintId);
+    if (success) {
+      if (state.selectedSprintId == sprintId) {
+        state = state.copyWith(selectedSprintId: null);
+      }
+      await loadSprints(forceRefresh: true);
+      final nextSprintId = state.activeSprint?.id ?? (state.sprints.isNotEmpty ? state.sprints.first.id : 's8');
+      selectSprint(nextSprintId);
+      await ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: nextSprintId, forceRefresh: true);
+      ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    }
+    return success;
+  }
+
+  Future<bool> startSprint(String sprintId) async {
+    final success = await _api.startSprint(sprintId);
+    if (success) {
+      await loadSprints(forceRefresh: true);
+      ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: sprintId, forceRefresh: true);
+      ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    }
+    return success;
+  }
+
+  Future<bool> completeSprint(String sprintId, {String? moveIncompleteToSprintId, String? notes}) async {
+    final success = await _api.completeSprint(
+      sprintId,
+      moveIncompleteToSprintId: moveIncompleteToSprintId,
+      notes: notes,
+    );
+    if (success) {
+      await loadSprints(forceRefresh: true);
+      ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    }
+    return success;
+  }
+}
+
+final allSprintsProvider =
+    StateNotifierProvider<WorkAllSprintsNotifier, WorkAllSprintsState>((ref) {
+  return WorkAllSprintsNotifier(ref, ref.read(workApiServiceProvider));
+});
+

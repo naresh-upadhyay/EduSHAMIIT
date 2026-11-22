@@ -6,7 +6,7 @@ import json
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, whiteboards, broadcasts, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library, recruitment, onboarding, hr_documents, hr_training, hr_overview, hostel, visitors, payments_management, inventory, exams, campus, space_booking, maintenance, safety_compliance, device_management, work_management, payment_bridge
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, whiteboards, broadcasts, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library, recruitment, onboarding, hr_documents, hr_training, hr_overview, hostel, visitors, payments_management, inventory, exams, campus, space_booking, maintenance, safety_compliance, device_management, work_management, payment_bridge, departments
 
 
 @asynccontextmanager
@@ -228,7 +228,7 @@ async def enforce_modules_middleware(request: Request, call_next):
         return await call_next(request)
 
     # Exclude open/unauthenticated endpoints and modules config endpoints
-    if os.environ.get("TESTING") == "1" or any(p in path for p in ["/api/auth", "/health", "/api/admin/schools/modules/all", "/api/contact/submit"]):
+    if os.environ.get("TESTING") == "1" or any(p in path for p in ["/api/auth", "/health", "/api/admin/schools/modules/all", "/api/contact/submit", "/api/departments", "/api/v1/departments"]):
         return await call_next(request)
 
     try:
@@ -456,7 +456,6 @@ app.include_router(exams.question_bank_router, prefix="/api/v1/question-bank", t
 app.include_router(exams.question_bank_router, prefix="/api/question-bank", tags=["Universal Question Bank"])
 app.include_router(classes.router, prefix="/api/classes", tags=["Academic Class Management"])
 app.include_router(classes.router, prefix="/api/v1/classes", tags=["Academic Class Management v1"])
-app.include_router(classes.router, prefix="/api", tags=["Academic Class Management Core"])
 app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance Management"])
 app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["Attendance Management v1"])
 app.include_router(attendance.router, prefix="/api", tags=["Attendance Management Core"])
@@ -487,6 +486,7 @@ app.include_router(visitors.gate_passes_router, prefix="/api/v1/visitor-gate-pas
 app.include_router(visitors.restrictions_router, prefix="/api/v1/visitor-restrictions", tags=["Visitor Restrictions v1"])
 app.include_router(payments_management.router, prefix="/api/v1/payment-management", tags=["Universal Payment Management v1"])
 app.include_router(payments_management.router, prefix="/api/payment-management", tags=["Universal Payment Management"])
+app.include_router(payments_management.public_router, tags=["Public Student Fee Payment Portal"])
 app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory Management v1"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory Management"])
 app.include_router(campus.router, prefix="/api/v1/campus", tags=["Campus Management v1"])
@@ -504,6 +504,8 @@ app.include_router(work_management.router, prefix="/api/work", tags=["Work Manag
 app.include_router(payment_bridge.router, prefix="/api/v1/payment-bridge", tags=["Payment Bridge v1"])
 app.include_router(payment_bridge.router, prefix="/api/payment-bridge", tags=["Payment Bridge"])
 app.include_router(payment_bridge.router, prefix="/api/v1/payments", tags=["Payment Bridge Compatibility v1"])
+app.include_router(departments.router, prefix="/api/departments", tags=["Departments SSOT"])
+app.include_router(departments.router, prefix="/api/v1/departments", tags=["Departments SSOT v1"])
 
 
 @app.websocket("/api/ws/documents/{doc_id}")
@@ -591,4 +593,19 @@ async def start_automated_archiving_loop():
     asyncio.create_task(archive_scheduler())
     asyncio.create_task(optimization_scheduler())
     asyncio.create_task(automation_rules_cron_scheduler())
+    async def fee_invoices_scheduling_cron_scheduler():
+        """Periodic background execution of due student fee invoice generation rules (every 120s)."""
+        await asyncio.sleep(20)
+        while True:
+            try:
+                from app.api.payments_management import process_due_fee_schedules_internal
+                res = await process_due_fee_schedules_internal()
+                if res.get("rules_processed_count", 0) > 0:
+                    print(f"[Fee Invoice Scheduler] Processed {res['rules_processed_count']} due rules successfully.", flush=True)
+            except Exception as e:
+                print(f"[Fee Invoice Scheduler] Scheduler loop error: {e}", flush=True)
+            await asyncio.sleep(120)
+
+    asyncio.create_task(fee_invoices_scheduling_cron_scheduler())
+
 

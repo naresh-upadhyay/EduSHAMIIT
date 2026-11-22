@@ -128,7 +128,7 @@ class _DeviceAccessPermissionsSubviewState
       {'id': 'c1000000-0000-0000-0000-000000000005', 'name': 'teacher', 'display_name': 'Teacher', 'code': 'TEACHER'},
       {'id': 'c1000000-0000-0000-0000-000000000006', 'name': 'view_only', 'display_name': 'View Only', 'code': 'VIEW_ONLY'},
       {'id': 'c1000000-0000-0000-0000-000000000007', 'name': 'it_iot_admin', 'display_name': 'IT/IoT Administrator', 'code': 'IT_IOT_ADMIN'},
-      {'id': 'c1000000-0000-0000-0000-000000000008', 'name': 'security_officer', 'display_name': 'Security Officer', 'code': 'SECURITY_OFFICER'},
+      {'id': 'c1000000-0000-0000-0000-000000000008', 'name': 'security', 'display_name': 'Security Head', 'code': 'SECURITY'},
       {'id': 'c1000000-0000-0000-0000-000000000009', 'name': 'campus_administrator', 'display_name': 'Campus Administrator', 'code': 'CAMPUS_ADMIN'},
     ];
 

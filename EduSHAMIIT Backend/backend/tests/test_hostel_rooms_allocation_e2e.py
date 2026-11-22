@@ -182,7 +182,7 @@ async def test_hostel_e2e_full_lifecycle():
         detail = detail_res.json()["data"]
         b1_obj = next(b for b in detail["beds"] if b["id"] == bed1_id)
         assert b1_obj["status"].upper() == "OCCUPIED"
-        assert detail["current_occupancy"] == 1
+        assert (detail.get("current_occupancy") or detail.get("room", {}).get("current_occupancy")) == 1
 
         print("Student 1 allocated successfully. Bed 1 is Occupied.")
 
@@ -249,7 +249,7 @@ async def test_hostel_e2e_full_lifecycle():
         detail = detail_res.json()["data"]
         b2_obj = next(b for b in detail["beds"] if b["id"] == bed2_id)
         assert b2_obj["status"].upper() == "AVAILABLE"
-        assert detail["current_occupancy"] == 0
+        assert (detail.get("current_occupancy") if "current_occupancy" in detail else detail.get("room", {}).get("current_occupancy")) == 0
         print("Check-out verified: Bed 2 released, occupancy returned to 0.")
 
         print("\n--- 11. Bulk Generate Rooms ---")

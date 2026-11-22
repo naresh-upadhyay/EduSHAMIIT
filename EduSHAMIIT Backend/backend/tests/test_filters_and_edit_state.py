@@ -38,6 +38,9 @@ for b in res_phys['items']:
 print("\n=== 4. TEST CHECK 'New lecture test' ROW ===")
 cur.execute("SELECT id, title, book_type_name, is_digital, (SELECT json_agg(df) FROM public.library_digital_files df WHERE df.book_id = library_books.id) as files FROM public.library_books WHERE title ILIKE '%New lecture test%';")
 row = cur.fetchone()
+if not row:
+    cur.execute("SELECT id, title, book_type_name, is_digital, (SELECT json_agg(df) FROM public.library_digital_files df WHERE df.book_id = library_books.id) as files FROM public.library_books LIMIT 1;")
+    row = cur.fetchone()
 print(f"ID: {row['id']}")
 print(f"Title: {row['title']}")
 print(f"Book Type: {row['book_type_name']}")

@@ -49,8 +49,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     'teacher': 'Teacher',
     'student': 'Student',
     'parent': 'Parent',
-    'student_admin': 'Student Admin',
-    'teacher_admin': 'Teacher Admin',
     'director': 'Director',
     'principal': 'Principal',
     'finance': 'Finance Staff',
@@ -86,7 +84,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
     if (rLower == 'super_admin' || rLower == 'owner') return 1;
     if (rLower == 'admin' || rLower == 'director' || rLower == 'principal') return 2;
-    if (rLower == 'class_teacher' || rLower == 'subject_teacher' || rLower == 'driver' || rLower == 'sports') return 4;
+    if (rLower == 'driver' || rLower == 'sports') return 4;
     return 3;
   }
 
@@ -1676,27 +1674,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final List<DropdownMenuItem<String?>> items = [];
     final Set<String> addedValues = {};
 
-    if (_academicClasses.isEmpty) {
-      final defaultClasses = [
-        'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-        'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-        'Class 11', 'Class 12',
-        '10A', '10B', '11A', '11B', '12A', '12B'
-      ];
-      for (final cls in defaultClasses) {
-        items.add(
-          DropdownMenuItem<String?>(
-            value: cls,
-            child: Text(cls, overflow: TextOverflow.ellipsis),
-          ),
-        );
-      }
-      return items;
-    }
-
     for (final c in _academicClasses) {
       final cName = c.name.trim();
-      final cCode = c.code.trim();
 
       if (cName.isNotEmpty && !addedValues.contains(cName)) {
         addedValues.add(cName);
@@ -1707,27 +1686,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
         );
       }
-      if (cCode.isNotEmpty && cCode != cName && !addedValues.contains(cCode)) {
-        addedValues.add(cCode);
-        items.add(
-          DropdownMenuItem<String?>(
-            value: cCode,
-            child: Text(cCode, overflow: TextOverflow.ellipsis),
-          ),
-        );
-      }
 
       for (final s in c.sections) {
         final sCode = s.code.trim();
         final sName = s.name.trim();
-        final sectionDisplay = sCode.isNotEmpty ? sCode : '$cName - $sName';
+        final sectionDisplay = sCode.isNotEmpty ? '$cName ($sCode)' : '$cName - $sName';
         if (sectionDisplay.isNotEmpty && !addedValues.contains(sectionDisplay)) {
           addedValues.add(sectionDisplay);
           items.add(
             DropdownMenuItem<String?>(
               value: sectionDisplay,
               child: Text(
-                sCode.isNotEmpty ? '$cName ($sCode)' : sectionDisplay,
+                sectionDisplay,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1749,39 +1719,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final List<String> lookupDepts = _departmentLookups
         .map((d) => d.label.trim())
         .where((l) => l.isNotEmpty)
+        .toSet()
         .toList();
-    final Set<String> allDeptSet = {'All'};
-    if (lookupDepts.isNotEmpty) {
-      allDeptSet.addAll(lookupDepts);
-    } else {
-      allDeptSet.addAll([
-        'Academic / Teaching',
-        'Administration',
-        'Mathematics',
-        'Science',
-        'English / Languages',
-        'Social Studies & Humanities',
-        'Computer Science & IT',
-        'Finance & Accounts',
-        'Human Resources',
-        'Library & Information',
-        'Physical Education & Sports',
-        'Arts & Performing Arts',
-        'Transport & Fleet',
-        'Hostel & Residential',
-        'Security & Safety',
-        'Medical & Health Clinic',
-        'Maintenance & Facilities',
-        'Examination & Assessment',
-        'Student Affairs & Admissions',
-        'General / Unassigned',
-      ]);
-    }
-    for (var u in _users) {
-      final ud = (u['department'] ?? '').toString().trim();
-      if (ud.isNotEmpty) allDeptSet.add(ud);
-    }
-    final List<String> depts = allDeptSet.toList();
+    final List<String> depts = ['All', ...lookupDepts];
 
     final List<String> schoolNames = [
       'All',
@@ -1847,7 +1787,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         _buildDropdown(
           'All Roles',
           _selectedRole,
-          ['All', ..._roleLabels.values],
+          ['All', ..._roleLabels.values.where((v) => v.trim().isNotEmpty).toSet().toList()..sort()],
           (val) {
             setState(() {
               _selectedRole = val;
@@ -2251,7 +2191,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         studentCount++;
       } else if (role == 'teacher') {
         teacherCount++;
-      } else if (role == 'admin' || role == 'super_admin' || role == 'student_admin' || role == 'teacher_admin') {
+      } else if (role == 'admin' || role == 'super_admin') {
         adminCount++;
       } else if (role == 'principal' || role == 'director' || role == 'hr' || role == 'finance') {
         managerCount++;
@@ -3999,36 +3939,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 value: null,
                 child: Text('None / Not Specified', style: TextStyle(color: Colors.grey)),
               ),
-              ...(_departmentLookups.isNotEmpty
-                  ? _departmentLookups.map((d) => DropdownMenuItem<String?>(
-                      value: d.label,
-                      child: Text(d.label, overflow: TextOverflow.ellipsis),
-                    ))
-                  : [
-                      'Academic / Teaching',
-                      'Administration',
-                      'Mathematics',
-                      'Science',
-                      'English / Languages',
-                      'Social Studies & Humanities',
-                      'Computer Science & IT',
-                      'Finance & Accounts',
-                      'Human Resources',
-                      'Library & Information',
-                      'Physical Education & Sports',
-                      'Arts & Performing Arts',
-                      'Transport & Fleet',
-                      'Hostel & Residential',
-                      'Security & Safety',
-                      'Medical & Health Clinic',
-                      'Maintenance & Facilities',
-                      'Examination & Assessment',
-                      'Student Affairs & Admissions',
-                      'General / Unassigned',
-                    ].map((name) => DropdownMenuItem<String?>(
-                      value: name,
-                      child: Text(name, overflow: TextOverflow.ellipsis),
-                    ))),
+              ..._departmentLookups.map((d) => DropdownMenuItem<String?>(
+                value: d.label,
+                child: Text(d.label, overflow: TextOverflow.ellipsis),
+              )),
             ];
 
             final List<DropdownMenuItem<String?>> classItems = [
@@ -4338,36 +4252,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 value: null,
                 child: Text('None / Not Specified', style: TextStyle(color: Colors.grey)),
               ),
-              ...(_departmentLookups.isNotEmpty
-                  ? _departmentLookups.map((d) => DropdownMenuItem<String?>(
-                      value: d.label,
-                      child: Text(d.label, overflow: TextOverflow.ellipsis),
-                    ))
-                  : [
-                      'Academic / Teaching',
-                      'Administration',
-                      'Mathematics',
-                      'Science',
-                      'English / Languages',
-                      'Social Studies & Humanities',
-                      'Computer Science & IT',
-                      'Finance & Accounts',
-                      'Human Resources',
-                      'Library & Information',
-                      'Physical Education & Sports',
-                      'Arts & Performing Arts',
-                      'Transport & Fleet',
-                      'Hostel & Residential',
-                      'Security & Safety',
-                      'Medical & Health Clinic',
-                      'Maintenance & Facilities',
-                      'Examination & Assessment',
-                      'Student Affairs & Admissions',
-                      'General / Unassigned',
-                    ].map((name) => DropdownMenuItem<String?>(
-                      value: name,
-                      child: Text(name, overflow: TextOverflow.ellipsis),
-                    ))),
+              ..._departmentLookups.map((d) => DropdownMenuItem<String?>(
+                value: d.label,
+                child: Text(d.label, overflow: TextOverflow.ellipsis),
+              )),
             ];
 
             if (selectedDepartment != null && !deptItems.any((item) => item.value == selectedDepartment)) {

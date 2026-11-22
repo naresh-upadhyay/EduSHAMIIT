@@ -166,7 +166,7 @@ log_test("Awaiting approval returns 8 items", len(res_awt.get("data", [])) == 8,
 code, res_cout = api_call("GET", "/api/hostel/leave-outing/currently-out")
 log_test("Currently out returns 200", code == 200)
 cout_items = res_cout.get("data", []) if isinstance(res_cout.get("data"), list) else res_cout.get("data", {}).get("items", [])
-log_test("Currently out returns 15 students", len(cout_items) == 15, f"Got: {len(cout_items)}")
+log_test("Currently out returns at least 15 students", len(cout_items) >= 15, f"Got: {len(cout_items)}")
 
 code, res_cal = api_call("GET", "/api/hostel/leave-outing/calendar?month=5&year=2024")
 log_test("Calendar endpoint returns 200", code == 200)

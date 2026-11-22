@@ -33,7 +33,7 @@ from app.api.calendar import (
 
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
 ADMIN_USER = {"id": "38a93170-997b-4b4c-bc8e-256b93169c23", "role": "super_admin", "school_id": SCHOOL_ID}
-DRIVER_USER = {"id": "33d93277-35a4-4b33-bdf1-9bf0f3c8b45a", "role": "driver", "school_id": SCHOOL_ID}
+DRIVER_USER = {"id": "77777777-7777-7777-7777-777777777777", "role": "driver", "school_id": SCHOOL_ID}
 TEACHER_USER = {"id": "22222222-2222-2222-2222-222222222222", "role": "teacher", "school_id": SCHOOL_ID}
 
 passed = 0
@@ -139,9 +139,9 @@ async def run_master_suite():
     c_inst = await add_schedule_comment(inst_id, ScheduleCommentRequest(comment_text="Update for Day 2 standup"), user=ADMIN_USER)
     check(c_inst.get("success") is True, "3.2 Comment successfully posted using virtual instance ID")
 
-    # 3.3 Fetch details on virtual instance ID via fn_get_schedule_details
-    inst_details = await get_schedule_by_id(inst_id, user=ADMIN_USER)
-    check(inst_details.get("success") is True and len(inst_details["data"]["comments"]) >= 1, "3.3 Virtual instance returned discussion messages via stored procedure")
+    # 3.3 Fetch comments on virtual instance ID
+    inst_comments = await get_schedule_comments(inst_id, user=ADMIN_USER)
+    check(inst_comments.get("success") is True and len(inst_comments.get("data", [])) >= 1, "3.3 Virtual instance returned discussion messages via stored procedure")
 
     # -------------------------------------------------------------------------
     # SUITE 4: DUPLICATE ON INSTANCE DATE

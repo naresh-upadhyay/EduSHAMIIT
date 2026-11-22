@@ -12,8 +12,11 @@ def test_digital_viewer_e2e():
     conn = psycopg2.connect(settings.DATABASE_URL)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    cur.execute("SELECT id, school_id, title FROM public.library_books WHERE title ILIKE '%New lecture test%' LIMIT 1;")
+    cur.execute("SELECT id, school_id, title FROM public.library_books WHERE digital_url IS NOT NULL LIMIT 1;")
     book = cur.fetchone()
+    if not book:
+        cur.execute("SELECT id, school_id, title FROM public.library_books LIMIT 1;")
+        book = cur.fetchone()
     book_id = str(book['id'])
     school_id = str(book['school_id'])
 
@@ -34,8 +37,10 @@ def test_digital_viewer_e2e():
         "Content-Type": "application/json"
     }
 
+    base_url = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000" if os.path.exists("/.dockerenv") else "http://127.0.0.1:8082")
+
     # 1. Get secure playback / stream session token
-    url_token = f"http://127.0.0.1:8000/api/v1/library/books/{book_id}/digital-stream-token"
+    url_token = f"{base_url}/api/v1/library/books/{book_id}/digital-stream-token"
     res_token = requests.post(url_token, headers=headers, json={})
     print(f"1. Generate Stream Token Status: {res_token.status_code}")
     assert res_token.status_code == 200
@@ -45,7 +50,7 @@ def test_digital_viewer_e2e():
 
 
     # 2. Record reading / listening progress
-    url_progress = f"http://127.0.0.1:8000/api/v1/library/books/{book_id}/progress"
+    url_progress = f"{base_url}/api/v1/library/books/{book_id}/progress"
     res_progress = requests.post(url_progress, headers=headers, json={
         "media_type": "VIDEO",
         "progress_percentage": 50.0,

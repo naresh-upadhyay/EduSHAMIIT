@@ -131,8 +131,6 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
           {'name': 'principal', 'display_name': 'Academic Admin'},
           {'name': 'exam_ctrl', 'display_name': 'Examination Controller'},
           {'name': 'teacher', 'display_name': 'Teacher'},
-          {'name': 'class_teacher', 'display_name': 'Class Teacher'},
-          {'name': 'subject_teacher', 'display_name': 'Subject Teacher'},
           {'name': 'student', 'display_name': 'Student'},
           {'name': 'parent', 'display_name': 'Student (Parent)'},
           {'name': 'driver', 'display_name': 'Driver'},

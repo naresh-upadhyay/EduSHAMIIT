@@ -19,11 +19,12 @@ from psycopg2.extras import RealDictCursor
 
 from app.config import settings
 
-API_BASE = "http://127.0.0.1:8000"
+API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000" if os.path.exists("/.dockerenv") else "http://127.0.0.1:8082")
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
 SUPER_ADMIN_ID = "38a93170-997b-4b4c-bc8e-256b93169c23"
 
 def get_auth_token():
+    secret = os.environ.get("SUPABASE_JWT_SECRET") or os.environ.get("JWT_SECRET") or getattr(settings, "SUPABASE_JWT_SECRET", None) or getattr(settings, "JWT_SECRET", None) or "super-secret-jwt-token-with-at-least-32-characters-long"
     payload = {
         "sub": SUPER_ADMIN_ID,
         "school_id": SCHOOL_ID,
@@ -31,9 +32,12 @@ def get_auth_token():
         "email": "superadmin@edushamiit.com",
         "exp": 9999999999
     }
-    return jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 def get_db_connection():
+    db_url = os.environ.get("DATABASE_URL") or getattr(settings, "DATABASE_URL", None)
+    if db_url:
+        return psycopg2.connect(db_url)
     return psycopg2.connect(
         host=settings.POSTGRES_HOST,
         port=settings.POSTGRES_PORT,

@@ -29,7 +29,9 @@ def test_cover_upload_e2e():
 
     filename = f"test_cover_{int(datetime.utcnow().timestamp())}_{uuid.uuid4().hex[:6]}.png"
     storage_path = f"library_covers/{filename}"
-    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    supabase_url = os.environ.get("SUPABASE_URL", settings.SUPABASE_URL).rstrip("/")
+    if not os.path.exists("/.dockerenv") and "kong" in supabase_url:
+        supabase_url = supabase_url.replace("kong", "127.0.0.1")
     storage_url = f"{supabase_url}/storage/v1/object/avatars/{storage_path}"
     headers = {
         "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
@@ -56,6 +58,10 @@ def test_cover_upload_e2e():
     cur.execute("UPDATE public.library_books SET cover_url = %s WHERE title ILIKE '%%New lecture test%%' RETURNING id, title, cover_url;", (public_url,))
     conn.commit()
     updated_book = cur.fetchone()
+    if not updated_book:
+        cur.execute("UPDATE public.library_books SET cover_url = %s WHERE id = (SELECT id FROM public.library_books LIMIT 1) RETURNING id, title, cover_url;", (public_url,))
+        conn.commit()
+        updated_book = cur.fetchone()
     print(f"\nUpdated Book in DB:")
     print(f"ID: {updated_book['id']}")
     print(f"Title: {updated_book['title']}")

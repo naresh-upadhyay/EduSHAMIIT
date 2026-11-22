@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,12 +10,14 @@ class SprintCapacityTabView extends ConsumerStatefulWidget {
   final String sprintId;
   final String? selectedTeam;
   final ValueChanged<String>? onTeamChanged;
+  final ValueChanged<String>? onSprintChanged;
 
   const SprintCapacityTabView({
     super.key,
     required this.sprintId,
     this.selectedTeam,
     this.onTeamChanged,
+    this.onSprintChanged,
   });
 
   @override
@@ -23,6 +26,9 @@ class SprintCapacityTabView extends ConsumerStatefulWidget {
 
 class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
   Set<String> _selectedMemberIds = {};
+  final TextEditingController _gridSearchController = TextEditingController();
+  Timer? _searchDebounce;
+
   List<WorkAssigneeModel> _assignableUsers = const [
     WorkAssigneeModel(id: '1', userId: '55555555-0001-0000-0000-000000000001', fullName: 'Neha Sharma', role: 'Teacher'),
     WorkAssigneeModel(id: '2', userId: '55555555-0002-0000-0000-000000000002', fullName: 'Amit Kumar', role: 'Staff'),
@@ -63,6 +69,13 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
             team: team,
           );
     }
+  }
+
+  @override
+  void dispose() {
+    _gridSearchController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   // ==========================================
@@ -968,6 +981,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     if (!mounted) return;
     if (csv != null) {
       await Clipboard.setData(ClipboardData(text: csv));
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Capacity data exported and copied to clipboard as CSV!'),
@@ -1032,6 +1046,10 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 0. TOP SCOPE FILTERS (Sprint & Team Dropdowns + Refresh)
+              _buildTopScreenFiltersBar(dash, capState, isDark),
+              const SizedBox(height: 14),
+
               // 1. TOP HERO & 6 KPI PILLS ROW
               _buildTopKpiRow(dash, isDark, constraints.maxWidth),
               const SizedBox(height: 16),
@@ -1090,6 +1108,221 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
           ),
         );
       },
+    );
+  }
+
+  // ==========================================
+  // 0. TOP SCREEN FILTERS ROW (Sprint & Team scope)
+  // ==========================================
+
+  Widget _buildTopScreenFiltersBar(
+    SprintCapacityDashboardModel dash,
+    WorkSprintCapacityState capState,
+    bool isDark,
+  ) {
+    final allSprints = ref.watch(allSprintsProvider).sprints;
+    final sprintItems = <Map<String, String>>[];
+    if (allSprints.isNotEmpty) {
+      for (final s in allSprints) {
+        sprintItems.add({
+          'id': s.id,
+          'label': '${s.name} (${s.status})',
+          'name': s.name,
+        });
+      }
+    } else if (dash.sprints.isNotEmpty) {
+      for (final s in dash.sprints) {
+        sprintItems.add({
+          'id': s.id,
+          'label': '${s.name} (${s.status})',
+          'name': s.name,
+        });
+      }
+    } else {
+      sprintItems.add({'id': widget.sprintId, 'label': dash.sprintName, 'name': dash.sprintName});
+    }
+
+    final teamItems = <String>['All Teams'];
+    if (dash.teams.isNotEmpty) {
+      for (final t in dash.teams) {
+        if (!teamItems.contains(t.name)) {
+          teamItems.add(t.name);
+        }
+      }
+    } else if (capState.availableTeams.isNotEmpty) {
+      for (final t in capState.availableTeams) {
+        if (!teamItems.contains(t.name)) {
+          teamItems.add(t.name);
+        }
+      }
+    } else {
+      teamItems.addAll([
+        'Digital Campus Team',
+        'Academic Systems Team',
+        'Examination Team',
+        'IT Operations Team',
+        'Infrastructure & Maintenance Team',
+        'Library Systems Team',
+      ]);
+    }
+
+    String currentSprintId = capState.sprintId;
+    if (!sprintItems.any((s) => s['id'] == currentSprintId)) {
+      final match = sprintItems.firstWhere(
+        (s) => s['name'] == dash.sprintName,
+        orElse: () => sprintItems.first,
+      );
+      currentSprintId = match['id']!;
+    }
+
+    String currentTeam = capState.selectedTeam;
+    if (!teamItems.contains(currentTeam)) {
+      currentTeam = teamItems.first;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF13182C) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Capacity Scope Filters',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // 1. Sprint Selector Dropdown
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.directions_run_rounded, size: 16, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 8),
+                    const Text('Sprint:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const SizedBox(width: 6),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: currentSprintId,
+                        dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),
+                        items: sprintItems.map((s) {
+                          return DropdownMenuItem<String>(
+                            value: s['id'],
+                            child: Text(s['label']!),
+                          );
+                        }).toList(),
+                        onChanged: (newSid) {
+                          if (newSid != null) {
+                            ref.read(workSprintCapacityProvider.notifier).selectSprint(newSid);
+                            widget.onSprintChanged?.call(newSid);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 2. Team Selector Dropdown
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.groups_rounded, size: 16, color: Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    const Text('Team:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const SizedBox(width: 6),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: currentTeam,
+                        dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),
+                        items: teamItems.map((teamName) {
+                          return DropdownMenuItem<String>(
+                            value: teamName,
+                            child: Text(teamName),
+                          );
+                        }).toList(),
+                        onChanged: (newTeam) {
+                          if (newTeam != null) {
+                            ref.read(workSprintCapacityProvider.notifier).selectTeam(newTeam);
+                            widget.onTeamChanged?.call(newTeam);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 3. Quick Refresh Button
+              IconButton(
+                tooltip: 'Refresh Capacity Data',
+                onPressed: () {
+                  ref.read(workSprintCapacityProvider.notifier).loadCapacity(forceRefresh: true);
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                style: IconButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  padding: const EdgeInsets.all(8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1461,8 +1694,29 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
   // 3. TEAM MEMBER CAPACITY & WORKLOAD TABLE CARD
   // ==========================================
 
+  // ==========================================
+  // 3. TEAM MEMBER CAPACITY & WORKLOAD TABLE CARD
+  // ==========================================
+
   Widget _buildTeamMemberWorkloadTableCard(SprintCapacityDashboardModel dash, bool isDark) {
-    final members = dash.members;
+    final capState = ref.watch(workSprintCapacityProvider);
+    final rawMembers = dash.members.isNotEmpty ? dash.members : capState.allMembers;
+    final filteredMembers = _getFilteredAndSortedMembers(rawMembers, capState);
+    final totalCount = dash.pagination.totalMembers > 0
+        ? dash.pagination.totalMembers
+        : filteredMembers.length;
+    final totalPages = dash.pagination.totalPages > 0
+        ? dash.pagination.totalPages
+        : (totalCount > 0 ? (totalCount / capState.rowsPerPage).ceil() : 1);
+    final page = capState.currentPage.clamp(1, totalPages < 1 ? 1 : totalPages);
+
+    // Paginated slice: if dash.members is already a paginated page from server, use it directly;
+    // otherwise (or if client filtered), slice the filtered list
+    final displayedMembers = (dash.pagination.totalMembers > 0 && dash.members.length <= capState.rowsPerPage && capState.searchQuery.isEmpty && capState.selectedRole == 'All' && capState.selectedStatus == 'All')
+        ? dash.members
+        : (filteredMembers.length > capState.rowsPerPage
+            ? filteredMembers.skip((page - 1) * capState.rowsPerPage).take(capState.rowsPerPage).toList()
+            : filteredMembers);
 
     return Container(
       decoration: BoxDecoration(
@@ -1487,7 +1741,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Team Member Capacity & Workload (${members.length})',
+                    'Team Member Capacity & Workload ($totalCount)',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -1538,14 +1792,14 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                   OutlinedButton.icon(
                     onPressed: () {
                       if (_selectedMemberIds.isNotEmpty) {
-                        final selected = members.where((m) => _selectedMemberIds.contains(m.userId)).toList();
+                        final selected = rawMembers.where((m) => _selectedMemberIds.contains(m.userId)).toList();
                         if (selected.length == 1) {
                           _openAdjustCapacityDialog(selected.first);
                         } else {
                           _openBatchAdjustCapacityDialog(selected);
                         }
-                      } else if (members.isNotEmpty) {
-                        _openAdjustCapacityDialog(members.first);
+                      } else if (displayedMembers.isNotEmpty) {
+                        _openAdjustCapacityDialog(displayedMembers.first);
                       }
                     },
                     icon: const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF475569)),
@@ -1561,7 +1815,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                   ),
                   if (_selectedMemberIds.isNotEmpty)
                     OutlinedButton.icon(
-                      onPressed: () => _confirmRemoveSelectedMembers(members),
+                      onPressed: () => _confirmRemoveSelectedMembers(rawMembers),
                       icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFEF4444)),
                       label: Text('Remove (${_selectedMemberIds.length})', style: const TextStyle(fontSize: 11.5, color: Color(0xFFEF4444))),
                       style: OutlinedButton.styleFrom(
@@ -1586,6 +1840,10 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
           ),
           const SizedBox(height: 16),
 
+          // GRID POWERFUL FILTERS TOOLBAR
+          _buildGridFiltersBar(dash, capState, isDark),
+          const SizedBox(height: 16),
+
           // Horizontal scroll wrapper for responsive table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -1594,7 +1852,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
               onSelectAll: (all) {
                 setState(() {
                   if (all == true) {
-                    _selectedMemberIds = members.map((m) => m.userId).toSet();
+                    _selectedMemberIds = displayedMembers.map((m) => m.userId).toSet();
                   } else {
                     _selectedMemberIds.clear();
                   }
@@ -1608,19 +1866,19 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
               headingRowColor: WidgetStateProperty.all(
                 isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               ),
-              columns: const [
-                DataColumn(label: Text('Team Member ⇅', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Role', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Capacity (h)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Planned (h)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actual (h)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Remaining (h)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Utilization', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Work Items', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Status', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
+              columns: [
+                DataColumn(label: _buildSortableHeader('Team Member', 'name', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Role', 'role', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Capacity (h)', 'capacity', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Planned (h)', 'planned', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Actual (h)', 'actual', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Remaining (h)', 'remaining', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Utilization', 'utilization', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Work Items', 'work_items', capState.sortBy, capState.sortOrder, isDark)),
+                DataColumn(label: _buildSortableHeader('Status', 'status', capState.sortBy, capState.sortOrder, isDark)),
+                const DataColumn(label: Text('Actions', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold))),
               ],
-              rows: members.map((m) {
+              rows: displayedMembers.map((m) {
                 final isSelected = _selectedMemberIds.contains(m.userId);
                 final isOverloaded = m.status == 'Overloaded' || m.utilizationPct > 100.0;
                 final isHigh = m.status == 'High';
@@ -1750,9 +2008,527 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
               }).toList(),
             ),
           ),
+
+          // Empty state if no items
+          if (displayedMembers.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.search_off_rounded, size: 36, color: Color(0xFF94A3B8)),
+                    const SizedBox(height: 8),
+                    const Text('No members found matching the selected filters.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        _gridSearchController.clear();
+                        ref.read(workSprintCapacityProvider.notifier).resetFilters();
+                      },
+                      child: const Text('Reset All Filters'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // POWERFUL PAGINATION FOOTER
+          const SizedBox(height: 12),
+          _buildPaginationFooter(totalCount, page, capState.rowsPerPage, totalPages, isDark),
         ],
       ),
     );
+  }
+
+  // ==========================================
+  // GRID FILTERS TOOLBAR
+  // ==========================================
+
+  Widget _buildGridFiltersBar(
+    SprintCapacityDashboardModel dash,
+    WorkSprintCapacityState capState,
+    bool isDark,
+  ) {
+    final availableRoles = <String>{'All'};
+    for (final m in dash.members) {
+      if (m.role.isNotEmpty) availableRoles.add(m.role);
+    }
+    for (final m in capState.allMembers) {
+      if (m.role.isNotEmpty) availableRoles.add(m.role);
+    }
+    final standardRoles = [
+      'Team Lead', 'Senior Developer', 'Backend Developer', 'UI/UX Designer',
+      'QA Engineer', 'DevOps Engineer', 'System Analyst', 'Developer',
+      'Scrum Master', 'Teacher', 'Staff'
+    ];
+    availableRoles.addAll(standardRoles);
+    final roleList = availableRoles.toList();
+
+    final statusList = ['All', 'Overloaded', 'High', 'Balanced', 'Underallocated'];
+
+    final hasActiveFilters = capState.searchQuery.isNotEmpty ||
+        capState.selectedRole != 'All' ||
+        capState.selectedStatus != 'All';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // 1. Search Box
+            SizedBox(
+              width: 280,
+              height: 38,
+              child: TextField(
+                controller: _gridSearchController,
+                onChanged: (val) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                    ref.read(workSprintCapacityProvider.notifier).setSearch(val.trim());
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search member by name, role...',
+                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 17, color: Color(0xFF64748B)),
+                  suffixIcon: _gridSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 15),
+                          onPressed: () {
+                            _gridSearchController.clear();
+                            ref.read(workSprintCapacityProvider.notifier).setSearch('');
+                          },
+                        )
+                      : null,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                ),
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+
+            // 2. Role Dropdown Filter
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.badge_outlined, size: 15, color: Color(0xFF64748B)),
+                  const SizedBox(width: 6),
+                  const Text('Role:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  const SizedBox(width: 6),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: roleList.contains(capState.selectedRole) ? capState.selectedRole : 'All',
+                      dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      items: roleList.map((r) {
+                        return DropdownMenuItem<String>(
+                          value: r,
+                          child: Text(r == 'All' ? 'All Roles' : r),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          ref.read(workSprintCapacityProvider.notifier).setRoleFilter(val);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 3. Workload Status Dropdown Filter
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.speed_rounded, size: 15, color: Color(0xFF64748B)),
+                  const SizedBox(width: 6),
+                  const Text('Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  const SizedBox(width: 6),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: statusList.contains(capState.selectedStatus) ? capState.selectedStatus : 'All',
+                      dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      items: statusList.map((s) {
+                        return DropdownMenuItem<String>(
+                          value: s,
+                          child: Text(s == 'All' ? 'All Statuses' : s),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          ref.read(workSprintCapacityProvider.notifier).setStatusFilter(val);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 4. Reset Filters Button
+            if (hasActiveFilters)
+              TextButton.icon(
+                onPressed: () {
+                  _gridSearchController.clear();
+                  ref.read(workSprintCapacityProvider.notifier).resetFilters();
+                },
+                icon: const Icon(Icons.filter_alt_off_rounded, size: 15, color: Color(0xFFEF4444)),
+                label: const Text('Reset Filters', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+              ),
+          ],
+        ),
+
+        // Active Filter Chips Row
+        if (hasActiveFilters) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Active filters:',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+              ),
+              if (capState.searchQuery.isNotEmpty)
+                _buildFilterBadge('Search: "${capState.searchQuery}"', () {
+                  _gridSearchController.clear();
+                  ref.read(workSprintCapacityProvider.notifier).setSearch('');
+                }),
+              if (capState.selectedRole != 'All')
+                _buildFilterBadge('Role: ${capState.selectedRole}', () {
+                  ref.read(workSprintCapacityProvider.notifier).setRoleFilter('All');
+                }),
+              if (capState.selectedStatus != 'All')
+                _buildFilterBadge('Status: ${capState.selectedStatus}', () {
+                  ref.read(workSprintCapacityProvider.notifier).setStatusFilter('All');
+                }),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFilterBadge(String label, VoidCallback onRemove) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            child: const Icon(Icons.close_rounded, size: 12, color: Color(0xFF2563EB)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // SORTABLE COLUMN HEADER
+  // ==========================================
+
+  Widget _buildSortableHeader(
+    String label,
+    String columnKey,
+    String currentSortBy,
+    String currentSortOrder,
+    bool isDark,
+  ) {
+    final isSelected = currentSortBy.toLowerCase() == columnKey.toLowerCase();
+    final isAsc = currentSortOrder.toLowerCase() == 'asc';
+
+    return InkWell(
+      onTap: () {
+        ref.read(workSprintCapacityProvider.notifier).setSorting(columnKey);
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.bold,
+                color: isSelected
+                    ? const Color(0xFF2563EB)
+                    : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF1E293B)),
+              ),
+            ),
+            const SizedBox(width: 4),
+            if (isSelected)
+              Icon(
+                isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                size: 14,
+                color: const Color(0xFF2563EB),
+              )
+            else
+              const Icon(
+                Icons.unfold_more_rounded,
+                size: 13,
+                color: Color(0xFF94A3B8),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // PAGINATION FOOTER
+  // ==========================================
+
+  Widget _buildPaginationFooter(
+    int totalCount,
+    int currentPage,
+    int rowsPerPage,
+    int totalPages,
+    bool isDark,
+  ) {
+    final from = totalCount == 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+    final to = (currentPage * rowsPerPage).clamp(0, totalCount);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+          ),
+        ),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 10,
+        children: [
+          // Left: Showing X – Y of Z & Rows per page
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Showing $from – $to of $totalCount members',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                'Rows per page:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: rowsPerPage,
+                  dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  items: [5, 10, 20, 50].map((n) {
+                    return DropdownMenuItem<int>(
+                      value: n,
+                      child: Text('$n'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      ref.read(workSprintCapacityProvider.notifier).setRowsPerPage(val);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // Right: Page navigation buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page_rounded, size: 18),
+                tooltip: 'First Page',
+                onPressed: currentPage > 1
+                    ? () => ref.read(workSprintCapacityProvider.notifier).setPage(1)
+                    : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous Page',
+                onPressed: currentPage > 1
+                    ? () => ref.read(workSprintCapacityProvider.notifier).setPage(currentPage - 1)
+                    : null,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Page $currentPage of ${totalPages < 1 ? 1 : totalPages}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next Page',
+                onPressed: currentPage < totalPages
+                    ? () => ref.read(workSprintCapacityProvider.notifier).setPage(currentPage + 1)
+                    : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page_rounded, size: 18),
+                tooltip: 'Last Page',
+                onPressed: currentPage < totalPages
+                    ? () => ref.read(workSprintCapacityProvider.notifier).setPage(totalPages)
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // CLIENT-SIDE FILTER & SORT HELPER
+  // ==========================================
+
+  List<SprintCapacityMemberModel> _getFilteredAndSortedMembers(
+    List<SprintCapacityMemberModel> members,
+    WorkSprintCapacityState capState,
+  ) {
+    var list = List<SprintCapacityMemberModel>.from(members);
+
+    if (capState.searchQuery.trim().isNotEmpty) {
+      final q = capState.searchQuery.trim().toLowerCase();
+      list = list.where((m) =>
+        m.fullName.toLowerCase().contains(q) ||
+        m.role.toLowerCase().contains(q) ||
+        (m.email != null && m.email!.toLowerCase().contains(q))
+      ).toList();
+    }
+
+    if (capState.selectedRole != 'All') {
+      list = list.where((m) => m.role.toLowerCase() == capState.selectedRole.toLowerCase()).toList();
+    }
+
+    if (capState.selectedStatus != 'All') {
+      final s = capState.selectedStatus.toLowerCase();
+      list = list.where((m) {
+        if (s == 'overloaded') return m.status.toLowerCase() == 'overloaded' || m.utilizationPct > 100.0;
+        if (s == 'high') return m.status.toLowerCase() == 'high' || (m.utilizationPct >= 90.0 && m.utilizationPct <= 100.0);
+        if (s == 'balanced') return m.status.toLowerCase() == 'balanced' || (m.utilizationPct >= 70.0 && m.utilizationPct < 90.0);
+        if (s == 'underallocated') return m.status.toLowerCase() == 'underallocated' || m.utilizationPct < 70.0;
+        return m.status.toLowerCase() == s;
+      }).toList();
+    }
+
+    list.sort((a, b) {
+      int cmp = 0;
+      switch (capState.sortBy.toLowerCase()) {
+        case 'role':
+          cmp = a.role.compareTo(b.role);
+          break;
+        case 'capacity':
+          cmp = a.capacityHours.compareTo(b.capacityHours);
+          break;
+        case 'planned':
+          cmp = a.plannedHours.compareTo(b.plannedHours);
+          break;
+        case 'actual':
+          cmp = a.actualHours.compareTo(b.actualHours);
+          break;
+        case 'remaining':
+          cmp = a.remainingHours.compareTo(b.remainingHours);
+          break;
+        case 'utilization':
+          cmp = a.utilizationPct.compareTo(b.utilizationPct);
+          break;
+        case 'work_items':
+          cmp = a.workItemsCount.compareTo(b.workItemsCount);
+          break;
+        case 'status':
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 'name':
+        default:
+          cmp = a.fullName.compareTo(b.fullName);
+          break;
+      }
+      return capState.sortOrder.toLowerCase() == 'desc' ? -cmp : cmp;
+    });
+
+    return list;
   }
 
   Widget _buildStatusBadge(String status) {

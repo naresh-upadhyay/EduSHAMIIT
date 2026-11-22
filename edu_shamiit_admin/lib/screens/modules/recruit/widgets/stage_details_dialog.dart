@@ -58,13 +58,6 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
   List<String> _stages = ['All', ...HRLookupHelper.instance.getCachedLabels('RECRUITMENT_STAGE')];
   List<String> _departments = [
     'All',
-    'IT',
-    'Teaching',
-    'Administration',
-    'Academics',
-    'Mathematics',
-    'Transport',
-    'Finance',
     ...HRLookupHelper.instance.getCachedLabels('DEPARTMENT'),
   ];
   List<String> _positions = ['All'];
@@ -108,13 +101,6 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
 
         final Set<String> deptSet = {
           'All',
-          'IT',
-          'Teaching',
-          'Administration',
-          'Academics',
-          'Mathematics',
-          'Transport',
-          'Finance',
           if (widget.initialDepartment != null && widget.initialDepartment!.isNotEmpty) widget.initialDepartment!,
           if (_selectedDepartment.isNotEmpty) _selectedDepartment,
           ...depts,

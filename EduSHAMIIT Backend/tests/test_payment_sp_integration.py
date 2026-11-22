@@ -115,7 +115,8 @@ def test_staff_salary_roster_and_drawer():
     ).json()
     assert roster_res.get("success") == True
     staff_list = roster_res.get("staff", [])
-    print(f"Fetched {len(staff_list)} staff members (Total items: {roster_res['pagination']['total_items']})")
+    total = roster_res.get('total_items') or roster_res.get('pagination', {}).get('total_items', 0)
+    print(f"Fetched {len(staff_list)} staff members (Total items: {total})")
     assert len(staff_list) > 0
     first_staff = staff_list[0]
     staff_id = first_staff.get("staff_id") or first_staff.get("id")

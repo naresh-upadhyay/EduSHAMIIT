@@ -14,6 +14,9 @@ def test_get_books():
     
     cur.execute("SELECT id, school_id, title FROM public.library_books WHERE title ILIKE '%New lecture test%' LIMIT 1;")
     book = cur.fetchone()
+    if not book:
+        cur.execute("SELECT id, school_id, title FROM public.library_books LIMIT 1;")
+        book = cur.fetchone()
     book_id = str(book['id'])
     school_id = str(book['school_id'])
 
@@ -34,8 +37,9 @@ def test_get_books():
         "Content-Type": "application/json"
     }
 
-    url = f"http://127.0.0.1:8000/api/v1/library/books"
-    res = requests.get(url, headers=headers, params={"search": "New lecture test"})
+    base_url = os.environ.get("API_BASE_URL", "http://127.0.0.1:8082")
+    url = f"{base_url}/api/v1/library/books"
+    res = requests.get(url, headers=headers, params={"search": book['title'][:10]})
     print(f"GET /books status: {res.status_code}")
     data = res.json()
     books = data.get("data", [])

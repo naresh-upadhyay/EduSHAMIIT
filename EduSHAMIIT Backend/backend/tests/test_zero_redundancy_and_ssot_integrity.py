@@ -29,7 +29,7 @@ async def run_ssot_integrity_tests():
 
     school_id = "11111111-1111-1111-1111-111111111111"
     # Use dedicated test user
-    user_res = await exec_sql("SELECT id, full_name, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    user_res = await exec_sql("SELECT b.user_id as id, p.full_name, p.role FROM public.leave_balances b JOIN public.profiles p ON p.id = b.user_id LIMIT 1;")
     user_id = str(user_res[0]["id"])
     
     # Fetch Casual Leave and Medical Leave IDs

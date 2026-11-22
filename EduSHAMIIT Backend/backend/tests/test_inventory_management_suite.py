@@ -59,7 +59,7 @@ def test_inventory_overview_kpis_and_charts():
     kpis = data["kpis"]
     assert kpis["total_items"] >= 246
     assert "total_stock_value" in kpis
-    assert "pending_purchase" in kpis
+    assert "pending_purchase_value" in kpis or "pending_purchase" in kpis
     assert "low_stock_items" in kpis
 
     # Category Wise Stock

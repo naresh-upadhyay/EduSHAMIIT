@@ -1250,7 +1250,7 @@ async def create_digital_stream_token(
     access = access_res[0]["access"] if (access_res and access_res[0].get("access")) else {"has_access": False}
     
     # Allow super admins / librarians or users with granted access
-    is_admin = current_user.get("role") in ("SUPER_ADMIN", "ADMIN", "LIBRARIAN")
+    is_admin = str(current_user.get("role", "")).upper() in ("SUPER_ADMIN", "ADMIN", "LIBRARIAN", "LIBRARY")
     if not is_admin and not access.get("has_access", False):
         raise HTTPException(
             status_code=403,

@@ -6,6 +6,7 @@ import '../../../../config/app_config.dart';
 import '../../../../utils/download_helper.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
+import '../../utils/work_filter_helper.dart';
 
 class WorkItemDetailDrawer extends ConsumerStatefulWidget {
   final WorkItemModel? item;
@@ -49,9 +50,11 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   List<WorkBoardModel> _boards = [];
   List<WorkSprintModel> _sprints = [];
   List<WorkAssigneeModel> _assignableUsers = [];
+  List<String> _teamsList = WorkFilterHelper.defaultTeams;
 
   String? _selectedBoardId;
   String? _selectedSprintId;
+  String? _selectedTeamName;
 
   @override
   void initState() {
@@ -78,6 +81,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
       _fullDetail = null;
       _showAddChecklistInput = false;
       _showAddLabelInput = false;
+      _selectedTeamName = widget.item?.teamName;
       _initEffortControllers(widget.item);
       _loadDetail(widget.item!.id);
     }
@@ -106,18 +110,24 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   }
 
   Future<void> _loadContextData() async {
+    final api = ref.read(workApiServiceProvider);
     try {
-      final api = ref.read(workApiServiceProvider);
-      final boards = await api.getBoards();
-      final sprints = await api.getSprints();
-      final users = await api.getAssignableUsers(limit: 200);
-      if (mounted) {
-        setState(() {
-          _boards = boards;
-          _sprints = sprints;
-          _assignableUsers = users;
-        });
+      final teams = await WorkFilterHelper.fetchTeamNames(api);
+      if (mounted && teams.isNotEmpty) {
+        setState(() => _teamsList = teams);
       }
+    } catch (_) {}
+    try {
+      final boards = await api.getBoards();
+      if (mounted) setState(() => _boards = boards);
+    } catch (_) {}
+    try {
+      final sprints = await api.getSprints();
+      if (mounted) setState(() => _sprints = sprints);
+    } catch (_) {}
+    try {
+      final users = await api.getAssignableUsers(limit: 200);
+      if (mounted) setState(() => _assignableUsers = users);
     } catch (_) {}
   }
 
@@ -144,6 +154,15 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
 
             _selectedBoardId = detail['board_id']?.toString();
             _selectedSprintId = detail['sprint_id']?.toString();
+            final teamFromDetail = detail['team_name']?.toString() ?? detail['team']?.toString();
+            if (teamFromDetail != null && teamFromDetail.isNotEmpty && teamFromDetail.toLowerCase() != 'null') {
+              _selectedTeamName = teamFromDetail;
+              if (!_teamsList.contains(teamFromDetail)) {
+                _teamsList = [..._teamsList, teamFromDetail];
+              }
+            } else if (detail.containsKey('team_name') && detail['team_name'] == null) {
+              _selectedTeamName = null;
+            }
           }
         });
         if (notifyParent && detail.isNotEmpty && widget.onUpdated != null) {
@@ -158,10 +177,11 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   }
 
   void _refreshAllProviders() {
-    ref.read(workBoardProvider.notifier).loadBoard();
-    ref.read(workListProvider.notifier).loadPagedItems();
-    ref.read(workBacklogProvider.notifier).loadBacklog();
-    ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard();
+    ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+    ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+    ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+    ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
     ref.read(workOverviewProvider.notifier).loadOverview();
   }
 
@@ -232,6 +252,12 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     final item = _effectiveItem;
     if (item == null) return;
     final api = ref.read(workApiServiceProvider);
+
+    if (payload.containsKey('team_name')) {
+      final t = payload['team_name']?.toString();
+      _selectedTeamName = (t == null || t == 'UNASSIGN' || t == 'Unassigned') ? null : t;
+    }
+
     final ok = await api.updateItem(item.id, payload);
     if (ok) {
       await _loadDetail(item.id, notifyParent: true);
@@ -2254,31 +2280,104 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           const SizedBox(height: 12),
 
           // Sprint Selector
-          _buildPropertyRow(
-            label: 'Sprint:',
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: _sprints.any((s) => s.id == _selectedSprintId) ? _selectedSprintId : null,
-                isDense: true,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                onChanged: (v) => _moveToSprint(v),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Backlog (No Sprint)'),
+          Builder(
+            builder: (context) {
+              final sprintsState = ref.watch(allSprintsProvider);
+              final currentSprints = sprintsState.sprints.isNotEmpty ? sprintsState.sprints : _sprints;
+              return _buildPropertyRow(
+                label: 'Sprint:',
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: currentSprints.any((s) => s.id == _selectedSprintId) ? _selectedSprintId : null,
+                    isDense: true,
+                    isExpanded: true,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                    onChanged: (v) => _moveToSprint(v),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Backlog (No Sprint)', overflow: TextOverflow.ellipsis),
+                      ),
+                      ...currentSprints.map((s) {
+                        return DropdownMenuItem<String?>(
+                          value: s.id,
+                          child: Text(s.displayLabel, overflow: TextOverflow.ellipsis),
+                        );
+                      }),
+                    ],
                   ),
-                  ..._sprints.map((s) {
-                    return DropdownMenuItem<String?>(
-                      value: s.id,
-                      child: Text(s.name),
-                    );
-                  }),
-                ],
+                ),
+                isDark: isDark,
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Team Selector
+          _buildPropertyRow(
+            label: 'Team:',
+            child: DropdownButtonHideUnderline(
+              child: Builder(
+                builder: (context) {
+                  final displayTeams = <String>{
+                    ..._teamsList.where((t) => t != 'All'),
+                    if (_selectedTeamName != null && _selectedTeamName!.isNotEmpty && _selectedTeamName != 'Unassigned')
+                      _selectedTeamName!,
+                    if (item.teamName != null && item.teamName!.isNotEmpty && item.teamName != 'Unassigned')
+                      item.teamName!,
+                  }.toList();
+
+                  final effectiveValue = (_selectedTeamName != null && _selectedTeamName!.isNotEmpty && _selectedTeamName != 'Unassigned')
+                      ? _selectedTeamName
+                      : ((item.teamName != null && item.teamName!.isNotEmpty && item.teamName != 'Unassigned') ? item.teamName : null);
+
+                  final dropdownValue = (effectiveValue != null && displayTeams.contains(effectiveValue))
+                      ? effectiveValue
+                      : null;
+
+                  return DropdownButton<String?>(
+                    value: dropdownValue,
+                    isDense: true,
+                    isExpanded: true,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                    onChanged: (v) async {
+                      setState(() => _selectedTeamName = v);
+                      final teamVal = (v == null || v == 'Unassigned') ? 'UNASSIGN' : v;
+                      await _updateFields({'team_name': teamVal}, successMessage: v == null ? 'Team unassigned' : 'Team updated to $v');
+                    },
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Unassigned (No Team)', overflow: TextOverflow.ellipsis),
+                      ),
+                      ...displayTeams.map((t) {
+                        return DropdownMenuItem<String?>(
+                          value: t,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF6366F1)),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(t, overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
               ),
             ),
             isDark: isDark,

@@ -18,7 +18,6 @@ class NoticeTabsBar extends ConsumerWidget {
         r == 'vice_principal' ||
         r == 'director';
     final isStaff = r == 'teacher' ||
-        r == 'class_teacher' ||
         r == 'transport_manager' ||
         r == 'accountant' ||
         r == 'hr' ||

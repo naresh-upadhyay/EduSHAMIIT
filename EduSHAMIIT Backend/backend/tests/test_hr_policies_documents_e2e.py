@@ -223,10 +223,12 @@ def run_e2e_simulation():
     assert ack_list_res.status_code == 200
     pending_acks = ack_list_res.json().get("data", [])
     assert len(pending_acks) > 0, f"Expected pending acknowledgements for policy {policy_id}"
-    target_ack = pending_acks[0]
+    target_ack = next((a for a in pending_acks if a.get("user_role") in ("teacher", "staff", "employee")), pending_acks[0])
     ack_id = target_ack["id"]
-    assigned_uid = target_ack["user_id"]
+    assigned_uid = str(target_ack["user_id"])
     assigned_role = target_ack.get("user_role") or "teacher"
+    if assigned_role not in ("teacher", "staff", "employee"):
+        assigned_role = "teacher"
 
     employee_token = make_token(assigned_uid, SCHOOL_A, assigned_role)
     employee_headers = {"Authorization": f"Bearer {employee_token}"}

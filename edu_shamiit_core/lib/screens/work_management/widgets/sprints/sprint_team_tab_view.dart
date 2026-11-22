@@ -1951,9 +1951,24 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Assigned Work Items (${team.workItems.length})',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Assigned Work Items (${team.workItems.length})',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _showTagWorkItemsToTeamDialog(team, isDark),
+              icon: const Icon(Icons.add, size: 14, color: Colors.white),
+              label: const Text('Tag Items to Team', style: TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (team.workItems.isEmpty)
@@ -1997,6 +2012,23 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                       ),
                     ),
                     _buildAvatar(wi.assigneeAvatar, wi.assigneeName, size: 22),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.link_off_rounded, size: 16, color: Color(0xFF94A3B8)),
+                      tooltip: 'Untag from Team',
+                      onPressed: () async {
+                        final api = ref.read(workApiServiceProvider);
+                        final notifier = ref.read(workSprintTeamProvider.notifier);
+                        final ok = await api.bulkUpdateWorkItems(itemIds: [wi.id], teamName: 'UNASSIGN');
+                        if (!context.mounted) return;
+                        if (ok) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Untagged ${wi.itemKey} from ${team.name}')),
+                          );
+                          await notifier.loadTeamDetail(team.id);
+                        }
+                      },
+                    ),
                   ],
                 ),
               );
@@ -2054,6 +2086,198 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
   // ============================================================================
   // INTERACTIVE DIALOGS
   // ============================================================================
+  void _showTagWorkItemsToTeamDialog(TeamDetailModel team, bool isDark) async {
+    final api = ref.read(workApiServiceProvider);
+    final notifier = ref.read(workSprintTeamProvider.notifier);
+
+    // Fetch available items
+    List<WorkItemModel> availableItems = [];
+    try {
+      final paged = await api.getItemsPaged(pageSize: 50);
+      if (paged['items'] is List) {
+        availableItems = (paged['items'] as List).map((i) => WorkItemModel.fromJson(i)).toList();
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final selectedIds = <String>{};
+    String searchQuery = '';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final filtered = availableItems.where((item) {
+            if (searchQuery.trim().isEmpty) return true;
+            final q = searchQuery.toLowerCase();
+            return item.title.toLowerCase().contains(q) || item.itemNumber.toLowerCase().contains(q);
+          }).toList();
+
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.groups_rounded, color: Color(0xFF6366F1), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tag Work Items to ${team.name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text('Select work items to assign ownership to ${team.name}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 520,
+              height: 420,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search items by title or ID (e.g. WM-1050, ST-101)...',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    onChanged: (v) => setDialogState(() => searchQuery = v),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Available Work Items (${filtered.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      TextButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            if (selectedIds.length == filtered.length) {
+                              selectedIds.clear();
+                            } else {
+                              selectedIds.addAll(filtered.map((i) => i.id));
+                            }
+                          });
+                        },
+                        child: Text(selectedIds.length == filtered.length ? 'Deselect All' : 'Select All', style: const TextStyle(fontSize: 11.5)),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('No work items found matching search'))
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (_, idx) {
+                              final item = filtered[idx];
+                              final isSelected = selectedIds.contains(item.id);
+                              final isAlreadyInTeam = (item.teamName ?? '').toLowerCase() == team.name.toLowerCase();
+
+                              return CheckboxListTile(
+                                value: isSelected,
+                                activeColor: const Color(0xFF6366F1),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    if (val == true) {
+                                      selectedIds.add(item.id);
+                                    } else {
+                                      selectedIds.remove(item.id);
+                                    }
+                                  });
+                                },
+                                dense: true,
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEFF6FF),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(item.itemNumber, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isAlreadyInTeam)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(4)),
+                                        child: const Text('Already Tagged', style: TextStyle(fontSize: 9.5, color: Color(0xFF059669), fontWeight: FontWeight.bold)),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Text('${item.workType} • ${item.priority} • ${item.status}', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selectedIds.isEmpty
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+                        final success = await api.bulkUpdateWorkItems(
+                          itemIds: selectedIds.toList(),
+                          teamId: team.id,
+                          teamName: team.name,
+                        );
+                        if (!context.mounted) return;
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Successfully tagged ${selectedIds.length} items to ${team.name}!'),
+                              backgroundColor: const Color(0xFF10B981),
+                            ),
+                          );
+                          await notifier.loadTeamDetail(team.id);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to tag items. Please try again.'),
+                              backgroundColor: Color(0xFFEF4444),
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
+                child: Text('Tag Selected Items (${selectedIds.length})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _openCreateTeamDialog(bool isDark) {
     final nameCtrl = TextEditingController();
     final keyCtrl = TextEditingController();

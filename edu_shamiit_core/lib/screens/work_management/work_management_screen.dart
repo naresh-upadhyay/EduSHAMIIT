@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/js_helper.dart';
 import 'models/work_models.dart';
 import 'providers/work_management_provider.dart';
 import 'widgets/work_header_bar.dart';
@@ -11,6 +12,7 @@ import 'widgets/sprints/work_sprints_tab_view.dart';
 import 'widgets/drawers/work_item_detail_drawer.dart';
 import 'widgets/dialogs/create_edit_work_item_dialog.dart';
 import 'widgets/dialogs/create_sprint_dialog.dart';
+import 'services/work_api_service.dart';
 
 class WorkManagementScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -26,26 +28,56 @@ class WorkManagementScreen extends ConsumerStatefulWidget {
 
 class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
   late int _activeTabIndex;
+  final Set<int> _loadedTabs = {};
   WorkItemModel? _activeBoardDrawerItem;
 
   @override
   void initState() {
     super.initState();
     _activeTabIndex = widget.initialTabIndex;
+    _loadedTabs.add(_activeTabIndex);
   }
 
-  void _openCreateDialog([String? type]) {
-    showDialog(
+  void _openCreateDialog({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  }) async {
+    final res = await showDialog<bool>(
       context: context,
-      builder: (ctx) => CreateEditWorkItemDialog(initialWorkType: type),
+      builder: (ctx) => CreateEditWorkItemDialog(
+        initialWorkType: type,
+        initialStatus: status,
+        initialPriority: priority,
+        initialCategory: category,
+        sprintId: sprintId,
+        parentId: parentId,
+      ),
     );
+    if (res == true && mounted) {
+      ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+    }
   }
 
-  void _openCreateSprintDialog() {
-    showDialog(
+  void _openCreateSprintDialog() async {
+    final res = await showDialog<bool>(
       context: context,
       builder: (ctx) => const CreateSprintDialog(),
     );
+    if (res == true && mounted) {
+      ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+    }
   }
 
   void _openFiltersDialog() {
@@ -88,10 +120,12 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                 subtitle: const Text('Re-fetch boards, backlog, sprints and live metrics from DB'),
                 onTap: () {
                   Navigator.pop(ctx);
+                  WorkApiService.instance.invalidateCache();
+                  ref.read(allSprintsProvider.notifier).loadSprints();
                   ref.read(workBoardProvider.notifier).loadBoard();
-                  ref.read(workListProvider.notifier).loadItems();
-                  ref.read(workBacklogProvider.notifier).loadBacklog();
-                  ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard();
+                  if (_loadedTabs.contains(1)) ref.read(workListProvider.notifier).loadPagedItems();
+                  if (_loadedTabs.contains(2)) ref.read(workBacklogProvider.notifier).loadBacklog();
+                  if (_loadedTabs.contains(3)) ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('All Work Management modules refreshed with live data!')),
                   );
@@ -100,17 +134,65 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
               ListTile(
                 leading: const Icon(Icons.file_download_outlined, color: Color(0xFF10B981)),
                 title: const Text('Export Work Summary', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Download active sprint items and status breakdown'),
+                subtitle: const Text('Download active sprint items and status breakdown as CSV'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Work Summary exported successfully!')),
-                  );
+                  _exportWorkSummary();
                 },
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _exportWorkSummary() {
+    final listState = ref.read(workListProvider);
+    final boardState = ref.read(workBoardProvider);
+    final sprintState = ref.read(workSprintDashboardProvider);
+
+    // Collect all unique items across modules
+    final Map<String, WorkItemModel> allItemsMap = {};
+    for (final item in listState.items) {
+      allItemsMap[item.id] = item;
+    }
+    for (final col in boardState.columns) {
+      for (final item in col.items) {
+        allItemsMap[item.id] = item;
+      }
+    }
+    for (final item in sprintState.items) {
+      allItemsMap[item.id] = item;
+      for (final child in item.children) {
+        allItemsMap[child.id] = child;
+      }
+    }
+
+    final items = allItemsMap.values.toList();
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No work items available to export.')),
+      );
+      return;
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('Item Number,Title,Work Type,Status,Priority,Category,Story Points,Estimated Hours,Progress,Due Date');
+    for (final item in items) {
+      final safeTitle = '"${item.title.replaceAll('"', '""')}"';
+      final safeCategory = '"${item.category.replaceAll('"', '""')}"';
+      final due = item.dueDate ?? '';
+      buffer.writeln('${item.itemNumber},$safeTitle,${item.workType},${item.status},${item.priority},$safeCategory,${item.storyPoints},${item.estimatedHours},${item.progressPercentage}%,$due');
+    }
+
+    downloadCsvWeb(buffer.toString(), 'EduSHAMIIT_Work_Summary.csv');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Exported ${items.length} work items to EduSHAMIIT_Work_Summary.csv'),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -127,8 +209,25 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
             children: [
               // 1. Universal Top Header
               WorkHeaderBar(
-                onCreateWorkItem: () => _openCreateDialog(),
-                onCreateSpecificType: (type) => _openCreateDialog(type),
+                onCreateWorkItem: () {
+                  String? defaultParentId;
+                  if (_activeTabIndex == 2) {
+                    final selEpic = ref.read(workBacklogProvider).selectedEpic;
+                    defaultParentId = selEpic?.id.isNotEmpty == true ? selEpic!.id : selEpic?.itemNumber;
+                  }
+                  _openCreateDialog(
+                    type: _activeTabIndex == 2 ? 'STORY' : null,
+                    parentId: defaultParentId,
+                  );
+                },
+                onCreateSpecificType: (type) {
+                  String? defaultParentId;
+                  if (_activeTabIndex == 2 && type.toUpperCase() == 'STORY') {
+                    final selEpic = ref.read(workBacklogProvider).selectedEpic;
+                    defaultParentId = selEpic?.id.isNotEmpty == true ? selEpic!.id : selEpic?.itemNumber;
+                  }
+                  _openCreateDialog(type: type, parentId: defaultParentId);
+                },
                 onMoreOptions: _openMoreOptionsMenu,
               ),
 
@@ -138,52 +237,65 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                 onTabSelected: (idx) {
                   setState(() {
                     _activeTabIndex = idx.clamp(0, 3);
+                    _loadedTabs.add(_activeTabIndex);
                     _activeBoardDrawerItem = null;
                   });
                 },
               ),
 
-              // 3. Tab Views Content
+              // 3. Tab Views Content (Lazily loaded for fast startup)
               Expanded(
                 child: IndexedStack(
                   index: _activeTabIndex.clamp(0, 3),
                   children: [
                     // Tab 0: Board
-                    WorkBoardTabView(
-                      onOpenDetail: (item) {
-                        setState(() => _activeBoardDrawerItem = item);
-                      },
-                      onQuickAction: (type) => _openCreateDialog(type),
-                      onOpenFilters: _openFiltersDialog,
-                    ),
+                    _loadedTabs.contains(0)
+                        ? WorkBoardTabView(
+                            onOpenDetail: (item) {
+                              setState(() => _activeBoardDrawerItem = item);
+                            },
+                            onQuickAction: (type) => _openCreateDialog(type: type),
+                            onCreateItem: _openCreateDialog,
+                            onOpenFilters: _openFiltersDialog,
+                          )
+                        : const SizedBox.shrink(),
 
                     // Tab 1: List
-                    WorkListTabView(
-                      onOpenDetail: (item) {
-                        setState(() => _activeBoardDrawerItem = item);
-                      },
-                      onQuickAction: (type) => _openCreateDialog(type),
-                      onOpenFilters: _openFiltersDialog,
-                    ),
+                    _loadedTabs.contains(1)
+                        ? WorkListTabView(
+                            onOpenDetail: (item) {
+                              setState(() => _activeBoardDrawerItem = item);
+                            },
+                            onQuickAction: (type) => _openCreateDialog(type: type),
+                            onCreateItem: _openCreateDialog,
+                            onOpenFilters: _openFiltersDialog,
+                          )
+                        : const SizedBox.shrink(),
 
                     // Tab 2: Backlog
-                    WorkBacklogTabView(
-                      onOpenDetail: (item) {
-                        setState(() => _activeBoardDrawerItem = item);
-                      },
-                      onQuickAction: (type) => _openCreateDialog(type),
-                      onOpenFilters: _openFiltersDialog,
-                    ),
+                    _loadedTabs.contains(2)
+                        ? WorkBacklogTabView(
+                            onOpenDetail: (item) {
+                              setState(() => _activeBoardDrawerItem = item);
+                            },
+                            onQuickAction: (type) => _openCreateDialog(type: type),
+                            onCreateItem: _openCreateDialog,
+                            onOpenFilters: _openFiltersDialog,
+                          )
+                        : const SizedBox.shrink(),
 
                     // Tab 3: Sprints
-                    WorkSprintsTabView(
-                      onOpenDetail: (item) {
-                        setState(() => _activeBoardDrawerItem = item);
-                      },
-                      onQuickAction: (type) => _openCreateDialog(type),
-                      onCreateSprint: _openCreateSprintDialog,
-                      onOpenFilters: _openFiltersDialog,
-                    ),
+                    _loadedTabs.contains(3)
+                        ? WorkSprintsTabView(
+                            onOpenDetail: (item) {
+                              setState(() => _activeBoardDrawerItem = item);
+                            },
+                            onQuickAction: (type) => _openCreateDialog(type: type),
+                            onCreateItem: _openCreateDialog,
+                            onCreateSprint: _openCreateSprintDialog,
+                            onOpenFilters: _openFiltersDialog,
+                          )
+                        : const SizedBox.shrink(),
                   ],
                 ),
               ),

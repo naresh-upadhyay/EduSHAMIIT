@@ -93,6 +93,57 @@ async def exec_sql(sql: str, params: tuple = (), fetch: bool = True) -> List[Dic
     return await asyncio.to_thread(_run)
 
 
+async def resolve_board_id(board_id: Optional[str], school_id: str) -> Optional[str]:
+    """
+    Resolves a UUID string, shorthand identifier ('default', 'academic', 'infra', 'it', 'all')
+    or board name ('Institute Work Board', 'Academic Board', 'IT & Infra Board') to board UUID.
+    Returns None for 'all', 'none', etc.
+    """
+    if not board_id or str(board_id).strip().lower() in ("all", "none", "null", "undefined", "*", "all boards", ""):
+        return None
+    clean = safe_uuid(board_id)
+    if clean:
+        return clean
+    b_str = str(board_id).strip().lower()
+    if b_str in ("default", "institute", "iwb", "institute work board"):
+        rows = await exec_sql(
+            "SELECT id FROM public.work_boards WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND (code = 'IWB' OR name ILIKE %s) LIMIT 1;",
+            (school_id, school_id, '%Institute%')
+        )
+        if not rows:
+            rows = await exec_sql("SELECT id FROM public.work_boards WHERE (code = 'IWB' OR name ILIKE %s) LIMIT 1;", ('%Institute%',))
+        if rows:
+            return str(rows[0]["id"])
+    elif b_str in ("academic", "acb", "academic board"):
+        rows = await exec_sql(
+            "SELECT id FROM public.work_boards WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND (code = 'ACB' OR name ILIKE %s) LIMIT 1;",
+            (school_id, school_id, '%Academic%')
+        )
+        if not rows:
+            rows = await exec_sql("SELECT id FROM public.work_boards WHERE (code = 'ACB' OR name ILIKE %s) LIMIT 1;", ('%Academic%',))
+        if rows:
+            return str(rows[0]["id"])
+    elif b_str in ("it", "infra", "it & infra", "it & infra board", "itb"):
+        rows = await exec_sql(
+            "SELECT id FROM public.work_boards WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND (code = 'ITB' OR name ILIKE %s OR name ILIKE %s) LIMIT 1;",
+            (school_id, school_id, '%Infra%', '%IT & Infra%')
+        )
+        if not rows:
+            rows = await exec_sql("SELECT id FROM public.work_boards WHERE (code = 'ITB' OR name ILIKE %s OR name ILIKE %s) LIMIT 1;", ('%Infra%', '%IT & Infra%'))
+        if rows:
+            return str(rows[0]["id"])
+    rows = await exec_sql(
+        "SELECT id FROM public.work_boards WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND (name ILIKE %s OR code ILIKE %s) LIMIT 1;",
+        (school_id, school_id, f"%{str(board_id).strip()}%", str(board_id).strip())
+    )
+    if not rows:
+        rows = await exec_sql(
+            "SELECT id FROM public.work_boards WHERE (name ILIKE %s OR code ILIKE %s) LIMIT 1;",
+            (f"%{str(board_id).strip()}%", str(board_id).strip())
+        )
+    return str(rows[0]["id"]) if rows else None
+
+
 async def resolve_sprint_id(sprint_id: Optional[str], school_id: str) -> Optional[str]:
     """
     Resolves a UUID string, shorthand identifier ('s8', 'sprint-8', '8', 'current')
@@ -147,6 +198,8 @@ class CreateWorkItemRequest(BaseModel):
     story_points: Optional[float] = 0.0
     assignee_ids: Optional[List[str]] = None
     labels: Optional[List[str]] = None
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
 
     # Bulk Assignment & Targeting
     assignment_mode: Optional[str] = "INDIVIDUAL"  # INDIVIDUAL, ROLE, CLASS_SECTION
@@ -156,6 +209,7 @@ class CreateWorkItemRequest(BaseModel):
     section_id: Optional[str] = None
     section_name: Optional[str] = None
     subject_id: Optional[str] = None
+    subject_name: Optional[str] = None
     department: Optional[str] = None
     is_class_wide: Optional[bool] = False
     max_marks: Optional[float] = 0.0
@@ -165,6 +219,10 @@ class CreateWorkItemRequest(BaseModel):
     affected_module: Optional[str] = None
     severity: Optional[str] = None
     reproduction_steps: Optional[str] = None
+
+    # Team assignment
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
 
 
 class PreviewAssigneesRequest(BaseModel):
@@ -200,6 +258,8 @@ class UpdateWorkItemRequest(BaseModel):
     reason: Optional[str] = None
     assignee_ids: Optional[List[str]] = None
     labels: Optional[List[str]] = None
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
 
 
 class CopyWorkItemRequest(BaseModel):
@@ -251,8 +311,10 @@ class CreateSprintRequest(BaseModel):
     capacity_unit: Optional[str] = "HOURS"
     working_days: Optional[int] = 10
     working_hours_per_day: Optional[float] = 8.0
+    team_id: Optional[str] = None
     team_name: Optional[str] = "All Teams"
     owner_id: Optional[str] = None
+    status: Optional[str] = "PLANNED"
 
 
 class UpdateSprintRequest(BaseModel):
@@ -263,6 +325,7 @@ class UpdateSprintRequest(BaseModel):
     capacity_hours: Optional[float] = None
     capacity_unit: Optional[str] = None
     working_days: Optional[int] = None
+    team_id: Optional[str] = None
     team_name: Optional[str] = None
     owner_id: Optional[str] = None
     status: Optional[str] = None
@@ -409,6 +472,8 @@ class BulkUpdateRequest(BaseModel):
     priority: Optional[str] = None
     assignee_id: Optional[str] = None
     sprint_id: Optional[str] = None
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
 
 
 class CreateWorkTeamRequest(BaseModel):
@@ -478,7 +543,7 @@ async def get_work_overview(
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = safe_uuid(current_user.get("id")) if current_user else None
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
 
     try:
@@ -534,7 +599,7 @@ async def get_board_kanban(
     Get full Kanban Board cards partitioned by columns (Status, Work Type, or Priority).
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user and hasattr(current_user, 'get') else None) or "11111111-1111-1111-1111-111111111111"
-    clean_board = safe_str(board_id, None)
+    clean_board = await resolve_board_id(board_id, sid) or safe_str(board_id, None)
     clean_sprint = safe_str(sprint_id, None)
     clean_view = safe_str(view, "All")
     clean_group_by = safe_str(group_by, "Status")
@@ -565,7 +630,7 @@ async def reorder_board_card(
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_item_id = safe_uuid(payload.item_id)
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
@@ -601,7 +666,7 @@ async def list_work_items(
     Server-paginated data grid list of work items with KPI metrics and multi-criteria filters.
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user and hasattr(current_user, 'get') else None) or "11111111-1111-1111-1111-111111111111"
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_assignee_id = safe_uuid(assignee_id)
     clean_type = safe_str(type, "All")
@@ -646,6 +711,10 @@ async def get_work_item_detail(
             detail = rows[0]["result"]
             if not detail or not detail.get("id"):
                 raise HTTPException(status_code=404, detail="Work item not found")
+            t_rows = await exec_sql("SELECT team_id, team_name FROM public.work_items WHERE id = %s::UUID LIMIT 1;", (detail["id"],))
+            if t_rows:
+                detail["team_id"] = str(t_rows[0]["team_id"]) if t_rows[0]["team_id"] else None
+                detail["team_name"] = t_rows[0]["team_name"]
             if "activity_logs" in detail and "activity" not in detail:
                 detail["activity"] = detail["activity_logs"]
             elif "activity" in detail and "activity_logs" not in detail:
@@ -672,19 +741,28 @@ async def create_work_item(
     uid = current_user.get("id") if current_user else None
 
     # Fallback board_id if not given
-    bid = payload.board_id
+    bid = await resolve_board_id(payload.board_id, sid)
     if not bid:
         boards = await exec_sql("SELECT id FROM public.work_boards WHERE school_id = %s::UUID ORDER BY created_at ASC LIMIT 1;", (sid,))
-        bid = boards[0]["id"] if boards else None
+        bid = str(boards[0]["id"]) if boards else None
 
     if not bid:
         raise HTTPException(status_code=400, detail="No active work board found for institution")
+
+    clean_sprint_id = await resolve_sprint_id(payload.sprint_id, sid)
 
     try:
         assignee_uuids = [uuid.UUID(a) for a in payload.assignee_ids] if payload.assignee_ids else None
         cid = uuid.UUID(payload.class_id) if payload.class_id else None
         secid = uuid.UUID(payload.section_id) if payload.section_id else None
         subid = uuid.UUID(payload.subject_id) if payload.subject_id else None
+        if not subid and payload.subject_name:
+            s_rows = await exec_sql(
+                "SELECT id FROM public.academic_subjects WHERE school_id = %s::UUID AND (LOWER(name) = LOWER(%s) OR UPPER(code) = UPPER(%s)) AND deleted_at IS NULL LIMIT 1;",
+                (sid, payload.subject_name.strip(), payload.subject_name.strip())
+            )
+            if s_rows:
+                subid = uuid.UUID(str(s_rows[0]["id"]))
 
         rows = await exec_sql(
             """
@@ -696,7 +774,7 @@ async def create_work_item(
             """,
             (
                 sid, bid, payload.title, payload.description, payload.work_type, payload.priority,
-                payload.status, payload.category, payload.parent_id, payload.sprint_id,
+                payload.status, payload.category, payload.parent_id, clean_sprint_id,
                 payload.due_date, payload.start_date, payload.estimated_hours, payload.story_points,
                 assignee_uuids, payload.labels, uid,
                 payload.assignment_mode or "INDIVIDUAL",
@@ -706,7 +784,53 @@ async def create_work_item(
                 payload.max_marks
             )
         )
-        return rows[0]["result"] if rows else {"success": True}
+        res = rows[0]["result"] if rows else {"success": True}
+        if res and isinstance(res, dict) and res.get("id"):
+            new_id = res["id"]
+            # Enforce exact explicit assignee selection (do not auto-assign everyone if user selected 0 or specific users)
+            if payload.assignee_ids is not None:
+                await exec_sql(
+                    "DELETE FROM public.work_item_assignees WHERE work_item_id = %s::UUID;",
+                    (safe_uuid(new_id),),
+                    fetch=False
+                )
+                for a_id in payload.assignee_ids:
+                    clean_uid = safe_uuid(a_id)
+                    if clean_uid:
+                        await exec_sql(
+                            """
+                            INSERT INTO public.work_item_assignees (work_item_id, user_id, role_type)
+                            VALUES (%s::UUID, %s::UUID, 'PRIMARY')
+                            ON CONFLICT DO NOTHING;
+                            """,
+                            (safe_uuid(new_id), clean_uid),
+                            fetch=False
+                        )
+
+            if payload.team_id is not None or payload.team_name is not None:
+                t_id = safe_uuid(payload.team_id)
+                t_name = payload.team_name
+                if t_id and not t_name:
+                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                    if t_rows:
+                        t_name = t_rows[0]["name"]
+                elif t_name and not t_id:
+                    if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
+                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                        if t_rows:
+                            t_id = str(t_rows[0]["id"])
+                            t_name = t_rows[0]["name"]
+                    else:
+                        t_name = None
+                        t_id = None
+                await exec_sql(
+                    "UPDATE public.work_items SET team_id = %s::UUID, team_name = %s, updated_at = NOW() WHERE id = %s::UUID;",
+                    (t_id, t_name, safe_uuid(new_id)),
+                    fetch=False
+                )
+                res["team_id"] = str(t_id) if t_id else None
+                res["team_name"] = t_name
+        return res
     except Exception as e:
         logger.error(f"[Create Work Item Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -725,8 +849,23 @@ async def update_work_item(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = safe_uuid(current_user.get("id")) if current_user else None
     clean_item_id = safe_uuid(item_id)
+    if not clean_item_id and item_id:
+        it_rows = await exec_sql(
+            "SELECT id FROM public.work_items WHERE school_id = %s::UUID AND UPPER(item_number) = UPPER(%s) LIMIT 1;",
+            (sid, str(item_id).strip())
+        )
+        if it_rows:
+            clean_item_id = str(it_rows[0]["id"])
     try:
         payload_dict = payload.model_dump(exclude_unset=True)
+        if "board_id" in payload_dict and payload_dict["board_id"]:
+            resolved_bid = await resolve_board_id(payload_dict["board_id"], sid)
+            if resolved_bid:
+                payload_dict["board_id"] = resolved_bid
+        if "sprint_id" in payload_dict and payload_dict["sprint_id"]:
+            resolved_sp = await resolve_sprint_id(payload_dict["sprint_id"], sid)
+            if resolved_sp:
+                payload_dict["sprint_id"] = resolved_sp
         payload_json = json.dumps(payload_dict)
         rows = await exec_sql(
             "SELECT public.sp_update_work_item_azure(%s::UUID, %s::UUID, %s::UUID, %s::JSONB) AS result;",
@@ -734,7 +873,52 @@ async def update_work_item(
         )
         if rows and rows[0].get("result"):
             detail = rows[0]["result"]
+            if payload.team_id is not None or payload.team_name is not None:
+                t_id = safe_uuid(payload.team_id)
+                t_name = payload.team_name
+                if t_id and not t_name:
+                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                    if t_rows:
+                        t_name = t_rows[0]["name"]
+                elif t_name and not t_id:
+                    if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
+                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                        if t_rows:
+                            t_id = str(t_rows[0]["id"])
+                            t_name = t_rows[0]["name"]
+                    else:
+                        t_name = None
+                        t_id = None
+                await exec_sql(
+                    "UPDATE public.work_items SET team_id = %s::UUID, team_name = %s, updated_at = NOW() WHERE id = %s::UUID;",
+                    (t_id, t_name, clean_item_id),
+                    fetch=False
+                )
+                if isinstance(detail, dict):
+                    detail["team_id"] = str(t_id) if t_id else None
+                    detail["team_name"] = t_name
             return {"success": True, "item": detail, **detail}
+        if payload.team_id is not None or payload.team_name is not None:
+            t_id = safe_uuid(payload.team_id)
+            t_name = payload.team_name
+            if t_id and not t_name:
+                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                if t_rows:
+                    t_name = t_rows[0]["name"]
+            elif t_name and not t_id:
+                if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
+                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                    if t_rows:
+                        t_id = str(t_rows[0]["id"])
+                        t_name = t_rows[0]["name"]
+                else:
+                    t_name = None
+                    t_id = None
+            await exec_sql(
+                "UPDATE public.work_items SET team_id = %s::UUID, team_name = %s, updated_at = NOW() WHERE id = %s::UUID;",
+                (t_id, t_name, clean_item_id),
+                fetch=False
+            )
         return {"success": True, "item_id": item_id}
     except Exception as e:
         logger.error(f"[Update Work Item Error]: {e}", exc_info=True)
@@ -984,6 +1168,13 @@ async def delete_work_item(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = safe_uuid(current_user.get("id")) if current_user else None
     clean_item_id = safe_uuid(item_id)
+    if not clean_item_id and item_id:
+        it_rows = await exec_sql(
+            "SELECT id FROM public.work_items WHERE school_id = %s::UUID AND UPPER(item_number) = UPPER(%s) LIMIT 1;",
+            (sid, str(item_id).strip())
+        )
+        if it_rows:
+            clean_item_id = str(it_rows[0]["id"])
     try:
         rows = await exec_sql(
             "SELECT public.sp_delete_work_item(%s::UUID, %s::UUID, %s::UUID) AS result;",
@@ -1036,7 +1227,7 @@ async def get_backlog_tree(
     KPI summary cards (Total Backlog Items 142, Epics 12, Stories 28, Tasks 76, Bugs 14, Issues 12).
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user and hasattr(current_user, 'get') else None) or "11111111-1111-1111-1111-111111111111"
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     clean_epic_id = safe_uuid(epic_id)
     
     # If epic_id is an item number like 'EP-003', resolve to UUID
@@ -1082,20 +1273,29 @@ async def reorder_backlog_item(
         )
         if item_rows:
             clean_item_id = str(item_rows[0]["id"])
-    clean_parent_id = safe_uuid(payload.new_parent_id)
-    if not clean_parent_id and payload.new_parent_id:
-        p_rows = await exec_sql(
-            "SELECT id FROM public.work_items WHERE school_id = %s::UUID AND UPPER(item_number) = UPPER(%s) LIMIT 1;",
-            (sid, str(payload.new_parent_id).strip())
-        )
-        if p_rows:
-            clean_parent_id = str(p_rows[0]["id"])
+    clean_parent_id = None
+    if payload.new_parent_id is not None:
+        clean_parent_id = safe_uuid(payload.new_parent_id)
+        if not clean_parent_id and payload.new_parent_id:
+            p_rows = await exec_sql(
+                "SELECT id FROM public.work_items WHERE school_id = %s::UUID AND UPPER(item_number) = UPPER(%s) LIMIT 1;",
+                (sid, str(payload.new_parent_id).strip())
+            )
+            if p_rows:
+                clean_parent_id = str(p_rows[0]["id"])
     try:
-        await exec_sql(
-            "UPDATE public.work_items SET rank = %s, parent_id = %s::UUID, updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID;",
-            (payload.new_rank, clean_parent_id, clean_item_id, sid),
-            fetch=False
-        )
+        if payload.new_parent_id is not None:
+            await exec_sql(
+                "UPDATE public.work_items SET rank = %s, parent_id = %s::UUID, updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID;",
+                (payload.new_rank, clean_parent_id, clean_item_id, sid),
+                fetch=False
+            )
+        else:
+            await exec_sql(
+                "UPDATE public.work_items SET rank = %s, updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID;",
+                (payload.new_rank, clean_item_id, sid),
+                fetch=False
+            )
         return {"success": True, "item_id": payload.item_id, "rank": payload.new_rank}
     except Exception as e:
         logger.error(f"[Backlog Reorder Error]: {e}")
@@ -1151,6 +1351,26 @@ async def bulk_update_work_items(
         if payload.sprint_id is not None:
             updates.append("sprint_id = %s::UUID")
             params.append(target_sprint_id)
+        if payload.team_id is not None or payload.team_name is not None:
+            t_id = safe_uuid(payload.team_id)
+            t_name = payload.team_name
+            if t_id and not t_name:
+                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                if t_rows:
+                    t_name = t_rows[0]["name"]
+            elif t_name and not t_id:
+                if str(t_name).strip().upper() in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
+                    t_name = None
+                    t_id = None
+                else:
+                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                    if t_rows:
+                        t_id = str(t_rows[0]["id"])
+                        t_name = t_rows[0]["name"]
+            updates.append("team_id = %s::UUID")
+            params.append(t_id)
+            updates.append("team_name = %s")
+            params.append(t_name)
 
         updates.append("updated_at = NOW()")
 
@@ -1239,17 +1459,27 @@ async def list_sprints(
 ):
     """List all sprints for board/school."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     try:
         rows = await exec_sql(
             """
-            SELECT id, name, sprint_number, goal, status, team_name,
-                   to_char(start_date, 'Mon DD, YYYY') AS start_date_fmt,
-                   to_char(end_date, 'Mon DD, YYYY') AS end_date_fmt,
-                   start_date, end_date, capacity_hours, total_points
-            FROM public.work_sprints
-            WHERE school_id = %s::UUID AND ( %s::UUID IS NULL OR board_id = %s::UUID )
-            ORDER BY start_date DESC;
+            SELECT s.id, s.name, s.sprint_number, s.goal, s.status, s.team_id,
+                   COALESCE(s.team_name, t.name, 'All Teams') AS team_name,
+                   to_char(s.start_date, 'Mon DD, YYYY') AS start_date_fmt,
+                   to_char(s.end_date, 'Mon DD, YYYY') AS end_date_fmt,
+                   s.start_date, s.end_date, s.capacity_hours, s.total_points,
+                   COALESCE(s.color, '#2563EB') AS color,
+                   COALESCE(COUNT(DISTINCT COALESCE(child.id, w.id)), 0) AS total_items,
+                   COALESCE(COUNT(DISTINCT CASE WHEN COALESCE(child.status, w.status) IN ('COMPLETED', 'RESOLVED') THEN COALESCE(child.id, w.id) END), 0) AS completed_items
+            FROM public.work_sprints s
+            LEFT JOIN public.work_teams t ON t.id = s.team_id
+            LEFT JOIN public.work_items w ON w.sprint_id = s.id AND COALESCE(w.is_archived, FALSE) = FALSE
+            LEFT JOIN public.work_items child ON child.parent_id = w.id AND COALESCE(child.is_archived, FALSE) = FALSE
+            WHERE s.school_id = %s::UUID 
+              AND COALESCE(s.is_archived, FALSE) = FALSE 
+              AND ( %s::UUID IS NULL OR s.board_id = %s::UUID )
+            GROUP BY s.id, t.name
+            ORDER BY s.sprint_number ASC, s.start_date ASC;
             """,
             (sid, clean_board_id, clean_board_id)
         )
@@ -1282,7 +1512,7 @@ async def get_sprint_dashboard(
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user and hasattr(current_user, 'get') else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
-    clean_board_id = safe_uuid(board_id)
+    clean_board_id = await resolve_board_id(board_id, sid)
     clean_team = safe_str(team, "All Teams")
     clean_search = safe_str(search, None)
     clean_page = safe_int(page, 1)
@@ -1316,19 +1546,39 @@ async def create_sprint(
 
     try:
         sprint_id = str(uuid.uuid4())
+        s_match = re.search(r'\d+', payload.name)
+        if s_match:
+            s_num = int(s_match.group(0))
+        else:
+            max_rows = await exec_sql("SELECT COALESCE(MAX(sprint_number), 0) + 1 AS next_num FROM public.work_sprints WHERE school_id = %s::UUID;", (sid,))
+            s_num = max_rows[0]["next_num"] if max_rows else 1
+
+        clean_team_id = safe_uuid(payload.team_id)
+        team_name = payload.team_name or "All Teams"
+        if clean_team_id and (not team_name or team_name == "All Teams"):
+            t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+            if t_rows:
+                team_name = t_rows[0]["name"]
+        elif team_name and not clean_team_id and team_name not in ("All Teams", "None", ""):
+            t_rows = await exec_sql("SELECT id FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, team_name))
+            if t_rows:
+                clean_team_id = str(t_rows[0]["id"])
+
+        sprint_status = (payload.status or "PLANNED").upper()
+
         await exec_sql(
             """
             INSERT INTO public.work_sprints (
-                id, school_id, board_id, name, goal, start_date, end_date, capacity_hours,
-                capacity_unit, working_days, working_hours_per_day, team_name, owner_id
-            ) VALUES (%s::UUID, %s::UUID, %s::UUID, %s, %s, %s::DATE, %s::DATE, %s, %s, %s, %s, %s, %s::UUID);
+                id, school_id, board_id, name, sprint_number, goal, start_date, end_date, capacity_hours,
+                capacity_unit, working_days, working_hours_per_day, team_id, team_name, owner_id, status
+            ) VALUES (%s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s::DATE, %s::DATE, %s, %s, %s, %s, %s::UUID, %s, %s::UUID, %s);
             """,
-            (sprint_id, sid, bid, payload.name, payload.goal, payload.start_date, payload.end_date,
+            (sprint_id, sid, bid, payload.name, s_num, payload.goal, payload.start_date, payload.end_date,
              payload.capacity_hours, payload.capacity_unit or "HOURS", payload.working_days or 10,
-             payload.working_hours_per_day or 8.0, payload.team_name, uid or payload.owner_id),
+             payload.working_hours_per_day or 8.0, clean_team_id, team_name, uid or payload.owner_id, sprint_status),
             fetch=False
         )
-        return {"success": True, "sprint_id": sprint_id, "name": payload.name}
+        return {"success": True, "sprint_id": sprint_id, "name": payload.name, "status": sprint_status}
     except Exception as e:
         logger.error(f"[Create Sprint Error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1341,22 +1591,47 @@ async def update_sprint(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Update sprint configuration (name, goal, dates, capacity, working days, status)."""
+    """Update sprint configuration (name, goal, dates, capacity, working days, team, status)."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     uid = safe_uuid(current_user.get("id")) if current_user else None
     clean_owner_id = safe_uuid(payload.owner_id)
     try:
-        rows = await exec_sql(
+        clean_team_id = safe_uuid(payload.team_id)
+        team_name = payload.team_name
+        if clean_team_id and not team_name:
+            t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+            if t_rows:
+                team_name = t_rows[0]["name"]
+        elif team_name and not clean_team_id and team_name not in ("All Teams", "None", ""):
+            t_rows = await exec_sql("SELECT id FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, team_name))
+            if t_rows:
+                clean_team_id = str(t_rows[0]["id"])
+
+        # Direct robust update to ensure all fields persist
+        await exec_sql(
             """
-            SELECT public.sp_update_sprint(
-                %s::UUID, %s::UUID, %s, %s, %s::DATE, %s::DATE, %s, %s, %s, %s::UUID, %s, %s, %s::UUID
-            ) AS result;
+            UPDATE public.work_sprints
+            SET name = COALESCE(%s, name),
+                goal = COALESCE(%s, goal),
+                start_date = COALESCE(%s::DATE, start_date),
+                end_date = COALESCE(%s::DATE, end_date),
+                capacity_hours = COALESCE(%s, capacity_hours),
+                working_days = COALESCE(%s, working_days),
+                team_id = COALESCE(%s::UUID, team_id),
+                team_name = COALESCE(%s, team_name),
+                owner_id = COALESCE(%s::UUID, owner_id),
+                status = COALESCE(UPPER(%s), status),
+                capacity_unit = COALESCE(UPPER(%s), capacity_unit),
+                updated_at = NOW()
+            WHERE id = %s::UUID AND school_id = %s::UUID;
             """,
-            (sid, clean_sprint_id, payload.name, payload.goal, payload.start_date, payload.end_date,
-             payload.capacity_hours, payload.working_days, payload.team_name, clean_owner_id, payload.status, payload.capacity_unit, uid)
+            (payload.name, payload.goal, payload.start_date, payload.end_date,
+             payload.capacity_hours, payload.working_days, clean_team_id, team_name,
+             clean_owner_id, payload.status, payload.capacity_unit, clean_sprint_id, sid),
+            fetch=False
         )
-        return rows[0]["result"] if rows else {"success": True, "sprint_id": sprint_id}
+        return {"success": True, "sprint_id": sprint_id}
     except Exception as e:
         logger.error(f"[Update Sprint Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1461,11 +1736,12 @@ async def start_sprint(
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
-        rows = await exec_sql(
-            "SELECT public.sp_transition_sprint_lifecycle(%s::UUID, %s::UUID, 'ACTIVE', %s::UUID) AS result;",
-            (sid, clean_sprint_id, uid)
+        await exec_sql(
+            "UPDATE public.work_sprints SET status = 'ACTIVE', updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID;",
+            (clean_sprint_id, sid),
+            fetch=False
         )
-        return rows[0]["result"] if rows else {"success": True, "sprint_id": sprint_id, "status": "ACTIVE"}
+        return {"success": True, "sprint_id": sprint_id, "status": "ACTIVE"}
     except Exception as e:
         logger.error(f"[Start Sprint Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1484,11 +1760,26 @@ async def complete_sprint(
     clean_target_id = await resolve_sprint_id(payload.move_incomplete_to_sprint_id, sid) if payload.move_incomplete_to_sprint_id else None
     uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
-        rows = await exec_sql(
-            "SELECT public.sp_transition_sprint_lifecycle(%s::UUID, %s::UUID, 'COMPLETED', %s::UUID, %s, %s::UUID) AS result;",
-            (sid, clean_sprint_id, uid, payload.retrospective_notes, clean_target_id)
+        # Move incomplete items if requested
+        if clean_target_id:
+            await exec_sql(
+                "UPDATE public.work_items SET sprint_id = %s::UUID, updated_at = NOW() WHERE sprint_id = %s::UUID AND school_id = %s::UUID AND status NOT IN ('COMPLETED', 'RESOLVED');",
+                (clean_target_id, clean_sprint_id, sid),
+                fetch=False
+            )
+        else:
+            await exec_sql(
+                "UPDATE public.work_items SET sprint_id = NULL, updated_at = NOW() WHERE sprint_id = %s::UUID AND school_id = %s::UUID AND status NOT IN ('COMPLETED', 'RESOLVED');",
+                (clean_sprint_id, sid),
+                fetch=False
+            )
+        # Mark sprint completed
+        await exec_sql(
+            "UPDATE public.work_sprints SET status = 'COMPLETED', updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID;",
+            (clean_sprint_id, sid),
+            fetch=False
         )
-        return rows[0]["result"] if rows else {"success": True, "sprint_id": sprint_id, "status": "COMPLETED"}
+        return {"success": True, "sprint_id": sprint_id, "status": "COMPLETED"}
     except Exception as e:
         logger.error(f"[Complete Sprint Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1571,8 +1862,19 @@ async def move_items_to_another_sprint(
 ):
     """Move work items to another sprint (or to backlog if target is null)."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    clean_target_id = await resolve_sprint_id(payload.target_sprint_id, sid) if payload.target_sprint_id else None
-    clean_item_ids = [safe_uuid(i) for i in payload.item_ids if safe_uuid(i)]
+    clean_target_id = await resolve_sprint_id(payload.target_sprint_id, sid) if payload.target_sprint_id and payload.target_sprint_id != "BACKLOG" else None
+    clean_item_ids = []
+    for raw_id in payload.item_ids:
+        u = safe_uuid(raw_id)
+        if u:
+            clean_item_ids.append(u)
+        elif raw_id:
+            resolved = await exec_sql(
+                "SELECT id FROM public.work_items WHERE school_id = %s::UUID AND UPPER(item_number) = UPPER(%s) LIMIT 1;",
+                (sid, str(raw_id).strip())
+            )
+            if resolved:
+                clean_item_ids.append(str(resolved[0]["id"]))
     uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
@@ -1619,29 +1921,42 @@ async def list_capacity_teams(
 @router.get("/sprints/{sprint_id}/capacity")
 async def get_sprint_capacity_dashboard(
     sprint_id: str,
-    team: Optional[str] = Query("Digital Campus Team"),
+    team: Optional[str] = Query("All Teams"),
     search: Optional[str] = Query(None),
+    page: Optional[int] = Query(1, ge=1),
+    limit: Optional[int] = Query(None),
+    sort_by: Optional[str] = Query("name"),
+    sort_order: Optional[str] = Query("asc"),
+    role: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """
     Get Sprint Capacity & Workload Dashboard:
-    - 6 KPIs: Team Members 7, Total Capacity 280h, Planned 257h, Remaining 23h, Util 91.8%, Over Allocation 0
-    - Capacity vs Workload (Daily) 13-day chart points
-    - Team Member Capacity & Workload table (7 members)
-    - Capacity Utilization Donut Chart (Planned 91.8%, Available 8.2%)
+    - 6 KPIs: Team Members, Total Capacity, Planned Work, Remaining, Util %, Over Allocation
+    - Capacity vs Workload (Daily) chart points
+    - Team Member Capacity & Workload table with DB-level Filtering, Sorting & Pagination
+    - Capacity Utilization Donut Chart
     - Capacity Summary Breakdown
     - Smart Capacity Insights Recommendations
-    - Searchable Teams list
+    - Searchable Teams & Sprints list
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user and hasattr(current_user, 'get') else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
-    clean_team = safe_str(team, "Digital Campus Team")
+    clean_team = safe_str(team, "All Teams")
     clean_search = safe_str(search, None)
+    clean_page = max(1, page or 1)
+    clean_limit = limit if (limit and limit > 0) else None
+    clean_sort_by = safe_str(sort_by, "name")
+    clean_sort_order = safe_str(sort_order, "asc")
+    clean_role = safe_str(role, None)
+    clean_status = safe_str(status, None)
+
     try:
         rows = await exec_sql(
-            "SELECT public.sp_get_sprint_capacity_dashboard(%s::UUID, %s::UUID, %s, %s) AS result;",
-            (sid, clean_sprint_id, clean_team, clean_search)
+            "SELECT public.sp_get_sprint_capacity_dashboard(%s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s) AS result;",
+            (sid, clean_sprint_id, clean_team, clean_search, clean_page, clean_limit, clean_sort_by, clean_sort_order, clean_role, clean_status)
         )
         if rows and rows[0].get("result"):
             return rows[0]["result"]
@@ -1785,14 +2100,14 @@ async def rebalance_workload(
 @router.get("/sprints/{sprint_id}/capacity/export")
 async def export_sprint_capacity_csv(
     sprint_id: str,
-    team: Optional[str] = Query("Digital Campus Team"),
+    team: Optional[str] = Query("All Teams"),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """Export the team member capacity report to CSV."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
-    clean_team = safe_str(team, "Digital Campus Team")
+    clean_team = safe_str(team, "All Teams")
     try:
         dash = await exec_sql(
             "SELECT public.sp_get_sprint_capacity_dashboard(%s::UUID, %s::UUID, %s, NULL) AS result;",
@@ -1909,9 +2224,15 @@ async def list_work_teams(
         )
         if rows and rows[0]["result"]:
             res = rows[0]["result"]
-            res["page"] = page
-            res["limit"] = limit
-            return res
+            if isinstance(res, str):
+                try:
+                    res = json.loads(res)
+                except Exception:
+                    pass
+            if isinstance(res, dict):
+                res["page"] = page
+                res["limit"] = limit
+                return res
         return {"success": True, "kpis": {}, "total_count": 0, "teams": [], "page": page, "limit": limit}
     except Exception as e:
         logger.error(f"[List Work Teams Error]: {e}", exc_info=True)
@@ -3048,11 +3369,12 @@ async def preview_target_assignees(
 
 @router.get("/academic-options")
 async def get_academic_options(
+    class_id: Optional[str] = Query(None),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Get classes with nested sections, and subjects from academic records."""
-    sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    """Get classes with nested sections, subjects per class, and all active subjects from academic records."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
         sql = """
             SELECT c.id, c.name, c.code,
@@ -3067,18 +3389,66 @@ async def get_academic_options(
             WHERE c.school_id = %s::UUID AND c.deleted_at IS NULL
             GROUP BY c.id, c.name, c.code
             ORDER BY c.name ASC
-            LIMIT 50;
+            LIMIT 100;
         """
         classes = await exec_sql(sql, (sid,))
-        subjects = await exec_sql("SELECT id, name, code FROM public.academic_subjects WHERE school_id = %s::UUID ORDER BY name ASC LIMIT 50;", (sid,))
+
+        # Fetch all active general subjects
+        all_subjects = await exec_sql(
+            """
+            SELECT id, name, code, type
+            FROM public.academic_subjects
+            WHERE school_id = %s::UUID
+              AND deleted_at IS NULL
+              AND (status = 'ACTIVE' OR status IS NULL OR status = 'Active')
+            ORDER BY name ASC
+            LIMIT 100;
+            """,
+            (sid,)
+        )
+
+        # Map assigned subjects per class from class_subject_assignments
+        class_subjects_rows = await exec_sql(
+            """
+            SELECT csa.class_id,
+                   json_agg(
+                     DISTINCT jsonb_build_object('id', sub.id, 'name', sub.name, 'code', sub.code)
+                   ) as subjects
+            FROM public.class_subject_assignments csa
+            JOIN public.academic_subjects sub ON sub.id = csa.subject_id
+            WHERE csa.school_id = %s::UUID
+              AND (csa.status = 'ACTIVE' OR csa.status IS NULL)
+              AND sub.deleted_at IS NULL
+              AND (sub.status = 'ACTIVE' OR sub.status IS NULL OR sub.status = 'Active')
+            GROUP BY csa.class_id;
+            """,
+            (sid,)
+        )
+        class_subjects_map = {}
+        for r in class_subjects_rows:
+            subs = r.get("subjects") or []
+            if isinstance(subs, list):
+                subs.sort(key=lambda x: str(x.get("name", "")).lower())
+            class_subjects_map[str(r["class_id"])] = subs
+
+        target_subjects = []
+        if class_id:
+            cid = safe_uuid(class_id)
+            if cid and cid in class_subjects_map and class_subjects_map[cid]:
+                target_subjects = class_subjects_map[cid]
+        if not target_subjects:
+            target_subjects = all_subjects
+
         return {
             "success": True,
             "classes": classes,
-            "subjects": subjects
+            "subjects": target_subjects,
+            "all_subjects": all_subjects,
+            "class_subjects": class_subjects_map
         }
     except Exception as e:
         logger.warning(f"[Academic Options Warning]: {e}")
-        return {"success": True, "classes": [], "subjects": []}
+        return {"success": True, "classes": [], "subjects": [], "all_subjects": [], "class_subjects": {}}
 
 
 @router.get("/lookups")

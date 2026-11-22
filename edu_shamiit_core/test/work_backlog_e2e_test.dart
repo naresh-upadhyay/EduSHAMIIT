@@ -31,7 +31,7 @@ class FakeWorkApiService extends WorkApiService {
   }
 
   @override
-  Future<List<WorkSprintModel>> getSprints({String? boardId}) async {
+  Future<List<WorkSprintModel>> getSprints({String? boardId, bool forceRefresh = false}) async {
     return const [
       WorkSprintModel(id: 's8', name: 'Sprint 8', status: 'ACTIVE', sprintNumber: 8),
     ];
@@ -46,7 +46,7 @@ class MockWorkBacklogNotifier extends WorkBacklogNotifier {
   WorkBacklogState get state => initialState;
 
   @override
-  Future<void> loadBacklog({String? epicId, String? search}) async {
+  Future<void> loadBacklog({String? boardId, String? epicId, String? search, bool forceRefresh = false}) async {
     // Mock load
   }
 
@@ -57,6 +57,8 @@ class MockWorkBacklogNotifier extends WorkBacklogNotifier {
     String? priority,
     String? assigneeId,
     String? sprintId,
+    String? teamId,
+    String? teamName,
   }) async {
     return true;
   }
@@ -71,6 +73,14 @@ class MockWorkBacklogNotifier extends WorkBacklogNotifier {
     required String itemId,
     required double newRank,
     String? newParentId,
+  }) async {
+    return true;
+  }
+
+  @override
+  Future<bool> reparentStoryTask({
+    required WorkItemModel task,
+    required WorkItemModel targetStory,
   }) async {
     return true;
   }
@@ -317,5 +327,70 @@ void main() {
     // Drawer is open again
     expect(find.byType(WorkItemDetailDrawer), findsOneWidget);
     expect(find.text('Effort & Progress'), findsOneWidget);
+  });
+
+  testWidgets('Edit Epic button in center banner opens EditEpicDialog with epic details', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(createBacklogWidget());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Tap on EP-003 in Epics sidebar
+    final ep3Finder = find.byWidgetPredicate(
+      (widget) => widget is RichText && widget.text.toPlainText().contains('EP-003'),
+    );
+    expect(ep3Finder, findsWidgets);
+    await tester.tap(ep3Finder.first);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // The center banner displays the selected epic 'EP-003' and an 'Edit Epic' button
+    expect(find.textContaining('EP-003'), findsWidgets);
+    final editEpicButton = find.widgetWithText(OutlinedButton, 'Edit Epic');
+    expect(editEpicButton, findsOneWidget);
+
+    // Tap 'Edit Epic'
+    await tester.tap(editEpicButton);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // EditEpicDialog should be open with title and description populated
+    expect(find.text('Edit Epic Details'), findsOneWidget);
+    expect(find.text('Smart Campus Control'), findsWidgets);
+    expect(find.text('Automated IoT campus security.'), findsWidgets);
+    expect(find.text('Save Epic Changes'), findsOneWidget);
+  });
+
+  testWidgets('Allows dragging task and dropping onto target story to dynamically re-parent', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(createBacklogWidget());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Ensure story 1 is expanded and child TK-3001 is visible
+    expect(find.text('TK-3001'), findsOneWidget);
+    expect(find.text('ST-302'), findsOneWidget);
+
+    // Verify Draggable widget exists for TK-3001
+    final draggableFinder = find.byWidgetPredicate(
+      (w) => w is Draggable<WorkItemModel> && w.data?.itemNumber == 'TK-3001',
+    );
+    expect(draggableFinder, findsOneWidget);
+
+    // Verify DragTarget exists for stories and drop zones
+    final targetFinder = find.byWidgetPredicate(
+      (w) => w is DragTarget<WorkItemModel>,
+    );
+    expect(targetFinder, findsWidgets);
+
+    // Perform drag gesture on TK-3001
+    final gesture = await tester.startGesture(tester.getCenter(draggableFinder));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.moveBy(const Offset(0, 120));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 200));
   });
 }

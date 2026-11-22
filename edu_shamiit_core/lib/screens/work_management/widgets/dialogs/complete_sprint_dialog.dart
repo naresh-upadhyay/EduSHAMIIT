@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 
 class CompleteSprintDialog extends ConsumerStatefulWidget {
@@ -24,6 +25,30 @@ class _CompleteSprintDialogState extends ConsumerState<CompleteSprintDialog> {
   final TextEditingController _notesController = TextEditingController();
   String _destination = 'NEXT_SPRINT';
   bool _isSubmitting = false;
+  List<WorkSprintModel> _availableSprints = [];
+  String? _selectedSprintId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSprints();
+  }
+
+  Future<void> _loadSprints() async {
+    try {
+      final cachedSprints = ref.read(allSprintsProvider).sprints;
+      final sprints = cachedSprints.isNotEmpty ? cachedSprints : await ref.read(workApiServiceProvider).getSprints();
+      final filtered = sprints.where((s) => s.id != widget.sprintId).toList();
+      if (mounted) {
+        setState(() {
+          _availableSprints = filtered;
+          if (filtered.isNotEmpty) {
+            _selectedSprintId = filtered.first.id;
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -33,11 +58,10 @@ class _CompleteSprintDialogState extends ConsumerState<CompleteSprintDialog> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
-    final notifier = ref.read(workSprintDashboardProvider.notifier);
-
-    final success = await notifier.completeSprint(
+    final targetSprintId = _destination == 'NEXT_SPRINT' ? _selectedSprintId : null;
+    final success = await ref.read(allSprintsProvider.notifier).completeSprint(
       widget.sprintId,
-      moveIncompleteToSprintId: _destination == 'NEXT_SPRINT' ? '332ae580-759a-424f-a647-c3ad9155f6c3' : null,
+      moveIncompleteToSprintId: targetSprintId,
       notes: _notesController.text.trim(),
     );
 
@@ -132,7 +156,23 @@ class _CompleteSprintDialogState extends ConsumerState<CompleteSprintDialog> {
                 ),
                 const SizedBox(height: 6),
                 RadioListTile<String>(
-                  title: const Text('Next Planned Sprint (Sprint 9)', style: TextStyle(fontSize: 12.5)),
+                  title: _availableSprints.isNotEmpty
+                      ? DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedSprintId ?? _availableSprints.first.id,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                            items: _availableSprints.map((s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text(s.displayLabel, style: const TextStyle(fontSize: 12.5)),
+                            )).toList(),
+                            onChanged: (v) => setState(() {
+                              _selectedSprintId = v;
+                              _destination = 'NEXT_SPRINT';
+                            }),
+                          ),
+                        )
+                      : const Text('Next Planned Sprint', style: TextStyle(fontSize: 12.5)),
                   value: 'NEXT_SPRINT',
                   groupValue: _destination,
                   onChanged: (v) => setState(() => _destination = v!),

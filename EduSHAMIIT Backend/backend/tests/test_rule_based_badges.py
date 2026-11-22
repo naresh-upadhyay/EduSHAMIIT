@@ -30,6 +30,10 @@ if s_login.status_code != 200:
     sys.exit(1)
 
 token_s = s_login.json()["data"]["token"]
+student_user = s_login.json()["data"].get("user") or {}
+student_id = student_user.get("id")
+student_class = student_user.get("class") or "10A"
+student_name = student_user.get("full_name") or "Naresh Upadhyay"
 headers_s = {"Authorization": f"Bearer {token_s}"}
 
 print("Fetching achievements JIT...")
@@ -91,8 +95,8 @@ if t_login.status_code != 200:
 token_t = t_login.json()["data"]["token"]
 headers_t = {"Authorization": f"Bearer {token_t}"}
 
-print("Fetching student progress for Class 10A...")
-progress_resp = requests.get(f"{BASE_URL}/api/teacher/achievements/student-progress?class_name=10A", headers=headers_t)
+print(f"Fetching student progress for Class {student_class}...")
+progress_resp = requests.get(f"{BASE_URL}/api/teacher/achievements/student-progress?class_name={student_class}", headers=headers_t)
 if progress_resp.status_code != 200:
     print(f"[FAIL] Fetch student progress failed: {progress_resp.status_code} - {progress_resp.text}")
     sys.exit(1)
@@ -100,15 +104,15 @@ if progress_resp.status_code != 200:
 students_progress = progress_resp.json()["data"]["students"]
 naresh_prog = None
 for s in students_progress:
-    if s["name"] == "Naresh Upadhyay":
+    if s.get("id") == student_id or s.get("name") in (student_name, "Naresh Upadhyay", "Naresh King"):
         naresh_prog = s
         break
 
 if not naresh_prog:
-    print("[FAIL] Naresh Upadhyay profile not found in progress list!")
+    print(f"[FAIL] {student_name} profile not found in progress list!")
     sys.exit(1)
 
-print(f"Naresh Upadhyay Earned Badges: {naresh_prog['earned_badges']}")
+print(f"{student_name} Earned Badges: {naresh_prog['earned_badges']}")
 
 # Verify that Maths Top Scorer (if progress < 100%) is NOT listed in earned_badges
 math_locked_progress = None

@@ -389,25 +389,40 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // 1. Verify 5 Sprint Sub-Tabs
+      // 1. Verify Sprint Sub-Tabs including All Sprints (Grid)
       expect(find.text('Sprint Backlog'), findsOneWidget);
       expect(find.text('Boards (Task Board)'), findsOneWidget);
+      expect(find.text('All Sprints (Grid)'), findsOneWidget);
       expect(find.text('Capacity'), findsOneWidget);
       expect(find.text('Team'), findsOneWidget);
       expect(find.text('Retrospective'), findsOneWidget);
 
-      // 2. Verify Right Sidebar
+      // 2. Switch to All Sprints (Grid)
+      await tester.tap(find.text('All Sprints (Grid)'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Total Sprints'), findsOneWidget);
+      expect(find.text('Active Sprints'), findsOneWidget);
+      expect(find.text('Planned Sprints'), findsOneWidget);
+      expect(find.text('Total Capacity'), findsWidgets);
+      expect(find.text('Create Sprint'), findsOneWidget);
+      expect(find.text('Search sprints by name, goal, team...'), findsOneWidget);
+
+      // 3. Verify Right Sidebar on Sprint Backlog
+      await tester.tap(find.text('Sprint Backlog'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Sprint Details'), findsOneWidget);
       expect(find.text('Sprint Progress by Type'), findsOneWidget);
       expect(find.text('Upcoming Sprints'), findsOneWidget);
 
-      // 3. Switch to Boards (Task Board)
+      // 4. Switch to Boards (Task Board)
       await tester.tap(find.text('Boards (Task Board)'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Sprint Task Board'), findsOneWidget);
 
-      // 4. Switch to Capacity
+      // 5. Switch to Capacity
       await tester.tap(find.text('Capacity'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -417,14 +432,14 @@ void main() {
       expect(find.text('Capacity vs Workload (Daily)'), findsOneWidget);
       expect(find.text('Team Member Capacity & Workload (7)'), findsOneWidget);
 
-      // 5. Switch to Team
+      // 6. Switch to Team
       await tester.tap(find.text('Team'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Total Teams'), findsWidgets);
       expect(find.text('Total Members'), findsWidgets);
 
-      // 6. Switch to Retrospective
+      // 7. Switch to Retrospective
       await tester.tap(find.text('Retrospective'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -432,6 +447,37 @@ void main() {
       expect(find.textContaining("What Didn't Go Well"), findsOneWidget);
       expect(find.textContaining('What Should Improve'), findsOneWidget);
       expect(find.textContaining('Retrospective Action Items'), findsOneWidget);
+    });
+
+    testWidgets('AllSprintsGridView renders KPIs, filters, search bar, and grid actions', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: WorkManagementScreen(initialTabIndex: 3),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Click on All Sprints (Grid) subtab
+      await tester.tap(find.text('All Sprints (Grid)'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify KPI Summary Cards
+      expect(find.text('Total Sprints'), findsOneWidget);
+      expect(find.text('Active Sprints'), findsOneWidget);
+      expect(find.text('Planned Sprints'), findsOneWidget);
+      expect(find.text('Completed'), findsWidgets);
+
+      // Verify Action buttons in Grid
+      expect(find.text('Create Sprint'), findsOneWidget);
+      expect(find.byIcon(Icons.refresh_rounded), findsWidgets);
     });
   });
 }

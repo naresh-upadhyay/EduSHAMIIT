@@ -21,8 +21,11 @@ class StaffSalaryState {
   final String selectedStatus;
   final bool isLoading;
   final bool isDrawerOpen;
+  final bool isRightSummaryVisible;
   final String? currentStaffId;
   final Map<String, dynamic>? selectedStaffDetail;
+
+  // Pagination & Sorting for Roster (Tabs 0-3)
   final int currentPage;
   final int pageSize;
   final int totalItems;
@@ -30,6 +33,36 @@ class StaffSalaryState {
   final Set<String> selectedStaffIds;
   final String? sortColumn;
   final bool sortAscending;
+
+  // Pagination & Sorting for Structures (Tab 4)
+  final int structuresPage;
+  final int structuresPageSize;
+  final int structuresTotal;
+  final int structuresTotalPages;
+  final String structuresSearch;
+  final String structuresDept;
+  final String structuresSortColumn;
+  final bool structuresSortAscending;
+
+  // Pagination & Sorting for Payslips (Tab 5)
+  final int payslipsPage;
+  final int payslipsPageSize;
+  final int payslipsTotal;
+  final int payslipsTotalPages;
+  final String payslipsSearch;
+  final String payslipsDept;
+  final String payslipsSortColumn;
+  final bool payslipsSortAscending;
+
+  // Pagination & Sorting for Advances (Tab 6)
+  final int advancesPage;
+  final int advancesPageSize;
+  final int advancesTotal;
+  final int advancesTotalPages;
+  final String advancesSearch;
+  final String advancesStatus;
+  final String advancesSortColumn;
+  final bool advancesSortAscending;
 
   const StaffSalaryState({
     this.selectedMonthStr = '2026-10',
@@ -48,6 +81,7 @@ class StaffSalaryState {
     this.selectedStatus = 'All Status',
     this.isLoading = false,
     this.isDrawerOpen = false,
+    this.isRightSummaryVisible = true,
     this.currentStaffId,
     this.selectedStaffDetail,
     this.currentPage = 1,
@@ -57,6 +91,30 @@ class StaffSalaryState {
     this.selectedStaffIds = const {},
     this.sortColumn,
     this.sortAscending = true,
+    this.structuresPage = 1,
+    this.structuresPageSize = 10,
+    this.structuresTotal = 0,
+    this.structuresTotalPages = 1,
+    this.structuresSearch = '',
+    this.structuresDept = 'All Departments',
+    this.structuresSortColumn = 'name',
+    this.structuresSortAscending = true,
+    this.payslipsPage = 1,
+    this.payslipsPageSize = 10,
+    this.payslipsTotal = 0,
+    this.payslipsTotalPages = 1,
+    this.payslipsSearch = '',
+    this.payslipsDept = 'All Departments',
+    this.payslipsSortColumn = 'payslip_number',
+    this.payslipsSortAscending = false,
+    this.advancesPage = 1,
+    this.advancesPageSize = 10,
+    this.advancesTotal = 0,
+    this.advancesTotalPages = 1,
+    this.advancesSearch = '',
+    this.advancesStatus = 'All Status',
+    this.advancesSortColumn = 'created_at',
+    this.advancesSortAscending = false,
   });
 
   StaffSalaryState copyWith({
@@ -76,6 +134,7 @@ class StaffSalaryState {
     String? selectedStatus,
     bool? isLoading,
     bool? isDrawerOpen,
+    bool? isRightSummaryVisible,
     String? currentStaffId,
     Map<String, dynamic>? selectedStaffDetail,
     bool clearSelectedStaff = false,
@@ -86,6 +145,30 @@ class StaffSalaryState {
     Set<String>? selectedStaffIds,
     String? sortColumn,
     bool? sortAscending,
+    int? structuresPage,
+    int? structuresPageSize,
+    int? structuresTotal,
+    int? structuresTotalPages,
+    String? structuresSearch,
+    String? structuresDept,
+    String? structuresSortColumn,
+    bool? structuresSortAscending,
+    int? payslipsPage,
+    int? payslipsPageSize,
+    int? payslipsTotal,
+    int? payslipsTotalPages,
+    String? payslipsSearch,
+    String? payslipsDept,
+    String? payslipsSortColumn,
+    bool? payslipsSortAscending,
+    int? advancesPage,
+    int? advancesPageSize,
+    int? advancesTotal,
+    int? advancesTotalPages,
+    String? advancesSearch,
+    String? advancesStatus,
+    String? advancesSortColumn,
+    bool? advancesSortAscending,
   }) {
     return StaffSalaryState(
       selectedMonthStr: selectedMonthStr ?? this.selectedMonthStr,
@@ -104,6 +187,7 @@ class StaffSalaryState {
       selectedStatus: selectedStatus ?? this.selectedStatus,
       isLoading: isLoading ?? this.isLoading,
       isDrawerOpen: isDrawerOpen ?? this.isDrawerOpen,
+      isRightSummaryVisible: isRightSummaryVisible ?? this.isRightSummaryVisible,
       currentStaffId: clearSelectedStaff ? null : (currentStaffId ?? this.currentStaffId),
       selectedStaffDetail: clearSelectedStaff ? null : (selectedStaffDetail ?? this.selectedStaffDetail),
       currentPage: currentPage ?? this.currentPage,
@@ -113,6 +197,30 @@ class StaffSalaryState {
       selectedStaffIds: selectedStaffIds ?? this.selectedStaffIds,
       sortColumn: sortColumn ?? this.sortColumn,
       sortAscending: sortAscending ?? this.sortAscending,
+      structuresPage: structuresPage ?? this.structuresPage,
+      structuresPageSize: structuresPageSize ?? this.structuresPageSize,
+      structuresTotal: structuresTotal ?? this.structuresTotal,
+      structuresTotalPages: structuresTotalPages ?? this.structuresTotalPages,
+      structuresSearch: structuresSearch ?? this.structuresSearch,
+      structuresDept: structuresDept ?? this.structuresDept,
+      structuresSortColumn: structuresSortColumn ?? this.structuresSortColumn,
+      structuresSortAscending: structuresSortAscending ?? this.structuresSortAscending,
+      payslipsPage: payslipsPage ?? this.payslipsPage,
+      payslipsPageSize: payslipsPageSize ?? this.payslipsPageSize,
+      payslipsTotal: payslipsTotal ?? this.payslipsTotal,
+      payslipsTotalPages: payslipsTotalPages ?? this.payslipsTotalPages,
+      payslipsSearch: payslipsSearch ?? this.payslipsSearch,
+      payslipsDept: payslipsDept ?? this.payslipsDept,
+      payslipsSortColumn: payslipsSortColumn ?? this.payslipsSortColumn,
+      payslipsSortAscending: payslipsSortAscending ?? this.payslipsSortAscending,
+      advancesPage: advancesPage ?? this.advancesPage,
+      advancesPageSize: advancesPageSize ?? this.advancesPageSize,
+      advancesTotal: advancesTotal ?? this.advancesTotal,
+      advancesTotalPages: advancesTotalPages ?? this.advancesTotalPages,
+      advancesSearch: advancesSearch ?? this.advancesSearch,
+      advancesStatus: advancesStatus ?? this.advancesStatus,
+      advancesSortColumn: advancesSortColumn ?? this.advancesSortColumn,
+      advancesSortAscending: advancesSortAscending ?? this.advancesSortAscending,
     );
   }
 }
@@ -131,24 +239,51 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
     super.dispose();
   }
 
+  void toggleRightSummary() {
+    state = state.copyWith(isRightSummaryVisible: !state.isRightSummaryVisible);
+  }
+
   Future<void> loadAllData() async {
     state = state.copyWith(isLoading: true);
-    await Future.wait([
-      loadMetadata(),
-      loadKPIs(),
-      loadRoster(),
-      loadSalaryStructures(),
-      loadPayslips(),
-      loadAdvances(),
-    ]);
+    try {
+      await Future.wait([
+        loadMetadata(),
+        loadKPIs(),
+        if (state.subTab <= 3)
+          loadRoster()
+        else if (state.subTab == 4)
+          loadSalaryStructures()
+        else if (state.subTab == 5)
+          loadPayslips()
+        else if (state.subTab == 6)
+          loadAdvances(),
+      ]);
+
+      state = state.copyWith(isLoading: false);
+      _prefetchOtherTabsInBackground();
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
 
     // Live refresh open drawer to prevent stale financial state
     if (state.isDrawerOpen && state.currentStaffId != null) {
       final detail = await _service.getStaffSalaryDetail(state.currentStaffId!);
       state = state.copyWith(selectedStaffDetail: detail);
     }
+  }
 
-    state = state.copyWith(isLoading: false);
+  void _prefetchOtherTabsInBackground() {
+    if (state.salaryStructures.isEmpty) {
+      loadSalaryStructures();
+    }
+    if (state.payslipsList.isEmpty) {
+      loadPayslips();
+    }
+    if (state.advancesList.isEmpty) {
+      loadAdvances();
+    }
   }
 
   Future<void> loadMetadata() async {
@@ -197,7 +332,10 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
     );
 
     final list = data['staff'] as List<StaffSalaryRosterItem>? ?? [];
-    final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
+    final rawPagination = data['pagination'];
+    final pagination = rawPagination is Map
+        ? Map<String, dynamic>.from(rawPagination)
+        : <String, dynamic>{};
 
     state = state.copyWith(
       staffRoster: list,
@@ -206,36 +344,274 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
     );
   }
 
+  // --- Sub-Tab 4: Structures Catalog ---
   Future<void> loadSalaryStructures() async {
-    final structs = await _service.getStaffSalaryStructures();
-    state = state.copyWith(salaryStructures: structs);
+    final res = await _service.getSalaryStructuresCatalog(
+      department: state.structuresDept,
+      search: state.structuresSearch,
+      sortBy: state.structuresSortColumn,
+      sortOrder: state.structuresSortAscending ? 'ASC' : 'DESC',
+      page: state.structuresPage,
+      pageSize: state.structuresPageSize,
+    );
+    final structs = res['structures'] as List<StaffSalaryStructureItem>? ?? [];
+    state = state.copyWith(
+      salaryStructures: structs,
+      structuresTotal: (res['total_items'] as num?)?.toInt() ?? structs.length,
+      structuresTotalPages: (res['total_pages'] as num?)?.toInt() ?? 1,
+    );
   }
 
+  void setStructuresPage(int page) {
+    if (page >= 1 && page <= state.structuresTotalPages && page != state.structuresPage) {
+      state = state.copyWith(structuresPage: page);
+      loadSalaryStructures();
+    }
+  }
+
+  void setStructuresPageSize(int size) {
+    if (state.structuresPageSize != size) {
+      state = state.copyWith(structuresPageSize: size, structuresPage: 1);
+      loadSalaryStructures();
+    }
+  }
+
+  void setStructuresSearch(String q) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      state = state.copyWith(structuresSearch: q, structuresPage: 1);
+      loadSalaryStructures();
+    });
+  }
+
+  void setStructuresDept(String dept) {
+    state = state.copyWith(structuresDept: dept, structuresPage: 1);
+    loadSalaryStructures();
+  }
+
+  void toggleStructuresSort(String column) {
+    if (state.structuresSortColumn == column) {
+      state = state.copyWith(structuresSortAscending: !state.structuresSortAscending, structuresPage: 1);
+    } else {
+      state = state.copyWith(structuresSortColumn: column, structuresSortAscending: true, structuresPage: 1);
+    }
+    loadSalaryStructures();
+  }
+
+  Future<bool> saveSalaryStructure(Map<String, dynamic> payload) async {
+    final ok = await _service.createSalaryStructure(payload);
+    if (ok) {
+      await loadSalaryStructures();
+      await loadRoster();
+    }
+    return ok;
+  }
+
+  Future<Map<String, dynamic>> runAutomatedPayroll({bool sendEmail = true}) async {
+    state = state.copyWith(isLoading: true);
+    final res = await _service.triggerAutoPayrollRun(
+      monthStr: state.selectedMonthStr,
+      sendEmail: sendEmail,
+    );
+    await loadAllData();
+    state = state.copyWith(isLoading: false);
+    return res;
+  }
+
+
+  // --- Sub-Tab 5: Payslips Master ---
   Future<void> loadPayslips() async {
     final res = await _service.getStaffPayslips(
       monthStr: state.selectedMonthStr,
-      search: state.searchQuery,
+      department: state.payslipsDept,
+      search: state.payslipsSearch,
+      sortBy: state.payslipsSortColumn,
+      sortOrder: state.payslipsSortAscending ? 'ASC' : 'DESC',
+      page: state.payslipsPage,
+      pageSize: state.payslipsPageSize,
     );
     final pays = res['payslips'] as List<StaffPayslipItem>? ?? [];
-    state = state.copyWith(payslipsList: pays);
+    state = state.copyWith(
+      payslipsList: pays,
+      payslipsTotal: (res['total_items'] as num?)?.toInt() ?? pays.length,
+      payslipsTotalPages: (res['total_pages'] as num?)?.toInt() ?? 1,
+    );
   }
 
+  void setPayslipsPage(int page) {
+    if (page >= 1 && page <= state.payslipsTotalPages && page != state.payslipsPage) {
+      state = state.copyWith(payslipsPage: page);
+      loadPayslips();
+    }
+  }
+
+  void setPayslipsPageSize(int size) {
+    if (state.payslipsPageSize != size) {
+      state = state.copyWith(payslipsPageSize: size, payslipsPage: 1);
+      loadPayslips();
+    }
+  }
+
+  void setPayslipsSearch(String q) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      state = state.copyWith(payslipsSearch: q, payslipsPage: 1);
+      loadPayslips();
+    });
+  }
+
+  void setPayslipsDept(String dept) {
+    state = state.copyWith(payslipsDept: dept, payslipsPage: 1);
+    loadPayslips();
+  }
+
+  void togglePayslipsSort(String column) {
+    if (state.payslipsSortColumn == column) {
+      state = state.copyWith(payslipsSortAscending: !state.payslipsSortAscending, payslipsPage: 1);
+    } else {
+      state = state.copyWith(payslipsSortColumn: column, payslipsSortAscending: true, payslipsPage: 1);
+    }
+    loadPayslips();
+  }
+
+  void exportBankDisbursalFile() {
+    final month = Uri.encodeComponent(state.selectedMonthStr);
+    final url = '/api/v1/payment-management/staff-salary/export/bank-file?month_str=$month';
+    try {
+      downloadFileWeb(url, 'Bank_Disbursal_$month.csv');
+    } catch (_) {}
+  }
+
+  // --- Sub-Tab 6: Advances Master ---
   Future<void> loadAdvances() async {
-    final res = await _service.getStaffSalaryAdvances(search: state.searchQuery);
+    final res = await _service.getStaffSalaryAdvances(
+      status: state.advancesStatus,
+      search: state.advancesSearch,
+      sortBy: state.advancesSortColumn,
+      sortOrder: state.advancesSortAscending ? 'ASC' : 'DESC',
+      page: state.advancesPage,
+      pageSize: state.advancesPageSize,
+    );
     final advs = res['advances'] as List<StaffSalaryAdvanceItem>? ?? [];
-    state = state.copyWith(advancesList: advs);
+    state = state.copyWith(
+      advancesList: advs,
+      advancesTotal: (res['total_items'] as num?)?.toInt() ?? advs.length,
+      advancesTotalPages: (res['total_pages'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  void setAdvancesPage(int page) {
+    if (page >= 1 && page <= state.advancesTotalPages && page != state.advancesPage) {
+      state = state.copyWith(advancesPage: page);
+      loadAdvances();
+    }
+  }
+
+  void setAdvancesPageSize(int size) {
+    if (state.advancesPageSize != size) {
+      state = state.copyWith(advancesPageSize: size, advancesPage: 1);
+      loadAdvances();
+    }
+  }
+
+  void setAdvancesSearch(String q) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      state = state.copyWith(advancesSearch: q, advancesPage: 1);
+      loadAdvances();
+    });
+  }
+
+  void setAdvancesStatus(String status) {
+    state = state.copyWith(advancesStatus: status, advancesPage: 1);
+    loadAdvances();
+  }
+
+  void toggleAdvancesSort(String column) {
+    if (state.advancesSortColumn == column) {
+      state = state.copyWith(advancesSortAscending: !state.advancesSortAscending, advancesPage: 1);
+    } else {
+      state = state.copyWith(advancesSortColumn: column, advancesSortAscending: true, advancesPage: 1);
+    }
+    loadAdvances();
+  }
+
+  Future<bool> settleAdvance(
+    String advanceId, {
+    required double settlementAmount,
+    String paymentMode = 'Cash',
+    String remarks = 'Early loan clearance',
+  }) async {
+    final ok = await _service.settleStaffSalaryAdvance(
+      advanceId,
+      settlementAmount: settlementAmount,
+      paymentMode: paymentMode,
+      remarks: remarks,
+    );
+    if (ok) {
+      await loadAdvances();
+      await loadRoster();
+    }
+    return ok;
+  }
+
+  Future<bool> bulkRunPayroll({
+    String paymentMode = 'Direct Bank Transfer (NEFT/RTGS)',
+    String? department,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    final parts = state.selectedMonthStr.split('-');
+    final yr = int.tryParse(parts[0]) ?? 2026;
+    final mo = parts.length > 1 ? (int.tryParse(parts[1]) ?? 10) : 10;
+
+    final ok = await _service.bulkProcessStaffPayroll({
+      'month': mo,
+      'year': yr,
+      'month_str': state.selectedMonthStr,
+      'department': department ?? state.selectedDepartment,
+      'payment_mode': paymentMode,
+    });
+
+    await loadAllData();
+    state = state.copyWith(isLoading: false);
+    return ok;
   }
 
   void setMonth(String monthStr) {
     if (state.selectedMonthStr != monthStr) {
-      state = state.copyWith(selectedMonthStr: monthStr, currentPage: 1);
+      state = state.copyWith(selectedMonthStr: monthStr, currentPage: 1, structuresPage: 1, payslipsPage: 1, advancesPage: 1);
       loadAllData();
     }
   }
 
-  void setSubTab(int index) {
-    state = state.copyWith(subTab: index, currentPage: 1);
-    loadRoster();
+  void setSubTab(int index, {String? statusFilter}) {
+    final newStatus = statusFilter ??
+        (index == 1
+            ? 'Paid'
+            : index == 2
+                ? 'Pending'
+                : index == 3
+                    ? 'On Hold'
+                    : 'All Status');
+    state = state.copyWith(
+      subTab: index,
+      selectedStatus: (index <= 3) ? newStatus : state.selectedStatus,
+    );
+    if (index >= 0 && index <= 3) {
+      loadRoster();
+    } else if (index == 4) {
+      if (state.salaryStructures.isEmpty) {
+        loadSalaryStructures();
+      }
+    } else if (index == 5) {
+      if (state.payslipsList.isEmpty) {
+        loadPayslips();
+      }
+    } else if (index == 6) {
+      if (state.advancesList.isEmpty) {
+        loadAdvances();
+      }
+    }
   }
 
   void setSearchQuery(String query) {
@@ -243,8 +619,6 @@ class StaffSalaryNotifier extends StateNotifier<StaffSalaryState> {
     _debounceTimer = Timer(const Duration(milliseconds: 350), () {
       state = state.copyWith(searchQuery: query, currentPage: 1);
       loadRoster();
-      if (state.subTab == 5) loadPayslips();
-      if (state.subTab == 6) loadAdvances();
     });
   }
 

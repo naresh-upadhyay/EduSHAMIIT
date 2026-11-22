@@ -99,8 +99,8 @@ def run_tests():
     r = requests.post(f"{BASE_URL}/student-fees/invoices", json=inv_payload, headers=HEADERS)
     assert r.status_code == 201, f"Failed: {r.text}"
     inv_resp = r.json()
-    test_invoice_id = inv_resp["invoice"]["id"]
-    test_invoice_num = inv_resp["invoice"]["invoice_number"]
+    test_invoice_id = inv_resp.get("invoice_id") or inv_resp.get("invoice", {}).get("id")
+    test_invoice_num = inv_resp.get("invoice_number") or inv_resp.get("invoice", {}).get("invoice_number")
     log("Test 5", f"Generated Student Invoice: {test_invoice_num} (ID: {test_invoice_id})")
 
     # 6. Apply Fee Concession & Verify Balance Reduction
@@ -287,14 +287,15 @@ def run_tests():
     }
     r = requests.post(f"{BASE_URL}/staff-salary/payouts", json=payout_payload, headers=HEADERS)
     assert r.status_code == 201, f"Failed: {r.text}"
-    payslip_num = r.json()["payout"]["payslip_number"]
-    test_payout_id = r.json()["payout"]["id"]
+    res_json = r.json()
+    payslip_num = res_json.get("payslip_number") or res_json.get("payout", {}).get("payslip_number")
+    test_payout_id = res_json.get("payout_id") or res_json.get("payout", {}).get("id")
     log("Test 20", f"Processed Salary Payout: {payslip_num} (ID: {test_payout_id})")
 
     # Verify advance recovery in Drawer 360
     r = requests.get(f"{BASE_URL}/staff-salary/staff/{test_staff_id}", headers=HEADERS)
     detail_staff = r.json()["detail"]
-    adv_recovered = float(detail_staff["advances"][0]["amount_repaid"])
+    adv_recovered = max([float(a.get("amount_repaid", 0)) for a in detail_staff.get("advances", [])] or [0.0])
     assert adv_recovered >= 5000.0, f"Expected amount_repaid >= 5000, got {adv_recovered}"
     log("Test 20 (Verification)", f"Verified Automated Advance Recovery: ₹{adv_recovered} repaid towards ₹15,000 advance")
 

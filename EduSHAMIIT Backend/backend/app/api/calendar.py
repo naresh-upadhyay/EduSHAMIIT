@@ -2016,6 +2016,34 @@ async def create_schedule(req: ScheduleCreateRequest, user=Depends(get_current_u
             req_dict["is_recurring"] = req.is_recurring
         else:
             req_dict["is_recurring"] = req.recurrence.frequency != "none"
+
+    if req.participants:
+        t_classes = list(req_dict.get("target_classes") or [])
+        t_roles = list(req_dict.get("target_roles") or [])
+        t_uids = list(req_dict.get("target_user_ids") or [])
+        t_cs = list(req_dict.get("target_class_sections") or [])
+        for p in req.participants:
+            if p.target_class and p.target_class not in t_classes:
+                t_classes.append(p.target_class)
+            if p.target_role and p.target_role not in t_roles:
+                t_roles.append(p.target_role)
+            if p.user_id and p.user_id not in t_uids:
+                t_uids.append(p.user_id)
+            if p.class_id or p.section_id or (p.target_class and p.target_section):
+                cs_item = {
+                    "class_id": p.class_id,
+                    "section_id": p.section_id,
+                    "subject_id": p.target_subject_id,
+                    "class_name": p.target_class,
+                    "section_name": p.target_section,
+                    "subject_name": p.target_subject,
+                }
+                if cs_item not in t_cs:
+                    t_cs.append(cs_item)
+        req_dict["target_classes"] = t_classes
+        req_dict["target_roles"] = t_roles
+        req_dict["target_user_ids"] = t_uids
+        req_dict["target_class_sections"] = t_cs
     payload_json = json.dumps(req_dict, default=str)
 
     rows = await exec_sql(
@@ -2122,6 +2150,34 @@ async def update_schedule(
             req_dict["is_recurring"] = req.is_recurring
         else:
             req_dict["is_recurring"] = req.recurrence.frequency != "none"
+
+    if req.participants:
+        t_classes = list(req_dict.get("target_classes") or [])
+        t_roles = list(req_dict.get("target_roles") or [])
+        t_uids = list(req_dict.get("target_user_ids") or [])
+        t_cs = list(req_dict.get("target_class_sections") or [])
+        for p in req.participants:
+            if p.target_class and p.target_class not in t_classes:
+                t_classes.append(p.target_class)
+            if p.target_role and p.target_role not in t_roles:
+                t_roles.append(p.target_role)
+            if p.user_id and p.user_id not in t_uids:
+                t_uids.append(p.user_id)
+            if p.class_id or p.section_id or (p.target_class and p.target_section):
+                cs_item = {
+                    "class_id": p.class_id,
+                    "section_id": p.section_id,
+                    "subject_id": p.target_subject_id,
+                    "class_name": p.target_class,
+                    "section_name": p.target_section,
+                    "subject_name": p.target_subject,
+                }
+                if cs_item not in t_cs:
+                    t_cs.append(cs_item)
+        req_dict["target_classes"] = t_classes
+        req_dict["target_roles"] = t_roles
+        req_dict["target_user_ids"] = t_uids
+        req_dict["target_class_sections"] = t_cs
     payload_json = json.dumps(req_dict, default=str)
 
     clean_scope = "entire_series"

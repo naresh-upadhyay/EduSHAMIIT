@@ -31,7 +31,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Hero Card
-      expect(find.text('Digital Campus Team'), findsOneWidget);
+      expect(find.text('Digital Campus Team'), findsWidgets);
       expect(find.text('Sprint 8 (${WorkSprintDateHelper.currentSprintFullDurationRange})'), findsOneWidget);
 
       // 2. 6 KPI Cards

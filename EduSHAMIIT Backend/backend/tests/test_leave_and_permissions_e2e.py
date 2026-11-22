@@ -35,14 +35,13 @@ async def run_tests():
     logger.info("==========================================================================")
 
     # 1. Fetch school and profiles
-    schools = await exec_sql("SELECT id FROM public.schools LIMIT 1;")
-    school_id = str(schools[0]["id"])
+    school_id = "11111111-1111-1111-1111-111111111111"
 
-    admin_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE role = 'super_admin' LIMIT 1;")
+    admin_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE school_id = %s::UUID AND role IN ('super_admin', 'admin') ORDER BY (role = 'super_admin') DESC LIMIT 1;", (school_id,))
     admin_id = str(admin_profile[0]["id"])
     admin_dict = {"id": admin_id, "role": "super_admin", "email": admin_profile[0]["email"], "school_id": school_id}
 
-    teacher_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    teacher_profile = await exec_sql("SELECT id, full_name, email, role FROM public.profiles WHERE school_id = %s::UUID AND role = 'teacher' LIMIT 1;", (school_id,))
     teacher_id = str(teacher_profile[0]["id"])
     teacher_name = teacher_profile[0]["full_name"]
     teacher_dict = {"id": teacher_id, "role": "teacher", "email": teacher_profile[0]["email"], "school_id": school_id}
@@ -170,7 +169,7 @@ async def run_tests():
         academic_year="2026-2027",
         department="ALL",
         role="ALL",
-        search="Lakshmi",
+        search=teacher_name,
         current_user=admin_dict,
         school_id=school_id
     )

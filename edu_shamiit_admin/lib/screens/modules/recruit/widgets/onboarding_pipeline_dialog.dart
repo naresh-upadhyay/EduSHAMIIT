@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:intl/intl.dart';
+import '../../../../services/hr_lookup_helper.dart';
 import 'onboarding_detail_drawer.dart';
 
 class OnboardingPipelineDialog extends StatefulWidget {
@@ -50,17 +51,9 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
     'Completed',
   ];
 
-  final List<String> _departments = [
+  List<String> _departments = [
     'All',
-    'Academics',
-    'Teaching',
-    'Administration',
-    'IT',
-    'IT / Technical',
-    'Finance',
-    'Transport',
-    'Mathematics',
-    'Others',
+    ...HRLookupHelper.instance.getCachedLabels('DEPARTMENT'),
   ];
 
   @override
@@ -70,6 +63,13 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
     if (widget.initialDepartment != null && widget.initialDepartment!.isNotEmpty) {
       _selectedDepartment = widget.initialDepartment!;
     }
+    HRLookupHelper.instance.getLookupLabels('DEPARTMENT').then((depts) {
+      if (mounted && depts.isNotEmpty) {
+        setState(() {
+          _departments = ['All', ...depts];
+        });
+      }
+    });
     _fetchRecords(page: 1);
   }
 

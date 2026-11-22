@@ -4,13 +4,13 @@ import '../../../services/payment_management_api_service.dart';
 import '../../../providers/staff_salary_provider.dart';
 
 class RequestSalaryAdvanceDialog extends ConsumerStatefulWidget {
-  final String staffId;
-  final String staffName;
+  final String? staffId;
+  final String? staffName;
 
   const RequestSalaryAdvanceDialog({
     super.key,
-    required this.staffId,
-    required this.staffName,
+    this.staffId,
+    this.staffName,
   });
 
   @override
@@ -27,6 +27,15 @@ class _RequestSalaryAdvanceDialogState
   String _purposeType = 'Medical Emergency';
   int _repaymentMonths = 3;
   bool _submitting = false;
+  String? _selectedStaffId;
+  String? _selectedStaffName;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStaffId = widget.staffId;
+    _selectedStaffName = widget.staffName;
+  }
 
   @override
   void dispose() {
@@ -37,7 +46,14 @@ class _RequestSalaryAdvanceDialogState
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(staffSalaryProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final staffList = state.staffRoster;
+    if (_selectedStaffId == null && staffList.isNotEmpty) {
+      _selectedStaffId = staffList.first.staffId;
+      _selectedStaffName = staffList.first.staffName;
+    }
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -79,7 +95,7 @@ class _RequestSalaryAdvanceDialogState
                                   color: isDark
                                       ? Colors.white
                                       : const Color(0xFF0F172A))),
-                          Text(widget.staffName,
+                          Text(_selectedStaffName ?? 'Staff Member',
                               style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
@@ -95,6 +111,59 @@ class _RequestSalaryAdvanceDialogState
                 ],
               ),
               const Divider(height: 24),
+
+              // Staff Selector Dropdown if not preselected
+              if (widget.staffId == null && staffList.isNotEmpty) ...[
+                Text('Select Staff Member',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedStaffId,
+                      isExpanded: true,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      items: staffList
+                          .map((s) => DropdownMenuItem(
+                              value: s.staffId,
+                              child: Text(
+                                  '${s.staffName} (${s.department} - ${s.employeeId})',
+                                  overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          final selected = staffList.firstWhere(
+                              (e) => e.staffId == val,
+                              orElse: () => staffList.first);
+                          setState(() {
+                            _selectedStaffId = val;
+                            _selectedStaffName = selected.staffName;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               Text('Advance Amount (₹)',
                   style: TextStyle(
                       fontSize: 12,
@@ -231,10 +300,20 @@ class _RequestSalaryAdvanceDialogState
     final amt = double.tryParse(_amountController.text.trim()) ?? 0.0;
     if (amt <= 0) return;
 
+    final targetStaffId = _selectedStaffId ?? widget.staffId;
+    if (targetStaffId == null || targetStaffId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a staff member'),
+            backgroundColor: Color(0xFFDC2626)),
+      );
+      return;
+    }
+
     setState(() => _submitting = true);
     final ok =
         await PaymentManagementApiService.instance.requestStaffSalaryAdvance({
-      'staff_id': widget.staffId,
+      'staff_id': targetStaffId,
       'amount': amt,
       'purpose_type': _purposeType,
       'reason': _reasonController.text.trim(),

@@ -12,9 +12,10 @@ class StudentFeeState {
   final StudentFeeKPIs kpis;
   final List<StudentFeeRosterItem> studentFeesRoster;
   final List<StudentFeeStructureItem> feeStructures;
+  final FeeStructureCohortSummary? feeStructureSummary;
   final List<StudentFeeInvoiceItem> invoicesList;
   final List<StudentFeePaymentItem> paymentsList;
-  final int subTab; // 0=All, 1=Paid, 2=Partial, 3=Overdue, 4=Fee Structure, 5=Invoices, 6=Payments
+  final int subTab; // 0=All, 1=Paid, 2=Partial, 3=Pending, 4=Overdue, 5=Advance/Overpaid, 6=Fee Structure, 7=Invoices, 8=Payments
   final String searchQuery;
   final String selectedClass;
   final String selectedStatus;
@@ -30,6 +31,11 @@ class StudentFeeState {
   final Set<String> selectedStudentIds;
   final String? sortColumn;
   final bool sortAscending;
+  final List<Map<String, dynamic>> scheduleRules;
+  final List<Map<String, dynamic>> scheduleRuns;
+  final bool loadingRules;
+  final bool loadingRuns;
+  final Map<String, List<String>> classesWithSections;
 
   const StudentFeeState({
     this.selectedAcademicYear = '2026 - 2027',
@@ -39,6 +45,7 @@ class StudentFeeState {
     required this.kpis,
     this.studentFeesRoster = const [],
     this.feeStructures = const [],
+    this.feeStructureSummary,
     this.invoicesList = const [],
     this.paymentsList = const [],
     this.subTab = 0,
@@ -57,6 +64,11 @@ class StudentFeeState {
     this.selectedStudentIds = const {},
     this.sortColumn,
     this.sortAscending = true,
+    this.scheduleRules = const [],
+    this.scheduleRuns = const [],
+    this.loadingRules = false,
+    this.loadingRuns = false,
+    this.classesWithSections = const {},
   });
 
   StudentFeeState copyWith({
@@ -67,6 +79,7 @@ class StudentFeeState {
     StudentFeeKPIs? kpis,
     List<StudentFeeRosterItem>? studentFeesRoster,
     List<StudentFeeStructureItem>? feeStructures,
+    FeeStructureCohortSummary? feeStructureSummary,
     List<StudentFeeInvoiceItem>? invoicesList,
     List<StudentFeePaymentItem>? paymentsList,
     int? subTab,
@@ -86,6 +99,11 @@ class StudentFeeState {
     Set<String>? selectedStudentIds,
     String? sortColumn,
     bool? sortAscending,
+    List<Map<String, dynamic>>? scheduleRules,
+    List<Map<String, dynamic>>? scheduleRuns,
+    bool? loadingRules,
+    bool? loadingRuns,
+    Map<String, List<String>>? classesWithSections,
   }) {
     return StudentFeeState(
       selectedAcademicYear: selectedAcademicYear ?? this.selectedAcademicYear,
@@ -95,6 +113,7 @@ class StudentFeeState {
       kpis: kpis ?? this.kpis,
       studentFeesRoster: studentFeesRoster ?? this.studentFeesRoster,
       feeStructures: feeStructures ?? this.feeStructures,
+      feeStructureSummary: feeStructureSummary ?? this.feeStructureSummary,
       invoicesList: invoicesList ?? this.invoicesList,
       paymentsList: paymentsList ?? this.paymentsList,
       subTab: subTab ?? this.subTab,
@@ -113,6 +132,11 @@ class StudentFeeState {
       selectedStudentIds: selectedStudentIds ?? this.selectedStudentIds,
       sortColumn: sortColumn ?? this.sortColumn,
       sortAscending: sortAscending ?? this.sortAscending,
+      scheduleRules: scheduleRules ?? this.scheduleRules,
+      scheduleRuns: scheduleRuns ?? this.scheduleRuns,
+      loadingRules: loadingRules ?? this.loadingRules,
+      loadingRuns: loadingRuns ?? this.loadingRuns,
+      classesWithSections: classesWithSections ?? this.classesWithSections,
     );
   }
 }
@@ -133,22 +157,45 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
 
   Future<void> loadAllData() async {
     state = state.copyWith(isLoading: true);
-    await Future.wait([
-      loadMetadata(),
-      loadKPIs(),
-      loadRoster(),
-      loadFeeStructures(),
-      loadInvoices(),
-      loadPayments(),
-    ]);
+    try {
+      await Future.wait([
+        loadMetadata().catchError((_) {}),
+        loadKPIs().catchError((_) {}),
+        if (state.subTab <= 5)
+          loadRoster().catchError((_) {})
+        else if (state.subTab == 6)
+          loadFeeStructures().catchError((_) {})
+        else if (state.subTab == 7)
+          loadInvoices().catchError((_) {})
+        else if (state.subTab == 8)
+          loadPayments().catchError((_) {}),
+      ]);
+
+      state = state.copyWith(isLoading: false);
+      _prefetchOtherTabsInBackground();
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
 
     // Live refresh open drawer to prevent stale financial state
     if (state.isDrawerOpen && state.currentStudentId != null) {
       final detail = await _service.getStudentFeeDetail(state.currentStudentId!);
       state = state.copyWith(selectedStudentDetail: detail);
     }
+  }
 
-    state = state.copyWith(isLoading: false);
+  void _prefetchOtherTabsInBackground() {
+    if (state.feeStructures.isEmpty) {
+      loadFeeStructures().catchError((_) {});
+    }
+    if (state.invoicesList.isEmpty) {
+      loadInvoices().catchError((_) {});
+    }
+    if (state.paymentsList.isEmpty) {
+      loadPayments().catchError((_) {});
+    }
   }
 
   Future<void> loadMetadata() async {
@@ -156,18 +203,36 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     final rawClasses = meta['classes'] as List<String>? ?? [];
     final rawYears = meta['academic_years'] as List<String>? ?? [];
     final rawFeeTypes = meta['fee_types'] as List<String>? ?? [];
+    final rawClassesWithSections = meta['classes_with_sections'] as List<dynamic>? ?? [];
+
+    final Map<String, List<String>> sectionsMap = {};
+    for (final item in rawClassesWithSections) {
+      if (item is Map) {
+        final cName = item['class_name']?.toString() ?? '';
+        final secs = (item['sections'] as List?)?.map((s) => s.toString()).toList() ?? <String>[];
+        if (cName.isNotEmpty) {
+          sectionsMap[cName] = secs;
+        }
+      }
+    }
 
     final classes = ['All Classes', ...rawClasses.where((c) => c != 'All Classes')];
     state = state.copyWith(
       classesList: classes,
       availableAcademicYears: rawYears.isNotEmpty ? rawYears : state.availableAcademicYears,
       feeTypesList: rawFeeTypes.isNotEmpty ? rawFeeTypes : state.feeTypesList,
+      classesWithSections: sectionsMap,
     );
   }
 
   Future<void> loadKPIs() async {
-    final kpis = await _service.getStudentFeeSummary(state.selectedAcademicYear);
-    state = state.copyWith(kpis: kpis);
+    try {
+      final kpis = await _service.getStudentFeeSummary(
+        state.selectedAcademicYear,
+        className: state.selectedClass,
+      );
+      state = state.copyWith(kpis: kpis);
+    } catch (_) {}
   }
 
   Future<void> loadRoster() async {
@@ -177,7 +242,11 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     } else if (state.subTab == 2) {
       statusFilter = 'Partial';
     } else if (state.subTab == 3) {
+      statusFilter = 'Pending';
+    } else if (state.subTab == 4) {
       statusFilter = 'Overdue';
+    } else if (state.subTab == 5) {
+      statusFilter = 'Overpaid';
     } else if (state.selectedStatus != 'All Status') {
       statusFilter = state.selectedStatus;
     }
@@ -194,7 +263,10 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     );
 
     final list = data['students'] as List<StudentFeeRosterItem>? ?? [];
-    final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
+    final rawPagination = data['pagination'];
+    final pagination = rawPagination is Map
+        ? Map<String, dynamic>.from(rawPagination)
+        : <String, dynamic>{};
 
     state = state.copyWith(
       studentFeesRoster: list,
@@ -203,9 +275,24 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     );
   }
 
-  Future<void> loadFeeStructures() async {
-    final structures = await _service.getStudentFeeStructures();
-    state = state.copyWith(feeStructures: structures);
+  Future<void> loadFeeStructures({
+    String? classGrade,
+    String? sectionName,
+    String? frequencyType,
+    String? search,
+  }) async {
+    final res = await _service.getStudentFeeStructuresWithSummary(
+      classGrade: classGrade,
+      sectionName: sectionName,
+      frequencyType: frequencyType,
+      search: search,
+    );
+    final structures = res['structures'] as List<StudentFeeStructureItem>? ?? [];
+    final summary = res['summary'] as FeeStructureCohortSummary?;
+    state = state.copyWith(
+      feeStructures: structures,
+      feeStructureSummary: summary,
+    );
   }
 
   Future<void> loadInvoices() async {
@@ -227,28 +314,71 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     }
   }
 
-  void setSubTab(int index) {
-    state = state.copyWith(subTab: index, currentPage: 1);
-    loadRoster();
+  void setSubTab(int index, {String? statusFilter}) {
+    final newStatus = statusFilter ??
+        (index == 1
+            ? 'Paid'
+            : index == 2
+                ? 'Partial'
+                : index == 3
+                    ? 'Pending'
+                    : index == 4
+                        ? 'Overdue'
+                        : index == 5
+                            ? 'Overpaid'
+                            : 'All Status');
+    state = state.copyWith(
+      subTab: index,
+      currentPage: 1,
+      selectedStatus: (index <= 5) ? newStatus : state.selectedStatus,
+    );
+    if (index <= 5) {
+      loadRoster();
+    } else if (index == 6) {
+      loadFeeStructures();
+    } else if (index == 7) {
+      loadInvoices();
+    } else if (index == 8) {
+      loadPayments();
+    }
   }
 
   void setSearchQuery(String query) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 350), () {
       state = state.copyWith(searchQuery: query, currentPage: 1);
-      loadRoster();
-      if (state.subTab == 5) loadInvoices();
-      if (state.subTab == 6) loadPayments();
+      if (state.subTab <= 5) {
+        loadRoster();
+      } else if (state.subTab == 7) {
+        loadInvoices();
+      } else if (state.subTab == 8) {
+        loadPayments();
+      }
     });
   }
 
   void setClassFilter(String cls) {
     state = state.copyWith(selectedClass: cls, currentPage: 1);
+    loadKPIs();
     loadRoster();
   }
 
   void setStatusFilter(String status) {
-    state = state.copyWith(selectedStatus: status, currentPage: 1);
+    int newSubTab = state.subTab;
+    if (status == 'All Status' || status == 'All Fees' || status == 'All') {
+      newSubTab = 0;
+    } else if (status == 'Paid') {
+      newSubTab = 1;
+    } else if (status == 'Partial') {
+      newSubTab = 2;
+    } else if (status == 'Pending') {
+      newSubTab = 3;
+    } else if (status == 'Overdue') {
+      newSubTab = 4;
+    } else if (status == 'Overpaid') {
+      newSubTab = 5;
+    }
+    state = state.copyWith(selectedStatus: status, subTab: newSubTab, currentPage: 1);
     loadRoster();
   }
 
@@ -356,6 +486,128 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     final ok = await _service.deleteStudentPenalty(penaltyId);
     if (ok) await loadAllData();
     return ok;
+  }
+
+  Future<Map<String, dynamic>> processStudentRefund(Map<String, dynamic> payload) async {
+    final res = await _service.refundStudentFee(payload);
+    if (res['success'] == true) {
+      if (state.currentStudentId != null) {
+        final detail = await _service.getStudentFeeDetail(state.currentStudentId!);
+        state = state.copyWith(selectedStudentDetail: detail);
+      }
+      await Future.wait([
+        loadKPIs(),
+        loadRoster(),
+        loadPayments(),
+      ]);
+    }
+    return res;
+  }
+
+  Future<Map<String, dynamic>> settleInvoiceFromAdvance(String invoiceId) async {
+    final res = await _service.settleInvoiceFromAdvance(invoiceId);
+    if (res['success'] == true) {
+      if (state.currentStudentId != null) {
+        final detail = await _service.getStudentFeeDetail(state.currentStudentId!);
+        state = state.copyWith(selectedStudentDetail: detail);
+      }
+      await Future.wait([
+        loadKPIs(),
+        loadRoster(),
+        loadInvoices(),
+        loadPayments(),
+      ]);
+    }
+    return res;
+  }
+
+  Future<Map<String, dynamic>> settleStudentInvoicesFromAdvance(String studentId) async {
+    final res = await _service.settleStudentInvoicesFromAdvance(studentId);
+    if (res['success'] == true) {
+      if (state.currentStudentId != null) {
+        final detail = await _service.getStudentFeeDetail(state.currentStudentId!);
+        state = state.copyWith(selectedStudentDetail: detail);
+      }
+      await Future.wait([
+        loadKPIs(),
+        loadRoster(),
+        loadInvoices(),
+        loadPayments(),
+      ]);
+    }
+    return res;
+  }
+
+  Future<void> loadScheduleRules() async {
+    state = state.copyWith(loadingRules: true);
+    final rules = await _service.getFeeScheduleRules();
+    state = state.copyWith(scheduleRules: rules, loadingRules: false);
+  }
+
+  Future<void> loadScheduleRuns({String? ruleId}) async {
+    state = state.copyWith(loadingRuns: true);
+    final runs = await _service.getFeeScheduleRuns(ruleId: ruleId);
+    state = state.copyWith(scheduleRuns: runs, loadingRuns: false);
+  }
+
+  Future<Map<String, dynamic>> createScheduleRule(Map<String, dynamic> payload) async {
+    final res = await _service.createFeeScheduleRule(payload);
+    if (res['success'] == true) {
+      await loadScheduleRules();
+    }
+    return res;
+  }
+
+  Future<Map<String, dynamic>> updateScheduleRule(String ruleId, Map<String, dynamic> payload) async {
+    final res = await _service.updateFeeScheduleRule(ruleId, payload);
+    if (res['success'] == true) {
+      await loadScheduleRules();
+    }
+    return res;
+  }
+
+  Future<bool> toggleScheduleRule(String ruleId) async {
+    final res = await _service.toggleFeeScheduleRule(ruleId);
+    if (res['success'] == true) {
+      await loadScheduleRules();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteScheduleRule(String ruleId) async {
+    final ok = await _service.deleteFeeScheduleRule(ruleId);
+    if (ok) {
+      await loadScheduleRules();
+    }
+    return ok;
+  }
+
+  Future<Map<String, dynamic>> runScheduleRuleNow(String ruleId) async {
+    final res = await _service.runFeeScheduleRuleNow(ruleId);
+    if (res['success'] == true) {
+      await Future.wait([
+        loadScheduleRules(),
+        loadScheduleRuns(),
+        loadKPIs(),
+        loadInvoices(),
+        loadRoster(),
+      ]);
+    }
+    return res;
+  }
+
+  Future<Map<String, dynamic>> enhancedBulkGenerate(Map<String, dynamic> payload) async {
+    final res = await _service.enhancedBulkGenerateInvoices(payload);
+    if (res['success'] == true) {
+      await Future.wait([
+        loadKPIs(),
+        loadInvoices(),
+        loadRoster(),
+        loadScheduleRuns(),
+      ]);
+    }
+    return res;
   }
 
   void exportCsv() {

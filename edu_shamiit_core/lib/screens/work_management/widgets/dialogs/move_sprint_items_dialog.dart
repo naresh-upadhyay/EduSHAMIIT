@@ -19,22 +19,26 @@ class MoveSprintItemsDialog extends ConsumerStatefulWidget {
 }
 
 class _MoveSprintItemsDialogState extends ConsumerState<MoveSprintItemsDialog> {
-  String _selectedTarget = '332ae580-759a-424f-a647-c3ad9155f6c3'; // Sprint 9
+  String? _selectedTarget;
   bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final sprintState = ref.watch(workSprintDashboardProvider);
-    final upcoming = sprintState.upcomingSprints;
+    final allSprints = ref.watch(allSprintsProvider).sprints;
+    final otherSprints = allSprints.where((s) => s.id != widget.currentSprintId).toList();
 
     final targetOptions = [
-      ...upcoming.map((s) => {
-            'id': s['id']?.toString() ?? '',
-            'name': '${s['name']} (${s['status']})',
+      ...otherSprints.map((s) => {
+            'id': s.id,
+            'name': s.displayLabel,
           }),
       {'id': 'BACKLOG', 'name': 'Product Backlog (Unassign)'},
     ];
+
+    if (_selectedTarget == null || !targetOptions.any((opt) => opt['id'] == _selectedTarget)) {
+      _selectedTarget = targetOptions.first['id'];
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -100,6 +104,8 @@ class _MoveSprintItemsDialogState extends ConsumerState<MoveSprintItemsDialog> {
                     onPressed: _isSubmitting
                         ? null
                         : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(context);
                             setState(() => _isSubmitting = true);
                             final notifier = ref.read(workSprintDashboardProvider.notifier);
 
@@ -108,23 +114,22 @@ class _MoveSprintItemsDialogState extends ConsumerState<MoveSprintItemsDialog> {
                               for (final itemId in widget.itemIds) {
                                 success = await notifier.removeItemFromSprint(widget.currentSprintId, itemId);
                               }
-                            } else {
+                            } else if (_selectedTarget != null) {
                               success = await notifier.moveItemsToSprint(
                                 widget.currentSprintId,
-                                _selectedTarget,
+                                _selectedTarget!,
                                 widget.itemIds,
                               );
                             }
 
-                            if (mounted) {
-                              if (success) {
-                                Navigator.of(context).pop(true);
-                              } else {
-                                setState(() => _isSubmitting = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Failed to move items')),
-                                );
-                              }
+                            if (!mounted) return;
+                            if (success) {
+                              navigator.pop(true);
+                            } else {
+                              setState(() => _isSubmitting = false);
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('Failed to move items')),
+                              );
                             }
                           },
                     style: ElevatedButton.styleFrom(

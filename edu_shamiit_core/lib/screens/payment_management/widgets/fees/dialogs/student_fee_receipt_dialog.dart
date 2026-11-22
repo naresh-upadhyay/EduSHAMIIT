@@ -252,6 +252,19 @@ class StudentFeeReceiptDialog extends StatelessWidget {
                           transactionRef: txnRef,
                           paymentDate: dateStr,
                         );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(Icons.print_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 8),
+                                Text('Thermal slip print preview launched!'),
+                              ],
+                            ),
+                            backgroundColor: Color(0xFF2563EB),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
                       },
                     ),
                   ),

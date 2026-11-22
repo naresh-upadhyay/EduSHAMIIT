@@ -7,6 +7,14 @@ class SprintTaskBoardView extends ConsumerStatefulWidget {
   final List<WorkItemModel> items;
   final Function(WorkItemModel item) onOpenDetail;
   final Function(String type) onQuickAction;
+  final Function({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  })? onCreateItem;
   final String sprintId;
 
   const SprintTaskBoardView({
@@ -14,6 +22,7 @@ class SprintTaskBoardView extends ConsumerStatefulWidget {
     required this.items,
     required this.onOpenDetail,
     required this.onQuickAction,
+    this.onCreateItem,
     required this.sprintId,
   });
 
@@ -23,6 +32,56 @@ class SprintTaskBoardView extends ConsumerStatefulWidget {
 
 class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
   final List<String> _statuses = ['NEW', 'ACTIVE', 'IN PROGRESS', 'RESOLVED', 'COMPLETED'];
+  List<WorkItemModel> _localItems = [];
+  bool _isOptimisticTransition = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _localItems = _flattenItems(widget.items);
+  }
+
+  @override
+  void didUpdateWidget(SprintTaskBoardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isOptimisticTransition && widget.items != oldWidget.items) {
+      _localItems = _flattenItems(widget.items);
+    }
+  }
+
+  List<WorkItemModel> _flattenItems(List<WorkItemModel> items) {
+    final Map<String, WorkItemModel> deduplicated = {};
+    for (final item in items) {
+      deduplicated[item.id] = item;
+      for (final child in item.children) {
+        deduplicated[child.id] = child;
+      }
+    }
+    return deduplicated.values.toList();
+  }
+
+  void _handleCreateItem({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  }) {
+    if (widget.onCreateItem != null) {
+      widget.onCreateItem!(
+        type: type ?? 'TASK',
+        status: status,
+        priority: priority,
+        category: category,
+        sprintId: sprintId ?? widget.sprintId,
+        parentId: parentId,
+      );
+    } else {
+      widget.onQuickAction(type ?? 'TASK');
+    }
+  }
+  final Map<String, int> _columnDisplayLimits = {};
 
   final Map<String, String> _statusDisplay = {
     'NEW': 'New',
@@ -41,45 +100,81 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
   };
 
   Future<void> _handleDrop(WorkItemModel item, String targetStatus) async {
-    if (item.status.toUpperCase() == targetStatus.toUpperCase()) return;
+    final currentNorm = item.status.replaceAll('_', ' ').trim().toUpperCase();
+    final targetNorm = targetStatus.replaceAll('_', ' ').trim().toUpperCase();
+    if (currentNorm == targetNorm) return;
 
+    final backup = List<WorkItemModel>.from(_localItems);
+    _isOptimisticTransition = true;
+
+    // 1. Instant synchronous optimistic UI update - moves card to target column immediately without delay/flicker
+    setState(() {
+      final idx = _localItems.indexWhere((i) => i.id == item.id);
+      if (idx != -1) {
+        _localItems[idx] = _localItems[idx].copyWith(
+          status: targetNorm == 'IN PROGRESS' ? 'IN PROGRESS' : targetStatus.toUpperCase(),
+          progressPercentage: (targetNorm == 'COMPLETED' || targetNorm == 'RESOLVED')
+              ? 100
+              : (targetNorm == 'NEW' ? 0 : 50),
+        );
+      }
+    });
+
+    // 2. Synchronous optimistic update in provider so parent or other components stay consistent
+    ref.read(workSprintDashboardProvider.notifier).optimisticallyUpdateItemStatus(item.id, targetStatus);
+
+    // 3. Persist status transition to backend
     final api = ref.read(workApiServiceProvider);
     final success = await api.transitionStatus(item.id, targetStatus);
+
     if (success) {
-      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: widget.sprintId);
+      // Quietly reconcile sprint dashboard metrics without triggering loading spinner/flicker
+      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(
+        sprintId: widget.sprintId,
+        quiet: true,
+      );
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${item.itemNumber} moved to ${_statusDisplay[targetStatus]}'),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text('${item.itemNumber} moved to ${_statusDisplay[targetStatus] ?? targetStatus}'),
+              ],
+            ),
             duration: const Duration(seconds: 2),
             backgroundColor: const Color(0xFF2563EB),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } else {
       if (mounted) {
+        setState(() {
+          _localItems = backup;
+        });
+        ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(sprintId: widget.sprintId);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to update status'),
+            content: Text('Failed to update status. Reverted.'),
             backgroundColor: Color(0xFFEF4444),
           ),
         );
       }
     }
+    _isOptimisticTransition = false;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Collect all items including story children
-    final List<WorkItemModel> allSprintItems = [];
-    for (final item in widget.items) {
-      allSprintItems.add(item);
-      for (final child in item.children) {
-        allSprintItems.add(child);
-      }
-    }
+    // Use localItems for instantaneous flicker-free UI; fall back to widget.items if empty
+    final List<WorkItemModel> allSprintItems = _localItems.isNotEmpty
+        ? _localItems
+        : _flattenItems(widget.items);
 
     return Container(
       decoration: BoxDecoration(
@@ -122,15 +217,54 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: () => widget.onQuickAction('TASK'),
-                icon: const Icon(Icons.add, size: 14, color: Colors.white),
-                label: const Text('Add Task', style: TextStyle(fontSize: 11.5, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (allSprintItems.length > 10)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            final anyExpanded = _columnDisplayLimits.values.any((lim) => lim > 10);
+                            if (anyExpanded) {
+                              _columnDisplayLimits.clear();
+                            } else {
+                              for (final st in _statuses) {
+                                _columnDisplayLimits[st] = 9999;
+                              }
+                            }
+                          });
+                        },
+                        icon: Icon(
+                          _columnDisplayLimits.values.any((lim) => lim > 10)
+                              ? Icons.unfold_less_rounded
+                              : Icons.unfold_more_rounded,
+                          size: 14,
+                          color: const Color(0xFF2563EB),
+                        ),
+                        label: Text(
+                          _columnDisplayLimits.values.any((lim) => lim > 10) ? 'Collapse (10)' : 'Expand All',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                        ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ElevatedButton.icon(
+                    onPressed: () => _handleCreateItem(type: 'TASK', sprintId: widget.sprintId),
+                    icon: const Icon(Icons.add, size: 14, color: Colors.white),
+                    label: const Text('Add Task', style: TextStyle(fontSize: 11.5, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -161,27 +295,68 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
     );
   }
 
+  Widget _buildDropPlaceholder(Color statusColor, String displayName, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.7),
+          width: 1.5,
+        ),
+      ),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_circle_outline_rounded, size: 15, color: statusColor),
+            const SizedBox(width: 6),
+            Text(
+              'Drop to move to $displayName',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildKanbanColumn(String status, List<WorkItemModel> items, bool isDark) {
     final statusColor = _statusColors[status] ?? const Color(0xFF64748B);
     final displayName = _statusDisplay[status] ?? status;
+    final limit = _columnDisplayLimits[status] ?? 10;
+    final visibleItems = items.take(limit).toList();
+    final hasMore = items.length > visibleItems.length;
+    final remainingCount = items.length - visibleItems.length;
 
-    return Container(
-      width: 250,
-      margin: const EdgeInsets.only(right: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: DragTarget<WorkItemModel>(
-        onWillAcceptWithDetails: (details) => true,
-        onAcceptWithDetails: (details) => _handleDrop(details.data, status),
-        builder: (context, candidateData, rejectedData) {
-          final isHovering = candidateData.isNotEmpty;
+    return DragTarget<WorkItemModel>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) => _handleDrop(details.data, status),
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
 
-          return Column(
+        return Container(
+          width: 250,
+          margin: const EdgeInsets.only(right: 14),
+          decoration: BoxDecoration(
+            color: isHovering
+                ? statusColor.withValues(alpha: isDark ? 0.08 : 0.04)
+                : (isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC)),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isHovering
+                  ? statusColor.withValues(alpha: 0.8)
+                  : (isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
+              width: isHovering ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
             children: [
               // Column Header
               Container(
@@ -193,7 +368,9 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
                   border: Border(
                     bottom: BorderSide(
-                      color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
+                      color: isHovering
+                          ? statusColor.withValues(alpha: 0.4)
+                          : (isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
                     ),
                   ),
                 ),
@@ -224,7 +401,9 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '${items.length}',
+                        items.length > visibleItems.length
+                            ? '${visibleItems.length}/${items.length}'
+                            : '${items.length}',
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
@@ -234,8 +413,16 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
                     ),
                     const Spacer(),
                     InkWell(
-                      onTap: () => widget.onQuickAction('TASK'),
-                      child: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF64748B)),
+                      onTap: () => _handleCreateItem(
+                        type: 'TASK',
+                        status: status.toUpperCase() == 'IN PROGRESS' ? 'ACTIVE' : status.toUpperCase(),
+                        sprintId: widget.sprintId,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(Icons.add_rounded, size: 16, color: Color(0xFF64748B)),
+                      ),
                     ),
                   ],
                 ),
@@ -243,35 +430,119 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
 
               // Cards list
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(10),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, idx) {
-                    final item = items[idx];
-                    return Draggable<WorkItemModel>(
-                      data: item,
-                      feedback: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(8),
-                        child: SizedBox(
-                          width: 230,
-                          child: _buildItemCard(item, isDark, isDragging: true),
+                child: visibleItems.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                          child: isHovering
+                              ? _buildDropPlaceholder(statusColor, displayName, isDark)
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.inbox_outlined,
+                                      size: 30,
+                                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No $displayName tasks',
+                                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    OutlinedButton.icon(
+                                      onPressed: () => _handleCreateItem(
+                                        type: 'TASK',
+                                        status: status.toUpperCase() == 'IN PROGRESS' ? 'ACTIVE' : status.toUpperCase(),
+                                        sprintId: widget.sprintId,
+                                      ),
+                                      icon: const Icon(Icons.add, size: 13),
+                                      label: Text('Add $displayName', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: statusColor,
+                                        side: BorderSide(color: statusColor.withValues(alpha: 0.5)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(10),
+                        itemCount: visibleItems.length + (hasMore ? 1 : 0) + (isHovering ? 1 : 0),
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, idx) {
+                          if (isHovering && idx == 0) {
+                            return _buildDropPlaceholder(statusColor, displayName, isDark);
+                          }
+                          final itemIdx = isHovering ? idx - 1 : idx;
+
+                          if (itemIdx == visibleItems.length && hasMore) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _columnDisplayLimits[status] = limit + 10;
+                                  });
+                                },
+                                icon: const Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF2563EB)),
+                                label: Text(
+                                  'Load 10 More ($remainingCount left)',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: const Color(0xFF2563EB).withValues(alpha: 0.35)),
+                                  backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            );
+                          }
+                          final item = visibleItems[itemIdx];
+                          return Draggable<WorkItemModel>(
+                            data: item,
+                            feedback: Material(
+                              elevation: 10,
+                              shadowColor: Colors.black45,
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 230,
+                                child: _buildItemCard(item, isDark, isDragging: true),
+                              ),
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.25,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF64748B).withValues(alpha: 0.4),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: _buildItemCard(item, isDark),
+                              ),
+                            ),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.grab,
+                              child: _buildItemCard(item, isDark),
+                            ),
+                          );
+                        },
                       ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.4,
-                        child: _buildItemCard(item, isDark),
-                      ),
-                      child: _buildItemCard(item, isDark),
-                    );
-                  },
-                ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -22,7 +22,7 @@ from jose import jwt
 import httpx
 from app.config import settings
 
-BASE_URL = "http://127.0.0.1:8000/api"
+BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8082") + "/api"
 
 def get_db_connection():
     return psycopg2.connect(settings.DATABASE_URL)
@@ -47,10 +47,16 @@ def run_tests():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # 1. Fetch test school and test user (Lakshmi Nair teacher or admin)
-    cur.execute("SELECT id, school_id, full_name, email, role FROM public.profiles WHERE full_name ILIKE '%Lakshmi Nair%' LIMIT 1;")
+    cur.execute("""
+        SELECT p.id, p.school_id, p.full_name, p.email, p.role 
+        FROM public.profiles p
+        JOIN public.leave_balances lb ON lb.user_id = p.id
+        WHERE p.school_id IS NOT NULL AND p.role IN ('teacher', 'staff', 'admin', 'hr')
+        LIMIT 1;
+    """)
     user = cur.fetchone()
     if not user:
-        cur.execute("SELECT id, school_id, full_name, email, role FROM public.profiles WHERE school_id IS NOT NULL LIMIT 1;")
+        cur.execute("SELECT id, school_id, full_name, email, role FROM public.profiles WHERE school_id IS NOT NULL AND role IN ('teacher', 'staff', 'admin', 'hr') LIMIT 1;")
         user = cur.fetchone()
     
     school_id = str(user['school_id'])
@@ -87,6 +93,14 @@ def run_tests():
     cur.execute("UPDATE public.leave_balances SET used_days = 0.0, pending_days = 0.0 WHERE user_id = %s AND leave_type_id = %s;", (user_id, casual_lt_id))
     conn.commit()
     print_result("Test Environment Reset & Cleanup", True, "Cleaned up any previous test applications")
+
+    # Ensure leave_balance exists
+    cur.execute("""
+        INSERT INTO public.leave_balances (school_id, user_id, leave_type_id, academic_year, allocated_days, used_days, pending_days, carried_forward_days)
+        VALUES (%s, %s, %s, '2026-2027', 12.0, 0.0, 0.0, 0.0)
+        ON CONFLICT (school_id, user_id, leave_type_id, academic_year) DO NOTHING;
+    """, (school_id, user_id, casual_lt_id))
+    conn.commit()
 
     # Fetch baseline balance for Casual Leave
     cur.execute("""

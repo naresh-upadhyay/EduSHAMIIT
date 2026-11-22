@@ -47,7 +47,9 @@ async def run_e2e_tests():
     logger.info("==================================================================")
 
     # 1. Setup Test School & Test Users
-    school_rows = await exec_sql("SELECT id FROM public.schools ORDER BY id LIMIT 2;")
+    school_rows = await exec_sql("SELECT s.id FROM public.schools s JOIN public.profiles p ON p.school_id = s.id GROUP BY s.id HAVING count(p.id) >= 5 ORDER BY count(p.id) DESC LIMIT 2;")
+    if not school_rows:
+        school_rows = await exec_sql("SELECT id FROM public.schools ORDER BY id LIMIT 2;")
     if not school_rows:
         raise RuntimeError("No schools found in database.")
     school_id = str(school_rows[0]["id"])

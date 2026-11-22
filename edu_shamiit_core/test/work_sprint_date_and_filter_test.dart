@@ -75,6 +75,7 @@ class TestFakeWorkApiService extends WorkApiService {
     String? view = 'All',
     String? groupBy = 'Status',
     String? search,
+    bool forceRefresh = false,
   }) async => const [
     KanbanColumnModel(statusKey: 'NEW', name: 'New', color: '#64748B', count: 0, items: []),
     KanbanColumnModel(statusKey: 'ACTIVE', name: 'Active', color: '#3B82F6', count: 0, items: []),
@@ -99,6 +100,7 @@ class TestFakeWorkApiService extends WorkApiService {
     String? search,
     int page = 1,
     int pageSize = 10,
+    bool forceRefresh = false,
   }) async => {
     'sprint_id': 's8',
     'sprint_name': 'Sprint 8',
@@ -218,8 +220,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // 1. Verify that "Current Sprint (Nov 15 – Nov 28)" is displayed in sprint selector
-      expect(find.text('Current Sprint (Nov 15 – Nov 28)'), findsOneWidget);
+      // 1. Verify that "All Sprints" is displayed in sprint selector by default
+      expect(find.text('All Sprints'), findsWidgets);
       expect(find.text('Current Sprint (Jan 1 – Jan 14)'), findsNothing);
 
       // 2. Verify that the "Filters" button is rendered

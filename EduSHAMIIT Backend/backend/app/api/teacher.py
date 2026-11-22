@@ -131,19 +131,10 @@ async def teacher_classes(user=Depends(require_exam_access), school_id=Depends(r
         }).aexecute()
         classes_data = res.data or []
     else:
-        # Admin or management role: fetch all school classes
-        classes_res = await sb.table("classes").select("id, name, grade_level").eq("school_id", school_id).order("name").aexecute()
         # Admin or management role: fetch all school classes from academic_classes & academic_sections (Class Management SSOT)
         sec_res = await sb.rpc("sp_get_exam_classes_and_sections", {"p_school_id": school_id}).aexecute()
         sec_data = (sec_res.data or {}).get("classes", []) if sec_res else []
         classes_data = []
-        for c in (classes_res.data or []):
-            classes_data.append({
-                "id": c.get("id"),
-                "name": c.get("name"),
-                "section": "",
-                "student_count": 0,
-            })
         for c in sec_data:
             c_name = c.get("name", "")
             sections = c.get("sections") or []
@@ -4349,15 +4340,10 @@ async def teacher_get_question_bank_classes(
     school_id=Depends(require_school_id)
 ):
     sb = get_supabase()
-    # 1. First get classes from classes table
-    classes_res = await sb.table("classes").select("name").eq("school_id", school_id).aexecute()
+    # 1. Fetch classes from academic_classes (SSOT)
+    classes_res = await sb.table("academic_classes").select("name").eq("school_id", school_id).is_("deleted_at", "null").eq("status", "ACTIVE").aexecute()
     class_names = [c["name"] for c in (classes_res.data or []) if c.get("name")]
-    # 2. Also union with distinct class_name in question_bank
-    qb_res = await sb.table("question_bank").select("class_name").eq("school_id", school_id).is_("deleted_at", "null").aexecute()
-    for row in (qb_res.data or []):
-        if row.get("class_name") and row["class_name"] not in class_names:
-            class_names.append(row["class_name"])
-    return {"success": True, "school_id": school_id, "data": sorted(class_names)}
+    return {"success": True, "school_id": school_id, "data": sorted(list(set(class_names)))}
 
 
 @router.get("/question-bank/export-template")

@@ -43,20 +43,32 @@ class StaffSalaryRightSummary extends ConsumerWidget {
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${disbursalPct.toStringAsFixed(1)}% Disbursed',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF16A34A),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${disbursalPct.toStringAsFixed(1)}% Disbursed',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          tooltip: 'Hide Summary Panel',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => ref.read(staffSalaryProvider.notifier).toggleRightSummary(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -68,11 +80,11 @@ class StaffSalaryRightSummary extends ConsumerWidget {
                     alignment: Alignment.center,
                     children: [
                       SizedBox(
-                        width: 120,
-                        height: 120,
+                        width: 116,
+                        height: 116,
                         child: CircularProgressIndicator(
                           value: (disbursalPct / 100).clamp(0.0, 1.0),
-                          strokeWidth: 10,
+                          strokeWidth: 9,
                           backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                           valueColor: const AlwaysStoppedAnimation(Color(0xFF16A34A)),
                         ),
@@ -168,6 +180,27 @@ class StaffSalaryRightSummary extends ConsumerWidget {
                     },
                   ),
                 ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.account_balance_rounded, size: 16),
+                    label: const Text('Export Bank File', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      ref.read(staffSalaryProvider.notifier).exportBankDisbursalFile();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Downloading Corporate Bank Disbursal File (CSV)...'),
+                          backgroundColor: Color(0xFF2563EB),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -178,16 +211,28 @@ class StaffSalaryRightSummary extends ConsumerWidget {
 
   Widget _buildSummaryRow(String label, String value, Color color, bool isDark) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-          ],
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
       ],
     );
   }

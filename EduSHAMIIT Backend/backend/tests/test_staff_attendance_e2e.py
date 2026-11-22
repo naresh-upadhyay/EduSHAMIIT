@@ -103,7 +103,7 @@ async def run_tests():
         status="ALL",
         search="",
         page=1,
-        page_size=50,
+        page_size=100,
         manager_id=manager_id,
         current_user=admin_dict,
         school_id=school_id
@@ -157,7 +157,7 @@ async def run_tests():
         status="ALL",
         search="",
         page=1,
-        page_size=50,
+        page_size=200,
         manager_id=None,
         current_user=admin_dict,
         school_id=school_id

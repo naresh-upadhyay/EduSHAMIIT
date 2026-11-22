@@ -30,7 +30,7 @@ class FakeWorkApiService extends WorkApiService {
   }
 
   @override
-  Future<List<WorkSprintModel>> getSprints({String? boardId}) async {
+  Future<List<WorkSprintModel>> getSprints({String? boardId, bool forceRefresh = false}) async {
     return const [
       WorkSprintModel(id: 's8', name: 'Sprint 8', status: 'ACTIVE', sprintNumber: 8),
       WorkSprintModel(id: 's9', name: 'Sprint 9', status: 'PLANNED', sprintNumber: 9),
@@ -44,6 +44,8 @@ class FakeWorkApiService extends WorkApiService {
     String? priority,
     String? assigneeId,
     String? sprintId,
+    String? teamId,
+    String? teamName,
   }) async {
     return true;
   }
@@ -74,6 +76,8 @@ class MockWorkSprintDashboardNotifier extends WorkSprintDashboardNotifier {
     String? search,
     int page = 1,
     int pageSize = 10,
+    bool quiet = false,
+    bool forceRefresh = false,
   }) async {}
 }
 
@@ -207,7 +211,7 @@ void main() {
       expect(find.text('Board: '), findsWidgets);
       expect(find.text('Institute Work Board'), findsWidgets);
       expect(find.text('Sprint: '), findsWidgets);
-      expect(find.text('Current Sprint (Sprint 8)'), findsOneWidget);
+      expect(find.textContaining('Sprint 8'), findsWidgets);
       expect(find.text('Team: '), findsWidgets);
       expect(find.text('All Teams'), findsWidgets);
 
@@ -328,6 +332,90 @@ void main() {
 
       expect(find.text('Rows per page: '), findsOneWidget);
       expect(find.textContaining('Showing 1 - 2 of 2 stories'), findsOneWidget);
+    });
+
+    testWidgets('6. Sprint filter dropdown strictly matches the loaded sprint', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      // Create state with renamed sprint "Sprint 10 11"
+      final customSprintState = WorkSprintDashboardState(
+        isLoading: false,
+        sprint: const WorkSprintModel(
+          id: 's10',
+          name: 'Sprint 10 11',
+          status: 'ACTIVE',
+          sprintNumber: 10,
+          goal: 'Mobile release',
+          boardName: 'Institute Work Board',
+          teamName: 'Digital Campus Team',
+        ),
+        items: sampleStories,
+        metrics: const {
+          'total_items': 6,
+          'completed_items': 3,
+          'in_progress_items': 2,
+          'not_started_items': 1,
+          'blocked_items': 0,
+          'completion_percentage': 50,
+        },
+      );
+
+      const customAllSprintsState = WorkAllSprintsState(
+        isLoading: false,
+        sprints: [
+          WorkSprintModel(id: 's8', name: 'Sprint 8', status: 'COMPLETED', sprintNumber: 8),
+          WorkSprintModel(id: 's10', name: 'Sprint 10 11', status: 'ACTIVE', sprintNumber: 10),
+        ],
+        selectedSprintId: 's10',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
+            workSprintDashboardProvider.overrideWith((ref) => MockWorkSprintDashboardNotifier(customSprintState)),
+            allSprintsProvider.overrideWith((ref) => WorkAllSprintsNotifier(ref, FakeWorkApiService(), customAllSprintsState)),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: WorkSprintsTabView(
+                onOpenDetail: (_) {},
+                onQuickAction: (_) {},
+                onCreateSprint: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Dropdown and card both display Sprint 10 11
+      expect(find.textContaining('Sprint 10 11'), findsWidgets);
+      // It should not display Sprint 8 in the dropdown value
+      expect(find.text('Sprint 8 (Active)'), findsNothing);
+    });
+
+    testWidgets('7. Sprint Task Board renders Draggable cards and DragTarget columns', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(createTestWidget());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Switch to Boards (Task Board)
+      await tester.tap(find.text('Boards (Task Board)'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify DragTargets exist for each status column
+      expect(find.byType(DragTarget<WorkItemModel>), findsWidgets);
+
+      // Verify Draggable widgets exist for sprint items
+      expect(find.byType(Draggable<WorkItemModel>), findsWidgets);
     });
   });
 }

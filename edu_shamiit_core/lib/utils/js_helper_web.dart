@@ -1,6 +1,10 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
+import 'dart:async';
+import 'dart:convert';
+import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 bool hasMediaDevices() {
   try {
@@ -419,42 +423,95 @@ void printBookLabelHtml({
 
 void downloadFileWeb(String url, String filename) {
   try {
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const a = document.createElement('a');
-        a.href = '$url';
-        a.download = '$filename';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })();
-      '''
-    ]);
+    final anchor = html.AnchorElement(href: url)
+      ..download = filename
+      ..style.display = 'none';
+    html.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
   } catch (e) {
     debugPrint('[JSHelper] Error downloading file: $e');
   }
 }
 
+void _downloadBlobContent(String content, String filename, String mimeType) {
+  try {
+    final blob = html.Blob([content], mimeType);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', filename)
+      ..style.display = 'none';
+    html.document.body?.append(anchor);
+    anchor.click();
+    // Do NOT revoke or remove synchronously! Chromium needs the URL active while starting download.
+    Timer(const Duration(seconds: 15), () {
+      try {
+        anchor.remove();
+        html.Url.revokeObjectUrl(url);
+      } catch (_) {}
+    });
+  } catch (e) {
+    debugPrint('[JSHelper] Error downloading blob content ($filename): $e');
+    try {
+      final base64Content = base64Encode(utf8.encode(content));
+      final dataUri = 'data:$mimeType;base64,$base64Content';
+      final fallbackAnchor = html.AnchorElement(href: dataUri)
+        ..setAttribute('download', filename)
+        ..style.display = 'none';
+      html.document.body?.append(fallbackAnchor);
+      fallbackAnchor.click();
+      Timer(const Duration(seconds: 5), () {
+        try {
+          fallbackAnchor.remove();
+        } catch (_) {}
+      });
+    } catch (e2) {
+      debugPrint('[JSHelper] Fallback data URI download also failed: $e2');
+    }
+  }
+}
+
+void _printHtmlDocument(String htmlContent, {String title = 'EduSHAMIIT Document'}) {
+  try {
+    final blob = html.Blob([htmlContent], 'text/html;charset=utf-8');
+    final blobUrl = html.Url.createObjectUrlFromBlob(blob);
+
+    // Primary: Trigger tab opening via synthetic anchor click (never blocked as popup by Chrome)
+    try {
+      final anchor = html.AnchorElement(href: blobUrl)
+        ..target = '_blank'
+        ..rel = 'noopener noreferrer'
+        ..style.display = 'none';
+      html.document.body?.append(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch (clickErr) {
+      debugPrint('[JSHelper] Anchor click navigation failed, falling back to window.open: $clickErr');
+      try {
+        html.window.open(blobUrl, '_blank');
+      } catch (_) {}
+    }
+
+    // Revoke object URL after enough time for spooling & printing
+    Timer(const Duration(minutes: 3), () {
+      try {
+        html.Url.revokeObjectUrl(blobUrl);
+      } catch (_) {}
+    });
+  } catch (e) {
+    debugPrint('[JSHelper] Error in _printHtmlDocument: $e');
+  }
+}
+
+void _printHtmlViaIframe(String htmlContent) {
+  _printHtmlDocument(htmlContent);
+}
+
 void downloadStaffPayslipHtml({required Map<String, dynamic> payslip}) {
   try {
-    final payslipNum = payslip['payslip_number'] ?? 'payslip';
-    final html = '<html><body><h1>Payslip $payslipNum</h1><pre>$payslip</pre></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const blob = new Blob([decodeURIComponent('$encodedHtml')], {type: 'text/html'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '$payslipNum.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })();
-      '''
-    ]);
+    final payslipNum = payslip['payslip_number']?.toString() ?? 'Payslip';
+    final htmlContent = _buildStaffPayslipHtmlTemplate(payslip: payslip);
+    _downloadBlobContent(htmlContent, '$payslipNum.html', 'text/html;charset=utf-8');
   } catch (e) {
     debugPrint('[JSHelper] Error downloading payslip: $e');
   }
@@ -462,25 +519,549 @@ void downloadStaffPayslipHtml({required Map<String, dynamic> payslip}) {
 
 void printStaffPayslipHtml({required Map<String, dynamic> payslip}) {
   try {
-    final payslipNum = payslip['payslip_number'] ?? 'payslip';
-    final html = '<html><body><h1>Payslip $payslipNum</h1><pre>$payslip</pre></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final htmlContent = _buildStaffPayslipHtmlTemplate(payslip: payslip);
+    _printHtmlDocument(htmlContent, title: 'Salary Payslip');
   } catch (e) {
     debugPrint('[JSHelper] Error printing payslip: $e');
   }
+}
+
+String _numberToIndianWords(double amount) {
+  if (amount <= 0) return 'Zero Rupees Only';
+
+  final units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  final tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  String convertChunk(int n) {
+    if (n == 0) return '';
+    if (n < 20) return units[n];
+    if (n < 100) return '${tens[n ~/ 10]} ${units[n % 10]}'.trim();
+    return '${units[n ~/ 100]} Hundred ${convertChunk(n % 100)}'.trim();
+  }
+
+  int totalPaise = (amount * 100).round();
+  int rupees = totalPaise ~/ 100;
+  int paise = totalPaise % 100;
+
+  if (rupees == 0 && paise > 0) {
+    return '${convertChunk(paise)} Paise Only';
+  }
+
+  String result = '';
+  // Crores (1,00,00,000)
+  if (rupees >= 10000000) {
+    int cr = rupees ~/ 10000000;
+    result += '${convertChunk(cr)} Crore ';
+    rupees %= 10000000;
+  }
+  // Lakhs (1,00,000)
+  if (rupees >= 100000) {
+    int lk = rupees ~/ 100000;
+    result += '${convertChunk(lk)} Lakh ';
+    rupees %= 100000;
+  }
+  // Thousands (1,000)
+  if (rupees >= 1000) {
+    int th = rupees ~/ 1000;
+    result += '${convertChunk(th)} Thousand ';
+    rupees %= 1000;
+  }
+  // Hundreds & units
+  if (rupees > 0) {
+    result += convertChunk(rupees);
+  }
+
+  result = '${result.trim()} Rupees';
+
+  if (paise > 0) {
+    result += ' and ${convertChunk(paise)} Paise';
+  }
+
+  return '$result Only';
+}
+
+String _buildStaffPayslipHtmlTemplate({required Map<String, dynamic> payslip}) {
+  final staffName = payslip['staff_name']?.toString() ?? 'Faculty Member';
+  final empId = payslip['employee_id']?.toString() ?? 'EMP-001';
+  final designation = payslip['designation']?.toString() ?? 'Senior Faculty';
+  final department = payslip['department']?.toString() ?? 'Academic & Teaching';
+  final payslipNum = payslip['payslip_number']?.toString() ?? 'PS-2026-10-0001';
+  final monthStr = payslip['month_str']?.toString() ?? '2026-10';
+
+  final bpay = (payslip['basic_pay'] as num?)?.toDouble() ?? 45000.0;
+  final hra = (payslip['hra'] as num?)?.toDouble() ?? 18000.0;
+  final da = (payslip['da'] as num?)?.toDouble() ?? 7000.0;
+  final ta = (payslip['ta'] as num?)?.toDouble() ?? 4000.0;
+  final special = (payslip['special_allowance'] as num?)?.toDouble() ?? 3000.0;
+  final bonus = (payslip['bonus'] as num?)?.toDouble() ?? 0.0;
+  final gross = (payslip['gross_earnings'] as num?)?.toDouble() ?? (bpay + hra + da + ta + special + bonus);
+
+  final pf = (payslip['pf_deduction'] as num?)?.toDouble() ?? 5400.0;
+  final tds = (payslip['tds'] as num?)?.toDouble() ?? 3850.0;
+  final ptax = (payslip['professional_tax'] as num?)?.toDouble() ?? 200.0;
+  final advDed = (payslip['advance_deduction'] as num?)?.toDouble() ?? 0.0;
+  final otherDed = (payslip['other_deductions'] as num?)?.toDouble() ?? 0.0;
+  final totalDed = (payslip['total_deductions'] as num?)?.toDouble() ?? (pf + tds + ptax + advDed + otherDed);
+  final net = (payslip['net_pay'] as num?)?.toDouble() ?? (gross - totalDed);
+
+  final pMode = payslip['payment_mode']?.toString() ?? 'Direct Bank Transfer (NEFT/RTGS)';
+  final txnRef = payslip['transaction_reference']?.toString() ?? 'UTR-DISBURSED';
+  final pDate = payslip['payment_date']?.toString().split('T')[0] ?? DateFormat('dd-MM-yyyy').format(DateTime.now());
+  final bankName = payslip['bank_name']?.toString() ?? 'State Bank of India';
+  final accNum = payslip['account_number']?.toString() ?? '100200300400';
+  final ifsc = payslip['ifsc_code']?.toString() ?? 'SBIN0001234';
+  final pan = payslip['pan_number']?.toString() ?? 'ABCDE1234F';
+  final instName = payslip['institution_name']?.toString() ?? 'EduSHAMIIT International Institute';
+
+  final fmt = NumberFormat('#,##,###.00');
+  final netInWords = _numberToIndianWords(net);
+
+  return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Payslip - $payslipNum</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm;
+    }
+    @media print {
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .payslip-wrapper {
+        box-shadow: none !important;
+        border: 1.5px solid #0f172a !important;
+        page-break-inside: avoid !important;
+        margin: 0 !important;
+      }
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .payslip-wrapper {
+      width: 100%;
+      max-width: 800px;
+      background: #ffffff;
+      border: 1.5px solid #0f172a;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 28px 32px;
+      box-sizing: border-box;
+    }
+    .inst-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 22px;
+    }
+    .brand-titles h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .brand-titles p {
+      margin: 3px 0 0;
+      font-size: 11px;
+      color: #475569;
+    }
+    .payslip-badge-block {
+      text-align: right;
+    }
+    .payslip-badge {
+      display: inline-block;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .payslip-ref-info {
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .emp-meta-box {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 16px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+    }
+    .emp-col {
+      font-size: 11px;
+    }
+    .col-lbl {
+      color: #64748b;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 2px;
+    }
+    .col-val {
+      color: #0f172a;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .salary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }
+    .salary-table th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .salary-table td {
+      padding: 7px 12px;
+      font-size: 11.5px;
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+    }
+    .salary-table td:first-child {
+      border-left: 1px solid #e2e8f0;
+    }
+    .amt-col {
+      text-align: right;
+      font-weight: 600;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .row-total td {
+      background: #f1f5f9;
+      font-weight: 800;
+      border-top: 1.5px solid #0f172a;
+      border-bottom: 1.5px solid #0f172a;
+    }
+    .net-salary-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f0fdf4;
+      border: 1.5px solid #16a34a;
+      border-radius: 6px;
+      padding: 14px 20px;
+      margin-bottom: 14px;
+    }
+    .net-salary-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .net-salary-words {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #15803d;
+      font-weight: 600;
+      font-style: italic;
+    }
+    .net-salary-number {
+      font-size: 24px;
+      font-weight: 900;
+      color: #15803d;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .loan-alert {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .sign-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-top: 36px;
+      margin-top: 20px;
+      border-top: 1px dashed #cbd5e1;
+    }
+    .sign-block {
+      text-align: center;
+      width: 220px;
+    }
+    .sign-divider {
+      border-top: 1.5px solid #0f172a;
+      margin-bottom: 6px;
+    }
+    .sign-desc {
+      font-size: 10px;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+    }
+    .digital-seal {
+      border: 1.5px solid #16a34a;
+      color: #16a34a;
+      background: #f0fdf4;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .payslip-footer-note {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 9.5px;
+      color: #64748b;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 8px;
+    }
+  </style>
+  <script>
+    function triggerPrintDialog() {
+      try {
+        window.focus();
+        window.print();
+      } catch (err) {
+        console.warn('[EduSHAMIIT Payslip Print] Auto-print notice:', err);
+      }
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(triggerPrintDialog, 250);
+    } else {
+      window.addEventListener('DOMContentLoaded', function() { setTimeout(triggerPrintDialog, 250); });
+      window.addEventListener('load', function() { setTimeout(triggerPrintDialog, 250); });
+    }
+  </script>
+</head>
+<body>
+  <div class="no-print" style="width: 100%; max-width: 800px; margin-bottom: 14px; background: #0f172a; color: #ffffff; padding: 12px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 18px;">📄</span>
+      <div>
+        <div style="font-size: 13px; font-weight: 800;">Official Salary Payslip</div>
+        <div style="font-size: 10px; color: #94a3b8;">EduSHAMIIT Institutional Payroll</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="window.focus(); window.print();" style="background: #16a34a; color: #ffffff; border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">
+        Print Payslip
+      </button>
+      <button onclick="window.close();" style="background: #334155; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+        Close
+      </button>
+    </div>
+  </div>
+  <div class="payslip-wrapper">
+    <!-- Institution Header -->
+    <div class="inst-header">
+      <div class="brand-section">
+        <div class="brand-logo">E</div>
+        <div class="brand-titles">
+          <h1>$instName</h1>
+          <p>Institutional Payroll & Human Resources Center | Finance Suite</p>
+        </div>
+      </div>
+      <div class="payslip-badge-block">
+        <div class="payslip-badge">Salary Payslip</div>
+        <div class="payslip-ref-info">Period: $monthStr | $payslipNum</div>
+      </div>
+    </div>
+
+    <!-- Employee & Banking Profile Grid -->
+    <div class="emp-meta-box">
+      <div class="emp-col">
+        <div class="col-lbl">Employee Name</div>
+        <div class="col-val">$staffName</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Employee ID</div>
+        <div class="col-val">$empId</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Designation</div>
+        <div class="col-val">$designation</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Department</div>
+        <div class="col-val">$department</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Bank Name</div>
+        <div class="col-val">$bankName</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Account Number</div>
+        <div class="col-val">${accNum.length > 4 ? "•••• ${accNum.substring(accNum.length - 4)}" : accNum}</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">IFSC Code</div>
+        <div class="col-val">$ifsc</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">PAN / Tax ID</div>
+        <div class="col-val">$pan</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Payment Mode</div>
+        <div class="col-val">$pMode</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Transaction Ref / UTR</div>
+        <div class="col-val">$txnRef</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Disbursal Date</div>
+        <div class="col-val">$pDate</div>
+      </div>
+      <div class="emp-col">
+        <div class="col-lbl">Payable Days</div>
+        <div class="col-val">30 / 30 Days</div>
+      </div>
+    </div>
+
+    <!-- Earnings & Deductions Dual Table -->
+    <table class="salary-table">
+      <thead>
+        <tr>
+          <th style="width: 32%;">Earnings & Allowances</th>
+          <th style="width: 18%;" class="amt-col">Amount (INR)</th>
+          <th style="width: 32%;">Deductions & Recoveries</th>
+          <th style="width: 18%;" class="amt-col">Amount (INR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Basic Salary</td>
+          <td class="amt-col">₹ ${fmt.format(bpay)}</td>
+          <td>Provident Fund (PF)</td>
+          <td class="amt-col">₹ ${fmt.format(pf)}</td>
+        </tr>
+        <tr>
+          <td>House Rent Allowance (HRA)</td>
+          <td class="amt-col">₹ ${fmt.format(hra)}</td>
+          <td>Tax Deducted at Source (TDS)</td>
+          <td class="amt-col">₹ ${fmt.format(tds)}</td>
+        </tr>
+        <tr>
+          <td>Dearness Allowance (DA)</td>
+          <td class="amt-col">₹ ${fmt.format(da)}</td>
+          <td>Professional Tax (PTax)</td>
+          <td class="amt-col">₹ ${fmt.format(ptax)}</td>
+        </tr>
+        <tr>
+          <td>Travel Allowance (TA)</td>
+          <td class="amt-col">₹ ${fmt.format(ta)}</td>
+          <td>Advance Loan Recovery (EMI)</td>
+          <td class="amt-col" style="${advDed > 0 ? 'color: #b45309; font-weight: 700;' : ''}">₹ ${fmt.format(advDed)}</td>
+        </tr>
+        <tr>
+          <td>Special Allowance</td>
+          <td class="amt-col">₹ ${fmt.format(special)}</td>
+          <td>Other Deductions / LOP</td>
+          <td class="amt-col">₹ ${fmt.format(otherDed)}</td>
+        </tr>
+        <tr>
+          <td>Performance Bonus / Arrears</td>
+          <td class="amt-col">₹ ${fmt.format(bonus)}</td>
+          <td>Insurance / Health Scheme</td>
+          <td class="amt-col">₹ 0.00</td>
+        </tr>
+        <tr class="row-total">
+          <td>Total Gross Earnings</td>
+          <td class="amt-col" style="color: #166534;">₹ ${fmt.format(gross)}</td>
+          <td>Total Deductions</td>
+          <td class="amt-col" style="color: #991b1b;">₹ ${fmt.format(totalDed)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Net Salary Highlight Card -->
+    <div class="net-salary-card">
+      <div>
+        <div class="net-salary-title">Net Take-Home Salary Transferred</div>
+        <div class="net-salary-words">$netInWords</div>
+      </div>
+      <div class="net-salary-number">₹ ${fmt.format(net)}</div>
+    </div>
+
+    <!-- Advance Repayment Callout if applicable -->
+    ${advDed > 0 ? '''
+    <div class="loan-alert">
+      ✓ Note: Salary advance loan deduction of ₹ ${fmt.format(advDed)} has been credited to employee's active loan balance (FIFO) under EduSHAMIIT Ledger.
+    </div>
+    ''' : ''}
+
+    <!-- Signatures Section -->
+    <div class="sign-row">
+      <div class="sign-block">
+        <div class="sign-divider"></div>
+        <div class="sign-desc">Employee Signature / Acknowledgment</div>
+      </div>
+      <div class="sign-block">
+        <div class="digital-seal">✓ Digitally Verified & Disbursed</div>
+        <div class="sign-divider"></div>
+        <div class="sign-desc">Authorized Signatory / Finance Controller</div>
+      </div>
+    </div>
+
+    <!-- Legal Footer -->
+    <div class="payslip-footer-note">
+      This is a computer-generated salary advice authenticated via EduSHAMIIT Financial ERP SSOT. System timestamp: $pDate.
+    </div>
+  </div>
+</body>
+</html>''';
 }
 
 String _buildStudentFeeReceiptHtmlTemplate({
@@ -510,30 +1091,37 @@ String _buildStudentFeeReceiptHtmlTemplate({
   <style>
     @page {
       size: 80mm auto;
-      margin: 4mm;
+      margin: 2mm 3mm;
     }
     @media print {
       body {
-        margin: 0;
-        padding: 0;
-        background: #ffffff;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print {
+        display: none !important;
       }
       .receipt-container {
         box-shadow: none !important;
         border: none !important;
         width: 100% !important;
-        max-width: 100% !important;
-        padding: 0 !important;
+        max-width: 80mm !important;
+        padding: 4px !important;
+        margin: 0 auto !important;
       }
     }
     body {
       margin: 0;
-      padding: 24px;
-      font-family: 'Courier New', Courier, monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8fafc;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, monospace, sans-serif;
+      background: #f1f5f9;
       color: #0f172a;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
     }
     .receipt-container {
       width: 80mm;
@@ -661,8 +1249,37 @@ String _buildStudentFeeReceiptHtmlTemplate({
       margin: 2px 0;
     }
   </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          console.warn('[EduSHAMIIT Receipt Print] Auto-print notice:', e);
+        }
+      }, 350);
+    });
+  </script>
 </head>
 <body>
+  <div class="no-print" style="width: 100%; max-width: 380px; margin-bottom: 14px; background: #0f172a; color: #ffffff; padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 16px;">🖨️</span>
+      <div>
+        <div style="font-size: 12px; font-weight: 800; letter-spacing: 0.3px;">Thermal Receipt (80mm)</div>
+        <div style="font-size: 9.5px; color: #94a3b8;">EduSHAMIIT Official Receipt</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <button onclick="window.focus(); window.print();" style="background: #2563eb; color: #ffffff; border: none; padding: 6px 12px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer;">
+        Print Slip
+      </button>
+      <button onclick="window.close();" style="background: #334155; color: #ffffff; border: none; padding: 6px 10px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer;">
+        Close
+      </button>
+    </div>
+  </div>
   <div class="receipt-container">
     <div class="center">
       <div class="logo-badge">&#127891;</div>
@@ -746,7 +1363,7 @@ void printStudentFeeReceiptHtml({
   String? campusName,
 }) {
   try {
-    final html = _buildStudentFeeReceiptHtmlTemplate(
+    final htmlContent = _buildStudentFeeReceiptHtmlTemplate(
       receiptNumber: receiptNumber,
       studentName: studentName,
       className: className,
@@ -760,20 +1377,7 @@ void printStudentFeeReceiptHtml({
       institutionName: institutionName,
       campusName: campusName,
     );
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    _printHtmlViaIframe(htmlContent);
   } catch (e) {
     debugPrint('[JSHelper] Error printing fee receipt: $e');
   }
@@ -794,7 +1398,7 @@ void downloadStudentFeeReceiptHtml({
   String? campusName,
 }) {
   try {
-    final html = _buildStudentFeeReceiptHtmlTemplate(
+    final htmlContent = _buildStudentFeeReceiptHtmlTemplate(
       receiptNumber: receiptNumber,
       studentName: studentName,
       className: className,
@@ -808,46 +1412,14 @@ void downloadStudentFeeReceiptHtml({
       institutionName: institutionName,
       campusName: campusName,
     );
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const blob = new Blob([decodeURIComponent('$encodedHtml')], {type: 'text/html'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'Receipt_$receiptNumber.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })();
-      '''
-    ]);
+    _downloadBlobContent(htmlContent, 'Receipt_$receiptNumber.html', 'text/html;charset=utf-8');
   } catch (e) {
     debugPrint('[JSHelper] Error downloading fee receipt: $e');
   }
 }
 
 void downloadCsvWeb(String content, String filename) {
-  try {
-    final encoded = Uri.encodeComponent(content);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const blob = new Blob([decodeURIComponent('$encoded')], {type: 'text/csv;charset=utf-8;'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '$filename';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })();
-      '''
-    ]);
-  } catch (e) {
-    debugPrint('[JSHelper] Error downloading CSV: $e');
-  }
+  _downloadBlobContent(content, filename, 'text/csv;charset=utf-8;');
 }
 
 void printHostelGatePassHtml({
@@ -867,21 +1439,37 @@ void printHostelGatePassHtml({
   String? qrBase64,
 }) {
   try {
-    final html = '<html><body><h1>Hostel Gate Pass $passNumber</h1><p>Student: $studentName</p><p>Type: $requestType</p><p>Hostel: $hostelName Room: $roomNumber</p><p>Valid: $validFrom - $validUntil</p></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hostel Gate Pass $passNumber</title>
+  <style>
+    @page { size: auto; margin: 8mm; }
+    @media print { .no-print { display: none !important; } }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; color: #0f172a; }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() { window.focus(); window.print(); }, 300);
+    });
+  </script>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Print</button>
+    <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+  </div>
+  <h1>Hostel Gate Pass $passNumber</h1>
+  <p><strong>Student:</strong> $studentName</p>
+  <p><strong>Type:</strong> $requestType</p>
+  <p><strong>Hostel:</strong> $hostelName | <strong>Room:</strong> $roomNumber</p>
+  <p><strong>Valid:</strong> $validFrom - $validUntil</p>
+  <p><strong>Destination:</strong> $destination</p>
+  <p><strong>Reason:</strong> $reason</p>
+</body>
+</html>''';
+    _printHtmlDocument(html, title: 'Hostel Gate Pass $passNumber');
   } catch (e) {
     debugPrint('[JSHelper] Error printing gate pass: $e');
   }
@@ -894,21 +1482,33 @@ void printHostelReportHtml({
   required List<Map<String, dynamic>> records,
 }) {
   try {
-    final html = '<html><body><h1>$reportTitle</h1><p>Academic Year: $academicYear</p><p>Total Records: ${records.length}</p></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>$reportTitle</title>
+  <style>
+    @page { size: auto; margin: 8mm; }
+    @media print { .no-print { display: none !important; } }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; color: #0f172a; }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() { window.focus(); window.print(); }, 300);
+    });
+  </script>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Print</button>
+    <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+  </div>
+  <h1>$reportTitle</h1>
+  <p><strong>Academic Year:</strong> $academicYear</p>
+  <p><strong>Total Records:</strong> ${records.length}</p>
+</body>
+</html>''';
+    _printHtmlDocument(html, title: reportTitle);
   } catch (e) {
     debugPrint('[JSHelper] Error printing hostel report: $e');
   }
@@ -928,21 +1528,35 @@ void printVisitorGatePassHtml({
   bool isThermal = false,
 }) {
   try {
-    final html = '<html><body><h1>Visitor Gate Pass $passNumber</h1><p>Visitor: $visitorName ($visitorType)</p><p>Host: $hostName ($hostDepartment)</p><p>Destination: $destination</p></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Visitor Gate Pass $passNumber</title>
+  <style>
+    @page { size: auto; margin: 8mm; }
+    @media print { .no-print { display: none !important; } }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; color: #0f172a; }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() { window.focus(); window.print(); }, 300);
+    });
+  </script>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Print</button>
+    <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+  </div>
+  <h1>Visitor Gate Pass $passNumber</h1>
+  <p><strong>Visitor:</strong> $visitorName ($visitorType)</p>
+  <p><strong>Host:</strong> $hostName ($hostDepartment)</p>
+  <p><strong>Destination:</strong> $destination</p>
+  <p><strong>Check-in:</strong> $checkInAt | <strong>Valid Until:</strong> $validUntil</p>
+</body>
+</html>''';
+    _printHtmlDocument(html, title: 'Visitor Gate Pass $passNumber');
   } catch (e) {
     debugPrint('[JSHelper] Error printing visitor gate pass: $e');
   }
@@ -952,21 +1566,32 @@ void printMultipleVisitorGatePassesHtml({
   required List<Map<String, dynamic>> passes,
 }) {
   try {
-    final html = '<html><body><h1>Batch Visitor Gate Passes</h1><p>Total Passes: ${passes.length}</p></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Batch Visitor Gate Passes</title>
+  <style>
+    @page { size: auto; margin: 8mm; }
+    @media print { .no-print { display: none !important; } }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; color: #0f172a; }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() { window.focus(); window.print(); }, 300);
+    });
+  </script>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Print</button>
+    <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+  </div>
+  <h1>Batch Visitor Gate Passes</h1>
+  <p><strong>Total Passes:</strong> ${passes.length}</p>
+</body>
+</html>''';
+    _printHtmlDocument(html, title: 'Batch Visitor Gate Passes');
   } catch (e) {
     debugPrint('[JSHelper] Error printing multiple visitor gate passes: $e');
   }
@@ -976,21 +1601,32 @@ void printExecutiveSummaryHtml({
   required dynamic report,
 }) {
   try {
-    final html = '<html><body><h1>Executive Summary Report</h1><pre>$report</pre></body></html>';
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    final html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Executive Summary Report</title>
+  <style>
+    @page { size: auto; margin: 8mm; }
+    @media print { .no-print { display: none !important; } }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; color: #0f172a; }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() { window.focus(); window.print(); }, 300);
+    });
+  </script>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 12px;">
+    <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Print</button>
+    <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+  </div>
+  <h1>Executive Summary Report</h1>
+  <pre>$report</pre>
+</body>
+</html>''';
+    _printHtmlDocument(html, title: 'Executive Summary Report');
   } catch (e) {
     debugPrint('[JSHelper] Error printing executive summary: $e');
   }
@@ -1014,29 +1650,30 @@ void printCampusInstitutionalDossierHtml({
       final val = i < kpiValues.length ? kpiValues[i] : '-';
       kpiCardsHtml.write('''
         <div style="flex: 1; min-width: 150px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 6px;">
-          <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">\${kpiTitles[i]}</div>
-          <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 4px;">\$val</div>
+          <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${kpiTitles[i]}</div>
+          <div style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 4px;">$val</div>
         </div>
       ''');
     }
 
-    final tableHeadersHtml = headers.map((h) => '<th style="padding: 10px 12px; background: #0f172a; color: #ffffff; text-align: left; font-size: 12px; font-weight: 600; border: 1px solid #334155;">\$h</th>').join();
+    final tableHeadersHtml = headers.map((h) => '<th style="padding: 10px 12px; background: #0f172a; color: #ffffff; text-align: left; font-size: 12px; font-weight: 600; border: 1px solid #334155;">$h</th>').join();
 
     final tableRowsHtml = StringBuffer();
     for (int r = 0; r < rows.length; r++) {
       final bg = r % 2 == 0 ? '#ffffff' : '#f8fafc';
-      final cells = rows[r].map((c) => '<td style="padding: 9px 12px; border: 1px solid #e2e8f0; font-size: 11.5px; color: #334155;">\$c</td>').join();
-      tableRowsHtml.write('<tr style="background: \$bg;">\$cells</tr>');
+      final cells = rows[r].map((c) => '<td style="padding: 9px 12px; border: 1px solid #e2e8f0; font-size: 11.5px; color: #334155;">$c</td>').join();
+      tableRowsHtml.write('<tr style="background: $bg;">$cells</tr>');
     }
 
     final html = '''
       <!DOCTYPE html>
       <html>
       <head>
-        <title>\$reportTitle - EduSHAMIIT Executive Dossier</title>
+        <title>$reportTitle - EduSHAMIIT Executive Dossier</title>
         <meta charset="utf-8">
         <style>
           @page { size: A4 landscape; margin: 12mm 15mm; }
+          @media print { .no-print { display: none !important; } }
           body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; color: #0f172a; background: #fff; }
           .header { border-bottom: 2px solid #2563eb; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; }
           .title { font-size: 22px; font-weight: 800; color: #1e3a8a; }
@@ -1048,30 +1685,39 @@ void printCampusInstitutionalDossierHtml({
           .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }
           .sign-block { width: 180px; text-align: center; border-top: 1px dashed #94a3b8; padding-top: 6px; font-weight: 600; font-size: 11.5px; }
         </style>
+        <script>
+          window.addEventListener('load', function() {
+            setTimeout(function() { window.focus(); window.print(); }, 300);
+          });
+        </script>
       </head>
-      <body>
+      <body style="padding: 16px;">
+        <div class="no-print" style="margin-bottom: 14px;">
+          <button onclick="window.focus(); window.print();" style="background: #2563eb; color: white; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-weight: 700;">Print Dossier</button>
+          <button onclick="window.close();" style="background: #475569; color: white; border: none; padding: 7px 12px; border-radius: 4px; cursor: pointer;">Close</button>
+        </div>
         <div class="header">
           <div>
             <div class="title">EduSHAMIIT Institutional Facility & Infrastructure Audit</div>
-            <div class="subtitle">\$reportTitle • Certified Compliance Dossier</div>
+            <div class="subtitle">$reportTitle • Certified Compliance Dossier</div>
           </div>
           <div class="meta">
-            <div>Scope: <strong>\$facilityScope</strong></div>
-            <div>Audit Period: <strong>\$period</strong></div>
-            <div>Generated: <strong>\$dateStr</strong></div>
+            <div>Scope: <strong>$facilityScope</strong></div>
+            <div>Audit Period: <strong>$period</strong></div>
+            <div>Generated: <strong>$dateStr</strong></div>
           </div>
         </div>
 
         <div class="kpi-container">
-          \$kpiCardsHtml
+          $kpiCardsHtml
         </div>
 
         <table>
           <thead>
-            <tr>\$tableHeadersHtml</tr>
+            <tr>$tableHeadersHtml</tr>
           </thead>
           <tbody>
-            \$tableRowsHtml
+            $tableRowsHtml
           </tbody>
         </table>
 
@@ -1089,22 +1735,9 @@ void printCampusInstitutionalDossierHtml({
       </html>
     ''';
 
-    final encodedHtml = Uri.encodeComponent(html);
-    js.context.callMethod('eval', [
-      '''
-      (function() {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(decodeURIComponent('\$encodedHtml'));
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-        }
-      })();
-      '''
-    ]);
+    _printHtmlDocument(html, title: reportTitle);
   } catch (e) {
-    debugPrint('[JSHelper] Error printing campus dossier: \$e');
+    debugPrint('[JSHelper] Error printing campus dossier: $e');
   }
 }
 

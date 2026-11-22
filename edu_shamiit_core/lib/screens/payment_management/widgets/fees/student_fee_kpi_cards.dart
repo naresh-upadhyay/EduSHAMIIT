@@ -14,8 +14,10 @@ class StudentFeeKPICards extends ConsumerWidget {
 
     final isAllSelected = state.selectedStatus == 'All Status' && state.subTab == 0;
     final isPaidSelected = state.selectedStatus == 'Paid' || state.subTab == 1;
-    final isPartialSelected = state.selectedStatus == 'Partial' || state.subTab == 2;
-    final isOverdueSelected = state.selectedStatus == 'Overdue' || state.subTab == 3;
+    final isPartialSelected = state.selectedStatus == 'Partial' || state.subTab == 2 || state.subTab == 3;
+    final isOverdueSelected = state.selectedStatus == 'Overdue' || state.subTab == 4;
+
+    final pendingCount = kpis.partialStudentsCount + kpis.pendingStudentsCount;
 
     return HostelKpiGrid(
       desktopColumns: 4,
@@ -55,8 +57,8 @@ class StudentFeeKPICards extends ConsumerWidget {
         HostelUnifiedKpiCard(
           title: 'Pending Dues',
           value: kpis.pendingDuesFormatted,
-          subtitle: '${kpis.pendingStudentsCount} Students',
-          badge: '${kpis.pendingStudentsCount} Students',
+          subtitle: '$pendingCount Students',
+          badge: '$pendingCount Students',
           badgeColor: const Color(0xFFD97706),
           badgeBg: const Color(0xFFFFFBEB),
           icon: Icons.pending_actions_rounded,
@@ -81,7 +83,7 @@ class StudentFeeKPICards extends ConsumerWidget {
           tooltip: 'Filter overdue fee defaulters',
           onTap: () {
             notifier.setStatusFilter('Overdue');
-            notifier.setSubTab(3);
+            notifier.setSubTab(4);
           },
         ),
       ],

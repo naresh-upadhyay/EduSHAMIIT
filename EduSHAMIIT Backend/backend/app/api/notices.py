@@ -185,20 +185,14 @@ async def get_notice_metadata(
 async def get_notice_roles(
     school_id=Depends(require_school_id),
 ):
-    """Retrieve active roles dynamically from app_roles and profiles."""
+    """Retrieve active roles dynamically from app_roles (SSOT)."""
     try:
         rows = await exec_sql(
             """
-            SELECT DISTINCT name FROM public.app_roles WHERE status = 'Active' OR status IS NULL
-            UNION
-            SELECT DISTINCT role AS name FROM public.profiles 
-            WHERE (school_id = %s::UUID OR school_id IS NULL) 
-              AND role IS NOT NULL 
-              AND role != ''
-              AND role NOT IN (SELECT name FROM public.app_roles WHERE status = 'Inactive')
-            ORDER BY name;
-            """,
-            (school_id,)
+            SELECT name FROM public.app_roles 
+            WHERE UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE' 
+            ORDER BY COALESCE(display_order, 999) ASC, display_name ASC, name ASC;
+            """
         )
         roles = [r["name"] for r in rows if r.get("name")]
         return {"success": True, "data": roles}
@@ -211,16 +205,17 @@ async def get_notice_roles(
 async def get_notice_classes(
     school_id=Depends(require_school_id),
 ):
-    """Retrieve active classes dynamically from classes table and profiles."""
+    """Retrieve active classes dynamically from academic_classes (SSOT)."""
     try:
         rows = await exec_sql(
             """
-            SELECT DISTINCT name FROM public.classes WHERE (school_id = %s::UUID OR school_id IS NULL) AND is_active = TRUE
-            UNION
-            SELECT DISTINCT class AS name FROM public.profiles WHERE (school_id = %s::UUID OR school_id IS NULL) AND class IS NOT NULL AND class != ''
+            SELECT DISTINCT name FROM public.academic_classes 
+            WHERE (school_id = %s::UUID OR school_id IS NULL) 
+              AND deleted_at IS NULL 
+              AND UPPER(status) = 'ACTIVE'
             ORDER BY name;
             """,
-            (school_id, school_id)
+            (school_id,)
         )
         classes = [r["name"] for r in rows if r.get("name")]
         return {"success": True, "data": classes}

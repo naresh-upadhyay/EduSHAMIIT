@@ -148,10 +148,10 @@ BEGIN
 
     -- If no available bed exists in hostel_beds but room has available capacity, auto-provision
     IF v_new_bed_id IS NULL THEN
-        v_target_cap := COALESCE(v_new_room.capacity, 1);
+        v_target_cap := COALESCE(v_new_room.target_capacity, 1);
         SELECT COUNT(*) INTO v_existing_beds_count FROM public.hostel_beds WHERE room_id = v_new_room_id AND deleted_at IS NULL;
         
-        IF v_existing_beds_count < v_target_cap OR COALESCE(v_new_room.available_beds, 0) > 0 THEN
+        IF v_existing_beds_count < v_target_cap OR (v_target_cap - COALESCE(v_new_room.current_occupancy, 0)) > 0 THEN
             INSERT INTO public.hostel_beds (
                 school_id, building_id, floor_id, room_id, bed_code, bed_type,
                 condition, status, monthly_fee, created_by, updated_by

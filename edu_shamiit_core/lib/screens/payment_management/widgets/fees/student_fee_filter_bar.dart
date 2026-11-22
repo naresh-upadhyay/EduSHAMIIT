@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/student_fee_provider.dart';
 import 'dialogs/generate_student_invoice_dialog.dart';
-import 'dialogs/bulk_student_invoice_dialog.dart';
+import 'dialogs/bulk_and_scheduled_invoice_dialog.dart';
 import 'dialogs/collect_student_payment_dialog.dart';
 import 'dialogs/edit_student_fee_structure_dialog.dart';
 
@@ -30,8 +30,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
                 count: '${kpis.totalStudents}',
                 isSelected: state.subTab == 0,
                 onTap: () {
-                  notifier.setSubTab(0);
-                  notifier.setStatusFilter('All Status');
+                  notifier.setSubTab(0, statusFilter: 'All Status');
                 },
                 isDark: isDark,
               ),
@@ -43,8 +42,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
                 isSelected: state.subTab == 1,
                 badgeColor: const Color(0xFF16A34A),
                 onTap: () {
-                  notifier.setSubTab(1);
-                  notifier.setStatusFilter('Paid');
+                  notifier.setSubTab(1, statusFilter: 'Paid');
                 },
                 isDark: isDark,
               ),
@@ -52,12 +50,23 @@ class StudentFeeFilterBar extends ConsumerWidget {
               _buildSubTab(
                 context,
                 title: 'Partial',
-                count: '${kpis.pendingStudentsCount}',
+                count: '${kpis.partialStudentsCount}',
                 isSelected: state.subTab == 2,
                 badgeColor: const Color(0xFFD97706),
                 onTap: () {
-                  notifier.setSubTab(2);
-                  notifier.setStatusFilter('Partial');
+                  notifier.setSubTab(2, statusFilter: 'Partial');
+                },
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildSubTab(
+                context,
+                title: 'Pending',
+                count: '${kpis.pendingStudentsCount}',
+                isSelected: state.subTab == 3,
+                badgeColor: const Color(0xFF64748B),
+                onTap: () {
+                  notifier.setSubTab(3, statusFilter: 'Pending');
                 },
                 isDark: isDark,
               ),
@@ -66,11 +75,22 @@ class StudentFeeFilterBar extends ConsumerWidget {
                 context,
                 title: 'Overdue',
                 count: '${kpis.overdueStudentsCount}',
-                isSelected: state.subTab == 3,
+                isSelected: state.subTab == 4,
                 badgeColor: const Color(0xFFDC2626),
                 onTap: () {
-                  notifier.setSubTab(3);
-                  notifier.setStatusFilter('Overdue');
+                  notifier.setSubTab(4, statusFilter: 'Overdue');
+                },
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildSubTab(
+                context,
+                title: 'Advance / Credit',
+                count: '${kpis.overpaidStudentsCount}',
+                isSelected: state.subTab == 5,
+                badgeColor: const Color(0xFF6366F1),
+                onTap: () {
+                  notifier.setSubTab(5, statusFilter: 'Overpaid');
                 },
                 isDark: isDark,
               ),
@@ -78,11 +98,11 @@ class StudentFeeFilterBar extends ConsumerWidget {
               _buildSubTab(
                 context,
                 title: 'Fee Structure',
-                count: '${state.feeStructures.length}',
-                isSelected: state.subTab == 4,
+                count: '${kpis.feeStructuresCount > 0 ? kpis.feeStructuresCount : state.feeStructures.length}',
+                isSelected: state.subTab == 6,
                 badgeColor: const Color(0xFF8B5CF6),
                 onTap: () {
-                  notifier.setSubTab(4);
+                  notifier.setSubTab(6);
                 },
                 isDark: isDark,
               ),
@@ -90,11 +110,11 @@ class StudentFeeFilterBar extends ConsumerWidget {
               _buildSubTab(
                 context,
                 title: 'Invoices',
-                count: '${state.invoicesList.length}',
-                isSelected: state.subTab == 5,
+                count: '${kpis.invoicesCount > 0 ? kpis.invoicesCount : state.invoicesList.length}',
+                isSelected: state.subTab == 7,
                 badgeColor: const Color(0xFF2563EB),
                 onTap: () {
-                  notifier.setSubTab(5);
+                  notifier.setSubTab(7);
                 },
                 isDark: isDark,
               ),
@@ -102,11 +122,11 @@ class StudentFeeFilterBar extends ConsumerWidget {
               _buildSubTab(
                 context,
                 title: 'Payments',
-                count: '${state.paymentsList.length}',
-                isSelected: state.subTab == 6,
+                count: '${kpis.paymentsCount > 0 ? kpis.paymentsCount : state.paymentsList.length}',
+                isSelected: state.subTab == 8,
                 badgeColor: const Color(0xFF059669),
                 onTap: () {
-                  notifier.setSubTab(6);
+                  notifier.setSubTab(8);
                 },
                 isDark: isDark,
               ),
@@ -201,6 +221,8 @@ class StudentFeeFilterBar extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      Expanded(child: _buildBulkAndScheduleButton(context, ref, isDark)),
+                      const SizedBox(width: 8),
                       Expanded(child: _buildActionButton(context, ref, state, isDark)),
                       const SizedBox(width: 6),
                       _buildMoreMenu(context, ref, isDark),
@@ -221,6 +243,8 @@ class StudentFeeFilterBar extends ConsumerWidget {
                 const SizedBox(width: 10),
                 _buildStatusDropdown(state, notifier, isDark),
                 const SizedBox(width: 10),
+                _buildBulkAndScheduleButton(context, ref, isDark),
+                const SizedBox(width: 8),
                 _buildActionButton(context, ref, state, isDark),
                 const SizedBox(width: 6),
                 _buildMoreMenu(context, ref, isDark),
@@ -345,7 +369,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
   }
 
   Widget _buildStatusDropdown(StudentFeeState state, StudentFeeNotifier notifier, bool isDark) {
-    const statuses = ['All Status', 'Paid', 'Partial', 'Pending', 'Overdue'];
+    const statuses = ['All Status', 'Paid', 'Partial', 'Pending', 'Overdue', 'Overpaid', 'Unbilled'];
     final effectiveStatus = statuses.contains(state.selectedStatus) ? state.selectedStatus : 'All Status';
     return Container(
       height: 40,
@@ -380,7 +404,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
       );
     };
 
-    if (state.subTab == 4) {
+    if (state.subTab == 6) {
       label = 'Add Fee Structure';
       icon = Icons.rule_rounded;
       onTap = () {
@@ -389,7 +413,16 @@ class StudentFeeFilterBar extends ConsumerWidget {
           builder: (ctx) => const EditStudentFeeStructureDialog(),
         );
       };
-    } else if (state.subTab == 6) {
+    } else if (state.subTab == 7) {
+      label = 'Generate Invoice';
+      icon = Icons.receipt_long_rounded;
+      onTap = () {
+        showDialog(
+          context: context,
+          builder: (ctx) => const GenerateStudentInvoiceDialog(),
+        );
+      };
+    } else if (state.subTab == 8) {
       label = 'Collect Payment';
       icon = Icons.payment_rounded;
       onTap = () {
@@ -417,6 +450,29 @@ class StudentFeeFilterBar extends ConsumerWidget {
     );
   }
 
+  Widget _buildBulkAndScheduleButton(BuildContext context, WidgetRef ref, bool isDark) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4F46E5),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 0,
+      ),
+      icon: const Icon(Icons.schedule_send_rounded, size: 17),
+      label: const Text(
+        'Bulk & Scheduling',
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+      onPressed: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => const BulkAndScheduledInvoiceDialog(),
+        );
+      },
+    );
+  }
+
   Widget _buildMoreMenu(BuildContext context, WidgetRef ref, bool isDark) {
     return PopupMenuButton<String>(
       icon: Icon(
@@ -434,6 +490,16 @@ class StudentFeeFilterBar extends ConsumerWidget {
               Icon(Icons.dynamic_feed_rounded, size: 18, color: Color(0xFF2563EB)),
               SizedBox(width: 8),
               Text('Bulk Generate Invoices', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'scheduled_rules',
+          child: Row(
+            children: [
+              Icon(Icons.schedule_send_rounded, size: 18, color: Color(0xFF4F46E5)),
+              SizedBox(width: 8),
+              Text('Invoice Automation & Rules', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
@@ -462,7 +528,12 @@ class StudentFeeFilterBar extends ConsumerWidget {
         if (val == 'bulk_invoice') {
           showDialog(
             context: context,
-            builder: (ctx) => const BulkStudentInvoiceDialog(),
+            builder: (ctx) => const BulkAndScheduledInvoiceDialog(initialTab: 0),
+          );
+        } else if (val == 'scheduled_rules') {
+          showDialog(
+            context: context,
+            builder: (ctx) => const BulkAndScheduledInvoiceDialog(initialTab: 1),
           );
         } else if (val == 'export_csv') {
           ref.read(studentFeeProvider.notifier).exportCsv();

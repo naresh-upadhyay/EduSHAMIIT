@@ -27,11 +27,31 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
   List<PaymentLookupItem> _feeTypes = [];
   List<PaymentLookupItem> _billingCycles = [];
 
+  List<Map<String, dynamic>> _applicableHeads = [];
+  Map<String, dynamic>? _studentFeeStructureDetail;
+  bool _loadingApplicableHeads = false;
+
   @override
   void initState() {
     super.initState();
     _selectedStudentId = widget.preselectedStudentId;
     _loadLookups();
+  }
+
+  Future<void> _loadStudentApplicableHeads(String studentId) async {
+    setState(() => _loadingApplicableHeads = true);
+    final data = await PaymentManagementApiService.instance.getStudentApplicableFeeStructure(studentId);
+    if (mounted) {
+      setState(() {
+        _loadingApplicableHeads = false;
+        _studentFeeStructureDetail = data;
+        if (data != null && data['applicable_heads'] is List) {
+          _applicableHeads = List<Map<String, dynamic>>.from(data['applicable_heads'] as List);
+        } else {
+          _applicableHeads = [];
+        }
+      });
+    }
   }
 
   Future<void> _loadLookups() async {
@@ -44,6 +64,9 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
         if (types.isNotEmpty) _feeType = types.first.label;
         if (cycles.isNotEmpty) _feePlan = cycles.first.label;
       });
+      if (_selectedStudentId != null) {
+        _loadStudentApplicableHeads(_selectedStudentId!);
+      }
     }
   }
 
@@ -148,18 +171,144 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                                 child: Text(e.value),
                               );
                             }).toList(),
-                            onChanged: (val) => setState(() => _selectedStudentId = val),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedStudentId = val);
+                                _loadStudentApplicableHeads(val);
+                              }
+                            },
                           ),
                         );
                       },
                     ),
                   ),
+                  Builder(
+                    builder: (context) {
+                      final selectedStudent = state.studentFeesRoster.where((s) => s.studentId == _selectedStudentId).firstOrNull;
+                      if (selectedStudent != null && selectedStudent.advanceAmount > 0) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.35)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF047857), size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Student has ₹ ${NumberFormat('#,##,###.##').format(selectedStudent.advanceAmount)} advance credit. This invoice will be auto-settled up to this amount upon creation.',
+                                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF065F46), fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+
+                  // Applicable Fee Schedule Heads
+                  if (_loadingApplicableHeads)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+                    )
+                  else if (_applicableHeads.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.auto_awesome_rounded, size: 14, color: Color(0xFF2563EB)),
+                                  SizedBox(width: 6),
+                                  Text('APPLICABLE CLASS FEE HEADS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Color(0xFF2563EB))),
+                                ],
+                              ),
+                              if (_studentFeeStructureDetail != null && _studentFeeStructureDetail!['totals'] is Map)
+                                Text(
+                                  'Total Ann: ₹${NumberFormat('#,##,###').format((_studentFeeStructureDetail!['totals']['total_annual_commitment'] as num?)?.toDouble() ?? 0)}',
+                                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _applicableHeads.map((head) {
+                              final headName = head['fee_name']?.toString() ?? '';
+                              final amt = (head['amount'] as num?)?.toDouble() ?? 0.0;
+                              final freq = head['frequency_type']?.toString() ?? 'Monthly';
+                              final isSel = _title.startsWith(headName);
+
+                              return InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _title = '$headName - $freq';
+                                    _feeType = head['fee_type']?.toString() ?? _feeType;
+                                    _feePlan = freq;
+                                    _amountController.text = amt.toInt().toString();
+
+                                    final dueDay = (head['due_day_of_cycle'] as num?)?.toInt() ?? 10;
+                                    final now = DateTime.now();
+                                    DateTime calculated = DateTime(now.year, now.month, dueDay);
+                                    if (calculated.isBefore(now)) {
+                                      calculated = DateTime(now.year, now.month + 1, dueDay);
+                                    }
+                                    _dueDate = calculated;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: isSel
+                                        ? const Color(0xFF2563EB)
+                                        : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isSel ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '$headName (₹${amt.toInt()})',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                      color: isSel ? Colors.white : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Title
                   Text('Invoice Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   TextFormField(
+                    key: ValueKey('invoice_title_field_$_title'),
                     initialValue: _title,
                     decoration: InputDecoration(
                       filled: true,

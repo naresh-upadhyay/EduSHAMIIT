@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/student_fee_provider.dart';
 import 'dialogs/generate_student_invoice_dialog.dart';
 import 'dialogs/bulk_student_invoice_dialog.dart';
+import 'dialogs/collect_student_payment_dialog.dart';
 
 class StudentFeeRightSummary extends ConsumerWidget {
   const StudentFeeRightSummary({super.key});
@@ -110,6 +111,10 @@ class StudentFeeRightSummary extends ConsumerWidget {
                 _buildSummaryRow('Pending Dues', kpis.pendingDuesFormatted, const Color(0xFFD97706), isDark),
                 const Divider(height: 14),
                 _buildSummaryRow('Overdue Amount', kpis.overdueAmountFormatted, const Color(0xFFDC2626), isDark),
+                if (kpis.advanceAmount > 0) ...[
+                  const Divider(height: 14),
+                  _buildSummaryRow('Advance Credits Held', kpis.advanceAmountFormatted, const Color(0xFF6366F1), isDark),
+                ],
               ],
             ),
           ),
@@ -157,6 +162,23 @@ class StudentFeeRightSummary extends ConsumerWidget {
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.payment_rounded, size: 16),
+                    label: const Text('Collect Fee Payment', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      showDialog(context: context, builder: (ctx) => const CollectStudentPaymentDialog());
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -172,6 +194,7 @@ class StudentFeeRightSummary extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 70), // Avoid collision with bottom-right chatbot widget
         ],
       ),
     );
@@ -188,7 +211,15 @@ class StudentFeeRightSummary extends ConsumerWidget {
             Text(label, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
           ],
         ),
-        Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+          ),
+        ),
       ],
     );
   }

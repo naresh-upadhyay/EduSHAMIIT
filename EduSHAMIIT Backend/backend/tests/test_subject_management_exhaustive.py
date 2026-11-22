@@ -20,8 +20,22 @@ import sys
 API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000" if os.path.exists("/.dockerenv") else "http://localhost:8082")
 BASE_URL = f"{API_BASE}/api/classes"
 JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long"
-ADMIN_PROFILE_ID = "1ba9ee65-52cd-4c7d-b6bb-1c8291a2f825"
+ADMIN_PROFILE_ID = os.environ.get("ADMIN_PROFILE_ID", "5198c4b0-f1cb-45db-9649-41688d0438ba")
 SCHOOL_ID = "11111111-1111-1111-1111-111111111111"
+
+try:
+    import psycopg2
+    db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:eduSHAMIIT2026_pg@localhost:54322/postgres")
+    conn = psycopg2.connect(db_url)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM public.profiles WHERE school_id = %s AND role IN ('super_admin', 'admin') ORDER BY (role = 'super_admin') DESC LIMIT 1;", (SCHOOL_ID,))
+    row = cur.fetchone()
+    if row:
+        ADMIN_PROFILE_ID = str(row[0])
+    cur.close()
+    conn.close()
+except Exception:
+    pass
 
 def get_token():
     try:
@@ -32,8 +46,9 @@ def get_token():
         token = jwt.encode(
             {
                 "sub": ADMIN_PROFILE_ID,
+                "id": ADMIN_PROFILE_ID,
                 "school_id": SCHOOL_ID,
-                "role": "Super Admin",
+                "role": "super_admin",
                 "permissions": ["*"]
             },
             JWT_SECRET,

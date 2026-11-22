@@ -25,6 +25,7 @@ class FakeWorkApiService extends WorkApiService {
     String? view = 'All',
     String? groupBy = 'Status',
     String? search,
+    bool forceRefresh = false,
   }) async => [
     const KanbanColumnModel(statusKey: 'NEW', name: 'New', color: '#64748B', count: 1, items: [testItem]),
     const KanbanColumnModel(statusKey: 'ACTIVE', name: 'Active', color: '#3B82F6', count: 0, items: []),
@@ -51,6 +52,8 @@ class FakeWorkApiService extends WorkApiService {
     String? priority,
     String? assigneeId,
     String? sprintId,
+    String? teamId,
+    String? teamName,
   }) async => true;
 
   Future<Map<String, dynamic>> bulkUpdateItems({
@@ -92,6 +95,7 @@ class FakeWorkApiService extends WorkApiService {
     String sortDir = 'DESC',
     int page = 1,
     int pageSize = 12,
+    bool forceRefresh = false,
   }) async => {'items': [], 'total': 0};
 
   @override

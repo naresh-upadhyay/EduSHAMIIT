@@ -25,7 +25,6 @@ class NoticeAnalyticsSidebar extends ConsumerWidget {
         r == 'vice_principal' ||
         r == 'director' ||
         r == 'teacher' ||
-        r == 'class_teacher' ||
         r == 'transport_manager' ||
         r == 'hr' ||
         r == 'accountant' ||

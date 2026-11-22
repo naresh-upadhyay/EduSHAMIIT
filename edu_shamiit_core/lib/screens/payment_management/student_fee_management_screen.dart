@@ -21,54 +21,85 @@ class StudentFeeManagementScreen extends ConsumerWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
+          final screenHeight = constraints.maxHeight;
           final isDesktop = screenWidth >= 1180;
           final isTablet = screenWidth >= 700 && screenWidth < 1180;
+          final canUseExpanded = isDesktop && screenHeight >= 680;
 
+          // 1. Enterprise Desktop Layout (Pinned Bars + Stretched Work Area - Zero Scroll Contention)
+          if (canUseExpanded) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const StudentFeeHeaderBar(),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: StudentFeeKPICards(),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: StudentFeeFilterBar(),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Expanded(
+                          child: StudentFeeTable(),
+                        ),
+                        if (state.subTab < 6) ...[
+                          const SizedBox(width: 14),
+                          SizedBox(
+                            width: 360,
+                            child: isDrawerOpen
+                                ? const StudentFeeDrawer()
+                                : const StudentFeeRightSummary(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // 2. Responsive Scrollable Layout for Tablets, Mobile & Compact Heights
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Header Bar with Title, Subtitle, and Academic Year
               const StudentFeeHeaderBar(),
-
-              // 2. Body
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () => notifier.loadAllData(),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Top 4 KPI Cards
                         const StudentFeeKPICards(),
-                        const SizedBox(height: 16),
-
-                        // Sub-Tabs & Filter Bar
+                        const SizedBox(height: 14),
                         const StudentFeeFilterBar(),
-                        const SizedBox(height: 16),
-
-                        // Main Data Table + Right Column (Summary Donut or 360 Drawer)
-                        if (state.subTab >= 4)
-                          const SizedBox(
-                            height: 800,
-                            child: StudentFeeTable(),
-                          )
-                        else if (isDesktop)
+                        const SizedBox(height: 14),
+                        if (isDesktop)
                           SizedBox(
-                            height: 800,
+                            height: 720,
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Expanded(
-                                  child: StudentFeeTable(),
-                                ),
-                                const SizedBox(width: 14),
-                                SizedBox(
-                                  width: 360,
-                                  child: isDrawerOpen
-                                      ? const StudentFeeDrawer()
-                                      : const StudentFeeRightSummary(),
-                                ),
+                                const Expanded(child: StudentFeeTable()),
+                                if (state.subTab < 6) ...[
+                                  const SizedBox(width: 14),
+                                  SizedBox(
+                                    width: 360,
+                                    child: isDrawerOpen ? const StudentFeeDrawer() : const StudentFeeRightSummary(),
+                                  ),
+                                ],
                               ],
                             ),
                           )
@@ -76,7 +107,7 @@ class StudentFeeManagementScreen extends ConsumerWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const SizedBox(height: 560, child: StudentFeeTable()),
+                              const SizedBox(height: 580, child: StudentFeeTable()),
                               const SizedBox(height: 16),
                               if (isDrawerOpen)
                                 const SizedBox(height: 650, child: StudentFeeDrawer())
@@ -88,10 +119,10 @@ class StudentFeeManagementScreen extends ConsumerWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const SizedBox(height: 480, child: StudentFeeTable()),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 520, child: StudentFeeTable()),
+                              const SizedBox(height: 14),
                               if (isDrawerOpen)
-                                const SizedBox(height: 650, child: StudentFeeDrawer())
+                                const SizedBox(height: 620, child: StudentFeeDrawer())
                               else
                                 const StudentFeeRightSummary(),
                             ],

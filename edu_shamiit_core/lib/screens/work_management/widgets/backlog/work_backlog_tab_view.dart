@@ -1,20 +1,32 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../services/work_api_service.dart';
+import '../../utils/work_filter_helper.dart';
 import '../drawers/work_item_detail_drawer.dart';
+import '../dialogs/edit_epic_dialog.dart';
 
 class WorkBacklogTabView extends ConsumerStatefulWidget {
   final Function(WorkItemModel item) onOpenDetail;
   final VoidCallback? onOpenFilters;
   final Function(String type) onQuickAction;
+  final Function({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  })? onCreateItem;
 
   const WorkBacklogTabView({
     super.key,
     required this.onOpenDetail,
     this.onOpenFilters,
     required this.onQuickAction,
+    this.onCreateItem,
   });
 
   @override
@@ -27,6 +39,131 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
   String _selectedType = 'All Types';
   String _selectedAssignee = 'All';
 
+  void _handleCreateItem({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  }) {
+    final effectiveType = type ?? (_typeFilter != 'All' ? _typeFilter : 'STORY');
+    final effectiveStatus = status ?? 'NEW';
+    final effectivePriority = priority ?? (_priorityFilter != 'All' ? _priorityFilter : null);
+    final effectiveCategory = category ?? (_categoryFilter != 'All' ? _categoryFilter : null);
+
+    // If creating a STORY and parentId is not specified, default to the currently active/selected epic
+    String? effectiveParentId = parentId;
+    if (effectiveParentId == null && effectiveType.toUpperCase() == 'STORY') {
+      final backlogState = ref.read(workBacklogProvider);
+      final epics = _getEpics(backlogState);
+      final activeEpic = _getActiveEpic(epics, backlogState);
+      effectiveParentId = activeEpic.id.isNotEmpty ? activeEpic.id : activeEpic.itemNumber;
+    }
+
+    if (widget.onCreateItem != null) {
+      widget.onCreateItem!(
+        type: effectiveType,
+        status: effectiveStatus,
+        priority: effectivePriority,
+        category: effectiveCategory,
+        sprintId: sprintId,
+        parentId: effectiveParentId,
+      );
+    } else {
+      widget.onQuickAction(effectiveType);
+    }
+  }
+
+  void _openEditEpicDialog(BacklogEpicModel epic) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => EditEpicDialog(epic: epic),
+    );
+    if (res == true && mounted) {
+      await ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+      ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+    }
+  }
+
+  Future<void> _handleReparentTask(WorkItemModel task, WorkItemModel targetStory) async {
+    // 1. Expand target story so the user immediately sees the moved task in its new home
+    if (!_expandedStoryIds.contains(targetStory.itemNumber)) {
+      setState(() {
+        _expandedStoryIds.add(targetStory.itemNumber);
+      });
+    }
+
+    // 2. Update active drawer item if currently viewing this task
+    if (_activeDrawerItem?.id == task.id ||
+        _activeDrawerItem?.itemNumber.toUpperCase() == task.itemNumber.toUpperCase()) {
+      setState(() {
+        _activeDrawerItem = _activeDrawerItem?.copyWith(
+          parentId: targetStory.id.isNotEmpty ? targetStory.id : targetStory.itemNumber,
+          parentCode: targetStory.itemNumber,
+          parentTitle: targetStory.title,
+        );
+      });
+    }
+
+    // 3. Immediate modern SnackBar feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF0F172A),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Moved ${task.itemNumber} to ${targetStory.itemNumber} (${targetStory.title})',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // 4. Perform optimistic reparenting & DB update via provider
+    final success = await ref.read(workBacklogProvider.notifier).reparentStoryTask(
+          task: task,
+          targetStory: targetStory,
+        );
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Failed to move ${task.itemNumber} to ${targetStory.itemNumber}. Changes reverted.',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   // Azure DevOps Filter Bar State
   bool _isFilterBarOpen = true;
   String _keywordFilter = '';
@@ -34,6 +171,13 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
   String _assigneeFilter = 'All';
   String _priorityFilter = 'All';
   String _categoryFilter = 'All';
+  String _roleFilter = 'All';
+  String _departmentFilter = 'All';
+  String _classFilter = 'All';
+  String _sectionFilter = 'All';
+  String _teamFilter = 'All';
+  List<WorkAcademicClassModel> _classesList = [];
+  List<String> _teamsList = WorkFilterHelper.defaultTeams;
 
   int get _activeFiltersCount {
     int count = 0;
@@ -42,6 +186,11 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     if (_assigneeFilter != 'All') count++;
     if (_priorityFilter != 'All') count++;
     if (_categoryFilter != 'All') count++;
+    if (_roleFilter != 'All') count++;
+    if (_departmentFilter != 'All') count++;
+    if (_teamFilter != 'All') count++;
+    if (_classFilter != 'All') count++;
+    if (_sectionFilter != 'All') count++;
     if (_selectedView != 'Product & Work Backlog') count++;
     return count;
   }
@@ -56,6 +205,11 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
       _selectedAssignee = 'All';
       _priorityFilter = 'All';
       _categoryFilter = 'All';
+      _roleFilter = 'All';
+      _departmentFilter = 'All';
+      _teamFilter = 'All';
+      _classFilter = 'All';
+      _sectionFilter = 'All';
       _selectedView = 'Product & Work Backlog';
       _currentPage = 1;
     });
@@ -70,6 +224,19 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
   WorkItemModel? _activeDrawerItem;
   bool _isDrawerClosedByUser = false;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+
+  void _onKeywordSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        setState(() {
+          _keywordFilter = v.trim();
+          _currentPage = 1;
+        });
+      }
+    });
+  }
 
   final List<BacklogEpicModel> _fallbackEpics = const [
     BacklogEpicModel(id: '0d59ba0f-7969-4a1f-b2d8-8a7ac2a6023d', itemNumber: 'EP-001', title: 'Campus Digitalization', count: 15, description: 'End-to-end digital transformation of campus operations, services and user experience.'),
@@ -91,10 +258,12 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
   Future<void> _loadAssignees() async {
     try {
       final api = ref.read(workApiServiceProvider);
-      final list = await api.getAssignableUsers(limit: 60);
+      final meta = await WorkFilterHelper.loadMetadata(api);
       if (mounted) {
         setState(() {
-          _assigneesList = list;
+          _assigneesList = meta.assignees;
+          _classesList = meta.classes;
+          _teamsList = meta.teams;
         });
       }
     } catch (_) {}
@@ -116,6 +285,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -188,6 +358,28 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
         final matchChild = story.children.any((c) => c.assignees.any((a) => a.fullName.toLowerCase() == _assigneeFilter.toLowerCase()));
         if (!matchStory && !matchChild) return false;
       }
+
+      // 7. Advanced Filters (Role, Department, Class, Section, Team, Board)
+      final matchStoryAdv = WorkFilterHelper.matchesAdvancedFilters(
+        item: story,
+        roleFilter: _roleFilter,
+        departmentFilter: _departmentFilter,
+        classFilter: _classFilter,
+        sectionFilter: _sectionFilter,
+        teamFilter: _teamFilter,
+        boardFilter: _selectedBoard,
+      );
+      final matchChildAdv = story.children.any((c) => WorkFilterHelper.matchesAdvancedFilters(
+        item: c,
+        roleFilter: _roleFilter,
+        departmentFilter: _departmentFilter,
+        classFilter: _classFilter,
+        sectionFilter: _sectionFilter,
+        teamFilter: _teamFilter,
+        boardFilter: _selectedBoard,
+      ));
+      if (!matchStoryAdv && !matchChildAdv) return false;
+
       return true;
     }).toList();
 
@@ -272,8 +464,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _buildSelector('Board', _selectedBoard, ['Institute Work Board', 'Academic Board'], (v) {
-              setState(() => _selectedBoard = v ?? 'Institute Work Board');
+            _buildSelector('Board', _selectedBoard, WorkFilterHelper.boardOptions, (v) {
+              final newB = v ?? 'Institute Work Board';
+              setState(() => _selectedBoard = newB);
+              ref.read(workBacklogProvider.notifier).loadBacklog(boardId: WorkFilterHelper.resolveBoardId(newB));
             }, isDark),
             _buildSelector('View', _selectedView, ['Product & Work Backlog', 'All Backlog', 'Unassigned Sprints'], (v) {
               setState(() {
@@ -425,10 +619,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 height: 36,
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (v) => setState(() {
-                    _keywordFilter = v.trim();
-                    _currentPage = 1;
-                  }),
+                  onChanged: _onKeywordSearchChanged,
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),
                   decoration: InputDecoration(
                     hintText: 'Filter by keyword...',
@@ -475,7 +666,87 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
               // 4. Assigned To
               _buildAssigneeFilterDropdown(isDark),
 
-              // 5. Area
+              // 5. Role Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Role',
+                value: _roleFilter,
+                items: WorkFilterHelper.roleOptions,
+                onChanged: (v) {
+                  setState(() {
+                    _roleFilter = v ?? 'All';
+                    if (_roleFilter.toLowerCase() != 'student') {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                    }
+                    _currentPage = 1;
+                  });
+                },
+                isDark: isDark,
+                prefixIcon: Icons.badge_outlined,
+              ),
+
+              // 6. Department Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Department',
+                value: _departmentFilter,
+                items: WorkFilterHelper.defaultDepartments,
+                onChanged: (v) => setState(() {
+                  _departmentFilter = v ?? 'All';
+                  _currentPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.apartment_rounded,
+              ),
+
+              // 7. Team Filter
+              WorkFilterHelper.buildFilterDropdown(
+                label: 'Team',
+                value: _teamFilter,
+                items: _teamsList,
+                onChanged: (v) => setState(() {
+                  _teamFilter = v ?? 'All';
+                  _currentPage = 1;
+                }),
+                isDark: isDark,
+                prefixIcon: Icons.groups_rounded,
+                accentColor: const Color(0xFF6366F1),
+              ),
+
+              // 8. Cascaded Class Filter (Visible when Role is Student)
+              if (_roleFilter.toLowerCase() == 'student') ...[
+                WorkFilterHelper.buildFilterDropdown(
+                  label: 'Class',
+                  value: _classFilter,
+                  items: ['All', ..._classesList.map((c) => c.name)],
+                  onChanged: (v) {
+                    setState(() {
+                      _classFilter = v ?? 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  },
+                  isDark: isDark,
+                  prefixIcon: Icons.school_outlined,
+                  accentColor: const Color(0xFF2563EB),
+                ),
+
+                // 8. Cascaded Section Filter (Visible when Class is chosen)
+                if (_classFilter != 'All')
+                  WorkFilterHelper.buildFilterDropdown(
+                    label: 'Section',
+                    value: _sectionFilter,
+                    items: WorkFilterHelper.getSectionsForClass(_classesList, _classFilter),
+                    onChanged: (v) => setState(() {
+                      _sectionFilter = v ?? 'All';
+                      _currentPage = 1;
+                    }),
+                    isDark: isDark,
+                    prefixIcon: Icons.groups_outlined,
+                    accentColor: const Color(0xFF10B981),
+                  ),
+              ],
+
+              // 9. Area
               _buildDevOpsFilterDropdown(
                 label: 'Area',
                 value: _categoryFilter,
@@ -557,7 +828,46 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                   _buildActiveFilterChip('Assigned: $_assigneeFilter', () => setState(() {
                     _assigneeFilter = 'All';
                     _selectedAssignee = 'All';
+                    _currentPage = 1;
                   }), isDark),
+                if (_roleFilter != 'All')
+                  _buildActiveFilterChip('Role: $_roleFilter', () {
+                    setState(() {
+                      _roleFilter = 'All';
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_departmentFilter != 'All')
+                  _buildActiveFilterChip('Dept: $_departmentFilter', () {
+                    setState(() {
+                      _departmentFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_teamFilter != 'All')
+                  _buildActiveFilterChip('Team: $_teamFilter', () {
+                    setState(() {
+                      _teamFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_classFilter != 'All')
+                  _buildActiveFilterChip('Class: $_classFilter', () {
+                    setState(() {
+                      _classFilter = 'All';
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
+                if (_sectionFilter != 'All')
+                  _buildActiveFilterChip('Section: $_sectionFilter', () {
+                    setState(() {
+                      _sectionFilter = 'All';
+                      _currentPage = 1;
+                    });
+                  }, isDark),
                 if (_categoryFilter != 'All')
                   _buildActiveFilterChip('Area: $_categoryFilter', () => setState(() => _categoryFilter = 'All'), isDark),
                 if (_selectedView != 'Product & Work Backlog')
@@ -1046,32 +1356,47 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Epics (${epics.length})',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                Expanded(
+                  child: Text(
+                    'Epics (${epics.length})',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: () => widget.onQuickAction('EPIC'),
-                      child: const Icon(Icons.add, size: 18, color: Color(0xFF2563EB)),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () => setState(() => _isEpicsSidebarOpen = false),
-                      child: Tooltip(
-                        message: 'Collapse Epics',
-                        child: Icon(Icons.chevron_left_rounded, size: 20, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                Tooltip(
+                  message: 'Create New Epic',
+                  child: InkWell(
+                    onTap: () => _handleCreateItem(type: 'EPIC'),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 13, color: Color(0xFF2563EB)),
+                          SizedBox(width: 2),
+                          Text('New', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => setState(() => _isEpicsSidebarOpen = false),
+                  child: Tooltip(
+                    message: 'Collapse Epics',
+                    child: Icon(Icons.chevron_left_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  ),
                 ),
               ],
             ),
@@ -1099,6 +1424,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     _currentPage = 1;
                     _selectedItemIds.clear();
                   });
+                  ref.read(workBacklogProvider.notifier).selectEpic(epic);
                   ref.read(workBacklogProvider.notifier).loadBacklog(epicId: epic.id.isNotEmpty ? epic.id : num);
                 },
                 child: Container(
@@ -1157,6 +1483,80 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => _openEditEpicDialog(epic),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Tooltip(
+                          message: 'Edit Epic Information',
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 13,
+                              color: isSelected
+                                  ? const Color(0xFF2563EB)
+                                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      PopupMenuButton<String>(
+                        tooltip: 'Epic Options',
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 14,
+                          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                        ),
+                        color: isDark ? const Color(0xFF13182C) : Colors.white,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 160),
+                        onSelected: (val) {
+                          if (val == 'EDIT') {
+                            _openEditEpicDialog(epic);
+                          } else if (val == 'DRAWER') {
+                            setState(() {
+                              _activeDrawerItem = epic.toWorkItem();
+                              _isDrawerClosedByUser = false;
+                            });
+                          } else if (val == 'ADD_STORY') {
+                            _handleCreateItem(type: 'STORY', parentId: epic.id.isNotEmpty ? epic.id : epic.itemNumber);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: 'EDIT',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 15, color: Color(0xFF8B5CF6)),
+                                SizedBox(width: 8),
+                                Text('Edit Epic Info', style: TextStyle(fontSize: 12.5)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'DRAWER',
+                            child: Row(
+                              children: [
+                                Icon(Icons.open_in_new_rounded, size: 15, color: Color(0xFF2563EB)),
+                                SizedBox(width: 8),
+                                Text('View Details in Drawer', style: TextStyle(fontSize: 12.5)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'ADD_STORY',
+                            child: Row(
+                              children: [
+                                Icon(Icons.add_rounded, size: 15, color: Color(0xFF10B981)),
+                                SizedBox(width: 8),
+                                Text('Add Story under Epic', style: TextStyle(fontSize: 12.5)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1274,6 +1674,39 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                       ),
                     ),
                     const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: () => _openEditEpicDialog(activeEpic),
+                      icon: const Icon(Icons.edit_outlined, size: 13),
+                      label: const Text('Edit Epic', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF8B5CF6),
+                        side: BorderSide(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: 'Open Epic in Detail Drawer',
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _activeDrawerItem = activeEpic.toWorkItem();
+                            _isDrawerClosedByUser = false;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(Icons.open_in_new_rounded, size: 14, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     const Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: Color(0xFF64748B)),
                   ],
                 ),
@@ -1289,6 +1722,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 ],
                 const SizedBox(height: 14),
 
+                // Helper method for split Add Work Item button
                 // Responsive Actions Toolbar
                 LayoutBuilder(
                   builder: (context, toolbarConstraints) {
@@ -1334,16 +1768,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                ElevatedButton.icon(
-                                  onPressed: () => widget.onQuickAction('TASK'),
-                                  icon: const Icon(Icons.add, size: 14, color: Colors.white),
-                                  label: const Text('Add Work Item', style: TextStyle(fontSize: 12, color: Colors.white)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2563EB),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                ),
+                                _buildAddWorkItemButton(activeEpic),
                                 const SizedBox(width: 8),
                                 OutlinedButton.icon(
                                   onPressed: () => _openReorderBacklogDialog(filteredStories),
@@ -1413,16 +1838,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                           ),
                         ),
                         const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: () => widget.onQuickAction('TASK'),
-                          icon: const Icon(Icons.add, size: 14, color: Colors.white),
-                          label: const Text('Add Work Item', style: TextStyle(fontSize: 12, color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
+                        _buildAddWorkItemButton(activeEpic),
                         const SizedBox(width: 8),
                         OutlinedButton.icon(
                           onPressed: () => _openReorderBacklogDialog(filteredStories),
@@ -1575,6 +1991,16 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               side: const BorderSide(color: Color(0xFFBFDBFE)),
+              backgroundColor: Colors.white,
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _openBulkTagTeamDialog(_selectedItemIds.toList()),
+            icon: const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF6366F1)),
+            label: const Text('Tag Team', style: TextStyle(fontSize: 11.5, color: Color(0xFF4338CA))),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              side: const BorderSide(color: Color(0xFFC7D2FE)),
               backgroundColor: Colors.white,
             ),
           ),
@@ -1744,6 +2170,55 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     );
   }
 
+  Widget _buildAddWorkItemButton([BacklogEpicModel? activeEpic]) {
+    final defaultType = _typeFilter != 'All' ? _typeFilter : 'STORY';
+    final pId = activeEpic != null ? (activeEpic.id.isNotEmpty ? activeEpic.id : activeEpic.itemNumber) : null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () => _handleCreateItem(type: defaultType, parentId: pId),
+          icon: const Icon(Icons.add, size: 14, color: Colors.white),
+          label: Text(
+            _typeFilter != 'All' ? 'Add $defaultType' : 'Add Work Item',
+            style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2563EB),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.horizontal(left: Radius.circular(8)),
+            ),
+            elevation: 0,
+          ),
+        ),
+        Container(
+          height: 32,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1D4ED8),
+            borderRadius: BorderRadius.horizontal(right: Radius.circular(8)),
+          ),
+          child: PopupMenuButton<String>(
+            tooltip: 'Select Work Item Type',
+            icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+            padding: EdgeInsets.zero,
+            onSelected: (t) => _handleCreateItem(type: t, parentId: pId),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'STORY', child: Text('User Story')),
+              PopupMenuItem(value: 'TASK', child: Text('Task')),
+              PopupMenuItem(value: 'BUG', child: Text('Bug')),
+              PopupMenuItem(value: 'EPIC', child: Text('Epic')),
+              PopupMenuItem(value: 'HOMEWORK', child: Text('Homework')),
+              PopupMenuItem(value: 'ASSIGNMENT', child: Text('Assignment')),
+              PopupMenuItem(value: 'IMPROVEMENT', child: Text('Improvement')),
+              PopupMenuItem(value: 'ISSUE', child: Text('Issue')),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTableHeader(List<WorkItemModel> stories, bool isDark) {
     // Gather all item IDs in this view
     final allVisibleIds = <String>{};
@@ -1868,10 +2343,30 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
       );
     }
     if (stories.isEmpty) {
+      final defaultType = _typeFilter != 'All' ? _typeFilter : 'Story';
       return Container(
-        height: 200,
+        height: 220,
         alignment: Alignment.center,
-        child: const Text('No backlog items found matching the current filters', style: TextStyle(color: Color(0xFF64748B))),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            const SizedBox(height: 10),
+            const Text('No backlog items found matching the current filters', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _handleCreateItem(),
+              icon: const Icon(Icons.add, size: 14),
+              label: Text('Create $defaultType', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                side: const BorderSide(color: Color(0xFF2563EB)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -1899,252 +2394,65 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
             return Column(
               children: [
                 // Story Parent Row
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _activeDrawerItem = story;
-                      _isDrawerClosedByUser = false;
-                    });
+                DragTarget<WorkItemModel>(
+                  onWillAcceptWithDetails: (details) {
+                    final dragged = details.data;
+                    return dragged.parentId != story.id &&
+                        dragged.parentId != story.itemNumber &&
+                        dragged.id != story.id &&
+                        dragged.itemNumber.toUpperCase() != story.itemNumber.toUpperCase();
                   },
-                  child: Container(
-                    color: isActive
-                        ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF))
-                        : (isStorySelected
-                            ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.18) : const Color(0xFFF0FDF4))
-                            : (isDark ? const Color(0xFF13182C) : Colors.white)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      children: [
-                        // Checkbox
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: isStorySelected
-                                ? true
-                                : (someChildrenSelected && !allChildrenSelected ? null : (allChildrenSelected ? true : false)),
-                            tristate: true,
-                            activeColor: const Color(0xFF2563EB),
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedItemIds.add(story.id);
-                                  for (final c in story.children) {
-                                    _selectedItemIds.add(c.id);
-                                  }
-                                } else {
-                                  _selectedItemIds.remove(story.id);
-                                  for (final c in story.children) {
-                                    _selectedItemIds.remove(c.id);
-                                  }
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-
-                        // Expand/Collapse Chevron
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              if (isExpanded) {
-                                _expandedStoryIds.remove(story.itemNumber);
-                              } else {
-                                _expandedStoryIds.add(story.itemNumber);
-                              }
-                            });
-                          },
-                          child: Icon(
-                            isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
-                            size: 20,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-
-                        // Story ID
-                        SizedBox(
-                          width: 60,
-                          child: Text(
-                            story.itemNumber,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF8B5CF6),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Story Title
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            story.title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-
-                        // Type pill
-                        SizedBox(
-                          width: 65,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'STORY',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8B5CF6)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Priority
-                        SizedBox(
-                          width: 75,
-                          child: Text(
-                            '= ${story.priority}',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: story.priority == 'HIGH' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
-                            ),
-                          ),
-                        ),
-
-                        // Estimate
-                        SizedBox(
-                          width: 50,
-                          child: Text(
-                            '${story.estimatedHours > 0 ? story.estimatedHours.toInt() : 40}h',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : const Color(0xFF475569),
-                            ),
-                          ),
-                        ),
-
-                        // Status
-                        SizedBox(
-                          width: 110,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: story.status == 'ACTIVE'
-                                      ? const Color(0xFF3B82F6)
-                                      : (story.status == 'COMPLETED'
-                                          ? const Color(0xFF10B981)
-                                          : const Color(0xFF64748B)),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  story.status.replaceAll('_', ' '),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Assignees
-                        SizedBox(
-                          width: 55,
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 18,
-                                height: 18,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFDBEAFE),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  'A',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF1E40AF)),
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              const Text('+2', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                            ],
-                          ),
-                        ),
-
-                        // 3 dots
-                        IconButton(
-                          icon: const Icon(Icons.more_vert, size: 16),
-                          color: const Color(0xFF94A3B8),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          onPressed: () => setState(() {
-                            _activeDrawerItem = story;
-                            _isDrawerClosedByUser = false;
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Child Tasks Rows
-                if (isExpanded)
-                  ...children.map((child) {
-                    final isChildActive = _activeDrawerItem?.id == child.id;
-                    final isChildSelected = _selectedItemIds.contains(child.id);
-
+                  onAcceptWithDetails: (details) {
+                    _handleReparentTask(details.data, story);
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    final isStoryTargetHovered = candidateData.isNotEmpty;
                     return InkWell(
                       onTap: () {
                         setState(() {
-                          _activeDrawerItem = child;
+                          _activeDrawerItem = story;
                           _isDrawerClosedByUser = false;
                         });
                       },
-                      child: Container(
-                        color: isChildActive
-                            ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
-                            : (isChildSelected
-                                ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
-                                : (isDark ? const Color(0xFF0B0F19).withValues(alpha: 0.6) : const Color(0xFFF8FAFC))),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          color: isStoryTargetHovered
+                              ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.28 : 0.14)
+                              : (isActive
+                                  ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF))
+                                  : (isStorySelected
+                                      ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.18) : const Color(0xFFF0FDF4))
+                                      : (isDark ? const Color(0xFF13182C) : Colors.white))),
+                          border: isStoryTargetHovered
+                              ? Border.all(color: const Color(0xFF2563EB), width: 1.5)
+                              : null,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Row(
                           children: [
-                            const SizedBox(width: 20),
-                            // Child Checkbox
+                            // Checkbox
                             SizedBox(
                               width: 24,
                               height: 24,
                               child: Checkbox(
-                                value: isChildSelected,
+                                value: isStorySelected
+                                    ? true
+                                    : (someChildrenSelected && !allChildrenSelected ? null : (allChildrenSelected ? true : false)),
+                                tristate: true,
                                 activeColor: const Color(0xFF2563EB),
                                 onChanged: (val) {
                                   setState(() {
                                     if (val == true) {
-                                      _selectedItemIds.add(child.id);
+                                      _selectedItemIds.add(story.id);
+                                      for (final c in story.children) {
+                                        _selectedItemIds.add(c.id);
+                                      }
                                     } else {
-                                      _selectedItemIds.remove(child.id);
+                                      _selectedItemIds.remove(story.id);
+                                      for (final c in story.children) {
+                                        _selectedItemIds.remove(c.id);
+                                      }
                                     }
                                   });
                                 },
@@ -2152,36 +2460,77 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             ),
                             const SizedBox(width: 4),
 
-                            // Drag indicator & arrow
-                            const Icon(Icons.drag_indicator, size: 14, color: Color(0xFFCBD5E1)),
+                            // Expand/Collapse Chevron
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isExpanded) {
+                                    _expandedStoryIds.remove(story.itemNumber);
+                                  } else {
+                                    _expandedStoryIds.add(story.itemNumber);
+                                  }
+                                });
+                              },
+                              child: Icon(
+                                isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                                size: 20,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 6),
 
-                            // Child ID
+                            // Story ID
                             SizedBox(
-                              width: 65,
+                              width: 60,
                               child: Text(
-                                child.itemNumber,
+                                story.itemNumber,
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF2563EB),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF8B5CF6),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 10),
 
-                            // Child Title
+                            // Story Title
                             Expanded(
                               flex: 3,
-                              child: Text(
-                                child.title,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      story.title,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isStoryTargetHovered) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.arrow_downward_rounded, size: 12, color: Colors.white),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Tag to ${story.itemNumber}',
+                                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
 
@@ -2193,12 +2542,12 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: const Text(
-                                    'TASK',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                                    'STORY',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8B5CF6)),
                                   ),
                                 ),
                               ),
@@ -2209,11 +2558,11 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             SizedBox(
                               width: 75,
                               child: Text(
-                                '= ${child.priority}',
+                                '= ${story.priority}',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
-                                  color: child.priority == 'HIGH' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                                  color: story.priority == 'HIGH' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
                                 ),
                               ),
                             ),
@@ -2222,10 +2571,11 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             SizedBox(
                               width: 50,
                               child: Text(
-                                '${child.estimatedHours > 0 ? child.estimatedHours.toInt() : 8}h',
+                                '${story.estimatedHours > 0 ? story.estimatedHours.toInt() : 40}h',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
                                 ),
                               ),
                             ),
@@ -2239,9 +2589,9 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: child.status == 'ACTIVE'
+                                      color: story.status == 'ACTIVE'
                                           ? const Color(0xFF3B82F6)
-                                          : (child.status == 'COMPLETED'
+                                          : (story.status == 'COMPLETED'
                                               ? const Color(0xFF10B981)
                                               : const Color(0xFF64748B)),
                                       shape: BoxShape.circle,
@@ -2250,11 +2600,11 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      child.status.replaceAll('_', ' '),
+                                      story.status.replaceAll('_', ' '),
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 11.5,
-                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                        color: isDark ? Colors.white : const Color(0xFF1E293B),
                                       ),
                                     ),
                                   ),
@@ -2265,21 +2615,24 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                             // Assignees
                             SizedBox(
                               width: 55,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFE0E7FF),
-                                    shape: BoxShape.circle,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFDBEAFE),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'A',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF1E40AF)),
+                                    ),
                                   ),
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    'U',
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF4338CA)),
-                                  ),
-                                ),
+                                  const SizedBox(width: 2),
+                                  const Text('+2', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                ],
                               ),
                             ),
 
@@ -2290,7 +2643,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                               onPressed: () => setState(() {
-                                _activeDrawerItem = child;
+                                _activeDrawerItem = story;
                                 _isDrawerClosedByUser = false;
                               }),
                             ),
@@ -2298,7 +2651,407 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                         ),
                       ),
                     );
+                  },
+                ),
+
+                // Child Tasks Rows
+                if (isExpanded)
+                  ...children.map((child) {
+                    final isChildActive = _activeDrawerItem?.id == child.id;
+                    final isChildSelected = _selectedItemIds.contains(child.id);
+
+                    Widget buildChildRow({bool isDragging = false, bool isHoveredTarget = false}) {
+                      return InkWell(
+                        onTap: isDragging
+                            ? null
+                            : () {
+                                setState(() {
+                                  _activeDrawerItem = child;
+                                  _isDrawerClosedByUser = false;
+                                });
+                              },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          decoration: BoxDecoration(
+                            color: isHoveredTarget
+                                ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.28 : 0.14)
+                                : (isChildActive
+                                    ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.2) : const Color(0xFFEFF6FF))
+                                    : (isChildSelected
+                                        ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
+                                        : (isDark ? const Color(0xFF0B0F19).withValues(alpha: 0.6) : const Color(0xFFF8FAFC)))),
+                            border: isHoveredTarget
+                                ? Border.all(color: const Color(0xFF2563EB), width: 1.5)
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 20),
+                              // Child Checkbox
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Checkbox(
+                                  value: isChildSelected,
+                                  activeColor: const Color(0xFF2563EB),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        _selectedItemIds.add(child.id);
+                                      } else {
+                                        _selectedItemIds.remove(child.id);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+
+                              // Drag indicator & arrow
+                              MouseRegion(
+                                cursor: SystemMouseCursors.grab,
+                                child: Tooltip(
+                                  message: 'Drag to tag to another story',
+                                  child: Icon(
+                                    Icons.drag_indicator,
+                                    size: 16,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: Color(0xFF94A3B8)),
+                              const SizedBox(width: 6),
+
+                              // Child ID
+                              SizedBox(
+                                width: 65,
+                                child: Text(
+                                  child.itemNumber,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Child Title
+                              Expanded(
+                                flex: 3,
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        child.title,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isHoveredTarget) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2563EB),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.arrow_downward_rounded, size: 12, color: Colors.white),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Tag to ${story.itemNumber}',
+                                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                              // Type pill
+                              SizedBox(
+                                width: 65,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      child.workType.toUpperCase(),
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Priority
+                              SizedBox(
+                                width: 75,
+                                child: Text(
+                                  '= ${child.priority}',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: child.priority == 'HIGH' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                                  ),
+                                ),
+                              ),
+
+                              // Estimate
+                              SizedBox(
+                                width: 50,
+                                child: Text(
+                                  '${child.estimatedHours > 0 ? child.estimatedHours.toInt() : 8}h',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+
+                              // Status
+                              SizedBox(
+                                width: 110,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: child.status == 'ACTIVE'
+                                            ? const Color(0xFF3B82F6)
+                                            : (child.status == 'COMPLETED'
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFF64748B)),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        child.status.replaceAll('_', ' '),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Assignees
+                              SizedBox(
+                                width: 55,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFE0E7FF),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'U',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF4338CA)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // 3 dots
+                              IconButton(
+                                icon: const Icon(Icons.more_vert, size: 16),
+                                color: const Color(0xFF94A3B8),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                onPressed: () => setState(() {
+                                  _activeDrawerItem = child;
+                                  _isDrawerClosedByUser = false;
+                                }),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return DragTarget<WorkItemModel>(
+                      onWillAcceptWithDetails: (details) {
+                        final dragged = details.data;
+                        return dragged.parentId != story.id &&
+                            dragged.parentId != story.itemNumber &&
+                            dragged.id != story.id &&
+                            dragged.id != child.id &&
+                            dragged.itemNumber.toUpperCase() != story.itemNumber.toUpperCase();
+                      },
+                      onAcceptWithDetails: (details) {
+                        _handleReparentTask(details.data, story);
+                      },
+                      builder: (context, candidateData, rejectedData) {
+                        final isChildTargetHovered = candidateData.isNotEmpty;
+                        return Draggable<WorkItemModel>(
+                          data: child,
+                          dragAnchorStrategy: pointerDragAnchorStrategy,
+                          feedback: Material(
+                            elevation: 10,
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 340,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E3A8A) : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF2563EB), width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.drag_indicator, size: 16, color: Color(0xFF2563EB)),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      child.itemNumber,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF2563EB),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      child.title,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      child.workType.toUpperCase(),
+                                      style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: buildChildRow(isDragging: true),
+                          ),
+                          child: buildChildRow(isDragging: false, isHoveredTarget: isChildTargetHovered),
+                        );
+                      },
+                    );
                   }),
+                DragTarget<WorkItemModel>(
+                  onWillAcceptWithDetails: (details) {
+                    final dragged = details.data;
+                    return dragged.parentId != story.id &&
+                        dragged.parentId != story.itemNumber &&
+                        dragged.id != story.id &&
+                        dragged.itemNumber.toUpperCase() != story.itemNumber.toUpperCase();
+                  },
+                  onAcceptWithDetails: (details) {
+                    _handleReparentTask(details.data, story);
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    final isHovered = candidateData.isNotEmpty;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isHovered)
+                          Container(
+                            margin: const EdgeInsets.only(left: 44, top: 4, bottom: 4, right: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF2563EB), width: 1.5),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.add_task_rounded, size: 16, color: Color(0xFF2563EB)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Drop to tag task to ${story.itemNumber}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Container(
+                          margin: const EdgeInsets.only(left: 44, top: 4, bottom: 6),
+                          child: InkWell(
+                            onTap: () => _handleCreateItem(
+                              type: 'TASK',
+                              parentId: story.id,
+                              sprintId: story.sprintId,
+                              category: story.category,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.add_rounded, size: 14, color: Color(0xFF2563EB)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Add Task to ${story.itemNumber}',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             );
           },
@@ -2378,6 +3131,15 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.groups_rounded, color: Color(0xFF6366F1)),
+                title: const Text('Tag to Team', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Assign selected work items to an agile sprint team'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openBulkTagTeamDialog(targetIds);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
                 title: const Text('Delete / Archive', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
                 subtitle: const Text('Safely archive selected work items'),
@@ -2441,17 +3203,17 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     final success = await ref.read(workBacklogProvider.notifier).bulkUpdate(
                       itemIds: itemIds,
                       sprintId: selectedSprintId,
                     );
-                    if (mounted) {
-                      setState(() => _selectedItemIds.clear());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(success ? 'Successfully moved ${itemIds.length} items!' : 'Failed to move items.')),
-                      );
-                    }
+                    if (!mounted) return;
+                    setState(() => _selectedItemIds.clear());
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(success ? 'Successfully moved ${itemIds.length} items!' : 'Failed to move items.')),
+                    );
                   },
                   child: const Text('Move Items', style: TextStyle(color: Colors.white)),
                 ),
@@ -2505,17 +3267,17 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     final success = await ref.read(workBacklogProvider.notifier).bulkUpdate(
                       itemIds: itemIds,
                       status: selectedStatus,
                     );
-                    if (mounted) {
-                      setState(() => _selectedItemIds.clear());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(success ? 'Status updated for ${itemIds.length} items!' : 'Failed to update status.')),
-                      );
-                    }
+                    if (!mounted) return;
+                    setState(() => _selectedItemIds.clear());
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(success ? 'Status updated for ${itemIds.length} items!' : 'Failed to update status.')),
+                    );
                   },
                   child: const Text('Apply Status', style: TextStyle(color: Colors.white)),
                 ),
@@ -2568,17 +3330,17 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     final success = await ref.read(workBacklogProvider.notifier).bulkUpdate(
                       itemIds: itemIds,
                       priority: selectedPriority,
                     );
-                    if (mounted) {
-                      setState(() => _selectedItemIds.clear());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(success ? 'Priority updated for ${itemIds.length} items!' : 'Failed to update priority.')),
-                      );
-                    }
+                    if (!mounted) return;
+                    setState(() => _selectedItemIds.clear());
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(success ? 'Priority updated for ${itemIds.length} items!' : 'Failed to update priority.')),
+                    );
                   },
                   child: const Text('Apply Priority', style: TextStyle(color: Colors.white)),
                 ),
@@ -2632,17 +3394,17 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: selectedUserId == null ? null : () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     final success = await ref.read(workBacklogProvider.notifier).bulkUpdate(
                       itemIds: itemIds,
                       assigneeId: selectedUserId,
                     );
-                    if (mounted) {
-                      setState(() => _selectedItemIds.clear());
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(success ? 'Assigned ${itemIds.length} items successfully!' : 'Failed to assign items.')),
-                      );
-                    }
+                    if (!mounted) return;
+                    setState(() => _selectedItemIds.clear());
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(success ? 'Assigned ${itemIds.length} items successfully!' : 'Failed to assign items.')),
+                    );
                   },
                   child: const Text('Assign', style: TextStyle(color: Colors.white)),
                 ),
@@ -2650,6 +3412,23 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
             );
           },
         );
+      },
+    );
+  }
+
+  void _openBulkTagTeamDialog(List<String> itemIds) {
+    WorkFilterHelper.openBulkTagTeamDialog(
+      context: context,
+      itemIds: itemIds,
+      isDark: Theme.of(context).brightness == Brightness.dark,
+      onApply: ({required List<String> itemIds, String? teamName}) async {
+        return await ref.read(workBacklogProvider.notifier).bulkUpdate(
+          itemIds: itemIds,
+          teamName: teamName,
+        );
+      },
+      onSuccess: () {
+        if (mounted) setState(() => _selectedItemIds.clear());
       },
     );
   }
@@ -2789,6 +3568,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     // Commit ranks sequentially
                     for (int i = 0; i < reorderList.length; i++) {
@@ -2797,11 +3577,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                         newRank: (i + 1) * 10.0,
                       );
                     }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Backlog priority order saved successfully!')),
-                      );
-                    }
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Backlog priority order saved successfully!')),
+                    );
                   },
                   child: const Text('Save Order', style: TextStyle(color: Colors.white)),
                 ),

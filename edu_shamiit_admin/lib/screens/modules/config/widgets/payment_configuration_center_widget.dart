@@ -1068,7 +1068,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   'is_default': setAsDefault,
                 });
                 if (ctx.mounted) Navigator.of(ctx).pop();
-                if (ok && mounted) {
+                if (!mounted) return;
+                if (ok) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('UPI account details updated successfully!'),
@@ -1465,7 +1466,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   'is_default': acc['is_default'] == true,
                 });
                 if (ctx.mounted) Navigator.of(ctx).pop();
-                if (ok && mounted) {
+                if (!mounted) return;
+                if (ok) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Bank account details updated successfully!'),
@@ -1516,16 +1518,16 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('1. Transfer the fee amount using your bank app via NEFT, RTGS, or IMPS.', style: TextStyle(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    const Text('2. Mention Student Admission Number and Invoice Number in the Transfer Remarks.', style: TextStyle(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    const Text('3. Immediately submit the 12-digit UTR transaction reference in the portal.', style: TextStyle(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    const Text('4. Accounts clearance takes 2-4 hours upon bank credit.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
+                    Text('1. Transfer the fee amount using your bank app via NEFT, RTGS, or IMPS.', style: TextStyle(fontSize: 12)),
+                    SizedBox(height: 4),
+                    Text('2. Mention Student Admission Number and Invoice Number in the Transfer Remarks.', style: TextStyle(fontSize: 12)),
+                    SizedBox(height: 4),
+                    Text('3. Immediately submit the 12-digit UTR transaction reference in the portal.', style: TextStyle(fontSize: 12)),
+                    SizedBox(height: 4),
+                    Text('4. Accounts clearance takes 2-4 hours upon bank credit.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
                   ],
                 ),
               ),

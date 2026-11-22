@@ -3,12 +3,21 @@ import 'package:flutter/material.dart';
 class BoardRightSidebar extends StatelessWidget {
   final Map<String, dynamic> overviewData;
   final Function(String type) onQuickAction;
+  final Function({
+    String? type,
+    String? status,
+    String? priority,
+    String? category,
+    String? sprintId,
+    String? parentId,
+  })? onCreateItem;
   final Function(String filter)? onSelectFilter;
 
   const BoardRightSidebar({
     super.key,
     required this.overviewData,
     required this.onQuickAction,
+    this.onCreateItem,
     this.onSelectFilter,
   });
 
@@ -66,28 +75,52 @@ class BoardRightSidebar extends StatelessWidget {
                 icon: Icons.assignment_outlined,
                 label: 'New Task',
                 color: const Color(0xFF3B82F6),
-                onTap: () => onQuickAction('TASK'),
+                onTap: () {
+                  if (onCreateItem != null) {
+                    onCreateItem!(type: 'TASK');
+                  } else {
+                    onQuickAction('TASK');
+                  }
+                },
               ),
               _buildQuickActionButton(
                 context,
                 icon: Icons.auto_stories_outlined,
                 label: 'New Story',
                 color: const Color(0xFF8B5CF6),
-                onTap: () => onQuickAction('STORY'),
+                onTap: () {
+                  if (onCreateItem != null) {
+                    onCreateItem!(type: 'STORY');
+                  } else {
+                    onQuickAction('STORY');
+                  }
+                },
               ),
               _buildQuickActionButton(
                 context,
                 icon: Icons.bug_report_outlined,
                 label: 'Report Bug',
                 color: const Color(0xFFEF4444),
-                onTap: () => onQuickAction('BUG'),
+                onTap: () {
+                  if (onCreateItem != null) {
+                    onCreateItem!(type: 'BUG');
+                  } else {
+                    onQuickAction('BUG');
+                  }
+                },
               ),
               _buildQuickActionButton(
                 context,
                 icon: Icons.military_tech_outlined,
                 label: 'New Epic',
                 color: const Color(0xFF2563EB),
-                onTap: () => onQuickAction('EPIC'),
+                onTap: () {
+                  if (onCreateItem != null) {
+                    onCreateItem!(type: 'EPIC');
+                  } else {
+                    onQuickAction('EPIC');
+                  }
+                },
               ),
             ],
           ),
@@ -108,29 +141,29 @@ class BoardRightSidebar extends StatelessWidget {
           _buildSummaryRow(
             Icons.person_outline,
             'Assigned to Me',
-            '${myWork['assigned_to_me'] ?? 8}',
+            '${myWork['assigned_to_me'] ?? 0}',
             isDark,
           ),
           const SizedBox(height: 10),
           _buildSummaryRow(
             Icons.edit_note_outlined,
             'Created by Me',
-            '${myWork['created_by_me'] ?? 5}',
+            '${myWork['created_by_me'] ?? 0}',
             isDark,
           ),
           const SizedBox(height: 10),
           _buildSummaryRow(
             Icons.schedule_outlined,
             'Overdue',
-            '${myWork['overdue'] ?? 2}',
+            '${myWork['overdue'] ?? 0}',
             isDark,
-            isAlert: true,
+            isAlert: ((myWork['overdue'] as num?)?.toInt() ?? 0) > 0,
           ),
           const SizedBox(height: 10),
           _buildSummaryRow(
             Icons.date_range_outlined,
             'Due This Week',
-            '${myWork['due_this_week'] ?? 4}',
+            '${myWork['due_this_week'] ?? 0}',
             isDark,
           ),
           const SizedBox(height: 22),

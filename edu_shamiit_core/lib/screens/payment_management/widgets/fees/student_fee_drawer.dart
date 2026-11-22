@@ -9,6 +9,7 @@ import 'dialogs/generate_student_invoice_dialog.dart';
 import 'dialogs/apply_student_concession_dialog.dart';
 import 'dialogs/add_student_penalty_dialog.dart';
 import 'dialogs/student_fee_receipt_dialog.dart';
+import 'dialogs/refund_student_fee_dialog.dart';
 import '../../services/payment_management_api_service.dart';
 
 class StudentFeeDrawer extends ConsumerStatefulWidget {
@@ -24,7 +25,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -54,6 +55,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
     final concessions = detail['concessions'] as List? ?? [];
     final penalties = detail['penalties'] as List? ?? [];
     final history = detail['history'] as List? ?? [];
+    final refunds = detail['refunds'] as List? ?? [];
 
     final studentName = profile['full_name']?.toString() ?? 'Student';
     final studentEmail = profile['email']?.toString() ?? '';
@@ -65,6 +67,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
     final totalBilled = (summary['total_billed'] as num?)?.toDouble() ?? 0.0;
     final totalPaid = (summary['total_paid'] as num?)?.toDouble() ?? 0.0;
     final balance = (summary['balance_amount'] as num?)?.toDouble() ?? 0.0;
+    final advance = (summary['advance_amount'] as num?)?.toDouble() ?? (totalPaid > totalBilled ? (totalPaid - totalBilled) : 0.0);
     final progress = totalBilled > 0 ? (totalPaid / totalBilled).clamp(0.0, 1.0) : 0.0;
 
     return Container(
@@ -144,80 +147,130 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
           // 2. Quick Action Buttons Row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    icon: const Icon(Icons.payment_rounded, size: 14),
-                    label: const Text('Collect', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => CollectStudentPaymentDialog(
-                          studentId: studentId,
-                          studentName: studentName,
-                          defaultAmount: balance > 0 ? balance : 4500.0,
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        icon: const Icon(Icons.payment_rounded, size: 14),
+                        label: const Text('Collect', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => CollectStudentPaymentDialog(
+                              studentId: studentId,
+                              studentName: studentName,
+                              defaultAmount: balance > 0 ? balance : 4500.0,
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    icon: const Icon(Icons.add_rounded, size: 14),
-                    label: const Text('Invoice', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => GenerateStudentInvoiceDialog(preselectedStudentId: studentId),
-                      );
-                    },
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 14),
+                        label: const Text('Invoice', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => GenerateStudentInvoiceDialog(preselectedStudentId: studentId),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.currency_exchange_rounded, size: 18, color: Color(0xFFEA580C)),
+                      tooltip: 'Refund Overpayment',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => RefundStudentFeeDialog(
+                            studentId: studentId,
+                            studentName: studentName,
+                            availableAdvance: advance,
+                            invoiceId: invoices.isNotEmpty ? invoices.first['id']?.toString() : null,
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.local_offer_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                      tooltip: 'Apply Concession',
+                      onPressed: invoices.isNotEmpty
+                          ? () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => ApplyStudentConcessionDialog(
+                                  studentId: studentId,
+                                  studentName: studentName,
+                                  invoiceId: invoices.first['id'].toString(),
+                                ),
+                              );
+                            }
+                          : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFDC2626)),
+                      tooltip: 'Add Penalty',
+                      onPressed: invoices.isNotEmpty
+                          ? () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AddStudentPenaltyDialog(
+                                  studentId: studentId,
+                                  studentName: studentName,
+                                  invoiceId: invoices.first['id'].toString(),
+                                ),
+                              );
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                if (advance > 0) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEA580C),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      icon: const Icon(Icons.currency_exchange_rounded, size: 14),
+                      label: Text(
+                        'Refund Overpaid Fee (${formatIndianCurrency(advance)})',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => RefundStudentFeeDialog(
+                            studentId: studentId,
+                            studentName: studentName,
+                            availableAdvance: advance,
+                            invoiceId: invoices.isNotEmpty ? invoices.first['id']?.toString() : null,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                IconButton(
-                  icon: const Icon(Icons.local_offer_rounded, size: 18, color: Color(0xFF8B5CF6)),
-                  tooltip: 'Apply Concession',
-                  onPressed: invoices.isNotEmpty
-                      ? () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => ApplyStudentConcessionDialog(
-                              studentId: studentId,
-                              studentName: studentName,
-                              invoiceId: invoices.first['id'].toString(),
-                            ),
-                          );
-                        }
-                      : null,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFDC2626)),
-                  tooltip: 'Add Penalty',
-                  onPressed: invoices.isNotEmpty
-                      ? () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AddStudentPenaltyDialog(
-                              studentId: studentId,
-                              studentName: studentName,
-                              invoiceId: invoices.first['id'].toString(),
-                            ),
-                          );
-                        }
-                      : null,
-                ),
+                ],
               ],
             ),
           ),
@@ -238,6 +291,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
               Tab(text: 'Overview'),
               Tab(text: 'Invoices'),
               Tab(text: 'Payments'),
+              Tab(text: 'Refunds'),
               Tab(text: 'Concessions'),
               Tab(text: 'History'),
             ],
@@ -259,7 +313,82 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                         const SizedBox(height: 8),
                         _buildMetricCard('Total Paid', formatIndianCurrency(totalPaid), const Color(0xFF16A34A), isDark),
                         const SizedBox(height: 8),
-                        _buildMetricCard('Outstanding Dues', formatIndianCurrency(balance), const Color(0xFFDC2626), isDark),
+                        if (advance > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFF6366F1)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Advance Credit Wallet',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                        Text(
+                                          '+${formatIndianCurrency(advance)}',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF6366F1),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEA580C),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.currency_exchange_rounded, size: 13),
+                                  label: const Text('Refund', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => RefundStudentFeeDialog(
+                                        studentId: studentId,
+                                        studentName: studentName,
+                                        availableAdvance: advance,
+                                        invoiceId: invoices.isNotEmpty ? invoices.first['id']?.toString() : null,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        _buildMetricCard('Outstanding Dues', formatIndianCurrency(balance), balance > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A), isDark),
                         const SizedBox(height: 16),
                         Text(
                           'Payment Clearance (${(progress * 100).toStringAsFixed(0)}%)',
@@ -281,87 +410,177 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                 ),
 
                 // Tab 2: Invoices
-                ListView.separated(
+                ListView(
                   padding: const EdgeInsets.all(12),
-                  itemCount: invoices.length,
-                  separatorBuilder: (_, __) => const Divider(height: 12),
-                  itemBuilder: (context, idx) {
-                    final inv = invoices[idx] as Map<String, dynamic>;
-                    final invStatus = inv['status']?.toString() ?? 'Pending';
-                    final invId = inv['id']?.toString() ?? '';
-                    final invBilled = (inv['total_billed'] as num?)?.toDouble() ?? 0.0;
-                    final invBal = (inv['balance_amount'] as num?)?.toDouble() ?? invBilled;
-
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(inv['invoice_number']?.toString() ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                              Text('Due: ${inv['due_date']} | ${inv['title'] ?? ""}', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                            ],
-                          ),
+                  children: [
+                    if (advance > 0 && invoices.any((inv) => (inv['status']?.toString() != 'Paid' && ((inv['balance_amount'] as num?)?.toDouble() ?? 1.0) > 0))) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.35)),
                         ),
-                        Row(
+                        child: Row(
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(formatIndianCurrency(invBilled), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                                Text(invStatus, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: invStatus == 'Paid' ? const Color(0xFF16A34A) : const Color(0xFFDC2626))),
-                              ],
+                            const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF047857), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Advance Credit Wallet Available', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF047857))),
+                                  Text(
+                                    '${formatIndianCurrency(advance)} in prepaid wallet. Settle all pending invoices in 1 click.',
+                                    style: const TextStyle(fontSize: 10.5, color: Color(0xFF065F46)),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            if (invStatus != 'Paid')
-                              IconButton(
-                                icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF16A34A)),
-                                tooltip: 'Collect Payment',
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (c) => CollectStudentPaymentDialog(
-                                      studentId: studentId,
-                                      studentName: studentName,
-                                      className: className,
-                                      rollNumber: rollNumber,
-                                      invoiceId: invId,
-                                      defaultAmount: invBal > 0 ? invBal : invBilled,
+                            const SizedBox(width: 6),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF059669),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.flash_on_rounded, size: 14),
+                              label: const Text('Settle All', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                              onPressed: () async {
+                                final res = await notifier.settleStudentInvoicesFromAdvance(studentId);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(res['message']?.toString() ?? 'Invoices settled from Advance Credit!'),
+                                      backgroundColor: const Color(0xFF16A34A),
                                     ),
                                   );
-                                },
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
-                              tooltip: 'Void Invoice',
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (c) => AlertDialog(
-                                    title: const Text('Void Invoice'),
-                                    content: Text('Are you sure you want to void invoice ${inv['invoice_number']}?'),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
-                                        onPressed: () => Navigator.pop(c, true),
-                                        child: const Text('Void Invoice'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  await PaymentManagementApiService.instance.voidStudentInvoice(invId);
-                                  ref.read(studentFeeProvider.notifier).loadAllData();
                                 }
                               },
                             ),
                           ],
                         ),
-                      ],
-                    );
-                  },
+                      ),
+                    ],
+                    if (invoices.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            'No fee invoices found',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ...invoices.map((inv) {
+                        final invStatus = inv['status']?.toString() ?? 'Pending';
+                        final invId = inv['id']?.toString() ?? '';
+                        final invBilled = (inv['total_billed'] as num?)?.toDouble() ?? 0.0;
+                        final invBal = (inv['balance_amount'] as num?)?.toDouble() ?? invBilled;
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(inv['invoice_number']?.toString() ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                    Text('Due: ${inv['due_date']} | ${inv['title'] ?? ""}', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(formatIndianCurrency(invBilled), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                      Text(invStatus, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: invStatus == 'Paid' ? const Color(0xFF16A34A) : (invStatus == 'Overpaid' ? const Color(0xFF2563EB) : const Color(0xFFDC2626)))),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 6),
+                                  if (invStatus != 'Paid' && invBal > 0 && advance > 0)
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF059669),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        visualDensity: VisualDensity.compact,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                      ),
+                                      icon: const Icon(Icons.account_balance_wallet_rounded, size: 12),
+                                      label: const Text('Settle', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                      onPressed: () async {
+                                        final res = await notifier.settleInvoiceFromAdvance(invId);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(res['message']?.toString() ?? 'Invoice settled!'),
+                                              backgroundColor: const Color(0xFF16A34A),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    )
+                                  else if (invStatus != 'Paid')
+                                    IconButton(
+                                      icon: const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF16A34A)),
+                                      tooltip: 'Collect Payment',
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (c) => CollectStudentPaymentDialog(
+                                            studentId: studentId,
+                                            studentName: studentName,
+                                            className: className,
+                                            rollNumber: rollNumber,
+                                            invoiceId: invId,
+                                            defaultAmount: invBal > 0 ? invBal : invBilled,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                                    tooltip: 'Void Invoice',
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (c) => AlertDialog(
+                                          title: const Text('Void Invoice'),
+                                          content: Text('Are you sure you want to void invoice ${inv['invoice_number']}?'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                                              onPressed: () => Navigator.pop(c, true),
+                                              child: const Text('Void Invoice'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        await PaymentManagementApiService.instance.voidStudentInvoice(invId);
+                                        ref.read(studentFeeProvider.notifier).loadAllData();
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                  ],
                 ),
 
                 // Tab 3: Payments
@@ -527,7 +746,161 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                         },
                       ),
 
-                // Tab 4: Concessions & Penalties
+                // Tab 4: Refunds History
+                refunds.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.currency_exchange_rounded, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No refunds issued yet',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              ),
+                            ),
+                            if (advance > 0) ...[
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEA580C),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                icon: const Icon(Icons.currency_exchange_rounded, size: 14),
+                                label: Text('Refund Available Advance (${formatIndianCurrency(advance)})'),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => RefundStudentFeeDialog(
+                                      studentId: studentId,
+                                      studentName: studentName,
+                                      availableAdvance: advance,
+                                      invoiceId: invoices.isNotEmpty ? invoices.first['id']?.toString() : null,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: refunds.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, idx) {
+                          final refItem = refunds[idx] as Map<String, dynamic>;
+                          final amt = (refItem['amount'] as num?)?.toDouble() ?? 0.0;
+                          final rNum = refItem['refund_number']?.toString() ?? 'REF';
+                          final method = refItem['refund_mode']?.toString() ?? 'Bank Transfer';
+                          final refTxn = refItem['reference_number']?.toString() ?? '-';
+                          final reason = refItem['reason']?.toString() ?? 'Overpayment refund';
+                          final date = DateTime.tryParse(refItem['created_at']?.toString() ?? '') ?? DateTime.now();
+                          final officer = refItem['refunded_by_name']?.toString() ?? 'Finance Officer';
+                          final status = refItem['status']?.toString() ?? 'COMPLETED';
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Icon(Icons.currency_exchange_rounded, size: 14, color: Color(0xFFEA580C)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          rNum,
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '- ${formatIndianCurrency(amt)}',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFEA580C)),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        method,
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                if (refTxn.isNotEmpty && refTxn != '-')
+                                  Text(
+                                    'Ref / UTR: $refTxn',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontFamily: 'monospace',
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                Text(
+                                  'Reason: $reason',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Processed by $officer on ${DateFormat('dd MMM yyyy, hh:mm a').format(date)}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+
+                // Tab 5: Concessions & Penalties
                 ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
@@ -622,7 +995,9 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                           final h = history[idx] as Map<String, dynamic>;
                           final action = h['action']?.toString() ?? 'ACTIVITY';
                           final desc = h['description']?.toString() ?? '';
-                          final performer = '${h['performed_by_name'] ?? 'System'} (${h['performed_by_role'] ?? 'Registrar'})';
+                          final performerName = h['performed_by_name']?.toString() ?? 'System';
+                          final performerEmail = h['performed_by_email']?.toString() ?? '';
+                          final performerRole = h['performed_by_role']?.toString() ?? '';
                           final createdAt = DateTime.tryParse(h['created_at']?.toString() ?? '') ?? DateTime.now();
                           final oldSt = h['old_status']?.toString();
                           final newSt = h['new_status']?.toString();
@@ -630,7 +1005,10 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
 
                           IconData actIcon = Icons.history_rounded;
                           Color actColor = const Color(0xFF2563EB);
-                          if (action.contains('COLLECTED') || action.contains('CONFIRMED')) {
+                          if (action.contains('REFUND')) {
+                            actIcon = Icons.currency_exchange_rounded;
+                            actColor = const Color(0xFFEA580C);
+                          } else if (action.contains('COLLECTED') || action.contains('CONFIRMED')) {
                             actIcon = Icons.check_circle_rounded;
                             actColor = const Color(0xFF16A34A);
                           } else if (action.contains('STATUS_UPDATED')) {
@@ -696,44 +1074,133 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    if (oldSt != null && newSt != null && oldSt.isNotEmpty && newSt.isNotEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          '$oldSt \u2192 $newSt',
-                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                                        ),
-                                      ),
-                                    if (amt > 0)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFDCFCE7),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          formatIndianCurrency(amt),
-                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
-                                        ),
-                                      ),
-                                    Text(
-                                      'by $performer',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontStyle: FontStyle.italic,
-                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                      ),
+                                if ((oldSt != null && newSt != null && oldSt.isNotEmpty && newSt.isNotEmpty) || amt > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        if (oldSt != null && newSt != null && oldSt.isNotEmpty && newSt.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              '$oldSt \u2192 $newSt',
+                                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                        if (amt > 0)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFDCFCE7),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              formatIndianCurrency(amt),
+                                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+
+                                // Performer Details Card (Name, Email, Role)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.6) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 11,
+                                        backgroundColor: actColor.withValues(alpha: 0.15),
+                                        child: Text(
+                                          performerName.isNotEmpty ? performerName[0].toUpperCase() : 'U',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: actColor,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    performerName,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (performerRole.isNotEmpty) ...[
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      _formatAuditRole(performerRole),
+                                                      style: const TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: Color(0xFF2563EB),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            if (performerEmail.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 2),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.mail_outline_rounded,
+                                                      size: 10,
+                                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Expanded(
+                                                      child: Text(
+                                                        performerEmail,
+                                                        style: TextStyle(
+                                                          fontSize: 9.5,
+                                                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -932,5 +1399,18 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
         ],
       ),
     );
+  }
+
+  String _formatAuditRole(String role) {
+    final r = role.toLowerCase().trim();
+    if (r == 'super_admin') return 'Super Admin';
+    if (r == 'admin') return 'Admin';
+    if (r == 'finance_officer' || r == 'accountant') return 'Finance Officer';
+    if (r == 'registrar') return 'Registrar';
+    if (r == 'teacher') return 'Teacher';
+    if (r == 'student') return 'Student';
+    final parts = role.replaceAll('_', ' ').split(' ');
+    final cap = parts.map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : '').join(' ');
+    return cap.trim().isNotEmpty ? cap : 'Staff';
   }
 }

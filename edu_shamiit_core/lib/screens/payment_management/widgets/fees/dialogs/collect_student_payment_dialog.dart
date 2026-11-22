@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../services/payment_lookup_helper.dart';
 import '../../../services/payment_management_api_service.dart';
 import '../../../providers/student_fee_provider.dart';
@@ -58,6 +60,7 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
   String? _statusMessage;
 
   List<PaymentLookupItem> _paymentMethods = [];
+  double _availableAdvanceCredit = 0.0;
 
   @override
   void initState() {
@@ -73,6 +76,70 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
     );
     _refController.text = 'UPI-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     _loadLookups();
+    _checkAdvanceCredit();
+  }
+
+  Future<void> _checkAdvanceCredit() async {
+    final sid = _selectedStudentId ?? widget.studentId;
+    if (sid == null || sid.isEmpty) return;
+    try {
+      final detail = await PaymentManagementApiService.instance.getStudentFeeDetail(sid);
+      final summary = detail?['summary'] as Map<String, dynamic>? ?? {};
+      final adv = (summary['advance_amount'] as num?)?.toDouble() ?? 0.0;
+      if (mounted) {
+        setState(() {
+          _availableAdvanceCredit = adv;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _settleWithAdvanceCredit() async {
+    final invId = widget.invoiceId;
+    final sid = _selectedStudentId ?? widget.studentId;
+    if (sid == null) return;
+    setState(() => _submitting = true);
+
+    Map<String, dynamic> res;
+    if (invId != null && invId.isNotEmpty) {
+      res = await ref.read(studentFeeProvider.notifier).settleInvoiceFromAdvance(invId);
+    } else {
+      res = await ref.read(studentFeeProvider.notifier).settleStudentInvoicesFromAdvance(sid);
+    }
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (res['success'] == true) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Invoice successfully settled from Advance Credit Wallet!'),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
+      if (res['receipt_number'] != null) {
+        showDialog(
+          context: context,
+          builder: (ctx) => StudentFeeReceiptDialog(
+            studentName: _selectedStudentName ?? widget.studentName ?? 'Student',
+            className: widget.className,
+            rollNumber: widget.rollNumber,
+            amount: (res['deducted_amount'] as num?)?.toDouble() ?? (widget.defaultAmount > 0 ? widget.defaultAmount : 0.0),
+            paymentMethod: 'Advance Credit Wallet',
+            receiptNumber: res['receipt_number']?.toString() ?? 'REC-ADV',
+            transactionRef: 'ADV-WALLET',
+            date: DateTime.now(),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Failed to settle with advance credit'),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    }
   }
 
   Future<void> _loadLookups() async {
@@ -108,7 +175,7 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
 
     setState(() {
       _submitting = true;
-      _statusMessage = 'Allocating unique paise within 10-minute window...';
+      _statusMessage = 'Generating dynamic payment QR code...';
     });
 
     final res = await PaymentManagementApiService.instance.createPaymentIntent(
@@ -392,6 +459,63 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
           ),
           const Divider(height: 24),
 
+          // Advance Credit Wallet Notice & 1-Click Settlement Banner
+          if (_availableAdvanceCredit > 0) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF047857), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Advance Credit Wallet Balance Available',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF047857)),
+                        ),
+                        Text(
+                          'Student has ₹ ${NumberFormat('#,##,###.##').format(_availableAdvanceCredit)} in prepaid credit. Settle without requiring fresh UPI / cash payment.',
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF065F46)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    icon: _submitting
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.check_circle_rounded, size: 16),
+                    label: const Text(
+                      'Settle with Credit',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: _submitting ? null : _settleWithAdvanceCredit,
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Student selector if opened from global topbar
           if (widget.studentId == null && state.studentFeesRoster.isNotEmpty) ...[
             Text('Select Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
@@ -476,15 +600,21 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
                 value: _paymentMethod,
                 isExpanded: true,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                items: (_paymentMethods.isNotEmpty
-                        ? _paymentMethods.map((m) => m.label).toList()
-                        : [
-                            'UPI / QR Code',
-                            'Cash at Counter',
-                            'Net Banking / Direct Bank Transfer',
-                            'Cheque / DD',
-                            'POS Debit/Credit Card',
-                          ])
+                items: (() {
+                  final list = _paymentMethods.isNotEmpty
+                      ? _paymentMethods.map((m) => m.label).toList()
+                      : [
+                          'UPI / QR Code',
+                          'Cash at Counter',
+                          'Net Banking / Direct Bank Transfer',
+                          'Cheque / DD',
+                          'POS Debit/Credit Card',
+                        ];
+                  if (_availableAdvanceCredit > 0 && !list.contains('Advance Credit Wallet')) {
+                    list.insert(0, 'Advance Credit Wallet');
+                  }
+                  return list;
+                })()
                     .map((m) => DropdownMenuItem(value: m, child: Text(m, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)))))
                     .toList(),
                 onChanged: (val) {
@@ -532,7 +662,21 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
             children: [
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
               const SizedBox(width: 12),
-              if (isUpi)
+              if (_paymentMethod == 'Advance Credit Wallet')
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: _submitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_rounded, size: 18),
+                  label: const Text('Settle from Wallet', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onPressed: _submitting ? null : _settleWithAdvanceCredit,
+                )
+              else if (isUpi)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
@@ -588,8 +732,6 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
 
     final upiUri = _activeIntent!['upi_uri'] as String? ?? '';
     final totalAmt = (_activeIntent!['total_amount'] as num?)?.toDouble() ?? 0.0;
-    final baseAmt = (_activeIntent!['base_amount'] as num?)?.toDouble() ?? totalAmt;
-    final uniquePaise = _activeIntent!['unique_paise'] as int? ?? 0;
     final vpa = _activeIntent!['upi_vpa'] as String? ?? 'shami@okaxis';
     final payee = _activeIntent!['payee_name'] as String? ?? 'EduSHAMIIT Institution';
     final refCode = _activeIntent!['intent_reference'] as String? ?? '';
@@ -704,37 +846,33 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
           ),
           const SizedBox(height: 16),
 
-          // Unique Amount Card
+          // Clean Total Amount Card (without exposing unique paise ID)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             ),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Total Payable Amount', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                    Text('₹ ${totalAmt.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF16A34A))),
-                  ],
-                ),
-                if (uniquePaise > 0) ...[
-                  const Divider(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Base Fee: ₹ ${baseAmt.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                        child: Text('+ ₹ 0.${uniquePaise.toString().padLeft(2, '0')} Unique Paise ID', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
-                      ),
-                    ],
+                Text(
+                  'Total Payable Amount',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
-                ],
+                ),
+                Text(
+                  '₹ ${totalAmt.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF16A34A),
+                  ),
+                ),
               ],
             ),
           ),
@@ -758,6 +896,91 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
                   const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF2563EB)),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Direct UPI App Selection (Android / iOS / Mobile)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.phone_android_rounded, size: 15, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Pay Using Installed UPI App',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: Text(
+                    'Open UPI App (₹${totalAmt.toStringAsFixed(2)})',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () => _launchUpiApp('universal', upiUri),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _buildUpiAppChip(
+                      label: 'Google Pay',
+                      icon: Icons.g_mobiledata_rounded,
+                      accentColor: const Color(0xFF1A73E8),
+                      isDark: isDark,
+                      onTap: () => _launchUpiApp('gpay', upiUri),
+                    ),
+                    _buildUpiAppChip(
+                      label: 'PhonePe',
+                      icon: Icons.phone_android_rounded,
+                      accentColor: const Color(0xFF5F259F),
+                      isDark: isDark,
+                      onTap: () => _launchUpiApp('phonepe', upiUri),
+                    ),
+                    _buildUpiAppChip(
+                      label: 'Paytm',
+                      icon: Icons.account_balance_wallet_rounded,
+                      accentColor: const Color(0xFF00B9F1),
+                      isDark: isDark,
+                      onTap: () => _launchUpiApp('paytm', upiUri),
+                    ),
+                    _buildUpiAppChip(
+                      label: 'Choose Other',
+                      icon: Icons.apps_rounded,
+                      accentColor: const Color(0xFF16A34A),
+                      isDark: isDark,
+                      onTap: () => _launchUpiApp('universal', upiUri),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -968,6 +1191,96 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // UPI APP LAUNCH & APP SELECTION HELPERS (ANDROID / IOS / MOBILE)
+  // =========================================================================
+
+  Future<void> _launchUpiApp(String schemeType, String upiUri) async {
+    String targetUri = upiUri;
+    if (schemeType == 'gpay') {
+      targetUri = upiUri.replaceFirst('upi://', 'gpay://upi/');
+    } else if (schemeType == 'phonepe') {
+      targetUri = upiUri.replaceFirst('upi://', 'phonepe://');
+    } else if (schemeType == 'paytm') {
+      targetUri = upiUri.replaceFirst('upi://', 'paytmmp://');
+    }
+
+    bool launched = false;
+    try {
+      final uri = Uri.parse(targetUri);
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+
+    if (!launched && schemeType != 'universal') {
+      // Fallback to universal NPCI upi://pay scheme which triggers native OS app chooser
+      try {
+        final universalUri = Uri.parse(upiUri);
+        launched = await launchUrl(universalUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        launched = false;
+      }
+    }
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open UPI app. Please scan the QR code above using any UPI app on your mobile device.'),
+          backgroundColor: Color(0xFFD97706),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Widget _buildUpiAppChip({
+    required String label,
+    required IconData icon,
+    required Color accentColor,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(icon, size: 12, color: accentColor),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
