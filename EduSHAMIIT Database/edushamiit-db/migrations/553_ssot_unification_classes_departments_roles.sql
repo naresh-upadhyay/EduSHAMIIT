@@ -128,6 +128,25 @@ BEGIN
     END LOOP;
 END $$;
 
+-- Deduplicate any existing department or lookup values before creating the unique index
+-- Soft-delete duplicate entries to preserve foreign key integrity
+UPDATE public.lookup_values
+SET deleted_at = NOW()
+WHERE id IN (
+    SELECT id FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                   PARTITION BY lookup_key_id, school_id, UPPER(TRIM(value_name)) 
+                   ORDER BY updated_at DESC, created_at DESC, id ASC
+               ) AS rn
+        FROM public.lookup_values
+        WHERE deleted_at IS NULL
+    ) sub
+    WHERE sub.rn > 1
+);
+
+DROP INDEX IF EXISTS public.uq_lookup_values_dept_canonical;
+
 -- Enforce unique index on lookup values per key and school
 CREATE UNIQUE INDEX IF NOT EXISTS uq_lookup_values_dept_canonical 
 ON public.lookup_values (lookup_key_id, school_id, UPPER(TRIM(value_name))) 
@@ -315,9 +334,16 @@ SET class_id = NULL
 WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM public.academic_classes);
 
 -- Add foreign key constraint to academic_classes
-ALTER TABLE public.question_bank
-ADD CONSTRAINT question_bank_class_id_fkey
-FOREIGN KEY (class_id) REFERENCES public.academic_classes(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'question_bank_class_id_fkey'
+    ) THEN
+        ALTER TABLE public.question_bank
+        ADD CONSTRAINT question_bank_class_id_fkey
+        FOREIGN KEY (class_id) REFERENCES public.academic_classes(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Update stored procedure: fn_get_notice_metadata
 CREATE OR REPLACE FUNCTION public.fn_get_notice_metadata(p_school_id uuid)
