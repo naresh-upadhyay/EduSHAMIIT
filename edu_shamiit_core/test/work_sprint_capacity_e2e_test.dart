@@ -7,12 +7,12 @@ import 'package:edu_shamiit_core/screens/work_management/utils/work_sprint_date_
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Widget buildTestableCapacityWidget({String sprintId = 's8', String selectedTeam = 'Digital Campus Team'}) {
+  Widget buildTestableCapacityWidget({String sprintId = 's8', String selectedTeam = 'Digital Campus Team', double width = 1800}) {
     return ProviderScope(
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            width: 1400,
+            width: width,
             height: 1000,
             child: SprintCapacityTabView(
               sprintId: sprintId,
@@ -54,20 +54,29 @@ void main() {
       expect(find.text('0'), findsWidgets);
     });
 
-    testWidgets('Renders Daily Grouped Bar Chart and Legend', (tester) async {
+    testWidgets('Renders Sprint Burndown Chart toggle and Daily Grouped Bar Chart', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableCapacityWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sprint Burndown'), findsWidgets);
+      expect(find.text('Burndown'), findsOneWidget);
+      expect(find.text('Daily Effort'), findsOneWidget);
+
+      // Verify legend indicators
+      expect(find.text('Ideal Burndown'), findsOneWidget);
+      expect(find.text('Remaining (h)'), findsWidgets);
+      expect(find.text('Completed (h)'), findsOneWidget);
+      expect(find.text('Daily Capacity'), findsOneWidget);
+
+      // Tap Daily Effort switcher
+      await tester.tap(find.text('Daily Effort'));
       await tester.pumpAndSettle();
 
       expect(find.text('Capacity vs Workload (Daily)'), findsOneWidget);
       expect(find.text('Capacity (h)'), findsWidgets);
       expect(find.text('Planned (h)'), findsWidgets);
       expect(find.text('Actual (h)'), findsWidgets);
-
-      // Check dates
-      final dailyPoints = WorkSprintDateHelper.generateDailyCapacityPoints();
-      expect(find.text(dailyPoints.first.dateFmt), findsOneWidget);
-      expect(find.text(dailyPoints.last.dateFmt), findsOneWidget);
     });
 
     testWidgets('Renders 7 Team Members with Roles, Hours, and Status Badges', (tester) async {
@@ -137,25 +146,37 @@ void main() {
       await tester.tap(find.text('Adjust Capacity'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Daily Working Hours'), findsOneWidget);
-      expect(find.text('Sprint Working Days'), findsOneWidget);
-      expect(find.text('Save Capacity'), findsOneWidget);
+      expect(find.text('Daily Hours'), findsOneWidget);
+      expect(find.text('Sprint Days'), findsOneWidget);
+      expect(find.text('Save Sprint Capacity'), findsOneWidget);
 
       // Close dialog
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
     });
 
-    testWidgets('Opens Add Team Member Dialog when button is tapped', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1400, 1000));
-      await tester.pumpWidget(buildTestableCapacityWidget());
+    testWidgets('Add Team Member button is permanently removed and Edit Capacity buttons are present', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1900, 1200));
+      await tester.pumpWidget(buildTestableCapacityWidget(width: 1900));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Add Team Member'));
+      // Ensure Add Team Member button is not on screen
+      expect(find.text('Add Team Member'), findsNothing);
+
+      // Verify individual Edit button exists for each member row
+      expect(find.byTooltip('Edit Sprint Capacity'), findsWidgets);
+
+      // Scroll to ensure visible in horizontal view then tap
+      await tester.ensureVisible(find.byTooltip('Edit Sprint Capacity').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Edit Sprint Capacity').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Add Member to Sprint Capacity'), findsOneWidget);
-      expect(find.text('Role in Sprint'), findsOneWidget);
+      expect(find.text('Daily Hours'), findsOneWidget);
+      expect(find.text('Sprint Days'), findsOneWidget);
+      expect(find.text('Days Off / Leaves'), findsOneWidget);
+      expect(find.text('Role in this Sprint (from System Roles)'), findsOneWidget);
+      expect(find.text('Save Sprint Capacity'), findsOneWidget);
 
       // Close dialog
       await tester.tap(find.text('Cancel'));

@@ -34,6 +34,8 @@ class ClassTabsBar extends ConsumerWidget {
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
         return Container(
+          width: double.infinity,
+          alignment: Alignment.centerLeft,
           padding: EdgeInsets.symmetric(
             horizontal: isMobile ? 14 : 24,
             vertical: isMobile ? 10 : 12,
@@ -49,10 +51,12 @@ class ClassTabsBar extends ConsumerWidget {
               ),
             ),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Container(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color:
@@ -161,7 +165,8 @@ class ClassTabsBar extends ConsumerWidget {
               ),
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }

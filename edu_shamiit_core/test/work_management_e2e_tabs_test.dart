@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/screens/work_management/work_management_screen.dart';
 import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart';
 import 'package:edu_shamiit_core/screens/work_management/widgets/drawers/work_item_detail_drawer.dart';
-import 'package:edu_shamiit_core/screens/work_management/utils/work_sprint_date_helper.dart';
 
 // Mock Http to prevent network image failures in tests
 class TestHttpOverrides extends HttpOverrides {
@@ -221,7 +220,7 @@ void main() {
       expect(find.text('Bulk Actions'), findsOneWidget);
     });
 
-    testWidgets('Switches to Sprints Tab and renders Sprint Dashboard, KPIs, and Burndown', (tester) async {
+    testWidgets('Switches to Sprints Tab and renders All Sprints Grid, KPIs, and Subtabs', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -236,35 +235,17 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Verify Sprint Header Card & Status
-      expect(find.text('Sprint 8'), findsWidgets);
-      expect(find.text('Active'), findsWidgets);
-      expect(find.textContaining(WorkSprintDateHelper.currentSprintStartFmt), findsWidgets);
-
-      // Verify 5 Sprint KPI Cards
-      expect(find.text('Total Items'), findsOneWidget);
-      expect(find.text('Completed'), findsWidgets);
-      expect(find.text('In Progress'), findsWidgets);
-      expect(find.text('Not Started'), findsWidgets);
-      expect(find.text('Blocked'), findsWidgets);
-
-      // Verify Sprint Goal Card & Burndown
-      expect(find.text('Sprint Goal'), findsWidgets);
-      expect(find.text('Sprint Burndown'), findsOneWidget);
-
       // Verify Sub-tabs
-      expect(find.text('Sprint Backlog'), findsOneWidget);
-      expect(find.text('Boards (Task Board)'), findsOneWidget);
+      expect(find.text('All Sprints (Grid)'), findsOneWidget);
       expect(find.text('Capacity'), findsOneWidget);
-      expect(find.text('Team'), findsOneWidget);
       expect(find.text('Retrospective'), findsOneWidget);
 
-      // Verify Right Column Widgets
-      expect(find.text('Sprint Details'), findsOneWidget);
-      expect(find.text('Sprint Progress by Type'), findsOneWidget);
-      expect(find.text('Upcoming Sprints'), findsOneWidget);
-      expect(find.text('Sprint 9'), findsWidgets);
-      expect(find.text('Sprint 10'), findsWidgets);
+      // Verify All Sprints KPI Cards
+      expect(find.text('Total Sprints'), findsOneWidget);
+      expect(find.text('Active Sprints'), findsOneWidget);
+      expect(find.text('Planned Sprints'), findsOneWidget);
+      expect(find.text('Total Capacity'), findsWidgets);
+      expect(find.text('Search sprints by name, goal, team...'), findsOneWidget);
     });
 
     testWidgets('Opens Create Work Item Dialog when Create button is clicked', (tester) async {
@@ -389,38 +370,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // 1. Verify Sprint Sub-Tabs including All Sprints (Grid)
-      expect(find.text('Sprint Backlog'), findsOneWidget);
-      expect(find.text('Boards (Task Board)'), findsOneWidget);
+      // 1. Verify Sprint Sub-Tabs
       expect(find.text('All Sprints (Grid)'), findsOneWidget);
       expect(find.text('Capacity'), findsOneWidget);
       expect(find.text('Team'), findsOneWidget);
       expect(find.text('Retrospective'), findsOneWidget);
 
-      // 2. Switch to All Sprints (Grid)
-      await tester.tap(find.text('All Sprints (Grid)'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+      // 2. All Sprints (Grid) is active by default
       expect(find.text('Total Sprints'), findsOneWidget);
       expect(find.text('Active Sprints'), findsOneWidget);
       expect(find.text('Planned Sprints'), findsOneWidget);
       expect(find.text('Total Capacity'), findsWidgets);
       expect(find.text('Create Sprint'), findsOneWidget);
       expect(find.text('Search sprints by name, goal, team...'), findsOneWidget);
-
-      // 3. Verify Right Sidebar on Sprint Backlog
-      await tester.tap(find.text('Sprint Backlog'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text('Sprint Details'), findsOneWidget);
-      expect(find.text('Sprint Progress by Type'), findsOneWidget);
-      expect(find.text('Upcoming Sprints'), findsOneWidget);
-
-      // 4. Switch to Boards (Task Board)
-      await tester.tap(find.text('Boards (Task Board)'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text('Sprint Task Board'), findsOneWidget);
 
       // 5. Switch to Capacity
       await tester.tap(find.text('Capacity'));

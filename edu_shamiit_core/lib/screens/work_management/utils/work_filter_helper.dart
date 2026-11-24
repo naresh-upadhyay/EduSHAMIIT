@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/work_models.dart';
 import '../services/work_api_service.dart';
+import '../widgets/work_searchable_dropdown.dart';
 
 class WorkFilterMetadata {
   final List<WorkAssigneeModel> assignees;
   final List<WorkAcademicClassModel> classes;
   final List<String> teams;
+  final List<String> roles;
+  final List<Map<String, dynamic>> rolesData;
 
   const WorkFilterMetadata({
     this.assignees = const [],
     this.classes = const [],
     this.teams = const [],
+    this.roles = const [],
+    this.rolesData = const [],
   });
 }
 
@@ -22,6 +27,8 @@ class WorkFilterHelper {
   static Future<WorkFilterMetadata>? _inFlightMetadataFuture;
   static List<String>? _cachedTeams;
   static List<WorkAcademicClassModel>? _cachedClasses;
+  static List<String>? _cachedRoles;
+  static List<Map<String, dynamic>>? _cachedRolesData;
 
   /// Clears in-memory caches to force live re-fetch from database
   static void clearCache() {
@@ -29,9 +36,11 @@ class WorkFilterHelper {
     _inFlightMetadataFuture = null;
     _cachedTeams = null;
     _cachedClasses = null;
+    _cachedRoles = null;
+    _cachedRolesData = null;
   }
 
-  /// Loads and caches assignable users, classes, and teams in a single deduped batch.
+  /// Loads and caches assignable users, classes, teams, and roles in a single deduped batch.
   static Future<WorkFilterMetadata> loadMetadata(WorkApiService api, {bool forceRefresh = false}) async {
     if (!forceRefresh && _cachedMetadata != null) {
       return _cachedMetadata!;
@@ -52,23 +61,29 @@ class WorkFilterHelper {
       final usersFuture = api.getAssignableUsers(limit: 100);
       final classesFuture = fetchAcademicClasses(api, forceRefresh: forceRefresh);
       final teamsFuture = fetchTeamNames(api, forceRefresh: forceRefresh);
-      final results = await Future.wait([usersFuture, classesFuture, teamsFuture]);
+      final rolesFuture = fetchRoles(api, forceRefresh: forceRefresh);
+      final results = await Future.wait([usersFuture, classesFuture, teamsFuture, rolesFuture]);
       return WorkFilterMetadata(
         assignees: results[0] as List<WorkAssigneeModel>,
         classes: results[1] as List<WorkAcademicClassModel>,
         teams: results[2] as List<String>,
+        roles: results[3] as List<String>,
+        rolesData: _cachedRolesData ?? const [],
       );
     } catch (_) {
       return const WorkFilterMetadata(
         assignees: [],
         classes: [],
         teams: defaultTeams,
+        roles: defaultRoles,
+        rolesData: [],
       );
     }
   }
 
   /// Canonical work boards matching Azure DevOps Boards.
   static const List<String> boardOptions = [
+    'All Boards',
     'Institute Work Board',
     'Academic Board',
     'IT & Infra Board',
@@ -81,21 +96,70 @@ class WorkFilterHelper {
   };
 
   static String? resolveBoardId(String? boardName) {
-    if (boardName == null || boardName.isEmpty || boardName.toLowerCase() == 'all') return null;
+    if (boardName == null || boardName.isEmpty || boardName.toLowerCase() == 'all' || boardName.toLowerCase() == 'all boards') return null;
     return boardIdMap[boardName] ?? boardName;
   }
 
-  /// Canonical roles matching the school ERP architecture.
-  static const List<String> roleOptions = [
+  /// Default full set of 27 roles matching DB/school ERP architecture, sorted alphabetically with 'All' first.
+  static const List<String> defaultRoles = [
     'All',
-    'Teacher',
-    'Staff',
+    'Academic Admin',
+    'Accountant',
+    'Auditor',
+    'Campus Administrator',
+    'Campus Security',
+    'Department Head',
+    'Device Administrator',
+    'Director',
+    'Driver',
+    'Examination Controller',
+    'Facility Manager',
+    'Front Office',
+    'Hostel Warden',
+    'HR Manager',
+    'Institution Admin',
+    'IoT Operator',
+    'IT/IoT Administrator',
+    'Librarian',
+    'Maintenance Staff',
+    'Sports Coach',
+    'Staff Member',
     'Student',
-    'Admin',
-    'Security',
-    'Hostel',
+    'Student (Parent)',
     'Super Admin',
+    'Teacher',
+    'Transport Manager',
+    'View Only',
   ];
+
+  /// Canonical roles accessor - provides dynamic cached roles or full default 27 roles list.
+  static List<String> get roleOptions => _cachedRoles ?? defaultRoles;
+
+  /// Loads all 27 roles dynamically from the backend API/DB with in-memory caching and alphabetical sorting.
+  static Future<List<String>> fetchRoles(WorkApiService api, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedRoles != null && _cachedRoles!.isNotEmpty) {
+      return _cachedRoles!;
+    }
+    try {
+      final rawRoles = await api.getWorkRoles();
+      if (rawRoles.isNotEmpty) {
+        _cachedRolesData = rawRoles;
+        final labels = <String>{};
+        for (final r in rawRoles) {
+          final label = (r['label'] ?? r['name'] ?? r['code'] ?? '').toString().trim();
+          if (label.isNotEmpty && label.toLowerCase() != 'all') {
+            labels.add(label);
+          }
+        }
+        final sortedList = labels.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        final result = ['All', ...sortedList];
+        _cachedRoles = result;
+        return result;
+      }
+    } catch (_) {}
+    _cachedRoles = defaultRoles;
+    return defaultRoles;
+  }
 
   /// Canonical institute departments.
   static const List<String> defaultDepartments = [
@@ -129,7 +193,7 @@ class WorkFilterHelper {
       return _cachedTeams!;
     }
     try {
-      final resp = await api.getTeamsDirectory(limit: 50);
+      final resp = await api.getTeamsDirectory(limit: 100, forceRefresh: forceRefresh);
       if (resp != null && resp.teams.isNotEmpty) {
         final names = resp.teams.map((t) => t.name).toList();
         final combined = <String>{'All', ...names, ...defaultTeams}.toList();
@@ -258,18 +322,64 @@ class WorkFilterHelper {
 
     // 1. Role Filter
     if (roleFilter != 'All') {
-      final rf = roleFilter.toLowerCase();
-      final hasRoleAssignee = item.assignees.any((a) =>
-          a.role.toLowerCase() == rf ||
-          a.role.toLowerCase().contains(rf) ||
-          (rf == 'student' && a.className != null));
-      final hasChildRoleAssignee = item.children.any((c) =>
-          c.assignees.any((a) =>
-              a.role.toLowerCase() == rf ||
-              a.role.toLowerCase().contains(rf) ||
-              (rf == 'student' && a.className != null)));
-      final isItemRoleTarget = (item.targetRole ?? '').toLowerCase() == rf;
-      final isStudentTarget = rf == 'student' &&
+      final rf = roleFilter.toLowerCase().trim();
+      final validTokens = <String>{rf};
+
+      // Extract matching aliases from cached roles data (code, name, label)
+      for (final rd in _cachedRolesData ?? const <Map<String, dynamic>>[]) {
+        final l = (rd['label'] ?? '').toString().toLowerCase().trim();
+        final n = (rd['name'] ?? '').toString().toLowerCase().trim();
+        final c = (rd['code'] ?? '').toString().toLowerCase().trim();
+        if (l == rf || n == rf || c == rf || (l.isNotEmpty && rf.contains(l)) || (rf.isNotEmpty && l.contains(rf))) {
+          if (l.isNotEmpty) validTokens.add(l);
+          if (n.isNotEmpty) validTokens.add(n);
+          if (c.isNotEmpty) validTokens.add(c);
+        }
+      }
+
+      // Canonical role aliases
+      if (rf == 'staff' || rf == 'staff member') {
+        validTokens.addAll(['staff', 'staff member', 'staff_member']);
+      }
+      if (rf == 'admin' || rf == 'institution admin') {
+        validTokens.addAll(['admin', 'institution admin', 'institution_admin', 'institution_administrator']);
+      }
+      if (rf == 'super admin') {
+        validTokens.addAll(['super admin', 'super_admin', 'superadmin']);
+      }
+      if (rf == 'security' || rf == 'campus security') {
+        validTokens.addAll(['security', 'campus security', 'campus_security']);
+      }
+      if (rf == 'hostel' || rf == 'hostel warden') {
+        validTokens.addAll(['hostel', 'hostel warden', 'hostel_warden']);
+      }
+      if (rf == 'teacher' || rf == 'faculty') {
+        validTokens.addAll(['teacher', 'faculty']);
+      }
+      if (rf == 'academic admin' || rf == 'principal') {
+        validTokens.addAll(['academic admin', 'principal', 'academic_admin']);
+      }
+
+      bool assigneeMatchesRole(WorkAssigneeModel a) {
+        final aRole = a.role.toLowerCase().trim();
+        if (validTokens.contains(aRole)) return true;
+        for (final token in validTokens) {
+          if (aRole.contains(token) || token.contains(aRole)) return true;
+        }
+        if (validTokens.contains('student') && a.className != null) return true;
+        return false;
+      }
+
+      final hasRoleAssignee = item.assignees.any(assigneeMatchesRole);
+      final hasChildRoleAssignee = item.children.any((c) => c.assignees.any(assigneeMatchesRole));
+
+      final itemTargetRole = (item.targetRole ?? '').toLowerCase().trim();
+      final isItemRoleTarget = itemTargetRole.isNotEmpty && (
+        validTokens.contains(itemTargetRole) ||
+        validTokens.any((t) => itemTargetRole.contains(t) || t.contains(itemTargetRole))
+      );
+
+      final isStudentTarget = validTokens.contains('student') &&
           (item.workType.toUpperCase() == 'HOMEWORK' ||
               item.workType.toUpperCase() == 'ASSIGNMENT' ||
               item.category.toLowerCase().contains('student') ||
@@ -369,7 +479,7 @@ class WorkFilterHelper {
     return true;
   }
 
-  /// Builds a reusable modern dropdown for the Azure DevOps filter bar.
+  /// Builds a reusable modern searchable dropdown for the Azure DevOps filter bar.
   static Widget buildFilterDropdown({
     required String label,
     required String value,
@@ -378,53 +488,16 @@ class WorkFilterHelper {
     required bool isDark,
     IconData? prefixIcon,
     Color? accentColor,
+    double? width,
   }) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accentColor ?? borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (prefixIcon != null) ...[
-            Icon(prefixIcon, size: 14, color: accentColor ?? const Color(0xFF3B82F6)),
-            const SizedBox(width: 5),
-          ],
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: label,
+      value: value,
+      items: items,
+      icon: prefixIcon,
+      width: width,
+      compact: true,
+      onChanged: (v) => onChanged(v),
     );
   }
 
@@ -438,7 +511,7 @@ class WorkFilterHelper {
   }) async {
     if (itemIds.isEmpty) return;
 
-    final teamsList = defaultTeams.where((t) => t != 'All').toList();
+    final teamsList = (_cachedTeams ?? defaultTeams).where((t) => t != 'All' && t != 'All Teams').toList();
     String selectedTeam = teamsList.isNotEmpty ? teamsList.first : 'Academic Systems Team';
     bool isUnassign = false;
 
@@ -608,6 +681,258 @@ class WorkFilterHelper {
                   child: Text(
                     isUnassign ? 'Unassign Team' : 'Tag to Team',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Unified "Manage Assignees" dialog for single and bulk work item assignment.
+  /// Features search, role filters, user list with avatars/departments/emails, and multiselect.
+  static Future<void> openManageAssigneesDialog({
+    required BuildContext context,
+    required List<String> itemIds,
+    List<WorkAssigneeModel>? availableUsers,
+    WorkApiService? api,
+    Set<String>? initialSelectedUserIds,
+    required Future<bool> Function({
+      required List<String> itemIds,
+      required List<String> selectedUserIds,
+      required List<WorkAssigneeModel> selectedUsers,
+    }) onApply,
+    VoidCallback? onSuccess,
+  }) async {
+    List<WorkAssigneeModel> users = List<WorkAssigneeModel>.from(availableUsers ?? []);
+    if (users.isEmpty && api != null) {
+      final meta = await loadMetadata(api);
+      users = meta.assignees;
+    }
+    if (!context.mounted) return;
+
+    final selectedIds = Set<String>.from(initialSelectedUserIds ?? {});
+    final searchCtrl = TextEditingController();
+    String roleFilter = 'All';
+    bool isSaving = false;
+
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final q = searchCtrl.text.trim().toLowerCase();
+            final filteredUsers = users.where((u) {
+              if (roleFilter != 'All' && u.role.toLowerCase() != roleFilter.toLowerCase()) {
+                return false;
+              }
+              if (q.isNotEmpty) {
+                final mName = u.fullName.toLowerCase().contains(q);
+                final mEmail = (u.email ?? '').toLowerCase().contains(q);
+                final mRole = u.role.toLowerCase().contains(q);
+                final mDept = (u.department ?? '').toLowerCase().contains(q);
+                if (!mName && !mEmail && !mRole && !mDept) return false;
+              }
+              return true;
+            }).toList();
+
+            final screenWidth = MediaQuery.of(ctx).size.width;
+            final dialogWidth = screenWidth > 560 ? 480.0 : (screenWidth - 32).clamp(280.0, 480.0);
+
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.group_add_rounded, color: Color(0xFF2563EB), size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Manage Assignees (${selectedIds.length} selected)',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  if (selectedIds.isNotEmpty)
+                    TextButton(
+                      onPressed: () => setDlgState(() => selectedIds.clear()),
+                      child: const Text('Clear all', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                    ),
+                ],
+              ),
+              content: SizedBox(
+                width: dialogWidth,
+                height: 440,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setDlgState(() {}),
+                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
+                      decoration: InputDecoration(
+                        hintText: 'Search teachers, students, staff by name, role, email...',
+                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF3B82F6)),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['All', 'teacher', 'student', 'admin', 'staff', 'super_admin'].map((r) {
+                          final active = roleFilter == r;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(
+                                r == 'All' ? 'All Roles' : r.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: active ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                              ),
+                              selected: active,
+                              selectedColor: const Color(0xFF2563EB),
+                              backgroundColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF1F5F9),
+                              onSelected: (_) => setDlgState(() => roleFilter = r),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: filteredUsers.isEmpty
+                          ? const Center(
+                              child: Text('No matching users found.', style: TextStyle(color: Color(0xFF94A3B8))),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredUsers.length,
+                              separatorBuilder: (_, __) => Divider(
+                                height: 1,
+                                color: isDark ? const Color(0xFF1F293D) : const Color(0xFFF1F5F9),
+                              ),
+                              itemBuilder: (context, idx) {
+                                final u = filteredUsers[idx];
+                                final uid = u.userId.isNotEmpty ? u.userId : u.id;
+                                final isChecked = selectedIds.contains(uid);
+                                return CheckboxListTile(
+                                  value: isChecked,
+                                  dense: true,
+                                  activeColor: const Color(0xFF2563EB),
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  title: Text(
+                                    u.fullName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${u.role.toUpperCase()}${u.department != null && u.department!.isNotEmpty ? ' • ${u.department}' : ''}${u.email != null && u.email!.isNotEmpty ? ' • ${u.email}' : ''}',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  secondary: CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                    backgroundImage: (u.avatarUrl != null && u.avatarUrl!.isNotEmpty)
+                                        ? NetworkImage(u.avatarUrl!)
+                                        : null,
+                                    child: (u.avatarUrl == null || u.avatarUrl!.isEmpty)
+                                        ? Text(
+                                            u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : 'U',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2563EB),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  onChanged: (val) {
+                                    setDlgState(() {
+                                      if (val == true) {
+                                        selectedIds.add(uid);
+                                      } else {
+                                        selectedIds.remove(uid);
+                                      }
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setDlgState(() => isSaving = true);
+                          final selUsers = users.where((u) {
+                            final uid = u.userId.isNotEmpty ? u.userId : u.id;
+                            return selectedIds.contains(uid);
+                          }).toList();
+                          final ok = await onApply(
+                            itemIds: itemIds,
+                            selectedUserIds: selectedIds.toList(),
+                            selectedUsers: selUsers,
+                          );
+                          if (!context.mounted) return;
+                          Navigator.pop(ctx, true);
+                          if (ok) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  selectedIds.isEmpty
+                                      ? 'Unassigned assignees from ${itemIds.length} items.'
+                                      : 'Updated assignees for ${itemIds.length} items (${selectedIds.length} assigned).',
+                                ),
+                                backgroundColor: const Color(0xFF10B981),
+                              ),
+                            );
+                            onSuccess?.call();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to update assignees. Please try again.'),
+                                backgroundColor: Color(0xFFEF4444),
+                              ),
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  label: Text('Save (${selectedIds.length})', style: const TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/work_models.dart';
 import '../services/work_api_service.dart';
 import '../utils/work_sprint_date_helper.dart';
+import '../utils/work_filter_helper.dart';
 
 // API Service Provider
 final workApiServiceProvider = Provider<WorkApiService>((ref) => WorkApiService.instance);
@@ -12,19 +13,23 @@ final workApiServiceProvider = Provider<WorkApiService>((ref) => WorkApiService.
 class WorkBoardState {
   final bool isLoading;
   final List<KanbanColumnModel> columns;
+  final String? boardId;
 
   const WorkBoardState({
     this.isLoading = false,
     this.columns = const [],
+    this.boardId,
   });
 
   WorkBoardState copyWith({
     bool? isLoading,
     List<KanbanColumnModel>? columns,
+    String? boardId,
   }) {
     return WorkBoardState(
       isLoading: isLoading ?? this.isLoading,
       columns: columns ?? this.columns,
+      boardId: boardId ?? this.boardId,
     );
   }
 }
@@ -33,17 +38,28 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
   final Ref? _ref;
   final WorkApiService _api;
 
-  String _lastBoardId = 'default';
+  String _lastBoardId = 'all';
   String? _lastSprintId;
   String _lastView = 'Task & Story';
   String _lastGroupBy = 'Status';
   String? _lastSearch;
+
+  String get currentBoardId => _lastBoardId;
 
   WorkBoardNotifier([Ref? ref, WorkApiService? api])
       : _ref = ref,
         _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkBoardState(isLoading: true)) {
     loadBoard();
+  }
+
+  void updateItemLocally(WorkItemModel updatedItem) {
+    if (!mounted) return;
+    final updatedCols = state.columns.map((col) {
+      final items = col.items.map((i) => i.id == updatedItem.id ? updatedItem : i).toList();
+      return col.copyWith(items: items);
+    }).toList();
+    state = state.copyWith(columns: updatedCols);
   }
 
   Future<void> loadBoard({
@@ -54,7 +70,12 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
     String? search,
     bool forceRefresh = false,
   }) async {
-    if (boardId != null) _lastBoardId = boardId;
+    if (boardId != null) {
+      final bTrim = boardId.trim().toLowerCase();
+      _lastBoardId = (bTrim.isEmpty || bTrim == 'all' || bTrim == 'all boards' || bTrim == 'null') ? 'all' : boardId;
+    } else {
+      _lastBoardId = 'all';
+    }
     if (sprintId != null) _lastSprintId = sprintId;
     if (view != null) _lastView = view;
     if (groupBy != null) _lastGroupBy = groupBy;
@@ -71,7 +92,7 @@ class WorkBoardNotifier extends StateNotifier<WorkBoardState> {
         forceRefresh: forceRefresh,
       );
       if (!mounted) return;
-      state = WorkBoardState(isLoading: false, columns: cols);
+      state = WorkBoardState(isLoading: false, columns: cols, boardId: _lastBoardId);
     } catch (_) {
       if (mounted) {
         state = state.copyWith(isLoading: false);
@@ -263,10 +284,10 @@ class WorkListState {
   const WorkListState({
     this.isLoading = false,
     this.items = const [],
-    this.totalCount = 66,
+    this.totalCount = 0,
     this.page = 1,
-    this.pageSize = 12,
-    this.totalPages = 6,
+    this.pageSize = 500,
+    this.totalPages = 1,
     this.kpis = const {},
     this.workType = 'All',
     this.status = 'All',
@@ -286,6 +307,8 @@ class WorkListState {
     String? status,
     String? assigneeId,
     String? boardId,
+    bool clearBoard = false,
+    bool clearAssignee = false,
   }) {
     return WorkListState(
       isLoading: isLoading ?? this.isLoading,
@@ -297,8 +320,8 @@ class WorkListState {
       kpis: kpis ?? this.kpis,
       workType: workType ?? this.workType,
       status: status ?? this.status,
-      assigneeId: assigneeId ?? this.assigneeId,
-      boardId: boardId ?? this.boardId,
+      assigneeId: clearAssignee ? null : (assigneeId ?? this.assigneeId),
+      boardId: clearBoard ? null : (boardId ?? this.boardId),
     );
   }
 }
@@ -311,7 +334,7 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       : _ref = ref,
         _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkListState(isLoading: true)) {
-    loadPagedItems();
+    loadPagedItems(forceRefresh: true);
   }
 
   Future<void> loadPagedItems({String? boardId, bool forceRefresh = false}) async {
@@ -328,9 +351,9 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
         forceRefresh: forceRefresh,
       );
 
-      final total = (res['total'] as num?)?.toInt() ?? 66;
-      final pages = (total / state.pageSize).ceil().clamp(1, 99);
-      final items = (res['items'] as List<WorkItemModel>?) ?? [];
+      final items = ((res['items'] ?? res['stories']) as List<WorkItemModel>?) ?? [];
+      final total = (res['total'] as num?)?.toInt() ?? items.length;
+      final pages = (total / state.pageSize).ceil().clamp(1, 9999);
 
       if (!mounted) return;
       state = state.copyWith(
@@ -347,15 +370,24 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
     }
   }
 
-  void setFilter({String? workType, String? status, String? assigneeId, String? boardId}) {
+  void setFilter({
+    String? workType,
+    String? status,
+    String? assigneeId,
+    String? boardId,
+    bool clearBoard = false,
+    bool clearAssignee = false,
+  }) {
     state = state.copyWith(
-      workType: workType ?? state.workType,
-      status: status ?? state.status,
+      workType: workType ?? (workType == null && clearBoard ? 'All' : state.workType),
+      status: status ?? (status == null && clearBoard ? 'All' : state.status),
       assigneeId: assigneeId,
-      boardId: boardId ?? state.boardId,
+      boardId: clearBoard ? null : (boardId ?? state.boardId),
+      clearBoard: clearBoard,
+      clearAssignee: clearAssignee,
       page: 1,
     );
-    loadPagedItems();
+    loadPagedItems(boardId: clearBoard ? null : (boardId ?? state.boardId), forceRefresh: true);
   }
 
   void setPage(int newPage, {int? pageSize}) {
@@ -371,6 +403,8 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
     String? status,
     String? priority,
     String? assigneeId,
+    List<String>? assigneeIds,
+    List<WorkAssigneeModel>? assignees,
     String? sprintId,
     String? teamId,
     String? teamName,
@@ -380,6 +414,7 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       status: status,
       priority: priority,
       assigneeId: assigneeId,
+      assigneeIds: assigneeIds,
       sprintId: sprintId,
       teamId: teamId,
       teamName: teamName,
@@ -391,6 +426,7 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
           return item.copyWith(
             status: status ?? item.status,
             priority: priority ?? item.priority,
+            assignees: assignees ?? item.assignees,
             sprintId: sprintId ?? item.sprintId,
             teamId: isUnassign ? null : (teamId ?? item.teamId),
             teamName: isUnassign ? null : (teamName ?? item.teamName),
@@ -401,6 +437,7 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       }).toList();
       state = state.copyWith(items: updated);
       if (mounted) {
+        loadPagedItems(forceRefresh: true);
         _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
         _ref?.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
         _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
@@ -426,6 +463,12 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
     }
     return allSuccess;
+  }
+
+  void updateItemLocally(WorkItemModel updatedItem) {
+    if (!mounted) return;
+    final updated = state.items.map((i) => i.id == updatedItem.id ? updatedItem : i).toList();
+    state = state.copyWith(items: updated);
   }
 
   void loadItems() {
@@ -503,7 +546,17 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
   }
 
   Future<void> loadBacklog({String? boardId, String? epicId, String? search, bool forceRefresh = false}) async {
-    final effectiveBoardId = boardId ?? state.boardId;
+    final String? effectiveBoardId;
+    if (boardId != null) {
+      final clean = boardId.trim().toLowerCase();
+      if (clean.isEmpty || clean == 'all' || clean == 'all boards') {
+        effectiveBoardId = null;
+      } else {
+        effectiveBoardId = boardId;
+      }
+    } else {
+      effectiveBoardId = state.boardId;
+    }
     state = state.copyWith(isLoading: true, currentEpicId: epicId ?? state.currentEpicId, boardId: effectiveBoardId);
     try {
       final res = await _api.getBacklogTree(
@@ -512,7 +565,7 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
         search: search,
         forceRefresh: forceRefresh,
       );
-      final items = (res['items'] as List<WorkItemModel>?) ?? [];
+      final items = ((res['items'] ?? res['stories']) as List<WorkItemModel>?) ?? [];
       final epics = (res['epics'] as List<BacklogEpicModel>?) ?? [];
       final kpis = (res['kpis'] as Map<String, dynamic>?) ?? {};
       final total = (res['total_items'] as num?)?.toInt() ?? items.length;
@@ -554,6 +607,8 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
     String? status,
     String? priority,
     String? assigneeId,
+    List<String>? assigneeIds,
+    List<WorkAssigneeModel>? assignees,
     String? sprintId,
     String? teamId,
     String? teamName,
@@ -563,6 +618,7 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
       status: status,
       priority: priority,
       assigneeId: assigneeId,
+      assigneeIds: assigneeIds,
       sprintId: sprintId,
       teamId: teamId,
       teamName: teamName,
@@ -575,6 +631,29 @@ class WorkBacklogNotifier extends StateNotifier<WorkBacklogState> {
       _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
     }
     return success;
+  }
+
+  void updateItemLocally(WorkItemModel updatedItem) {
+    if (!mounted) return;
+    bool found = false;
+    final updatedStories = state.stories.map((story) {
+      if (story.id == updatedItem.id) {
+        found = true;
+        return updatedItem.copyWith(children: story.children);
+      }
+      final updatedChildren = story.children.map((child) {
+        if (child.id == updatedItem.id) {
+          found = true;
+          return updatedItem;
+        }
+        return child;
+      }).toList();
+      return story.copyWith(children: updatedChildren);
+    }).toList();
+
+    if (found) {
+      state = state.copyWith(stories: updatedStories);
+    }
   }
 
   Future<bool> bulkDelete(List<String> itemIds) async {
@@ -790,7 +869,7 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   }
 
   Future<void> loadSprintDashboard({
-    String sprintId = 's8',
+    String? sprintId,
     String? boardId,
     String? team,
     String? search,
@@ -799,15 +878,25 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
     bool quiet = false,
     bool forceRefresh = false,
   }) async {
-    if (sprintId.isNotEmpty && sprintId != 's8') {
-      _lastSprintId = sprintId;
-    } else if (sprintId == 's8' && _lastSprintId != 's8') {
-      // Keep _lastSprintId unless explicitly requested
-    } else {
+    if (sprintId != null && sprintId.isNotEmpty) {
       _lastSprintId = sprintId;
     }
-    if (boardId != null) _lastBoardId = boardId;
-    if (team != null) _lastTeam = team;
+    if (boardId != null) {
+      final clean = boardId.trim().toLowerCase();
+      if (clean.isEmpty || clean == 'all' || clean == 'all boards') {
+        _lastBoardId = null;
+      } else {
+        _lastBoardId = boardId.trim();
+      }
+    }
+    if (team != null) {
+      final clean = team.trim().toLowerCase();
+      if (clean.isEmpty || clean == 'all' || clean == 'all teams') {
+        _lastTeam = null;
+      } else {
+        _lastTeam = team.trim();
+      }
+    }
     if (search != null) _lastSearch = search;
     _lastPage = page;
     _lastPageSize = pageSize;
@@ -828,7 +917,7 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
         pageSize: _lastPageSize,
         forceRefresh: forceRefresh,
       );
-      final items = (res['items'] as List<WorkItemModel>?) ?? [];
+      final items = ((res['items'] ?? res['stories']) as List<WorkItemModel>?) ?? [];
       final burndown = (res['burndown'] as List<BurndownPointModel>?) ?? [];
       final kpis = (res['kpis'] as Map<String, dynamic>?) ?? {};
       final teamMembers = (res['team_members'] as List<SprintMemberModel>?) ?? [];
@@ -845,28 +934,34 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
         upcomingSprints = rawUpcoming.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       }
 
+      final sprintData = res['sprint'] is Map<String, dynamic> ? res['sprint'] as Map<String, dynamic> : null;
+      final resolvedId = res['sprint_id']?.toString() ?? sprintData?['id']?.toString() ?? _lastSprintId;
+      final resolvedName = res['sprint_name'] ?? sprintData?['name'] ?? 'Sprint 8';
+      final resolvedGoal = res['goal'] ?? sprintData?['goal'] ?? '';
       final sprintModel = WorkSprintModel(
-        id: res['sprint_id']?.toString() ?? _lastSprintId,
-        name: res['sprint_name'] ?? 'Sprint 8',
-        sprintNumber: (res['sprint_number'] as num?)?.toInt() ?? 8,
-        status: res['status'] ?? 'ACTIVE',
-        goal: res['goal'] ?? 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
-        durationDays: (res['duration_days'] as num?)?.toInt() ?? 14,
-        teamName: res['team_name'] ?? 'Digital Campus Team',
-        boardId: res['board_id']?.toString(),
-        boardName: res['board_name'] ?? 'Institute Work Board',
-        startDateFmt: (res['start_date_fmt'] != null && !res['start_date_fmt'].toString().contains('2025'))
+        id: resolvedId,
+        name: resolvedName,
+        sprintNumber: (res['sprint_number'] ?? sprintData?['sprint_number'] as num?)?.toInt() ?? 8,
+        status: res['status'] ?? sprintData?['status'] ?? 'ACTIVE',
+        goal: resolvedGoal.toString().isNotEmpty ? resolvedGoal.toString() : 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
+        startDate: (res['start_date'] ?? sprintData?['start_date'])?.toString(),
+        endDate: (res['end_date'] ?? sprintData?['end_date'])?.toString(),
+        durationDays: (res['duration_days'] ?? sprintData?['duration_days'] as num?)?.toInt() ?? 14,
+        teamName: res['team_name'] ?? sprintData?['team_name'] ?? 'Digital Campus Team',
+        boardId: res['board_id']?.toString() ?? sprintData?['board_id']?.toString(),
+        boardName: res['board_name'] ?? sprintData?['board_name'] ?? 'Institute Work Board',
+        startDateFmt: res['start_date_fmt'] != null && res['start_date_fmt'].toString().isNotEmpty
             ? res['start_date_fmt']
-            : WorkSprintDateHelper.currentSprintStartFmt,
-        endDateFmt: (res['end_date_fmt'] != null && !res['end_date_fmt'].toString().contains('2025'))
+            : (sprintData?['start_date_fmt'] ?? WorkSprintDateHelper.currentSprintStartFmt),
+        endDateFmt: res['end_date_fmt'] != null && res['end_date_fmt'].toString().isNotEmpty
             ? res['end_date_fmt']
-            : WorkSprintDateHelper.currentSprintEndFmt,
-        capacityHours: (res['capacity_hours'] as num?)?.toDouble() ?? 160.0,
-        workingDays: (res['working_days'] as num?)?.toInt() ?? 10,
-        workingHoursPerDay: (res['working_hours_per_day'] as num?)?.toDouble() ?? 8.0,
-        ownerName: res['owner_name'],
-        capacityUnit: res['capacity_unit'] ?? 'HOURS',
-        color: res['color'] ?? '#2563EB',
+            : (sprintData?['end_date_fmt'] ?? WorkSprintDateHelper.currentSprintEndFmt),
+        capacityHours: (res['capacity_hours'] ?? sprintData?['capacity_hours'] as num?)?.toDouble() ?? 160.0,
+        workingDays: (res['working_days'] ?? sprintData?['working_days'] as num?)?.toInt() ?? 10,
+        workingHoursPerDay: (res['working_hours_per_day'] ?? sprintData?['working_hours_per_day'] as num?)?.toDouble() ?? 8.0,
+        ownerName: res['owner_name'] ?? sprintData?['owner_name'],
+        capacityUnit: res['capacity_unit'] ?? sprintData?['capacity_unit'] ?? 'HOURS',
+        color: res['color'] ?? sprintData?['color'] ?? '#2563EB',
       );
 
       _lastSprintId = sprintModel.id;
@@ -1097,11 +1192,12 @@ class WorkSprintDashboardNotifier extends StateNotifier<WorkSprintDashboardState
   }
 
   Future<bool> voteRetroEntry(String sprintId, String entryId) async {
-    final success = await _api.voteRetroEntry(sprintId, entryId);
-    if (success) {
+    final res = await _api.voteRetroEntry(sprintId, entryId);
+    if (res != null && res['success'] == true) {
       await loadSprintDashboard(sprintId: sprintId);
+      return true;
     }
-    return success;
+    return false;
   }
 
   Future<bool> addActionItem(
@@ -1381,17 +1477,18 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
     );
   }
 
-  Future<void> init({String sprintId = 's8', String team = 'Digital Campus Team'}) async {
-    state = state.copyWith(sprintId: sprintId, selectedTeam: team);
+  Future<void> init({String sprintId = 's8', String? team}) async {
+    final effTeam = (team != null && team.isNotEmpty) ? team : 'Digital Campus Team';
+    state = state.copyWith(sprintId: sprintId, selectedTeam: effTeam);
     await Future.wait([
       loadTeams(),
-      loadCapacity(sprintId: sprintId, team: team),
+      loadCapacity(sprintId: sprintId, team: effTeam),
     ]);
   }
 
-  Future<void> loadTeams() async {
+  Future<void> loadTeams({bool forceRefresh = false}) async {
     try {
-      final teams = await _api.getCapacityTeams();
+      final teams = await _api.getCapacityTeams(forceRefresh: forceRefresh);
       if (teams.isNotEmpty) {
         state = state.copyWith(availableTeams: teams);
       }
@@ -1446,7 +1543,8 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
         sortOrder: so,
         currentPage: p,
         rowsPerPage: l,
-        allMembers: finalDash.members.isNotEmpty ? finalDash.members : state.allMembers,
+        allMembers: finalDash.members,
+        availableTeams: finalDash.teams.isNotEmpty ? finalDash.teams : state.availableTeams,
       );
     } catch (e) {
       final defDash = _buildDefaultDashboard(sid, t);
@@ -1526,8 +1624,10 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
     required double capacityHours,
     double? dailyWorkingHours,
     int? workingDays,
+    double? daysOff,
     String? role,
     String? teamName,
+    String? teamId,
     double? overrideValue,
     String? overrideReason,
     String? notes,
@@ -1538,14 +1638,16 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
       capacityHours: capacityHours,
       dailyWorkingHours: dailyWorkingHours,
       workingDays: workingDays,
+      daysOff: daysOff,
       role: role,
       teamName: teamName ?? state.selectedTeam,
+      teamId: teamId,
       overrideValue: overrideValue,
       overrideReason: overrideReason,
       notes: notes,
     );
     if (success) {
-      await loadCapacity();
+      await loadCapacity(forceRefresh: true);
     }
     return success;
   }
@@ -1710,15 +1812,28 @@ class WorkSprintTeamState {
 
 class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
   final WorkApiService _api = WorkApiService.instance;
+  final Ref? _ref;
 
-  WorkSprintTeamNotifier() : super(const WorkSprintTeamState());
+  WorkSprintTeamNotifier([this._ref]) : super(const WorkSprintTeamState());
+
+  void _notifyCrossTabTeamUpdates() {
+    try {
+      WorkFilterHelper.clearCache();
+      _ref?.read(workSprintCapacityProvider.notifier).loadTeams(forceRefresh: true);
+      _ref?.read(workSprintCapacityProvider.notifier).loadCapacity(forceRefresh: true);
+      _ref?.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+      _ref?.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+      _ref?.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+      _ref?.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+    } catch (_) {}
+  }
 
   Future<void> init(String sprintId) async {
     state = state.copyWith(sprintId: sprintId);
     await loadTeams();
   }
 
-  Future<void> loadTeams({bool silent = false}) async {
+  Future<void> loadTeams({bool silent = false, bool forceRefresh = false}) async {
     if (!silent) {
       state = state.copyWith(isLoading: true, errorMessage: null);
     }
@@ -1730,6 +1845,7 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
       sortBy: state.sortBy,
       page: state.currentPage,
       limit: state.rowsPerPage,
+      forceRefresh: forceRefresh,
     );
 
     if (resp != null) {
@@ -1765,11 +1881,11 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
     await loadTeamDetail(teamId);
   }
 
-  Future<void> loadTeamDetail(String teamId, {bool silent = false}) async {
+  Future<void> loadTeamDetail(String teamId, {bool silent = false, bool forceRefresh = true}) async {
     if (!silent) {
       state = state.copyWith(isDetailLoading: true);
     }
-    final detail = await _api.getTeamDetail(teamId, sprintId: state.sprintId);
+    final detail = await _api.getTeamDetail(teamId, sprintId: state.sprintId, forceRefresh: forceRefresh);
     if (detail != null) {
       state = state.copyWith(
         isDetailLoading: false,
@@ -1786,6 +1902,11 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
 
   void setDrawerTab(String tab) {
     state = state.copyWith(activeDrawerTab: tab);
+  }
+
+  Future<void> setSprintId(String sprintId) async {
+    state = state.copyWith(sprintId: sprintId, currentPage: 1);
+    await loadTeams();
   }
 
   void setSearchQuery(String q) {
@@ -1843,7 +1964,8 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
   Future<bool> createTeam(Map<String, dynamic> data) async {
     final success = await _api.createWorkTeam(data);
     if (success) {
-      await loadTeams();
+      await loadTeams(forceRefresh: true);
+      _notifyCrossTabTeamUpdates();
     }
     return success;
   }
@@ -1851,10 +1973,11 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
   Future<bool> updateTeam(String teamId, Map<String, dynamic> data) async {
     final success = await _api.updateWorkTeam(teamId, data);
     if (success) {
-      await loadTeams(silent: true);
+      await loadTeams(silent: true, forceRefresh: true);
       if (state.selectedTeamId == teamId) {
         await loadTeamDetail(teamId, silent: true);
       }
+      _notifyCrossTabTeamUpdates();
     }
     return success;
   }
@@ -1862,7 +1985,8 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
   Future<bool> duplicateTeam(String teamId, {String? newName, String? newKey}) async {
     final success = await _api.duplicateWorkTeam(teamId, newName: newName, newKey: newKey);
     if (success) {
-      await loadTeams();
+      await loadTeams(forceRefresh: true);
+      _notifyCrossTabTeamUpdates();
     }
     return success;
   }
@@ -1873,7 +1997,8 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
       if (state.selectedTeamId == teamId) {
         state = state.copyWith(selectedTeamId: null, selectedTeamDetail: null);
       }
-      await loadTeams();
+      await loadTeams(forceRefresh: true);
+      _notifyCrossTabTeamUpdates();
     }
     return success;
   }
@@ -1881,21 +2006,60 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
   Future<bool> addMember(String teamId, Map<String, dynamic> data) async {
     final success = await _api.addTeamMember(teamId, data);
     if (success) {
-      await loadTeams(silent: true);
+      await loadTeams(silent: true, forceRefresh: true);
       if (state.selectedTeamId == teamId) {
         await loadTeamDetail(teamId, silent: true);
       }
+      _notifyCrossTabTeamUpdates();
     }
     return success;
+  }
+
+  Future<bool> addMembers(String teamId, List<String> userIds) async {
+    if (userIds.isEmpty) return true;
+    final success = await _api.addTeamMembers(teamId, userIds);
+    if (success) {
+      await loadTeams(silent: true, forceRefresh: true);
+      if (state.selectedTeamId == teamId || state.selectedTeamDetail?.id == teamId) {
+        await loadTeamDetail(teamId, silent: true);
+      }
+      _notifyCrossTabTeamUpdates();
+    }
+    return success;
+  }
+
+  Future<int> deleteTeamsBulk(List<String> teamIds) async {
+    if (teamIds.isEmpty) return 0;
+    int count = 0;
+    for (final id in teamIds) {
+      final ok = await _api.deleteWorkTeam(id);
+      if (ok) count++;
+    }
+    if (count > 0) {
+      final nextSelected = Set<String>.from(state.selectedTeamIds)..removeAll(teamIds);
+      String? currentSelected = state.selectedTeamId;
+      if (currentSelected != null && teamIds.contains(currentSelected)) {
+        currentSelected = null;
+      }
+      state = state.copyWith(
+        selectedTeamIds: nextSelected,
+        selectedTeamId: currentSelected,
+        selectedTeamDetail: currentSelected == null ? null : state.selectedTeamDetail,
+      );
+      await loadTeams(forceRefresh: true);
+      _notifyCrossTabTeamUpdates();
+    }
+    return count;
   }
 
   Future<bool> removeMember(String teamId, String userId) async {
     final success = await _api.removeTeamMember(teamId, userId);
     if (success) {
-      await loadTeams(silent: true);
-      if (state.selectedTeamId == teamId) {
+      await loadTeams(silent: true, forceRefresh: true);
+      if (state.selectedTeamId == teamId || state.selectedTeamDetail?.id == teamId) {
         await loadTeamDetail(teamId, silent: true);
       }
+      _notifyCrossTabTeamUpdates();
     }
     return success;
   }
@@ -1912,7 +2076,24 @@ class WorkSprintTeamNotifier extends StateNotifier<WorkSprintTeamState> {
 
 final workSprintTeamProvider =
     StateNotifierProvider<WorkSprintTeamNotifier, WorkSprintTeamState>((ref) {
-  return WorkSprintTeamNotifier();
+  return WorkSprintTeamNotifier(ref);
+});
+
+/// Globally reactive list of active team names for dropdowns across all tabs
+final workTeamsListProvider = Provider<List<String>>((ref) {
+  final sprintTeamState = ref.watch(workSprintTeamProvider);
+  if (sprintTeamState.teams.isNotEmpty) {
+    return sprintTeamState.teams.map((t) => t.name).toList();
+  }
+  final retroTeams = ref.watch(workSprintRetroProvider).workspace?.availableTeams;
+  if (retroTeams != null && retroTeams.isNotEmpty) {
+    return retroTeams.map((t) => t.name).where((t) => t != 'All Teams' && t != 'All').toList();
+  }
+  final capTeams = ref.watch(workSprintCapacityProvider).availableTeams;
+  if (capTeams.isNotEmpty) {
+    return capTeams.map((t) => t.name).where((t) => t != 'All Teams' && t != 'All').toList();
+  }
+  return WorkFilterHelper.defaultTeams.where((t) => t != 'All' && t != 'All Teams').toList();
 });
 
 // ============================================================================
@@ -1928,7 +2109,9 @@ class WorkSprintRetroState {
   final String activeTab; // 'Discussion Board', 'Action Items (5)', 'Notes & Summary', 'Feedback', 'History'
   final String searchQuery;
   final String actionStatusFilter; // 'ALL', 'OPEN', 'IN_PROGRESS', 'PLANNED', 'COMPLETED'
+  final String? selectedCategoryFilter; // null or 'ALL', 'WENT_WELL', 'DID_NOT_GO_WELL', 'TO_IMPROVE'
   final Set<String> selectedActionItemIds;
+  final Set<String> votedEntryIds;
   final SprintRetroActionItemModel? selectedActionItem;
   final bool isDrawerOpen;
   final List<WorkAssigneeModel> assignableUsers;
@@ -1943,7 +2126,9 @@ class WorkSprintRetroState {
     this.activeTab = 'Discussion Board',
     this.searchQuery = '',
     this.actionStatusFilter = 'ALL',
+    this.selectedCategoryFilter,
     this.selectedActionItemIds = const {},
+    this.votedEntryIds = const {},
     this.selectedActionItem,
     this.isDrawerOpen = false,
     this.assignableUsers = const [],
@@ -1955,11 +2140,14 @@ class WorkSprintRetroState {
     bool? isSaving,
     String? sprintId,
     String? teamId,
+    bool clearTeamId = false,
     SprintRetroWorkspaceModel? workspace,
     String? activeTab,
     String? searchQuery,
     String? actionStatusFilter,
+    String? selectedCategoryFilter,
     Set<String>? selectedActionItemIds,
+    Set<String>? votedEntryIds,
     SprintRetroActionItemModel? selectedActionItem,
     bool? isDrawerOpen,
     List<WorkAssigneeModel>? assignableUsers,
@@ -1969,12 +2157,14 @@ class WorkSprintRetroState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       sprintId: sprintId ?? this.sprintId,
-      teamId: teamId ?? this.teamId,
+      teamId: clearTeamId ? null : (teamId ?? this.teamId),
       workspace: workspace ?? this.workspace,
       activeTab: activeTab ?? this.activeTab,
       searchQuery: searchQuery ?? this.searchQuery,
       actionStatusFilter: actionStatusFilter ?? this.actionStatusFilter,
+      selectedCategoryFilter: selectedCategoryFilter ?? this.selectedCategoryFilter,
       selectedActionItemIds: selectedActionItemIds ?? this.selectedActionItemIds,
+      votedEntryIds: votedEntryIds ?? this.votedEntryIds,
       selectedActionItem: selectedActionItem ?? this.selectedActionItem,
       isDrawerOpen: isDrawerOpen ?? this.isDrawerOpen,
       assignableUsers: assignableUsers ?? this.assignableUsers,
@@ -1984,15 +2174,23 @@ class WorkSprintRetroState {
 }
 
 class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
+  final Ref? _ref;
   final WorkApiService _api;
 
   WorkSprintRetroNotifier([Ref? ref, WorkApiService? api])
-      : _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
+      : _ref = ref,
+        _api = api ?? (ref != null ? ref.read(workApiServiceProvider) : WorkApiService.instance),
         super(const WorkSprintRetroState());
 
   Future<void> init(String sprintId, {String? teamId, String? teamName}) async {
     final effectiveTeam = (teamId != null && teamId.isNotEmpty) ? teamId : teamName;
     state = state.copyWith(sprintId: sprintId, teamId: effectiveTeam, isLoading: true, errorMessage: null);
+    if (_ref != null) {
+      final allSprints = _ref!.read(allSprintsProvider);
+      if (allSprints.sprints.isEmpty) {
+        _ref!.read(allSprintsProvider.notifier).loadSprints();
+      }
+    }
     await Future.wait([
       loadWorkspace(silent: true),
       _loadAssignableUsers(),
@@ -2017,7 +2215,17 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
         teamId: state.teamId,
       );
       if (ws != null) {
-        state = state.copyWith(workspace: ws, isLoading: false);
+        final voted = <String>{};
+        for (final e in ws.wentWell.entries) {
+          if (e.hasVoted) voted.add(e.id);
+        }
+        for (final e in ws.didNotGoWell.entries) {
+          if (e.hasVoted) voted.add(e.id);
+        }
+        for (final e in ws.shouldImprove.entries) {
+          if (e.hasVoted) voted.add(e.id);
+        }
+        state = state.copyWith(workspace: ws, votedEntryIds: voted, isLoading: false);
       } else {
         state = state.copyWith(isLoading: false);
       }
@@ -2106,16 +2314,109 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
     return success;
   }
 
-  Future<bool> addEntry({required String category, required String content}) async {
-    final success = await _api.addRetroEntry(state.sprintId, category: category, content: content);
+  Future<bool> startNewSession({
+    String? title,
+    int? durationMinutes,
+    String? sprintGoal,
+    String? summary,
+    String? notes,
+    String? facilitatorId,
+  }) async {
+    state = state.copyWith(isSaving: true);
+    final success = await _api.startNewSprintRetroSession(
+      state.sprintId,
+      title: title,
+      durationMinutes: durationMinutes,
+      sprintGoal: sprintGoal,
+      summary: summary,
+      notes: notes,
+      facilitatorId: facilitatorId,
+    );
+    state = state.copyWith(isSaving: false);
     if (success) {
       await loadWorkspace(silent: true);
     }
     return success;
   }
 
-  Future<bool> updateEntry(String entryId, {required String category, required String content}) async {
-    final success = await _api.updateRetroEntry(state.sprintId, entryId, category: category, content: content);
+  Future<bool> resetBoard() async {
+    state = state.copyWith(isSaving: true);
+    final success = await _api.resetSprintRetroBoard(state.sprintId);
+    state = state.copyWith(isSaving: false);
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
+  Future<bool> addTeamMember(String teamId, String userId, {String role = 'Member'}) async {
+    state = state.copyWith(isSaving: true);
+    final success = await _api.addTeamMemberDirect(teamId, userId, role: role);
+    state = state.copyWith(isSaving: false);
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
+  Future<void> selectSprint(String sprintId) async {
+    if (state.sprintId == sprintId) return;
+    state = state.copyWith(sprintId: sprintId);
+    await loadWorkspace();
+  }
+
+  Future<void> selectTeam(String? teamId, {String? teamName}) async {
+    final effective = (teamId != null && teamId.isNotEmpty && teamId.toLowerCase() != 'all' && teamId.toLowerCase() != 'all teams')
+        ? teamId
+        : (teamName != null && teamName.isNotEmpty && teamName.toLowerCase() != 'all' && teamName.toLowerCase() != 'all teams')
+            ? teamName
+            : null;
+    state = state.copyWith(
+      teamId: effective,
+      clearTeamId: effective == null,
+    );
+    await loadWorkspace();
+  }
+
+  void setCategoryFilter(String? cat) {
+    state = state.copyWith(selectedCategoryFilter: cat);
+  }
+
+  Future<bool> addEntry({
+    required String category,
+    required String content,
+    String? teamId,
+    String? teamName,
+  }) async {
+    final effTeam = teamId ?? state.teamId;
+    final success = await _api.addRetroEntry(
+      state.sprintId,
+      category: category,
+      content: content,
+      teamId: effTeam,
+      teamName: teamName,
+    );
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
+  Future<bool> updateEntry(
+    String entryId, {
+    required String category,
+    required String content,
+    String? teamId,
+    String? teamName,
+  }) async {
+    final success = await _api.updateRetroEntry(
+      state.sprintId,
+      entryId,
+      category: category,
+      content: content,
+      teamId: teamId ?? state.teamId,
+      teamName: teamName,
+    );
     if (success) {
       await loadWorkspace(silent: true);
     }
@@ -2131,9 +2432,107 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
   }
 
   Future<bool> voteEntry(String entryId) async {
-    final success = await _api.voteRetroEntry(state.sprintId, entryId);
-    if (success) {
+    final ws = state.workspace;
+    if (ws != null) {
+      final nextVotedIds = Set<String>.from(state.votedEntryIds);
+      final isCurrentlyVoted = nextVotedIds.contains(entryId);
+      final nextHasVoted = !isCurrentlyVoted;
+      if (nextHasVoted) {
+        nextVotedIds.add(entryId);
+      } else {
+        nextVotedIds.remove(entryId);
+      }
+
+      SprintRetroEntryItemModel toggle(SprintRetroEntryItemModel e) {
+        if (e.id != entryId) return e;
+        final nextVotes = nextHasVoted ? e.votes + 1 : (e.votes > 0 ? e.votes - 1 : 0);
+        return e.copyWith(hasVoted: nextHasVoted, votes: nextVotes);
+      }
+
+      final updatedWentWell = ws.wentWell.entries.map(toggle).toList();
+      final updatedDidNotGoWell = ws.didNotGoWell.entries.map(toggle).toList();
+      final updatedShouldImprove = ws.shouldImprove.entries.map(toggle).toList();
+
+      state = state.copyWith(
+        votedEntryIds: nextVotedIds,
+        workspace: ws.copyWith(
+          wentWell: ws.wentWell.copyWith(entries: updatedWentWell),
+          didNotGoWell: ws.didNotGoWell.copyWith(entries: updatedDidNotGoWell),
+          shouldImprove: ws.shouldImprove.copyWith(entries: updatedShouldImprove),
+        ),
+      );
+    }
+
+    final res = await _api.voteRetroEntry(state.sprintId, entryId);
+    if (res != null && res['success'] == true) {
+      final authoritativeVotes = (res['votes'] as num?)?.toInt();
+      final authoritativeHasVoted = res['has_voted'] == true;
+      final nextVotedIds = Set<String>.from(state.votedEntryIds);
+      if (authoritativeHasVoted) {
+        nextVotedIds.add(entryId);
+      } else {
+        nextVotedIds.remove(entryId);
+      }
+      if (authoritativeVotes != null && state.workspace != null) {
+        final currentWs = state.workspace!;
+        SprintRetroEntryItemModel syncEntry(SprintRetroEntryItemModel e) {
+          if (e.id != entryId) return e;
+          return e.copyWith(votes: authoritativeVotes, hasVoted: authoritativeHasVoted);
+        }
+        state = state.copyWith(
+          votedEntryIds: nextVotedIds,
+          workspace: currentWs.copyWith(
+            wentWell: currentWs.wentWell.copyWith(entries: currentWs.wentWell.entries.map(syncEntry).toList()),
+            didNotGoWell: currentWs.didNotGoWell.copyWith(entries: currentWs.didNotGoWell.entries.map(syncEntry).toList()),
+            shouldImprove: currentWs.shouldImprove.copyWith(entries: currentWs.shouldImprove.entries.map(syncEntry).toList()),
+          ),
+        );
+      }
+      return true;
+    } else {
       await loadWorkspace(silent: true);
+      return false;
+    }
+  }
+
+  Future<List<SprintRetroCommentModel>> loadComments(String entryId) async {
+    return await _api.getRetroEntryComments(state.sprintId, entryId);
+  }
+
+  Future<SprintRetroCommentModel?> addComment(String entryId, String content) async {
+    final comment = await _api.addRetroEntryComment(state.sprintId, entryId, content: content);
+    if (comment != null && state.workspace != null) {
+      final ws = state.workspace!;
+      SprintRetroEntryItemModel incComment(SprintRetroEntryItemModel e) {
+        if (e.id != entryId) return e;
+        return e.copyWith(commentsCount: e.commentsCount + 1);
+      }
+      state = state.copyWith(
+        workspace: ws.copyWith(
+          wentWell: ws.wentWell.copyWith(entries: ws.wentWell.entries.map(incComment).toList()),
+          didNotGoWell: ws.didNotGoWell.copyWith(entries: ws.didNotGoWell.entries.map(incComment).toList()),
+          shouldImprove: ws.shouldImprove.copyWith(entries: ws.shouldImprove.entries.map(incComment).toList()),
+        ),
+      );
+    }
+    return comment;
+  }
+
+  Future<bool> deleteComment(String entryId, String commentId) async {
+    final success = await _api.deleteRetroEntryComment(state.sprintId, entryId, commentId);
+    if (success && state.workspace != null) {
+      final ws = state.workspace!;
+      SprintRetroEntryItemModel decComment(SprintRetroEntryItemModel e) {
+        if (e.id != entryId) return e;
+        return e.copyWith(commentsCount: (e.commentsCount > 0 ? e.commentsCount - 1 : 0));
+      }
+      state = state.copyWith(
+        workspace: ws.copyWith(
+          wentWell: ws.wentWell.copyWith(entries: ws.wentWell.entries.map(decComment).toList()),
+          didNotGoWell: ws.didNotGoWell.copyWith(entries: ws.didNotGoWell.entries.map(decComment).toList()),
+          shouldImprove: ws.shouldImprove.copyWith(entries: ws.shouldImprove.entries.map(decComment).toList()),
+        ),
+      );
     }
     return success;
   }
@@ -2221,6 +2620,8 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
     int progress = 0,
     String? linkedWorkItemId,
     String? sourceEntryId,
+    String? teamId,
+    String? teamName,
   }) async {
     state = state.copyWith(isSaving: true);
     final success = await _api.addActionItem(
@@ -2235,6 +2636,8 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
       progress: progress,
       linkedWorkItemId: linkedWorkItemId,
       sourceEntryId: sourceEntryId,
+      teamId: teamId ?? state.teamId,
+      teamName: teamName,
     );
     state = state.copyWith(isSaving: false);
     if (success) {
@@ -2292,6 +2695,24 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
     return success;
   }
 
+  Future<bool> linkActionItemToWorkItem(
+    String actionItemId, {
+    String? workItemId,
+  }) async {
+    state = state.copyWith(isSaving: true);
+    final res = await _api.linkActionItemToWorkItem(
+      state.sprintId,
+      actionItemId,
+      workItemId: workItemId,
+    );
+    final success = res['success'] == true;
+    state = state.copyWith(isSaving: false);
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
   Future<bool> bulkUpdateActionItems({String? status, String? priority}) async {
     if (state.selectedActionItemIds.isEmpty) return false;
     state = state.copyWith(isSaving: true);
@@ -2337,6 +2758,41 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
       suggestedImprovement: suggestedImprovement,
       isAnonymous: isAnonymous,
     );
+    state = state.copyWith(isSaving: false);
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
+  Future<bool> updateFeedback(
+    String feedbackId, {
+    required String category,
+    required int rating,
+    String? content,
+    String? suggestedImprovement,
+    bool isAnonymous = false,
+  }) async {
+    state = state.copyWith(isSaving: true);
+    final success = await _api.updateRetroFeedback(
+      state.sprintId,
+      feedbackId,
+      category: category,
+      rating: rating,
+      content: content,
+      suggestedImprovement: suggestedImprovement,
+      isAnonymous: isAnonymous,
+    );
+    state = state.copyWith(isSaving: false);
+    if (success) {
+      await loadWorkspace(silent: true);
+    }
+    return success;
+  }
+
+  Future<bool> deleteFeedback(String feedbackId) async {
+    state = state.copyWith(isSaving: true);
+    final success = await _api.deleteRetroFeedback(state.sprintId, feedbackId);
     state = state.copyWith(isSaving: false);
     if (success) {
       await loadWorkspace(silent: true);

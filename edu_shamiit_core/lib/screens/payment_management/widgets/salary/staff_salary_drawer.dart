@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../models/staff_salary_models.dart';
 import '../../providers/staff_salary_provider.dart';
 import 'dialogs/process_staff_payout_dialog.dart';
 import 'dialogs/edit_staff_salary_structure_dialog.dart';
@@ -51,7 +52,6 @@ class _StaffSalaryDrawerState extends ConsumerState<StaffSalaryDrawer> with Sing
 
     final staffName = profile['full_name']?.toString() ?? 'Faculty Member';
     final staffId = profile['id']?.toString() ?? '';
-    final role = profile['role']?.toString() ?? 'teacher';
     final dept = profile['department']?.toString() ?? 'Academic & Teaching';
     final designation = profile['designation']?.toString() ?? 'Senior Faculty';
     final empId = profile['employee_id']?.toString() ?? 'EMP-001';
@@ -105,7 +105,7 @@ class _StaffSalaryDrawerState extends ConsumerState<StaffSalaryDrawer> with Sing
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '$designation ($dept) | ${role.toUpperCase()} | $empId',
+                        '$designation • $dept | $empId',
                         style: TextStyle(
                           fontSize: 11,
                           color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -159,10 +159,30 @@ class _StaffSalaryDrawerState extends ConsumerState<StaffSalaryDrawer> with Sing
                       showDialog(
                         context: context,
                         builder: (ctx) => EditStaffSalaryStructureDialog(
+                          initialStructure: StaffSalaryStructureItem(
+                            staffId: staffId,
+                            staffName: staffName,
+                            employeeId: empId,
+                            department: dept,
+                            designation: designation,
+                            basicPay: (structure['basic_pay'] as num?)?.toDouble() ?? 35000.0,
+                            hra: (structure['hra'] as num?)?.toDouble() ?? 14000.0,
+                            da: (structure['da'] as num?)?.toDouble() ?? 5000.0,
+                            ta: (structure['ta'] as num?)?.toDouble() ?? 2500.0,
+                            specialAllowance: (structure['special_allowance'] as num?)?.toDouble() ?? 3000.0,
+                            medicalAllowance: (structure['medical_allowance'] as num?)?.toDouble() ?? 0.0,
+                            pfDeduction: (structure['pf_deduction'] as num?)?.toDouble() ?? 4200.0,
+                            tds: (structure['tds'] as num?)?.toDouble() ?? 2500.0,
+                            professionalTax: (structure['professional_tax'] as num?)?.toDouble() ?? 200.0,
+                            insuranceDeduction: (structure['insurance_deduction'] as num?)?.toDouble() ?? 1000.0,
+                            bankName: structure['bank_name']?.toString() ?? 'HDFC Bank',
+                            accountNumber: structure['account_number']?.toString() ?? '',
+                            ifscCode: structure['ifsc_code']?.toString() ?? '',
+                            panNumber: structure['pan_number']?.toString() ?? '',
+                            paymentMode: structure['payment_mode']?.toString() ?? 'Direct Bank Transfer (NEFT/RTGS)',
+                          ),
                           staffId: staffId,
                           staffName: staffName,
-                          currentBasic: (structure['basic_pay'] as num?)?.toDouble() ?? 45000.0,
-                          currentHra: (structure['hra'] as num?)?.toDouble() ?? 18000.0,
                         ),
                       );
                     },

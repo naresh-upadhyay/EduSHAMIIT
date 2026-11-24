@@ -2,10 +2,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../models/campus_models.dart';
 import '../../models/space_booking_models.dart';
 import '../../providers/campus_provider.dart';
 import '../../providers/space_booking_provider.dart';
+import '../../services/campus_lookup_helper.dart';
 import '../common/campus_pagination_bar.dart';
+import '../common/campus_searchable_dropdown.dart';
 import 'widgets/space_booking_legend_bar.dart';
 import 'widgets/space_booking_week_view.dart';
 import 'widgets/space_booking_month_view.dart';
@@ -39,16 +42,237 @@ class SpaceBookingCenterPanel extends ConsumerStatefulWidget {
 }
 
 class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPanel> {
-  String _timelineBuilding = 'all';
-  String _timelineSpaceType = 'All';
-  String _timelineStatus = 'All';
   String _analyticsTimeframe = 'today';
   late TextEditingController _requestSearchCtrl;
+
+  // Dynamic Lookup & Entity State for Searchable Filters
+  List<Map<String, dynamic>> _dynamicClasses = [];
+  List<BuildingFloorModel> _dynamicFloors = [];
+  List<RoomModel> _dynamicRooms = [];
+  List<Map<String, dynamic>> _dynamicFacilities = [];
+  List<String> _dynamicPurposes = [];
+  List<String> _dynamicSpaceTypes = [];
+  List<String> _dynamicStatuses = [];
+  List<String> _dynamicDepartments = [];
 
   @override
   void initState() {
     super.initState();
     _requestSearchCtrl = TextEditingController();
+    _loadDynamicLookups();
+  }
+
+  Future<void> _loadDynamicLookups() async {
+    try {
+      final futures = await Future.wait([
+        CampusLookupHelper.instance.getClasses(),
+        CampusLookupHelper.instance.getAllRooms(),
+        CampusLookupHelper.instance.getFacilitiesList(),
+        CampusLookupHelper.instance.getLookupLabels('BOOKING_PURPOSE'),
+        CampusLookupHelper.instance.getLookupLabels('SPACE_TYPE'),
+        CampusLookupHelper.instance.getLookupLabels('BOOKING_STATUS'),
+        CampusLookupHelper.instance.getDepartments(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _dynamicClasses = futures[0] as List<Map<String, dynamic>>;
+          _dynamicRooms = futures[1] as List<RoomModel>;
+          _dynamicFacilities = futures[2] as List<Map<String, dynamic>>;
+          _dynamicPurposes = (futures[3] as List<String>).isNotEmpty
+              ? (futures[3] as List<String>)
+              : [
+                  'Academic',
+                  'Class / Lecture Instruction',
+                  'Practical / Lab Session',
+                  'Examination / Assessment',
+                  'Staff / Faculty Meeting',
+                  'Workshop / Seminar / Conference',
+                  'Cultural & Club Activity',
+                  'Sports & Athletic Training',
+                  'Parent-Teacher Orientation',
+                  'Scheduled Maintenance Downtime',
+                  'Other Special Event',
+                ];
+          _dynamicSpaceTypes = (futures[4] as List<String>).isNotEmpty
+              ? (futures[4] as List<String>)
+              : [
+                  'Classroom',
+                  'Smart Classroom',
+                  'Auditorium',
+                  'Meeting Room',
+                  'Computer Lab',
+                  'Physics Lab',
+                  'Chemistry Lab',
+                  'Biology Lab',
+                  'Sports Facility',
+                  'Gymnasium',
+                  'Library Hall',
+                  'Cafeteria Hub',
+                  'Health Center & Clinic',
+                  'Robotics & FabLab',
+                ];
+          _dynamicStatuses = (futures[5] as List<String>).isNotEmpty
+              ? (futures[5] as List<String>)
+              : [
+                  'Confirmed',
+                  'Pending',
+                  'In Use',
+                  'Approved',
+                  'Rejected',
+                  'Cancelled',
+                  'Conflict',
+                ];
+          _dynamicDepartments = (futures[6] as List<String>).isNotEmpty
+              ? (futures[6] as List<String>)
+              : [
+                  'Administration',
+                  'Academic / Teaching',
+                  'Maintenance & Facilities',
+                  'Science & Labs',
+                  'Sports & Physical Ed',
+                  'Arts & Culture',
+                  'IT & Infrastructure',
+                ];
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadFloorsForBuilding(String buildingId) async {
+    if (buildingId == 'all' || buildingId.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _dynamicFloors = [];
+        });
+      }
+      return;
+    }
+    try {
+      final floors = await CampusLookupHelper.instance.getFloorsForBuilding(buildingId);
+      if (mounted) {
+        setState(() {
+          _dynamicFloors = floors;
+        });
+      }
+    } catch (_) {}
+  }
+
+  int _getActiveFiltersCount(SpaceBookingState state) {
+    int count = 0;
+    if (state.selectedDomain != 'all' && state.selectedDomain.isNotEmpty) count++;
+    if (state.selectedBuildingId != 'all' && state.selectedBuildingId.isNotEmpty) count++;
+    if (state.selectedFloorId != 'all' && state.selectedFloorId.isNotEmpty) count++;
+    if (state.selectedRoomId != 'all' && state.selectedRoomId.isNotEmpty) count++;
+    if (state.selectedSpaceType != 'All' && state.selectedSpaceType.isNotEmpty) count++;
+    if (state.selectedPurpose != 'All' && state.selectedPurpose.isNotEmpty) count++;
+    if (state.selectedClassId != 'all' && state.selectedClassId.isNotEmpty) count++;
+    if (state.selectedDepartment != 'all' && state.selectedDepartment.isNotEmpty) count++;
+    if (state.statusFilter != 'All' && state.statusFilter.isNotEmpty) count++;
+    if (state.selectedCapacity != 'Any Capacity' && state.selectedCapacity.isNotEmpty) count++;
+    return count;
+  }
+
+  int _parseCapacityMin(String capStr) {
+    final match = RegExp(r'(\d+)').firstMatch(capStr);
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 0;
+    }
+    return 0;
+  }
+
+  String _getClassName(String classId) {
+    try {
+      final c = _dynamicClasses.firstWhere((x) => x['id']?.toString() == classId);
+      return c['name']?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _resetAllFilters(SpaceBookingNotifier notifier) {
+    notifier.resetFilters();
+    setState(() {
+      _dynamicFloors = [];
+    });
+  }
+
+  List<SpaceTimelineRoom> _getFilteredRooms(SpaceBookingState state) {
+    if (state.roomsTimeline.isEmpty) return const [];
+
+    return state.roomsTimeline.where((room) {
+      // 1. Domain filter (room vs facility)
+      if (state.selectedDomain != 'all' && state.selectedDomain.isNotEmpty) {
+        final d = (room.spaceDomain ?? 'room').toLowerCase();
+        if (d != state.selectedDomain.toLowerCase()) return false;
+      }
+
+      // 2. Building filter
+      if (state.selectedBuildingId != 'all' && state.selectedBuildingId.isNotEmpty) {
+        if (room.buildingId != state.selectedBuildingId) return false;
+      }
+
+      // 3. Floor filter
+      if (state.selectedFloorId != 'all' && state.selectedFloorId.isNotEmpty) {
+        if (room.floorId != null && room.floorId != state.selectedFloorId) return false;
+      }
+
+      // 4. Room/Facility ID filter
+      if (state.selectedRoomId != 'all' && state.selectedRoomId.isNotEmpty) {
+        if (room.roomId != state.selectedRoomId) return false;
+      }
+
+      // 5. Space Type filter
+      if (state.selectedSpaceType != 'All' && state.selectedSpaceType.isNotEmpty) {
+        final st = state.selectedSpaceType.toLowerCase();
+        final rt = room.roomType.toLowerCase();
+        if (!rt.contains(st) && !st.contains(rt)) return false;
+      }
+
+      // 6. Capacity filter
+      if (state.selectedCapacity != 'Any Capacity' && state.selectedCapacity.isNotEmpty) {
+        final minCap = _parseCapacityMin(state.selectedCapacity);
+        if (room.capacity < minCap) return false;
+      }
+
+      // 7. Purpose filter (if selected, room must have a booking with matching purpose)
+      if (state.selectedPurpose != 'All' && state.selectedPurpose.isNotEmpty) {
+        final p = state.selectedPurpose.toLowerCase();
+        final hasMatch = room.bookings.any((b) =>
+            b.purpose.toLowerCase().contains(p) ||
+            b.title.toLowerCase().contains(p) ||
+            p.contains(b.purpose.toLowerCase()));
+        if (!hasMatch) return false;
+      }
+
+      // 8. Class / Section filter
+      if (state.selectedClassId != 'all' && state.selectedClassId.isNotEmpty) {
+        final className = _getClassName(state.selectedClassId);
+        final hasClassMatch = room.bookings.any((b) =>
+            (className.isNotEmpty && b.title.toLowerCase().contains(className.toLowerCase())) ||
+            (className.isNotEmpty && b.purpose.toLowerCase().contains(className.toLowerCase())));
+        if (!hasClassMatch) return false;
+      }
+
+      // 9. Department filter
+      if (state.selectedDepartment != 'all' && state.selectedDepartment.isNotEmpty) {
+        final dept = state.selectedDepartment.toLowerCase();
+        final hasDeptMatch = room.bookings.any((b) =>
+            b.organizerRole.toLowerCase().contains(dept) ||
+            b.organizerName.toLowerCase().contains(dept) ||
+            b.title.toLowerCase().contains(dept));
+        if (!hasDeptMatch) return false;
+      }
+
+      // 10. Status filter
+      if (state.statusFilter != 'All' && state.statusFilter.isNotEmpty) {
+        final s = state.statusFilter.toLowerCase();
+        final hasStatusMatch = room.bookings.any((b) => b.status.toLowerCase() == s);
+        if (!hasStatusMatch) return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   @override
@@ -442,144 +666,100 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
           // Filters Row: Building, Space Type, Status + Timeline/List Toggle
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Filter Row 1: Space Location Allocation (Domain, Building, Floor, Room/Space, Space Type)
                 Wrap(
-                  spacing: 10,
+                  spacing: 8,
                   runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _buildSmallDropdown(
-                      label: 'Building: All Buildings',
-                      value: _timelineBuilding,
-                      isDark: isDark,
-                      items: [
-                        const DropdownMenuItem(value: 'all', child: Text('Building: All Buildings')),
-                        ...ref.watch(campusProvider).buildings.map(
-                              (b) => DropdownMenuItem(
-                                value: b.id,
-                                child: Text('Building: ${b.code} - ${b.name}'),
-                              ),
-                            ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _timelineBuilding = val);
-                          notifier.applyQuickFilters(buildingId: val);
-                        }
-                      },
-                    ),
-                    _buildSmallDropdown(
-                      label: 'Space Type: All',
-                      value: _timelineSpaceType,
-                      isDark: isDark,
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('Space Type: All')),
-                        DropdownMenuItem(value: 'Classroom', child: Text('Classroom')),
-                        DropdownMenuItem(value: 'Auditorium', child: Text('Auditorium')),
-                        DropdownMenuItem(value: 'Meeting Room', child: Text('Meeting Room')),
-                        DropdownMenuItem(value: 'Lab', child: Text('Lab')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _timelineSpaceType = val);
-                          notifier.applyQuickFilters(spaceType: val);
-                        }
-                      },
-                    ),
-                    _buildSmallDropdown(
-                      label: 'Status: All',
-                      value: _timelineStatus,
-                      isDark: isDark,
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('Status: All')),
-                        DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
-                        DropdownMenuItem(value: 'Pending', child: Text('Pending')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _timelineStatus = val);
-                          notifier.setStatusFilter(val);
-                        }
-                      },
-                    ),
+                    _buildDomainDropdown(state, notifier, isDark),
+                    _buildBuildingDropdown(state, notifier, isDark),
+                    _buildFloorDropdown(state, notifier, isDark),
+                    _buildRoomDropdown(state, notifier, isDark),
+                    _buildSpaceTypeDropdown(state, notifier, isDark),
                   ],
                 ),
+                const SizedBox(height: 8),
 
-                // Toggle: Timeline vs List
-                Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: cardBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      InkWell(
-                        onTap: () => notifier.setDisplayMode('Timeline'),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: state.displayMode == 'Timeline' ? const Color(0xFF2563EB) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.view_timeline_outlined,
-                                size: 15,
-                                color: state.displayMode == 'Timeline' ? Colors.white : textSecondary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Timeline',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: state.displayMode == 'Timeline' ? Colors.white : textSecondary,
+                // Filter Row 2: Booking Criteria & Actions (Purpose, Class, Department, Status, Capacity, Reset, Timeline/List toggle)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _buildPurposeDropdown(state, notifier, isDark),
+                        _buildClassDropdown(state, notifier, isDark),
+                        _buildDepartmentDropdown(state, notifier, isDark),
+                        _buildStatusDropdown(state, notifier, isDark),
+                        _buildCapacityDropdown(state, notifier, isDark),
+
+                        if (_getActiveFiltersCount(state) > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.filter_alt, size: 13, color: Color(0xFF3B82F6)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${_getActiveFiltersCount(state)} Active',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF3B82F6),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => notifier.setDisplayMode('List'),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: state.displayMode == 'List' ? const Color(0xFF2563EB) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.format_list_bulleted,
-                                size: 15,
-                                color: state.displayMode == 'List' ? Colors.white : textSecondary,
+                          InkWell(
+                            onTap: () => _resetAllFilters(notifier),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'List',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: state.displayMode == 'List' ? Colors.white : textSecondary,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.filter_alt_off_outlined, size: 13, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Reset All',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        ],
+                      ],
+                    ),
+
+                    // Toggle: Timeline vs List
+                    _buildTimelineListToggle(state, notifier, isDark, cardBorder, textSecondary),
+                  ],
                 ),
               ],
             ),
@@ -595,11 +775,11 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
 
           // Interactive Timeline Grid / Week View / Month View / List View
           if (state.displayMode == 'List')
-            _buildScheduledBookingsListView(state, notifier, isDark)
+            _buildScheduledBookingsListView(state, notifier, isDark, _getFilteredRooms(state))
           else if (state.timelineViewMode == 'Week')
             SpaceBookingWeekView(
               selectedDate: state.selectedDate,
-              rooms: state.roomsTimeline,
+              rooms: _getFilteredRooms(state),
               selectedPurpose: state.selectedPurpose,
               onInspectRequest: widget.onInspectRequest,
               onSlotTap: (day, time) {
@@ -624,7 +804,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
           else if (state.timelineViewMode == 'Month')
             SpaceBookingMonthView(
               selectedDate: state.selectedDate,
-              rooms: state.roomsTimeline,
+              rooms: _getFilteredRooms(state),
               selectedPurpose: state.selectedPurpose,
               onInspectRequest: widget.onInspectRequest,
               onDayTap: (day) {
@@ -633,23 +813,49 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
               },
             )
           else
-            _buildInteractiveGrid(state, isDark),
+            _buildInteractiveGrid(state, isDark, _getFilteredRooms(state)),
         ],
       ),
     );
   }
 
-  Widget _buildScheduledBookingsListView(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+  Widget _buildScheduledBookingsListView(
+    SpaceBookingState state,
+    SpaceBookingNotifier notifier,
+    bool isDark,
+    List<SpaceTimelineRoom> filteredRooms,
+  ) {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
 
     final List<Map<String, dynamic>> items = [];
-    for (final room in state.roomsTimeline) {
+    for (final room in filteredRooms) {
       for (final b in room.bookings) {
-        if (state.selectedPurpose != 'All') {
+        if (state.selectedPurpose != 'All' && state.selectedPurpose.isNotEmpty) {
           final p = state.selectedPurpose.toLowerCase();
-          if (!b.purpose.toLowerCase().contains(p) && !b.title.toLowerCase().contains(p)) {
+          if (!b.purpose.toLowerCase().contains(p) && !b.title.toLowerCase().contains(p) && !p.contains(b.purpose.toLowerCase())) {
+            continue;
+          }
+        }
+        if (state.selectedClassId != 'all' && state.selectedClassId.isNotEmpty) {
+          final className = _getClassName(state.selectedClassId);
+          if (className.isNotEmpty &&
+              !b.title.toLowerCase().contains(className.toLowerCase()) &&
+              !b.purpose.toLowerCase().contains(className.toLowerCase())) {
+            continue;
+          }
+        }
+        if (state.selectedDepartment != 'all' && state.selectedDepartment.isNotEmpty) {
+          final dept = state.selectedDepartment.toLowerCase();
+          if (!b.organizerRole.toLowerCase().contains(dept) &&
+              !b.organizerName.toLowerCase().contains(dept) &&
+              !b.title.toLowerCase().contains(dept)) {
+            continue;
+          }
+        }
+        if (state.statusFilter != 'All' && state.statusFilter.isNotEmpty) {
+          if (b.status.toLowerCase() != state.statusFilter.toLowerCase()) {
             continue;
           }
         }
@@ -836,7 +1042,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
     );
   }
 
-  Widget _buildInteractiveGrid(SpaceBookingState state, bool isDark) {
+  Widget _buildInteractiveGrid(SpaceBookingState state, bool isDark, List<SpaceTimelineRoom> displayRooms) {
     final headerBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final gridLineColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
     final cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
@@ -846,8 +1052,6 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
       '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
       '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'
     ];
-
-    final displayRooms = state.roomsTimeline.isNotEmpty ? state.roomsTimeline : [];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -904,24 +1108,43 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     const SizedBox(width: 10),
-                    Text('Loading rooms availability...', style: TextStyle(color: textSecondary, fontSize: 13)),
+                    Text('Loading spaces availability...', style: TextStyle(color: textSecondary, fontSize: 13)),
                   ],
                 ),
               )
             else if (displayRooms.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Text('No rooms available for timeline on this date.', style: TextStyle(color: textSecondary, fontSize: 13)),
+                child: Text(
+                  _getActiveFiltersCount(state) > 0
+                      ? 'No spaces match the selected filters on this date. Try clearing some filters.'
+                      : 'No rooms available for timeline on this date.',
+                  style: TextStyle(color: textSecondary, fontSize: 13),
+                ),
               )
             else
-              ...displayRooms.map((room) => _buildTimelineRoomRow(room, timeSlots, isDark, gridLineColor, state.selectedPurpose)),
+              ...displayRooms.map((room) => _buildTimelineRoomRow(
+                    room,
+                    timeSlots,
+                    isDark,
+                    gridLineColor,
+                    state.selectedPurpose,
+                    state.statusFilter,
+                  )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimelineRoomRow(SpaceTimelineRoom room, List<String> slots, bool isDark, Color gridLineColor, String? selectedPurpose) {
+  Widget _buildTimelineRoomRow(
+    SpaceTimelineRoom room,
+    List<String> slots,
+    bool isDark,
+    Color gridLineColor,
+    String? selectedPurpose,
+    String? statusFilter,
+  ) {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     final textMuted = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
@@ -1017,11 +1240,499 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
 
                 // Booking Event Chips
                 ...room.bookings.where((b) {
-                  if (selectedPurpose == null || selectedPurpose == 'All') return true;
-                  final p = selectedPurpose.toLowerCase();
-                  return b.purpose.toLowerCase().contains(p) || b.title.toLowerCase().contains(p);
+                  if (selectedPurpose != null && selectedPurpose != 'All' && selectedPurpose.isNotEmpty) {
+                    final p = selectedPurpose.toLowerCase();
+                    if (!b.purpose.toLowerCase().contains(p) && !b.title.toLowerCase().contains(p) && !p.contains(b.purpose.toLowerCase())) {
+                      return false;
+                    }
+                  }
+                  if (statusFilter != null && statusFilter != 'All' && statusFilter.isNotEmpty) {
+                    if (b.status.toLowerCase() != statusFilter.toLowerCase()) {
+                      return false;
+                    }
+                  }
+                  return true;
                 }).map((b) => _buildBookingChip(b, room, isDark)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDomainDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Domain / Venue Type',
+      label: 'All Venues',
+      value: state.selectedDomain,
+      allValue: 'all',
+      prefixIcon: Icons.domain_rounded,
+      isDark: isDark,
+      minWidth: 120,
+      maxWidth: 190,
+      items: const [
+        CampusSearchableDropdownItem(
+          value: 'all',
+          label: 'All Venues',
+          subtitle: 'Classrooms, Halls & Facilities',
+          icon: Icons.apartment_rounded,
+        ),
+        CampusSearchableDropdownItem(
+          value: 'room',
+          label: 'Classrooms & Rooms',
+          subtitle: 'Academic spaces, lecture halls & labs',
+          icon: Icons.meeting_room_outlined,
+          iconColor: Color(0xFF3B82F6),
+        ),
+        CampusSearchableDropdownItem(
+          value: 'facility',
+          label: 'Campus Facilities',
+          subtitle: 'Grounds, stadiums, sports & clinic',
+          icon: Icons.sports_soccer_outlined,
+          iconColor: Color(0xFF10B981),
+        ),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(domain: val);
+      },
+    );
+  }
+
+  Widget _buildBuildingDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final buildings = ref.watch(campusProvider).buildings;
+    return CampusSearchableDropdown<String>(
+      title: 'Campus Building',
+      label: 'All Buildings',
+      value: state.selectedBuildingId,
+      allValue: 'all',
+      prefixIcon: Icons.apartment_rounded,
+      isDark: isDark,
+      minWidth: 130,
+      maxWidth: 220,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'all',
+          label: 'All Buildings',
+          subtitle: 'All campus locations',
+          icon: Icons.location_city_rounded,
+        ),
+        ...buildings.map((b) => CampusSearchableDropdownItem(
+          value: b.id,
+          label: '${b.code} - ${b.name}',
+          subtitle: '${b.totalRooms} Rooms • ${b.totalFloors} Floors',
+          icon: Icons.business_outlined,
+          iconColor: const Color(0xFF3B82F6),
+        )),
+      ],
+      onChanged: (val) {
+        _loadFloorsForBuilding(val);
+        notifier.applyQuickFilters(
+          buildingId: val,
+          floorId: 'all',
+          roomId: 'all',
+        );
+      },
+    );
+  }
+
+  Widget _buildFloorDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Floor Level',
+      label: 'All Floors',
+      value: state.selectedFloorId,
+      allValue: 'all',
+      prefixIcon: Icons.stairs_outlined,
+      isDark: isDark,
+      minWidth: 110,
+      maxWidth: 170,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'all',
+          label: 'All Floors',
+          subtitle: 'Show all levels',
+          icon: Icons.stairs_outlined,
+        ),
+        ..._dynamicFloors.map((f) => CampusSearchableDropdownItem(
+          value: f.id,
+          label: f.name,
+          subtitle: 'Floor Level ${f.floorLevel}',
+          icon: Icons.layers_outlined,
+          iconColor: const Color(0xFF8B5CF6),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(
+          floorId: val,
+          roomId: 'all',
+        );
+      },
+    );
+  }
+
+  Widget _buildRoomDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    final List<CampusSearchableDropdownItem<String>> items = [
+      const CampusSearchableDropdownItem(
+        value: 'all',
+        label: 'All Spaces',
+        subtitle: 'Every bookable room or ground',
+        icon: Icons.room_preferences_outlined,
+      ),
+    ];
+
+    // Filter rooms by building and floor if chosen
+    if (state.selectedDomain != 'facility') {
+      final filteredRooms = _dynamicRooms.where((r) {
+        if (state.selectedBuildingId != 'all' && state.selectedBuildingId.isNotEmpty) {
+          if (r.buildingId != state.selectedBuildingId) return false;
+        }
+        if (state.selectedFloorId != 'all' && state.selectedFloorId.isNotEmpty) {
+          if (r.floorId != state.selectedFloorId) return false;
+        }
+        return true;
+      });
+
+      for (final r in filteredRooms) {
+        items.add(CampusSearchableDropdownItem(
+          value: r.id,
+          label: '${r.roomNumber} - ${r.name}',
+          subtitle: '${r.roomType} • Fits ${r.maxCapacity} seats',
+          icon: Icons.meeting_room_outlined,
+          iconColor: const Color(0xFF3B82F6),
+        ));
+      }
+    }
+
+    if (state.selectedDomain != 'room') {
+      final filteredFac = _dynamicFacilities.where((fac) {
+        if (state.selectedBuildingId != 'all' && state.selectedBuildingId.isNotEmpty) {
+          if (fac['building_id'] != null && fac['building_id'] != state.selectedBuildingId) return false;
+        }
+        return true;
+      });
+
+      for (final fac in filteredFac) {
+        final fid = fac['id']?.toString() ?? '';
+        if (fid.isNotEmpty) {
+          items.add(CampusSearchableDropdownItem(
+            value: fid,
+            label: '${fac['name']} (${fac['code'] ?? 'FAC'})',
+            subtitle: '${fac['category'] ?? 'Facility'} • Cap: ${fac['capacity'] ?? 100}',
+            icon: Icons.sports_soccer_outlined,
+            iconColor: const Color(0xFF10B981),
+          ));
+        }
+      }
+    }
+
+    return CampusSearchableDropdown<String>(
+      title: 'Space / Venue',
+      label: 'All Spaces',
+      value: state.selectedRoomId,
+      allValue: 'all',
+      prefixIcon: Icons.meeting_room_outlined,
+      isDark: isDark,
+      minWidth: 130,
+      maxWidth: 220,
+      items: items,
+      onChanged: (val) {
+        notifier.applyQuickFilters(roomId: val);
+      },
+    );
+  }
+
+  Widget _buildSpaceTypeDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Space Type',
+      label: 'All Types',
+      value: state.selectedSpaceType,
+      allValue: 'All',
+      prefixIcon: Icons.category_outlined,
+      isDark: isDark,
+      minWidth: 120,
+      maxWidth: 180,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'All',
+          label: 'All Space Types',
+          subtitle: 'Classrooms, labs, sports, etc.',
+          icon: Icons.category_outlined,
+        ),
+        ..._dynamicSpaceTypes.map((type) => CampusSearchableDropdownItem(
+          value: type,
+          label: type,
+          icon: Icons.grid_view_rounded,
+          iconColor: const Color(0xFF6366F1),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(spaceType: val);
+      },
+    );
+  }
+
+  Widget _buildPurposeDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Booking Purpose',
+      label: 'All Purposes',
+      value: state.selectedPurpose,
+      allValue: 'All',
+      prefixIcon: Icons.flag_outlined,
+      isDark: isDark,
+      minWidth: 120,
+      maxWidth: 180,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'All',
+          label: 'All Purposes',
+          subtitle: 'Instruction, exams, meetings, etc.',
+          icon: Icons.flag_outlined,
+        ),
+        ..._dynamicPurposes.map((p) => CampusSearchableDropdownItem(
+          value: p,
+          label: p,
+          icon: Icons.event_note_outlined,
+          iconColor: const Color(0xFF0EA5E9),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(purpose: val);
+      },
+    );
+  }
+
+  Widget _buildClassDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Target Class / Cohort',
+      label: 'All Classes',
+      value: state.selectedClassId,
+      allValue: 'all',
+      prefixIcon: Icons.school_outlined,
+      isDark: isDark,
+      minWidth: 120,
+      maxWidth: 180,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'all',
+          label: 'All Classes',
+          subtitle: 'All cohorts & sections',
+          icon: Icons.school_outlined,
+        ),
+        ..._dynamicClasses.map((c) => CampusSearchableDropdownItem(
+          value: c['id']?.toString() ?? '',
+          label: '${c['name']} (${c['code'] ?? ''})',
+          subtitle: c['stage'] != null ? 'Stage: ${c['stage']}' : null,
+          icon: Icons.group_outlined,
+          iconColor: const Color(0xFFF59E0B),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(classId: val);
+      },
+    );
+  }
+
+  Widget _buildDepartmentDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Department / Faculty',
+      label: 'All Departments',
+      value: state.selectedDepartment,
+      allValue: 'all',
+      prefixIcon: Icons.business_center_outlined,
+      isDark: isDark,
+      minWidth: 120,
+      maxWidth: 180,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'all',
+          label: 'All Departments',
+          subtitle: 'All academic & admin units',
+          icon: Icons.business_center_outlined,
+        ),
+        ..._dynamicDepartments.map((dept) => CampusSearchableDropdownItem(
+          value: dept,
+          label: dept,
+          icon: Icons.account_balance_outlined,
+          iconColor: const Color(0xFF8B5CF6),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(department: val);
+      },
+    );
+  }
+
+  Widget _buildStatusDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Booking Status',
+      label: 'All Statuses',
+      value: state.statusFilter,
+      allValue: 'All',
+      prefixIcon: Icons.verified_outlined,
+      isDark: isDark,
+      minWidth: 110,
+      maxWidth: 160,
+      items: [
+        const CampusSearchableDropdownItem(
+          value: 'All',
+          label: 'All Statuses',
+          subtitle: 'Any approval state',
+          icon: Icons.verified_outlined,
+        ),
+        ..._dynamicStatuses.map((s) => CampusSearchableDropdownItem(
+          value: s,
+          label: s,
+          icon: Icons.check_circle_outline,
+          iconColor: s.toLowerCase() == 'confirmed' || s.toLowerCase() == 'approved'
+              ? const Color(0xFF10B981)
+              : (s.toLowerCase() == 'pending' ? const Color(0xFFF59E0B) : const Color(0xFFEF4444)),
+        )),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(status: val);
+      },
+    );
+  }
+
+  Widget _buildCapacityDropdown(SpaceBookingState state, SpaceBookingNotifier notifier, bool isDark) {
+    return CampusSearchableDropdown<String>(
+      title: 'Min Capacity',
+      label: 'Any Capacity',
+      value: state.selectedCapacity,
+      allValue: 'Any Capacity',
+      prefixIcon: Icons.people_outline,
+      isDark: isDark,
+      minWidth: 110,
+      maxWidth: 160,
+      items: const [
+        CampusSearchableDropdownItem(
+          value: 'Any Capacity',
+          label: 'Any Capacity',
+          subtitle: 'No minimum capacity',
+          icon: Icons.people_outline,
+        ),
+        CampusSearchableDropdownItem(
+          value: '20+ seats',
+          label: '20+ seats',
+          subtitle: 'Small room (20+ seats)',
+          icon: Icons.people,
+          iconColor: Color(0xFF3B82F6),
+        ),
+        CampusSearchableDropdownItem(
+          value: '40+ seats',
+          label: '40+ seats',
+          subtitle: 'Medium classroom (40+ seats)',
+          icon: Icons.people,
+          iconColor: Color(0xFF3B82F6),
+        ),
+        CampusSearchableDropdownItem(
+          value: '60+ seats',
+          label: '60+ seats',
+          subtitle: 'Large lab/lecture hall (60+ seats)',
+          icon: Icons.groups_outlined,
+          iconColor: Color(0xFF10B981),
+        ),
+        CampusSearchableDropdownItem(
+          value: '100+ seats',
+          label: '100+ seats',
+          subtitle: 'Auditorium / Center (100+ seats)',
+          icon: Icons.groups,
+          iconColor: Color(0xFFF59E0B),
+        ),
+        CampusSearchableDropdownItem(
+          value: '200+ seats',
+          label: '200+ seats',
+          subtitle: 'Major hall / Ground (200+ seats)',
+          icon: Icons.diversity_3,
+          iconColor: Color(0xFF8B5CF6),
+        ),
+        CampusSearchableDropdownItem(
+          value: '500+ seats',
+          label: '500+ seats',
+          subtitle: 'Stadium / Grand venue (500+ seats)',
+          icon: Icons.stadium,
+          iconColor: Color(0xFFEF4444),
+        ),
+      ],
+      onChanged: (val) {
+        notifier.applyQuickFilters(capacity: val);
+      },
+    );
+  }
+
+  Widget _buildTimelineListToggle(
+    SpaceBookingState state,
+    SpaceBookingNotifier notifier,
+    bool isDark,
+    Color cardBorder,
+    Color textSecondary,
+  ) {
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: () => notifier.setDisplayMode('Timeline'),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: state.displayMode == 'Timeline' ? const Color(0xFF2563EB) : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.view_timeline_outlined,
+                    size: 15,
+                    color: state.displayMode == 'Timeline' ? Colors.white : textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Timeline',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: state.displayMode == 'Timeline' ? Colors.white : textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => notifier.setDisplayMode('List'),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: state.displayMode == 'List' ? const Color(0xFF2563EB) : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.format_list_bulleted,
+                    size: 15,
+                    color: state.displayMode == 'List' ? Colors.white : textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'List',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: state.displayMode == 'List' ? Colors.white : textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1162,14 +1873,17 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
   // ==========================================================================
 
   String _getBookingRequestsTitle(SpaceBookingState state) {
+    final count = state.bookingRequests.totalCount;
     if (state.statusFilter == 'All') {
-      return 'All Bookings (${state.kpis.totalBookings})';
+      return 'All Bookings ($count)';
     } else if (state.statusFilter == 'Approved') {
-      return 'Approved Bookings (${state.kpis.confirmedBookings})';
+      return 'Approved Bookings ($count)';
     } else if (state.statusFilter == 'Rejected') {
-      return 'Rejected Bookings (${state.kpis.rejectedBookings})';
+      return 'Rejected Bookings ($count)';
+    } else if (state.statusFilter == 'Cancelled') {
+      return 'Cancelled Bookings ($count)';
     } else {
-      return 'Booking Requests (${state.kpis.pendingBookings})';
+      return 'Booking Requests ($count)';
     }
   }
 
@@ -1231,6 +1945,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                       _buildStatusTab('Pending (${state.kpis.pendingBookings})', 'Pending', state, notifier, isDark),
                       _buildStatusTab('Approved (${state.kpis.confirmedBookings})', 'Approved', state, notifier, isDark),
                       _buildStatusTab('Rejected (${state.kpis.rejectedBookings})', 'Rejected', state, notifier, isDark),
+                      _buildStatusTab('Cancelled (${state.kpis.cancelledBookings})', 'Cancelled', state, notifier, isDark),
                       _buildStatusTab('Conflicts', 'Conflict', state, notifier, isDark),
                     ],
                   ),
@@ -1859,9 +2574,11 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                       ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.5) : const Color(0xFFFEF3C7))
                       : item.status == 'Approved' || item.status == 'Confirmed'
                           ? (isDark ? const Color(0xFF065F46).withValues(alpha: 0.5) : const Color(0xFFDCFCE7))
-                          : item.status == 'Conflict'
-                              ? (isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.6) : const Color(0xFFFFE4E6))
-                              : (isDark ? const Color(0xFF991B1B).withValues(alpha: 0.5) : const Color(0xFFFEE2E2)),
+                          : item.status == 'Cancelled'
+                              ? (isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : const Color(0xFFF1F5F9))
+                              : item.status == 'Conflict'
+                                  ? (isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.6) : const Color(0xFFFFE4E6))
+                                  : (isDark ? const Color(0xFF991B1B).withValues(alpha: 0.5) : const Color(0xFFFEE2E2)),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -1873,9 +2590,11 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
                         ? (isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309))
                         : item.status == 'Approved' || item.status == 'Confirmed'
                             ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D))
-                            : item.status == 'Conflict'
-                                ? (isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C))
-                                : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
+                            : item.status == 'Cancelled'
+                                ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
+                                : item.status == 'Conflict'
+                                    ? (isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C))
+                                    : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
                   ),
                 ),
               ),

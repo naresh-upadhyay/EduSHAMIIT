@@ -342,9 +342,25 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
               children: [
                 const Icon(Icons.meeting_room_outlined, size: 36, color: Color(0xFF94A3B8)),
                 const SizedBox(height: 8),
-                const Text('No rooms found matching your filter criteria.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                Text(
+                  (widget.filterFloorId != null || widget.filterRoomType != null || widget.filterStatus != null || widget.searchQuery.isNotEmpty)
+                      ? 'No rooms found matching your filter criteria.'
+                      : 'No rooms added to ${widget.building.name} yet.',
+                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                ),
                 const SizedBox(height: 8),
-                TextButton(onPressed: widget.onClearFilters, child: const Text('Clear All Filters')),
+                if (widget.filterFloorId != null || widget.filterRoomType != null || widget.filterStatus != null || widget.searchQuery.isNotEmpty)
+                  ElevatedButton.icon(
+                    onPressed: widget.onClearFilters,
+                    icon: const Icon(Icons.filter_alt_off_outlined, size: 14),
+                    label: const Text('Clear All Filters', style: TextStyle(fontSize: 12)),
+                  )
+                else
+                  ElevatedButton.icon(
+                    onPressed: widget.onAddRoom,
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Add Room', style: TextStyle(fontSize: 12)),
+                  ),
               ],
             ),
           )

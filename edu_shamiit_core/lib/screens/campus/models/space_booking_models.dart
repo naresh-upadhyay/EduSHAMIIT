@@ -8,19 +8,25 @@ class SpaceBookingKpis {
   final double pendingPct;
   final int rejectedBookings;
   final double rejectedPct;
+  final int cancelledBookings;
+  final double cancelledPct;
+  final int conflictBookings;
   final int currentUsageSpaces;
   final double utilizationRate;
   final double utilizationChangePct;
 
   const SpaceBookingKpis({
-    this.totalBookings = 246,
+    this.totalBookings = 248,
     this.totalChangePct = 12.0,
-    this.confirmedBookings = 198,
-    this.confirmedPct = 80.5,
+    this.confirmedBookings = 200,
+    this.confirmedPct = 80.6,
     this.pendingBookings = 28,
-    this.pendingPct = 11.4,
+    this.pendingPct = 11.3,
     this.rejectedBookings = 9,
-    this.rejectedPct = 3.7,
+    this.rejectedPct = 3.6,
+    this.cancelledBookings = 11,
+    this.cancelledPct = 4.4,
+    this.conflictBookings = 0,
     this.currentUsageSpaces = 34,
     this.utilizationRate = 72.8,
     this.utilizationChangePct = 4.6,
@@ -28,14 +34,17 @@ class SpaceBookingKpis {
 
   factory SpaceBookingKpis.fromJson(Map<String, dynamic> json) {
     return SpaceBookingKpis(
-      totalBookings: json['total_bookings'] as int? ?? 246,
+      totalBookings: json['total_bookings'] as int? ?? 248,
       totalChangePct: (json['total_change_pct'] as num?)?.toDouble() ?? 12.0,
-      confirmedBookings: json['confirmed_bookings'] as int? ?? 198,
-      confirmedPct: (json['confirmed_pct'] as num?)?.toDouble() ?? 80.5,
+      confirmedBookings: json['confirmed_bookings'] as int? ?? 200,
+      confirmedPct: (json['confirmed_pct'] as num?)?.toDouble() ?? 80.6,
       pendingBookings: json['pending_bookings'] as int? ?? 28,
-      pendingPct: (json['pending_pct'] as num?)?.toDouble() ?? 11.4,
+      pendingPct: (json['pending_pct'] as num?)?.toDouble() ?? 11.3,
       rejectedBookings: json['rejected_bookings'] as int? ?? 9,
-      rejectedPct: (json['rejected_pct'] as num?)?.toDouble() ?? 3.7,
+      rejectedPct: (json['rejected_pct'] as num?)?.toDouble() ?? 3.6,
+      cancelledBookings: json['cancelled_bookings'] as int? ?? 11,
+      cancelledPct: (json['cancelled_pct'] as num?)?.toDouble() ?? 4.4,
+      conflictBookings: json['conflict_bookings'] as int? ?? 0,
       currentUsageSpaces: json['current_usage_spaces'] as int? ?? 34,
       utilizationRate: (json['utilization_rate'] as num?)?.toDouble() ?? 72.8,
       utilizationChangePct: (json['utilization_change_pct'] as num?)?.toDouble() ?? 4.6,
@@ -112,6 +121,7 @@ class SpaceTimelineRoom {
   final String buildingCode;
   final String? floorId;
   final String? floorName;
+  final String? spaceDomain;
   final List<SpaceTimelineBooking> bookings;
 
   const SpaceTimelineRoom({
@@ -126,6 +136,7 @@ class SpaceTimelineRoom {
     required this.buildingCode,
     this.floorId,
     this.floorName,
+    this.spaceDomain,
     required this.bookings,
   });
 
@@ -147,6 +158,7 @@ class SpaceTimelineRoom {
       buildingCode: json['building_code']?.toString() ?? '',
       floorId: json['floor_id']?.toString(),
       floorName: json['floor_name']?.toString(),
+      spaceDomain: json['space_domain']?.toString(),
       bookings: parsedBookings,
     );
   }
@@ -170,6 +182,10 @@ class SpaceBookingRequestItem {
   final String roomId;
   final String roomName;
   final String roomType;
+  final String? facilityId;
+  final String? facilityName;
+  final String? facilityCategory;
+  final String spaceTargetType;
   final String spaceDisplay;
   final String buildingId;
   final String buildingName;
@@ -197,6 +213,10 @@ class SpaceBookingRequestItem {
     required this.roomId,
     required this.roomName,
     required this.roomType,
+    this.facilityId,
+    this.facilityName,
+    this.facilityCategory,
+    this.spaceTargetType = 'room',
     required this.spaceDisplay,
     required this.buildingId,
     required this.buildingName,
@@ -209,6 +229,45 @@ class SpaceBookingRequestItem {
   });
 
   factory SpaceBookingRequestItem.fromJson(Map<String, dynamic> json) {
+    final bDate = json['booking_date']?.toString() ?? '';
+    final sTime = json['start_time']?.toString() ?? '';
+    final eTime = json['end_time']?.toString() ?? '';
+    final rName = json['room_name']?.toString() ?? '';
+    final rType = json['room_type']?.toString() ?? '';
+    final fId = json['facility_id']?.toString();
+    final fName = json['facility_name']?.toString();
+    final fCat = json['facility_category']?.toString();
+    final targetType = json['space_target_type']?.toString() ?? (fId != null ? 'facility' : 'room');
+    final orgName = json['organizer_name']?.toString() ?? '';
+    final orgRole = json['organizer_role']?.toString() ?? '';
+
+    String computedSpace = json['space_display']?.toString() ?? '';
+    if (computedSpace.isEmpty) {
+      if (fName != null && fName.isNotEmpty) {
+        computedSpace = fCat != null && fCat.isNotEmpty ? '$fName ($fCat)' : fName;
+      } else if (rName.isNotEmpty) {
+        computedSpace = rType.isNotEmpty ? '$rName ($rType)' : rName;
+      } else if (json['room_number'] != null) {
+        computedSpace = json['room_number'].toString();
+      }
+    }
+
+    String computedRequestedBy = json['requested_by_display']?.toString() ?? '';
+    if (computedRequestedBy.isEmpty && orgName.isNotEmpty) {
+      computedRequestedBy = orgRole.isNotEmpty ? '$orgName ($orgRole)' : orgName;
+    }
+
+    String computedSchedule = json['formatted_schedule']?.toString() ?? '';
+    if (computedSchedule.isEmpty) {
+      if (bDate.isNotEmpty && sTime.isNotEmpty && eTime.isNotEmpty) {
+        computedSchedule = '$bDate, $sTime - $eTime';
+      } else if (bDate.isNotEmpty && sTime.isNotEmpty) {
+        computedSchedule = '$bDate, $sTime';
+      } else if (bDate.isNotEmpty) {
+        computedSchedule = bDate;
+      }
+    }
+
     return SpaceBookingRequestItem(
       id: json['id']?.toString() ?? '',
       bookingRef: json['booking_ref']?.toString() ?? '',
@@ -219,19 +278,23 @@ class SpaceBookingRequestItem {
       priority: json['priority']?.toString() ?? 'Normal',
       status: json['status']?.toString() ?? 'Pending',
       isApproved: json['is_approved'] as bool? ?? false,
-      bookingDate: json['booking_date']?.toString() ?? '',
-      startTime: json['start_time']?.toString() ?? '',
-      endTime: json['end_time']?.toString() ?? '',
-      formattedSchedule: json['formatted_schedule']?.toString() ?? '',
+      bookingDate: bDate,
+      startTime: sTime,
+      endTime: eTime,
+      formattedSchedule: computedSchedule,
       roomId: json['room_id']?.toString() ?? '',
-      roomName: json['room_name']?.toString() ?? '',
-      roomType: json['room_type']?.toString() ?? '',
-      spaceDisplay: json['space_display']?.toString() ?? '',
+      roomName: rName,
+      roomType: rType,
+      facilityId: fId,
+      facilityName: fName,
+      facilityCategory: fCat,
+      spaceTargetType: targetType,
+      spaceDisplay: computedSpace,
       buildingId: json['building_id']?.toString() ?? '',
       buildingName: json['building_name']?.toString() ?? '',
-      organizerName: json['organizer_name']?.toString() ?? '',
-      organizerRole: json['organizer_role']?.toString() ?? '',
-      requestedByDisplay: json['requested_by_display']?.toString() ?? '',
+      organizerName: orgName,
+      organizerRole: orgRole,
+      requestedByDisplay: computedRequestedBy,
       attendeeCount: json['attendee_count'] as int? ?? 1,
       isRecurring: json['is_recurring'] as bool? ?? false,
       rejectionReason: json['rejection_reason']?.toString() ?? '',

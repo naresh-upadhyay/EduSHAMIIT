@@ -11,6 +11,8 @@ class CreateEditMaintenanceDialog extends ConsumerStatefulWidget {
   final String? initialBuildingId;
   final String? initialFloorId;
   final String? initialRoomId;
+  final String? initialFacilityId;
+  final String? initialFacilityName;
   final String? initialTitle;
   final VoidCallback? onSaved;
 
@@ -20,6 +22,8 @@ class CreateEditMaintenanceDialog extends ConsumerStatefulWidget {
     this.initialBuildingId,
     this.initialFloorId,
     this.initialRoomId,
+    this.initialFacilityId,
+    this.initialFacilityName,
     this.initialTitle,
     this.onSaved,
   });
@@ -59,12 +63,24 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
     _locationController = TextEditingController(
-      text: widget.initialLocation?.isNotEmpty == true
-          ? widget.initialLocation!
-          : 'B1 / G-101',
+      text: widget.initialFacilityName?.isNotEmpty == true
+          ? widget.initialFacilityName!
+          : (widget.initialLocation?.isNotEmpty == true
+              ? widget.initialLocation!
+              : 'B1 / G-101'),
     );
 
-    if (widget.initialLocation != null && widget.initialLocation!.isNotEmpty) {
+    if (widget.initialFacilityId != null && widget.initialFacilityId!.isNotEmpty) {
+      final facName = widget.initialFacilityName ?? widget.initialLocation ?? 'Facility';
+      _selectedLocations = [
+        SelectedLocationItem(
+          facilityId: widget.initialFacilityId,
+          facilityName: facName,
+          displayName: facName,
+          locationType: 'facility',
+        )
+      ];
+    } else if (widget.initialLocation != null && widget.initialLocation!.isNotEmpty) {
       _selectedLocations = [
         SelectedLocationItem(
           buildingId: widget.initialBuildingId,
@@ -316,7 +332,9 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildSectionHeader('2. Location & Facility Mapping', Icons.domain_add, textPrimary),
+                          Expanded(
+                            child: _buildSectionHeader('2. Location & Facility Mapping', Icons.domain_add, textPrimary),
+                          ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -334,6 +352,7 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                       const SizedBox(height: 8),
                       LocationMultiSelector(
                         initialSelected: _selectedLocations,
+                        initialSourceTab: widget.initialFacilityId != null ? 1 : 0,
                         allowMultiple: _allowMultiLocation,
                         onSelectionChanged: (locs) {
                           setState(() {

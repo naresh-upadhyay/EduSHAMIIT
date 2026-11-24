@@ -59,6 +59,7 @@ class SafetyInspectionItem {
   final String locationDisplay;
   final String inspectorName;
   final String inspectorRole;
+  final String? inspectorUserId;
   final DateTime inspectionDate;
   final String status;
   final double complianceScore;
@@ -77,6 +78,7 @@ class SafetyInspectionItem {
     required this.locationDisplay,
     required this.inspectorName,
     required this.inspectorRole,
+    this.inspectorUserId,
     required this.inspectionDate,
     required this.status,
     this.complianceScore = 95.0,
@@ -97,6 +99,7 @@ class SafetyInspectionItem {
       locationDisplay: json['location_display']?.toString() ?? 'Main Campus',
       inspectorName: json['inspector_name']?.toString() ?? 'Inspector',
       inspectorRole: json['inspector_role']?.toString() ?? 'Safety Officer',
+      inspectorUserId: json['inspector_user_id']?.toString(),
       inspectionDate: DateTime.tryParse(json['inspection_date']?.toString() ?? '') ?? DateTime.now(),
       status: json['status']?.toString() ?? 'Passed',
       complianceScore: (json['compliance_score'] as num?)?.toDouble() ?? 95.0,

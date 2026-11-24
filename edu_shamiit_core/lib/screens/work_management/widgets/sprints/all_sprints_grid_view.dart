@@ -5,14 +5,17 @@ import '../../providers/work_management_provider.dart';
 import '../dialogs/create_sprint_dialog.dart';
 import '../dialogs/edit_sprint_dialog.dart';
 import '../dialogs/complete_sprint_dialog.dart';
+import '../work_searchable_dropdown.dart';
 
 class AllSprintsGridView extends ConsumerStatefulWidget {
   final Function(String sprintId) onSelectSprint;
+  final Function(String sprintId)? onOpenInBoard;
   final VoidCallback onOpenCreateSprint;
 
   const AllSprintsGridView({
     super.key,
     required this.onSelectSprint,
+    this.onOpenInBoard,
     required this.onOpenCreateSprint,
   });
 
@@ -238,6 +241,8 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
               children: [
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -246,6 +251,8 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
                 ),
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -287,39 +294,22 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
           ),
         );
 
-        final statusDropdown = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.filter_list_rounded, size: 15, color: Color(0xFF64748B)),
-              const SizedBox(width: 6),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _statusFilter,
-                  isDense: true,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                  dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                  items: const [
-                    DropdownMenuItem(value: 'All', child: Text('Status: All')),
-                    DropdownMenuItem(value: 'ACTIVE', child: Text('Status: Active')),
-                    DropdownMenuItem(value: 'PLANNED', child: Text('Status: Planned')),
-                    DropdownMenuItem(value: 'COMPLETED', child: Text('Status: Completed')),
-                  ],
-                  onChanged: (v) => setState(() => _statusFilter = v ?? 'All'),
-                ),
-              ),
-            ],
-          ),
+        final statusDropdown = WorkSearchableDropdown(
+          label: 'Status',
+          value: _statusFilter == 'All' ? 'All' : _statusFilter.substring(0, 1).toUpperCase() + _statusFilter.substring(1).toLowerCase(),
+          items: const ['All', 'Active', 'Planned', 'Completed'],
+          icon: Icons.filter_list_rounded,
+          compact: true,
+          itemColors: const {
+            'Active': Color(0xFF10B981),
+            'Planned': Color(0xFF3B82F6),
+            'Completed': Color(0xFF6B7280),
+          },
+          onChanged: (v) {
+            setState(() {
+              _statusFilter = v.toUpperCase() == 'ALL' ? 'All' : v.toUpperCase();
+            });
+          },
         );
 
         final refreshBtn = IconButton(
@@ -398,19 +388,18 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
   Widget _buildSprintsTable(List<WorkSprintModel> sprints, bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double minTableWidth = 1120.0;
+        const double minTableWidth = 1180.0;
         final tableContent = ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: minTableWidth),
+          constraints: BoxConstraints(
+            minWidth: constraints.maxWidth > minTableWidth ? constraints.maxWidth : minTableWidth,
+          ),
           child: _buildSprintsTableContainer(sprints, isDark),
         );
 
         if (constraints.maxWidth < minTableWidth) {
-          return Scrollbar(
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: tableContent,
-            ),
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: tableContent,
           );
         }
         return tableContent;
@@ -448,17 +437,19 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
             ),
             child: Row(
               children: [
-                _buildSortHeader('SPRINT', 'sprintNumber', flex: 2, isDark: isDark),
-                _buildSortHeader('STATUS', 'status', flex: 1, isDark: isDark),
-                _buildSortHeader('TIMELINE', 'startDate', flex: 2, isDark: isDark),
-                _buildSortHeader('PROGRESS & WORK ITEMS', 'totalItems', flex: 2, isDark: isDark),
-                _buildSortHeader('CAPACITY', 'capacity', flex: 1, isDark: isDark),
-                _buildSortHeader('TEAM', 'name', flex: 2, isDark: isDark),
+                _buildSortHeader('SPRINT', 'sprintNumber', flex: 3, isDark: isDark),
+                _buildSortHeader('STATUS', 'status', flex: 2, isDark: isDark),
+                _buildSortHeader('TIMELINE', 'startDate', flex: 3, isDark: isDark),
+                _buildSortHeader('PROGRESS & WORK ITEMS', 'totalItems', flex: 3, isDark: isDark),
+                _buildSortHeader('CAPACITY', 'capacity', flex: 2, isDark: isDark),
+                _buildSortHeader('TEAM', 'name', flex: 3, isDark: isDark),
                 const Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Text(
                     'GOAL / OBJECTIVES',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(
@@ -507,20 +498,26 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                ),
               ),
             ),
-            if (isSelected)
+            if (isSelected) ...[
+              const SizedBox(width: 3),
               Icon(
                 _sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
                 size: 13,
                 color: const Color(0xFF2563EB),
               ),
+            ],
           ],
         ),
       ),
@@ -555,7 +552,11 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
     return InkWell(
       onTap: () {
         ref.read(allSprintsProvider.notifier).selectSprint(sprint.id);
-        widget.onSelectSprint(sprint.id);
+        if (widget.onOpenInBoard != null) {
+          widget.onOpenInBoard!(sprint.id);
+        } else {
+          widget.onSelectSprint(sprint.id);
+        }
       },
       hoverColor: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
       child: Padding(
@@ -564,7 +565,7 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
           children: [
             // Sprint Name & Badge
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Row(
                 children: [
                   Container(
@@ -605,7 +606,7 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
 
             // Status Badge
             Expanded(
-              flex: 1,
+              flex: 2,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
@@ -623,12 +624,16 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
                         decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 5),
-                      Text(
-                        status,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
+                      Flexible(
+                        child: Text(
+                          status,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
                         ),
                       ),
                     ],
@@ -639,7 +644,7 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
 
             // Timeline
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -650,6 +655,8 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
                       fontWeight: FontWeight.w600,
                       color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Container(
@@ -659,7 +666,7 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${sprint.durationDays} days',
+                      '${sprint.computedDurationDays} ${sprint.computedDurationDays == 1 ? "day" : "days"}',
                       style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     ),
                   ),
@@ -669,19 +676,23 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
 
             // Progress & Work Items
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${sprint.completedItems}/${sprint.totalItems} items',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                      Flexible(
+                        child: Text(
+                          '${sprint.completedItems}/${sprint.totalItems} items',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : const Color(0xFF334155),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
@@ -712,7 +723,7 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
 
             // Capacity
             Expanded(
-              flex: 1,
+              flex: 2,
               child: Text(
                 '${sprint.capacityHours.toStringAsFixed(0)} h',
                 style: TextStyle(
@@ -720,25 +731,28 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
 
             // Team
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Text(
                 sprint.teamName.isNotEmpty ? sprint.teamName : 'All Teams',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
 
             // Goal
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Text(
                 sprint.goal.isNotEmpty ? sprint.goal : 'No sprint goal set.',
                 style: TextStyle(
@@ -814,14 +828,18 @@ class _AllSprintsGridViewState extends ConsumerState<AllSprintsGridView> {
 
                   // View / Open Sprint
                   IconButton(
-                    tooltip: 'Open in Sprint Dashboard',
+                    tooltip: 'Open in Sprint Board',
                     padding: const EdgeInsets.all(5),
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     splashRadius: 18,
                     icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF2563EB)),
                     onPressed: () {
                       ref.read(allSprintsProvider.notifier).selectSprint(sprint.id);
-                      widget.onSelectSprint(sprint.id);
+                      if (widget.onOpenInBoard != null) {
+                        widget.onOpenInBoard!(sprint.id);
+                      } else {
+                        widget.onSelectSprint(sprint.id);
+                      }
                     },
                   ),
 

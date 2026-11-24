@@ -5,6 +5,7 @@ import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../utils/work_sprint_date_helper.dart';
 import '../../utils/work_filter_helper.dart';
+import '../work_searchable_dropdown.dart';
 import 'work_item_card.dart';
 import 'board_right_sidebar.dart';
 import 'board_bottom_widgets.dart';
@@ -21,6 +22,8 @@ class WorkBoardTabView extends ConsumerStatefulWidget {
     String? parentId,
   })? onCreateItem;
   final VoidCallback? onOpenFilters;
+  final String? initialSprint;
+  final String? targetSprintId;
 
   const WorkBoardTabView({
     super.key,
@@ -28,14 +31,16 @@ class WorkBoardTabView extends ConsumerStatefulWidget {
     required this.onQuickAction,
     this.onCreateItem,
     this.onOpenFilters,
+    this.initialSprint,
+    this.targetSprintId,
   });
 
   @override
-  ConsumerState<WorkBoardTabView> createState() => _WorkBoardTabViewState();
+  ConsumerState<WorkBoardTabView> createState() => WorkBoardTabViewState();
 }
 
-class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
-  String _selectedBoard = 'Institute Work Board';
+class WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
+  String _selectedBoard = 'All Boards';
   String _selectedView = 'Task & Story';
 
   void _handleCreateItem({
@@ -87,11 +92,49 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
   @override
   void initState() {
     super.initState();
-    _selectedSprint = 'All Sprints';
+    if (widget.initialSprint != null && widget.initialSprint!.isNotEmpty) {
+      _selectedSprint = widget.initialSprint!;
+    } else {
+      _selectedSprint = 'All Sprints';
+    }
     _loadAssignees();
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(allSprintsProvider.notifier).loadSprints();
+      _reloadBoard(widget.targetSprintId);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkBoardTabView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.targetSprintId != null && widget.targetSprintId != oldWidget.targetSprintId) {
+      final allSprints = ref.read(allSprintsProvider).sprints;
+      final match = allSprints.where((s) => s.id == widget.targetSprintId).firstOrNull;
+      final label = widget.initialSprint ?? match?.displayLabel ?? widget.targetSprintId!;
+      selectSprint(label, widget.targetSprintId);
+    }
+  }
+
+  void selectSprint(String sprintLabel, [String? sprintId]) {
+    final allSprintsState = ref.read(allSprintsProvider);
+    final match = allSprintsState.sprints.firstWhere(
+      (s) => s.id == sprintId || s.displayLabel == sprintLabel || s.name == sprintLabel,
+      orElse: () => const WorkSprintModel(id: '', name: ''),
+    );
+    final effectiveLabel = match.id.isNotEmpty ? match.displayLabel : sprintLabel;
+    final effectiveId = match.id.isNotEmpty ? match.id : (sprintId ?? sprintLabel);
+
+    if (mounted) {
+      setState(() {
+        _selectedSprint = effectiveLabel;
+      });
+    }
+    ref.read(allSprintsProvider.notifier).selectSprint(effectiveId);
+    _reloadBoard(effectiveId);
+  }
+
+  void reloadCurrent() {
+    _reloadBoard();
   }
 
   String? _getEffectiveSprintId() {
@@ -126,9 +169,9 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
       targetSprintId = 'backlog';
     } else {
       final match = allSprints.firstWhere(
-        (s) => s.displayLabel == sprintVal || s.name == sprintVal,
+        (s) => s.id == sprintVal || s.displayLabel == sprintVal || s.name == sprintVal,
         orElse: () => allSprints.firstWhere(
-          (s) => sprintVal.contains(s.name) || sprintVal.contains('Sprint ${s.sprintNumber}'),
+          (s) => sprintVal.contains(s.name) || (s.name.isNotEmpty && sprintVal.contains('Sprint ${s.sprintNumber}')),
           orElse: () => const WorkSprintModel(id: '', name: ''),
         ),
       );
@@ -137,11 +180,13 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
       }
     }
 
+    final resolvedBoard = WorkFilterHelper.resolveBoardId(_selectedBoard) ?? 'all';
     ref.read(workBoardProvider.notifier).loadBoard(
-          boardId: _selectedBoard,
+          boardId: resolvedBoard,
           sprintId: targetSprintId,
           view: _selectedView,
           groupBy: _selectedGroupBy,
+          forceRefresh: true,
         );
   }
 
@@ -377,7 +422,7 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
             _buildSelector(
               label: 'Board',
               value: _selectedBoard,
-              items: const ['Institute Work Board', 'Academic Board', 'IT & Infra Board'],
+              items: WorkFilterHelper.boardOptions,
               onChanged: (v) {
                 setState(() => _selectedBoard = v!);
                 _reloadBoard();
@@ -414,8 +459,10 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
           ],
         );
 
-        final rightControls = Row(
-          mainAxisSize: MainAxisSize.min,
+        final rightControls = Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _buildSelector(
               label: 'Group by',
@@ -427,7 +474,6 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
               },
               isDark: isDark,
             ),
-            const SizedBox(width: 10),
 
             // Azure DevOps Filters Toggle Button with Active Badge
             InkWell(
@@ -637,7 +683,7 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
               WorkFilterHelper.buildFilterDropdown(
                 label: 'Team',
                 value: _teamFilter,
-                items: _teamsList,
+                items: <String>{'All', ...ref.watch(workTeamsListProvider), ..._teamsList}.toList(),
                 onChanged: (v) => setState(() => _teamFilter = v ?? 'All'),
                 isDark: isDark,
                 prefixIcon: Icons.groups_rounded,
@@ -788,177 +834,48 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: label,
+      value: value,
+      items: items,
+      compact: true,
+      onChanged: (v) => onChanged(v),
     );
   }
 
   Widget _buildAssigneeFilterDropdown(bool isDark) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
     final allAssigneeNames = [
       'All',
       'Unassigned',
-      ..._assigneesList.map((a) => a.fullName).toSet()
+      ..._assigneesList.map((a) => a.fullName).toSet(),
     ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Assigned to: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: allAssigneeNames.contains(_assigneeFilter) ? _assigneeFilter : 'All',
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              items: allAssigneeNames.map((name) {
-                return DropdownMenuItem<String>(
-                  value: name,
-                  child: Text(name),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _assigneeFilter = v!),
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: 'Assigned to',
+      value: _assigneeFilter,
+      items: allAssigneeNames,
+      icon: Icons.person_outline,
+      compact: true,
+      onChanged: (v) => setState(() => _assigneeFilter = v),
     );
   }
 
   Widget _buildPriorityFilterDropdown(bool isDark) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
     const priorities = ['All', 'CRITICAL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW'];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Priority: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: priorities.contains(_priorityFilter) ? _priorityFilter : 'All',
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              items: priorities.map((p) {
-                Color dotColor;
-                switch (p) {
-                  case 'CRITICAL':
-                    dotColor = const Color(0xFFEF4444);
-                    break;
-                  case 'URGENT':
-                    dotColor = const Color(0xFFF97316);
-                    break;
-                  case 'HIGH':
-                    dotColor = const Color(0xFFF59E0B);
-                    break;
-                  case 'MEDIUM':
-                    dotColor = const Color(0xFF3B82F6);
-                    break;
-                  case 'LOW':
-                    dotColor = const Color(0xFF10B981);
-                    break;
-                  default:
-                    dotColor = Colors.transparent;
-                }
-                return DropdownMenuItem<String>(
-                  value: p,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (dotColor != Colors.transparent) ...[
-                        Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        p,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _priorityFilter = v!),
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: 'Priority',
+      value: _priorityFilter,
+      items: priorities,
+      compact: true,
+      itemColors: const {
+        'CRITICAL': Color(0xFFEF4444),
+        'URGENT': Color(0xFFF97316),
+        'HIGH': Color(0xFFF59E0B),
+        'MEDIUM': Color(0xFF3B82F6),
+        'LOW': Color(0xFF10B981),
+      },
+      onChanged: (v) => setState(() => _priorityFilter = v),
     );
   }
 
@@ -994,48 +911,12 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF13182C) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF1E293B),
-              ),
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              onChanged: onChanged,
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
+    return WorkSearchableDropdown(
+      label: label,
+      value: value,
+      items: items,
+      compact: false,
+      onChanged: (v) => onChanged(v),
     );
   }
 
@@ -1672,9 +1553,12 @@ class _WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
                                     children: [
                                       const Icon(Icons.add_rounded, size: 14, color: Color(0xFF2563EB)),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        'Create $title',
-                                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                                      Flexible(
+                                        child: Text(
+                                          'Create $title',
+                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ],
                                   ),

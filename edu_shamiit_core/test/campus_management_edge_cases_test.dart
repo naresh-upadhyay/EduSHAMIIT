@@ -320,7 +320,7 @@ void main() {
 
       await tester.pump();
       expect(tester.takeException(), isNull);
-      expect(find.text('Raise Maintenance Request'), findsOneWidget);
+      expect(find.textContaining('Raise Maintenance'), findsOneWidget);
     });
 
     testWidgets('AssignTechnicianDialog renders with dynamic technicians & vendors', (tester) async {

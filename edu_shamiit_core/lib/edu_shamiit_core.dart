@@ -15,6 +15,7 @@ export 'constants/mock_data.dart';
 export 'theme/responsive_dialog_padding.dart';
 export 'theme/student_theme.dart';
 export 'theme/teacher_theme.dart';
+export 'theme/app_scroll_behavior.dart';
 
 // Models
 export 'models/document_model.dart';

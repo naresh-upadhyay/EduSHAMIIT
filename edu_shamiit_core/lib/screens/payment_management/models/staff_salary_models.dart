@@ -73,10 +73,12 @@ class StaffSalaryRosterItem {
   final double da;
   final double ta;
   final double specialAllowance;
+  final double medicalAllowance;
   final double bonus;
   final double pfDeduction;
   final double tds;
   final double professionalTax;
+  final double insuranceDeduction;
   final double activeAdvanceDeduction;
 
   StaffSalaryRosterItem({
@@ -94,10 +96,12 @@ class StaffSalaryRosterItem {
     this.da = 5000.0,
     this.ta = 2500.0,
     this.specialAllowance = 3000.0,
+    this.medicalAllowance = 0.0,
     this.bonus = 0.0,
     this.pfDeduction = 4200.0,
     this.tds = 2500.0,
     this.professionalTax = 200.0,
+    this.insuranceDeduction = 0.0,
     this.grossSalary = 63000.0,
     this.totalDeductions = 7900.0,
     this.netSalary = 55100.0,
@@ -125,12 +129,14 @@ class StaffSalaryRosterItem {
     final double daVal = (json['da'] as num?)?.toDouble() ?? 5000.0;
     final double taVal = (json['ta'] as num?)?.toDouble() ?? 2500.0;
     final double specVal = (json['special_allowance'] as num?)?.toDouble() ?? 3000.0;
+    final double medVal = (json['medical_allowance'] as num?)?.toDouble() ?? 0.0;
     final double bonusVal = (json['bonus'] as num?)?.toDouble() ?? 0.0;
-    final double gross = (json['gross_salary'] as num?)?.toDouble() ?? (basic + hraVal + daVal + taVal + specVal + bonusVal);
+    final double gross = (json['gross_salary'] as num?)?.toDouble() ?? (basic + hraVal + daVal + taVal + specVal + medVal + bonusVal);
     final double pfVal = (json['pf_deduction'] as num?)?.toDouble() ?? 4200.0;
     final double tdsVal = (json['tds'] as num?)?.toDouble() ?? 2500.0;
     final double ptaxVal = (json['professional_tax'] as num?)?.toDouble() ?? 200.0;
-    final double deductions = (json['total_deductions'] as num?)?.toDouble() ?? (pfVal + tdsVal + ptaxVal);
+    final double insVal = (json['insurance_deduction'] as num?)?.toDouble() ?? 0.0;
+    final double deductions = (json['total_deductions'] as num?)?.toDouble() ?? (pfVal + tdsVal + ptaxVal + insVal);
     final double computedNet = (gross > deductions) ? (gross - deductions) : 0.0;
     final double finalNet = (json['actual_net_pay'] ?? json['net_pay'] ?? json['net_salary'] as num?)?.toDouble() ?? computedNet;
 
@@ -141,7 +147,7 @@ class StaffSalaryRosterItem {
       staffPhone: json['staff_phone']?.toString() ?? '',
       role: json['role']?.toString() ?? 'teacher',
       department: json['department']?.toString() ?? 'Academic & Teaching',
-      designation: json['designation']?.toString() ?? 'Senior Faculty',
+      designation: json['designation']?.toString() ?? json['role_title']?.toString() ?? 'Faculty Member',
       employeeId: json['employee_id']?.toString() ?? '',
       avatarUrl: json['avatar_url']?.toString(),
       basicPay: basic,
@@ -149,10 +155,12 @@ class StaffSalaryRosterItem {
       da: daVal,
       ta: taVal,
       specialAllowance: specVal,
+      medicalAllowance: medVal,
       bonus: bonusVal,
       pfDeduction: pfVal,
       tds: tdsVal,
       professionalTax: ptaxVal,
+      insuranceDeduction: insVal,
       grossSalary: gross,
       totalDeductions: deductions,
       netSalary: finalNet,
@@ -168,6 +176,34 @@ class StaffSalaryRosterItem {
       ifscCode: json['ifsc_code']?.toString(),
       panNumber: json['pan_number']?.toString(),
       activeAdvanceDeduction: (json['active_advance_deduction'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
+  StaffSalaryStructureItem toStructureItem() {
+    return StaffSalaryStructureItem(
+      staffId: staffId,
+      staffName: staffName,
+      employeeId: employeeId,
+      department: department,
+      designation: designation,
+      basicPay: basicPay,
+      hra: hra,
+      da: da,
+      ta: ta,
+      specialAllowance: specialAllowance,
+      medicalAllowance: medicalAllowance,
+      grossSalary: grossSalary,
+      pfDeduction: pfDeduction,
+      tds: tds,
+      professionalTax: professionalTax,
+      insuranceDeduction: insuranceDeduction,
+      totalDeductions: totalDeductions,
+      netSalary: netSalary,
+      paymentMode: paymentMode,
+      bankName: bankName ?? 'HDFC Bank',
+      accountNumber: accountNumber ?? '',
+      ifscCode: ifscCode ?? '',
+      panNumber: panNumber ?? '',
     );
   }
 }
@@ -312,11 +348,13 @@ class StaffPayslipItem {
     this.da = 7000.0,
     this.ta = 4000.0,
     this.specialAllowance = 3000.0,
+    this.medicalAllowance = 0.0,
     this.bonus = 0.0,
     this.grossEarnings = 0.0,
     this.pfDeduction = 4200.0,
     this.tds = 3500.0,
     this.professionalTax = 200.0,
+    this.insuranceDeduction = 0.0,
     this.advanceDeduction = 0.0,
     this.otherDeductions = 0.0,
     this.totalDeductions = 0.0,
@@ -331,6 +369,9 @@ class StaffPayslipItem {
     this.panNumber = '',
     this.rawJson = const {},
   });
+
+  final double medicalAllowance;
+  final double insuranceDeduction;
 
   String get grossFormatted => '₹ ${NumberFormat('#,##,###').format(grossEarnings.toInt())}';
   String get netFormatted => '₹ ${NumberFormat('#,##,###').format(netPay.toInt())}';
@@ -354,11 +395,13 @@ class StaffPayslipItem {
       da: (json['da'] as num?)?.toDouble() ?? 7000.0,
       ta: (json['ta'] as num?)?.toDouble() ?? 4000.0,
       specialAllowance: (json['special_allowance'] as num?)?.toDouble() ?? 3000.0,
+      medicalAllowance: (json['medical_allowance'] as num?)?.toDouble() ?? 0.0,
       bonus: (json['bonus'] as num?)?.toDouble() ?? 0.0,
       grossEarnings: (json['gross_earnings'] as num?)?.toDouble() ?? 0.0,
       pfDeduction: (json['pf_deduction'] as num?)?.toDouble() ?? 4200.0,
       tds: (json['tds'] as num?)?.toDouble() ?? 3500.0,
       professionalTax: (json['professional_tax'] as num?)?.toDouble() ?? 200.0,
+      insuranceDeduction: (json['insurance_deduction'] as num?)?.toDouble() ?? 0.0,
       advanceDeduction: (json['advance_deduction'] as num?)?.toDouble() ?? 0.0,
       otherDeductions: (json['other_deductions'] as num?)?.toDouble() ?? 0.0,
       totalDeductions: (json['total_deductions'] as num?)?.toDouble() ?? 0.0,

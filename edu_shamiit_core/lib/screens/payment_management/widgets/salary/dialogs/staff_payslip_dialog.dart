@@ -23,18 +23,19 @@ class StaffPayslipDialog extends StatelessWidget {
     final da = (payslip['da'] as num?)?.toDouble() ?? 7000.0;
     final ta = (payslip['ta'] as num?)?.toDouble() ?? 4000.0;
     final special = (payslip['special_allowance'] as num?)?.toDouble() ?? 3000.0;
+    final medical = (payslip['medical_allowance'] as num?)?.toDouble() ?? 0.0;
     final bonus = (payslip['bonus'] as num?)?.toDouble() ?? 0.0;
-    final gross = (payslip['gross_earnings'] as num?)?.toDouble() ?? (bpay + hra + da + ta + special + bonus);
+    final gross = bpay + hra + da + ta + special + medical + bonus;
 
     final pf = (payslip['pf_deduction'] as num?)?.toDouble() ?? 5400.0;
     final tds = (payslip['tds'] as num?)?.toDouble() ?? 3850.0;
     final ptax = (payslip['professional_tax'] as num?)?.toDouble() ?? 200.0;
+    final insurance = (payslip['insurance_deduction'] as num?)?.toDouble() ?? 0.0;
     final advDed = (payslip['advance_deduction'] as num?)?.toDouble() ??
-        (payslip['active_advance_deduction'] as num?)?.toDouble() ??
-        (payslip['other_deductions'] as num?)?.toDouble() ?? 0.0;
+        (payslip['active_advance_deduction'] as num?)?.toDouble() ?? 0.0;
     final otherDed = (payslip['other_deductions'] as num?)?.toDouble() ?? 0.0;
-    final totalDed = (payslip['total_deductions'] as num?)?.toDouble() ?? (pf + tds + ptax + advDed);
-    final net = (payslip['net_pay'] as num?)?.toDouble() ?? (gross - totalDed);
+    final totalDed = pf + tds + ptax + insurance + advDed + otherDed;
+    final net = gross - totalDed;
 
     final pMode = payslip['payment_mode']?.toString() ?? 'Direct Bank Transfer (NEFT/RTGS)';
     final txnRef = payslip['transaction_reference']?.toString() ?? 'UTR-AUTO-DISBURSED';
@@ -275,6 +276,7 @@ class StaffPayslipDialog extends StatelessWidget {
                                       _buildAmountRow('Dearness Allowance (DA)', da, isDark),
                                       _buildAmountRow('Travel Allowance (TA)', ta, isDark),
                                       _buildAmountRow('Special Allowance', special, isDark),
+                                      if (medical > 0) _buildAmountRow('Medical Allowance', medical, isDark),
                                       if (bonus > 0) _buildAmountRow('Performance / Bonus', bonus, isDark),
                                       const Divider(height: 14),
                                       _buildAmountRow('Gross Earnings', gross, isDark, isBold: true, highlightColor: const Color(0xFF16A34A)),
@@ -329,6 +331,7 @@ class StaffPayslipDialog extends StatelessWidget {
                                       _buildAmountRow('Provident Fund (PF)', pf, isDark),
                                       _buildAmountRow('TDS / Income Tax', tds, isDark),
                                       _buildAmountRow('Professional Tax (PT)', ptax, isDark),
+                                      if (insurance > 0) _buildAmountRow('Insurance / ESI', insurance, isDark),
                                       if (advDed > 0)
                                         _buildAmountRow('Salary Advance EMI Recovery', advDed, isDark, isWarning: true),
                                       if (otherDed > 0 && otherDed != advDed)

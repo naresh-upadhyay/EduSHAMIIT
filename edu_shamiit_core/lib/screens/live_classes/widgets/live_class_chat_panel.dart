@@ -872,9 +872,18 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                   ? p.initials
                   : (p.name.isNotEmpty ? p.name.substring(0, 1) : 'U');
               final isHost = p.role.toLowerCase().contains('teacher') || p.role.toLowerCase().contains('host');
+              final roomService = ref.watch(liveRoomServiceProvider);
+              final isLocalUser = p.id == roomService.currentUserId ||
+                  p.userId == roomService.currentUserId ||
+                  p.name.trim().toLowerCase().contains(roomService.currentUserName.trim().toLowerCase()) ||
+                  roomService.currentUserName.trim().toLowerCase().contains(p.name.trim().toLowerCase().split('(').first.trim()) ||
+                  p.role.toLowerCase().contains('host');
+              final isActualMicMuted = isLocalUser ? roomService.isMicMuted : p.micMuted;
+              final isActualCamOff = isLocalUser ? roomService.isCamOff : p.camOff;
+              final isActualSpeaking = !isActualMicMuted && p.isSpeaking;
 
               return Tooltip(
-                message: '${p.name}\nRole: ${p.role}\nMic: ${p.micMuted ? "Muted" : "Active"} | Camera: ${p.camOff ? "Off" : "On"}',
+                message: '${p.name}\nRole: ${p.role}\nMic: ${isActualMicMuted ? "Muted" : "Active"} | Camera: ${isActualCamOff ? "Off" : "On"}',
                 waitDuration: const Duration(milliseconds: 300),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 5),
@@ -930,7 +939,7 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                                 ),
                               ],
                             ),
-                            if (p.isSpeaking)
+                            if (isActualSpeaking)
                               const Row(
                                 children: [
                                   Icon(Icons.graphic_eq_rounded, size: 10, color: Color(0xFF10B981)),
@@ -946,16 +955,16 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                       ),
                       // Mic indicator
                       Icon(
-                        p.micMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        isActualMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
                         size: 14,
-                        color: p.micMuted ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        color: isActualMicMuted ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                       ),
                       const SizedBox(width: 6),
                       // Video indicator
                       Icon(
-                        p.camOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+                        isActualCamOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
                         size: 14,
-                        color: p.camOff ? const Color(0xFFEF4444) : const Color(0xFF0EA5E9),
+                        color: isActualCamOff ? const Color(0xFFEF4444) : const Color(0xFF0EA5E9),
                       ),
                       const SizedBox(width: 4),
                       // Options menu
@@ -966,23 +975,43 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                         color: isDark ? const Color(0xFF1E2235) : Colors.white,
                         onSelected: (val) async {
                           if (val == 'mute') {
-                            final newMuteState = !p.micMuted;
-                            await ref.read(liveClassManagementProvider.notifier).muteParticipant(p.id, newMuteState);
                             final targetId = p.userId.isNotEmpty ? p.userId : p.id;
-                            await ref.read(liveRoomServiceProvider).muteRemoteParticipant(targetId, isMuted: newMuteState);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('${p.name} ${newMuteState ? "muted" : "unmuted"}')),
-                              );
+                            final rService = ref.read(liveRoomServiceProvider);
+                            if (isLocalUser) {
+                              await rService.toggleMic();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(rService.isMicMuted ? 'Microphone muted' : 'Microphone unmuted & streaming')),
+                                );
+                              }
+                            } else {
+                              final newMuteState = !p.micMuted;
+                              await ref.read(liveClassManagementProvider.notifier).muteParticipant(p.id, newMuteState);
+                              await rService.muteRemoteParticipant(targetId, isMuted: newMuteState);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('${p.name} ${newMuteState ? "muted" : "unmuted"}')),
+                                );
+                              }
                             }
                           } else if (val == 'camera') {
                             final targetId = p.userId.isNotEmpty ? p.userId : p.id;
-                            final newCamOff = !p.camOff;
-                            await ref.read(liveRoomServiceProvider).cameraRemoteParticipant(targetId, turnOff: newCamOff);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(newCamOff ? 'Turned off ${p.name}\'s camera.' : 'Requested ${p.name} to turn on camera.')),
-                              );
+                            final rService = ref.read(liveRoomServiceProvider);
+                            if (isLocalUser) {
+                              await rService.toggleCamera();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(rService.isCamOff ? 'Camera turned off' : 'Camera turned on & streaming')),
+                                );
+                              }
+                            } else {
+                              final newCamOff = !p.camOff;
+                              await rService.cameraRemoteParticipant(targetId, turnOff: newCamOff);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(newCamOff ? 'Turned off ${p.name}\'s camera.' : 'Requested ${p.name} to turn on camera.')),
+                                );
+                              }
                             }
                           } else if (val == 'spotlight') {
                           final targetId = p.userId.isNotEmpty ? p.userId : p.id;
@@ -1064,8 +1093,8 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                       itemBuilder: (ctx) {
                         final isAlreadyHost = p.role.toLowerCase().contains('host') || p.role.toLowerCase().contains('teacher');
                         return [
-                          PopupMenuItem(value: 'mute', child: Text(p.micMuted ? 'Unmute Participant' : 'Mute Participant', style: TextStyle(fontSize: 11, color: textPrimary))),
-                          PopupMenuItem(value: 'camera', child: Text(p.camOff ? 'Ask to Start Camera' : 'Turn Off Camera', style: TextStyle(fontSize: 11, color: textPrimary))),
+                          PopupMenuItem(value: 'mute', child: Text(isActualMicMuted ? 'Unmute Participant' : 'Mute Participant', style: TextStyle(fontSize: 11, color: textPrimary))),
+                          PopupMenuItem(value: 'camera', child: Text(isActualCamOff ? 'Turn On Camera' : 'Turn Off Camera', style: TextStyle(fontSize: 11, color: textPrimary))),
                           PopupMenuItem(value: 'spotlight', child: Text('Spotlight for All', style: TextStyle(fontSize: 11, color: textPrimary))),
                           if (isAlreadyHost)
                             PopupMenuItem(value: 'revoke_host', child: Text('Revoke Host Privileges', style: TextStyle(fontSize: 11, color: textPrimary)))

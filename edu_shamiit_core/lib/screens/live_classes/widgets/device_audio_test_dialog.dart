@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import '../../../utils/js_helper.dart';
 import '../utils/device_audio_chime_helper.dart';
 
 class DeviceAudioTestDialog extends ConsumerStatefulWidget {
@@ -131,10 +132,14 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
   Future<void> _stopMicTest() async {
     _vuTimer?.cancel();
     if (_audioTrack != null) {
-      await _audioTrack!.stop();
-      await _audioTrack!.dispose();
+      try {
+        await _audioTrack!.mediaStreamTrack.stop();
+        await _audioTrack!.stop();
+        await _audioTrack!.dispose();
+      } catch (_) {}
       _audioTrack = null;
     }
+    releaseHardwareMediaTracks(releaseVideo: false, releaseAudio: true);
     if (mounted) {
       setState(() {
         _isTestingMic = false;
@@ -147,8 +152,11 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
   Future<void> _startCamTest() async {
     try {
       if (_videoTrack != null) {
-        await _videoTrack!.stop();
-        await _videoTrack!.dispose();
+        try {
+          await _videoTrack!.mediaStreamTrack.stop();
+          await _videoTrack!.stop();
+          await _videoTrack!.dispose();
+        } catch (_) {}
         _videoTrack = null;
       }
 
@@ -169,10 +177,14 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
 
   Future<void> _stopCamTest() async {
     if (_videoTrack != null) {
-      await _videoTrack!.stop();
-      await _videoTrack!.dispose();
+      try {
+        await _videoTrack!.mediaStreamTrack.stop();
+        await _videoTrack!.stop();
+        await _videoTrack!.dispose();
+      } catch (_) {}
       _videoTrack = null;
     }
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: false);
     if (mounted) {
       setState(() => _isTestingCam = false);
     }
@@ -199,16 +211,19 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
     _vuTimer?.cancel();
     try {
       if (_audioTrack != null) {
+        await _audioTrack!.mediaStreamTrack.stop();
         await _audioTrack!.stop();
         await _audioTrack!.dispose();
         _audioTrack = null;
       }
       if (_videoTrack != null) {
+        await _videoTrack!.mediaStreamTrack.stop();
         await _videoTrack!.stop();
         await _videoTrack!.dispose();
         _videoTrack = null;
       }
     } catch (_) {}
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: true);
     if (mounted) {
       Navigator.pop(context);
     }
@@ -217,12 +232,16 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
   @override
   void dispose() {
     _vuTimer?.cancel();
+    _audioTrack?.mediaStreamTrack.stop();
     _audioTrack?.stop();
     _audioTrack?.dispose();
+    _videoTrack?.mediaStreamTrack.stop();
     _videoTrack?.stop();
     _videoTrack?.dispose();
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: true);
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {

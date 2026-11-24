@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../config/app_config.dart';
 import '../../models/campus_models.dart';
@@ -6,22 +7,24 @@ class BuildingRightDetailsPanel extends StatelessWidget {
   final BuildingModel building;
   final VoidCallback? onUpdateImage;
   final VoidCallback onAddRoom;
-  final VoidCallback onRaiseMaintenance;
+  final VoidCallback? onRaiseMaintenance;
   final VoidCallback onRoomSetup;
   final VoidCallback onImportRooms;
   final VoidCallback onExportList;
   final VoidCallback onRoomReport;
+  final VoidCallback? onAllocateRoom;
 
   const BuildingRightDetailsPanel({
     super.key,
     required this.building,
     this.onUpdateImage,
     required this.onAddRoom,
-    required this.onRaiseMaintenance,
+    this.onRaiseMaintenance,
     required this.onRoomSetup,
     required this.onImportRooms,
     required this.onExportList,
     required this.onRoomReport,
+    this.onAllocateRoom,
   });
 
   @override
@@ -53,29 +56,47 @@ class BuildingRightDetailsPanel extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (building.imageUrl != null && building.imageUrl!.isNotEmpty)
-                    Image.network(
-                      AppConfig.resolveUrl(building.imageUrl),
-                      key: ValueKey('${building.id}_${building.imageUrl}'),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stackTrace) => Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.broken_image_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                            const SizedBox(height: 6),
-                            Text('Image unavailable', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        );
-                      },
-                    ),
+                    building.imageUrl!.startsWith('data:')
+                        ? Image.memory(
+                            base64Decode(building.imageUrl!.split(',').last),
+                            key: ValueKey('${building.id}_${building.imageUrl}'),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) => Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.broken_image_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                  const SizedBox(height: 6),
+                                  Text('Image unavailable', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Image.network(
+                            AppConfig.resolveUrl(building.imageUrl),
+                            key: ValueKey('${building.id}_${building.imageUrl}'),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) => Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.broken_image_outlined, size: 36, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                  const SizedBox(height: 6),
+                                  Text('Image unavailable', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                                ],
+                              ),
+                            ),
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              );
+                            },
+                          ),
 
                   if (building.imageUrl == null || building.imageUrl!.isEmpty)
                     Center(
@@ -328,7 +349,7 @@ class BuildingRightDetailsPanel extends StatelessWidget {
                   childAspectRatio: 1.0,
                   children: [
                     _buildActionButton(Icons.meeting_room_outlined, 'Add Room', onAddRoom, isDark),
-                    _buildActionButton(Icons.build_circle_outlined, 'Raise Maintenance', onRaiseMaintenance, isDark),
+                    _buildActionButton(Icons.build_circle_outlined, 'Raise Maintenance', onRaiseMaintenance ?? () {}, isDark),
                     _buildActionButton(Icons.tune_outlined, 'Room Setup', onRoomSetup, isDark),
                     _buildActionButton(Icons.file_upload_outlined, 'Import Rooms', onImportRooms, isDark),
                     _buildActionButton(Icons.file_download_outlined, 'Export List', onExportList, isDark),

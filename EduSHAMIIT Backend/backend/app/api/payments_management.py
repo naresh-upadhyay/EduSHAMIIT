@@ -467,7 +467,22 @@ async def get_student_fee_metadata(
     school_id = _get_school_id(current_user)
     rows = await exec_sql("SELECT public.fn_student_fee_metadata(%s::UUID) AS result;", (school_id,))
     if rows and rows[0].get("result"):
-        return rows[0]["result"]
+        res = rows[0]["result"]
+        for key in ("due_heads", "future_heads", "completed_heads"):
+            if res.get(key) and isinstance(res[key], list):
+                for item in res[key]:
+                    if isinstance(item, dict):
+                        for k, v in list(item.items()):
+                            if isinstance(v, str):
+                                item[k] = (
+                                    v.replace("â€”", " - ")
+                                    .replace("â€“", " - ")
+                                    .replace("â‚¹", "₹")
+                                    .replace("â€¢", "•")
+                                    .replace("—", " - ")
+                                    .replace("–", " - ")
+                                )
+        return res
     return {
         "success": True,
         "classes": ["Class 9", "Class 10", "Class 11", "Class 12"],
@@ -2484,10 +2499,12 @@ async def search_all_staff_for_payroll(
             "da": float(r.get("da") or 0.0),
             "ta": float(r.get("ta") or 0.0),
             "special_allowance": float(r.get("special_allowance") or 0.0),
+            "medical_allowance": float(r.get("medical_allowance") or 0.0),
             "gross_salary": float(r.get("gross_salary") or 0.0),
             "pf_deduction": float(r.get("pf_deduction") or 0.0),
             "tds": float(r.get("tds") or 0.0),
             "professional_tax": float(r.get("professional_tax") or 0.0),
+            "insurance_deduction": float(r.get("insurance_deduction") or 0.0),
             "total_deductions": float(r.get("total_deductions") or 0.0),
             "net_salary": float(r.get("net_salary") or 0.0),
             "payment_mode": r.get("payment_mode") or "Direct Bank Transfer (NEFT/RTGS)",
@@ -4302,6 +4319,7 @@ async def get_cohort_matching_fee_structures(
                 s.billing_cycle, s.frequency_type, s.amount, s.due_day_of_cycle,
                 s.grace_period_days, s.late_fine_amount, s.late_fine_type,
                 s.is_mandatory, s.is_refundable, s.status, s.academic_year,
+                s.academic_start_date, s.installment_dates, s.reminder_stages,
                 CASE 
                     WHEN LOWER(TRIM(s.class_grade)) = LOWER(TRIM(%s)) 
                          AND LOWER(TRIM(s.section_name)) = LOWER(TRIM(%s)) THEN 1
@@ -4343,6 +4361,171 @@ async def get_cohort_matching_fee_structures(
         "target_class": cls,
         "target_section": sec,
         "fee_structures": _serialize_val(rows)
+    }
+
+
+@router.get("/student-fees/cohort-due-heads")
+async def get_cohort_due_fee_heads(
+    class_grade: str = Query("All Classes"),
+    section_name: str = Query("All Sections"),
+    academic_year: str = Query("2026 - 2027"),
+    reference_date: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Intelligent Cohort Due Evaluation:
+    Evaluates fee structure catalog against the reference date.
+    Identifies fee heads & installment dates DUE RIGHT NOW,
+    ALREADY BILLED heads, and FUTURE HEADS (e.g. Exams 3 months away)
+    protected from premature bulk invoicing.
+    """
+    school_id = _get_school_id(current_user)
+    cls = (class_grade or "All Classes").strip()
+    sec = (section_name or "All Sections").strip()
+    ref_d = reference_date if reference_date else date.today().isoformat()
+
+    rows = await exec_sql(
+        "SELECT public.fn_evaluate_cohort_due_fee_heads(%s::UUID, %s, %s, %s, %s::DATE) AS result;",
+        (school_id, cls, sec, academic_year, ref_d)
+    )
+    if rows and rows[0].get("result"):
+        return rows[0]["result"]
+    return {
+        "success": True,
+        "due_heads": [],
+        "future_heads": [],
+        "completed_heads": [],
+        "due_heads_count": 0,
+        "future_heads_count": 0
+    }
+
+
+class BulkGenerateDueHeadsPayload(BaseModel):
+    target_class: str = "Class 10"
+    target_section: str = "All Sections"
+    academic_year: str = "2026 - 2027"
+    selected_head_ids: Optional[List[str]] = None
+    auto_deduct_advance_credit: bool = True
+    send_parent_email: bool = True
+    notice_stage: Optional[str] = None
+    reference_date: Optional[str] = None
+
+
+@router.post("/student-fees/invoices/bulk-generate-due-heads", status_code=status.HTTP_201_CREATED)
+async def bulk_generate_cohort_due_heads(
+    payload: BulkGenerateDueHeadsPayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    1-Click Intelligent Bulk Due Head Generator:
+    Takes all active due heads evaluated for the cohort (excluding future scheduled heads),
+    generates invoices with exact installment amounts, applies advance credit deductions,
+    and dispatches parent reminder emails with UPI payment links and late fine warnings.
+    """
+    school_id = _get_school_id(current_user)
+    user_id = _clean_uuid(current_user.get("id"))
+    user_name = current_user.get("full_name") or "Admin"
+    cls = (payload.target_class or "All Classes").strip()
+    sec = (payload.target_section or "All Sections").strip()
+    ref_d = payload.reference_date if payload.reference_date else date.today().isoformat()
+
+    eval_rows = await exec_sql(
+        "SELECT public.fn_evaluate_cohort_due_fee_heads(%s::UUID, %s, %s, %s, %s::DATE) AS result;",
+        (school_id, cls, sec, payload.academic_year, ref_d)
+    )
+    if not eval_rows or not eval_rows[0].get("result"):
+        raise HTTPException(status_code=400, detail="Could not evaluate cohort due heads")
+
+    eval_res = eval_rows[0]["result"]
+    due_heads = eval_res.get("due_heads") or []
+
+    if payload.selected_head_ids and len(payload.selected_head_ids) > 0:
+        sel_set = set(str(sid) for sid in payload.selected_head_ids)
+        due_heads = [h for h in due_heads if str(h.get("fee_structure_id")) in sel_set]
+
+    if not due_heads:
+        return {
+            "success": True,
+            "message": "No fee heads are currently due for billing in this cohort.",
+            "heads_processed_count": 0,
+            "total_invoices_created": 0,
+            "future_heads_protected": len(eval_res.get("future_heads") or []),
+            "generated_heads": []
+        }
+
+    total_invoices = 0
+    total_gross = 0.0
+    total_advance = 0.0
+    total_net = 0.0
+    processed_heads = []
+
+    for head in due_heads:
+        head_id = _clean_uuid(head.get("fee_structure_id"))
+        fee_name = head.get("fee_name") or "Tuition Fee"
+        fee_type = head.get("fee_type") or "Tuition Fee"
+        cycle = head.get("billing_cycle") or "Monthly"
+        title = head.get("suggested_title") or fee_name
+        amount = float(head.get("amount") or 0.0)
+        due_date_str = head.get("due_date") or date.today().isoformat()
+        late_penalty_note = head.get("late_penalty_note") or ""
+
+        rows = await exec_sql(
+            """
+            SELECT public.fn_bulk_generate_student_invoices_v2(
+                %s::UUID, 'CLASS', %s, '[]'::jsonb, %s, %s, %s, %s, %s::DATE, %s, %s, %s::UUID, %s, true, %s, %s, %s::UUID
+            ) AS result;
+            """,
+            (
+                school_id, cls, fee_type, cycle, payload.academic_year, amount,
+                due_date_str, title, f"Intelligent Bulk Generated: {title}",
+                user_id, user_name, sec, payload.auto_deduct_advance_credit, head_id
+            )
+        )
+
+        res = rows[0]["result"] if rows and rows[0].get("result") else {
+            "success": True, "invoices_created": 0, "generated_invoices": []
+        }
+
+        inv_count = res.get("invoices_created", 0)
+        gen_invoices = res.get("generated_invoices") or []
+        total_invoices += inv_count
+
+        for inv in gen_invoices:
+            total_gross += float(inv.get("gross_amount") or 0.0)
+            total_advance += float(inv.get("advance_deducted") or 0.0)
+            total_net += float(inv.get("net_payable") or 0.0)
+
+        if payload.send_parent_email and gen_invoices:
+            asyncio.create_task(_background_dispatch_fee_invoice_emails(
+                invoices=gen_invoices,
+                school_id=school_id,
+                title=title,
+                fee_type=fee_type,
+                due_date_str=due_date_str,
+                target_section=sec,
+                late_penalty_note=late_penalty_note,
+                notice_stage=payload.notice_stage
+            ))
+
+        processed_heads.append({
+            "fee_name": fee_name,
+            "installment_label": head.get("installment_label"),
+            "amount": amount,
+            "due_date": due_date_str,
+            "invoices_created": inv_count,
+            "late_penalty_note": late_penalty_note
+        })
+
+    return {
+        "success": True,
+        "message": f"Successfully generated {total_invoices} invoice(s) across {len(processed_heads)} due fee head(s).",
+        "heads_processed_count": len(processed_heads),
+        "total_invoices_created": total_invoices,
+        "total_gross_billed": total_gross,
+        "total_advance_deducted": total_advance,
+        "total_net_payable": total_net,
+        "future_heads_protected": len(eval_res.get("future_heads") or []),
+        "processed_heads": processed_heads
     }
 
 

@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class WorkItemModel {
   final String id;
   final String itemNumber;
@@ -109,6 +111,14 @@ class WorkItemModel {
       assigneesList = (json['assignees'] as List)
           .map((a) => WorkAssigneeModel.fromJson(a))
           .toList();
+    } else if (json['assignee_name'] != null && json['assignee_name'].toString().isNotEmpty) {
+      assigneesList.add(WorkAssigneeModel(
+        id: json['assignee_id']?.toString() ?? '',
+        userId: json['assignee_id']?.toString() ?? '',
+        fullName: json['assignee_name'].toString(),
+        avatarUrl: json['assignee_avatar']?.toString(),
+        role: json['assignee_role']?.toString() ?? 'staff',
+      ));
     }
 
     List<WorkItemModel> childrenList = [];
@@ -214,6 +224,9 @@ class WorkItemModel {
   }
 
   WorkItemModel copyWith({
+    String? title,
+    String? description,
+    String? category,
     String? workType,
     String? status,
     int? progressPercentage,
@@ -245,12 +258,12 @@ class WorkItemModel {
     return WorkItemModel(
       id: id,
       itemNumber: itemNumber,
-      title: title,
-      description: description,
+      title: title ?? this.title,
+      description: description ?? this.description,
       workType: workType ?? this.workType,
       priority: priority ?? this.priority,
       status: status ?? this.status,
-      category: category,
+      category: category ?? this.category,
       progressPercentage: progressPercentage ?? this.progressPercentage,
       rank: rank ?? this.rank,
       estimatedHours: estimatedHours ?? this.estimatedHours,
@@ -340,7 +353,7 @@ class WorkSprintModel {
   final String endDateFmt;
   final String? startDate;
   final String? endDate;
-  final int durationDays;
+  final int? _durationDays;
   final double capacityHours;
   final double totalPoints;
   final String? ownerName;
@@ -365,7 +378,7 @@ class WorkSprintModel {
     this.endDateFmt = '',
     this.startDate,
     this.endDate,
-    this.durationDays = 14,
+    int? durationDays,
     this.capacityHours = 160.0,
     this.totalPoints = 0.0,
     this.ownerName,
@@ -375,10 +388,35 @@ class WorkSprintModel {
     this.color = '#2563EB',
     this.totalItems = 0,
     this.completedItems = 0,
-  });
+  }) : _durationDays = durationDays;
 
   double get progressPercentage =>
       totalItems > 0 ? ((completedItems / totalItems) * 100).clamp(0.0, 100.0) : 0.0;
+
+  int get durationDays => computedDurationDays;
+
+  int get computedDurationDays {
+    if (startDate != null && endDate != null && startDate!.isNotEmpty && endDate!.isNotEmpty) {
+      final s = DateTime.tryParse(startDate!);
+      final e = DateTime.tryParse(endDate!);
+      if (s != null && e != null) {
+        final sDate = DateTime(s.year, s.month, s.day);
+        final eDate = DateTime(e.year, e.month, e.day);
+        final diff = eDate.difference(sDate).inDays + 1;
+        if (diff > 0) return diff;
+      }
+    }
+    if (startDateFmt.isNotEmpty && endDateFmt.isNotEmpty) {
+      try {
+        final df = DateFormat('MMM dd, yyyy');
+        final s = df.parse(startDateFmt.trim());
+        final e = df.parse(endDateFmt.trim());
+        final diff = e.difference(s).inDays + 1;
+        if (diff > 0) return diff;
+      } catch (_) {}
+    }
+    return (_durationDays != null && _durationDays! > 0) ? _durationDays! : 14;
+  }
 
   String get displayLabel {
     final s = status.toUpperCase();
@@ -390,6 +428,34 @@ class WorkSprintModel {
   }
 
   factory WorkSprintModel.fromJson(Map<String, dynamic> json) {
+    int duration = (json['duration_days'] as num?)?.toInt() ?? 0;
+    final sStr = json['start_date']?.toString();
+    final eStr = json['end_date']?.toString();
+    if (sStr != null && eStr != null && sStr.isNotEmpty && eStr.isNotEmpty) {
+      final s = DateTime.tryParse(sStr);
+      final e = DateTime.tryParse(eStr);
+      if (s != null && e != null) {
+        final sDate = DateTime(s.year, s.month, s.day);
+        final eDate = DateTime(e.year, e.month, e.day);
+        final diff = eDate.difference(sDate).inDays + 1;
+        if (diff > 0) duration = diff;
+      }
+    }
+    if (duration <= 0) {
+      final sFmt = json['start_date_fmt']?.toString() ?? '';
+      final eFmt = json['end_date_fmt']?.toString() ?? '';
+      if (sFmt.isNotEmpty && eFmt.isNotEmpty) {
+        try {
+          final df = DateFormat('MMM dd, yyyy');
+          final s = df.parse(sFmt.trim());
+          final e = df.parse(eFmt.trim());
+          final diff = e.difference(s).inDays + 1;
+          if (diff > 0) duration = diff;
+        } catch (_) {}
+      }
+    }
+    if (duration <= 0) duration = 14;
+
     return WorkSprintModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -404,7 +470,7 @@ class WorkSprintModel {
       endDateFmt: json['end_date_fmt']?.toString() ?? '',
       startDate: json['start_date']?.toString(),
       endDate: json['end_date']?.toString(),
-      durationDays: (json['duration_days'] as num?)?.toInt() ?? 14,
+      durationDays: duration,
       capacityHours: (json['capacity_hours'] as num?)?.toDouble() ?? 160.0,
       totalPoints: (json['total_points'] as num?)?.toDouble() ?? 0.0,
       ownerName: json['owner_name']?.toString(),
@@ -663,6 +729,22 @@ class WorkAssigneeModel {
       avatarUrl: json['avatar_url']?.toString(),
       roleType: json['role_type']?.toString() ?? 'PRIMARY',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'full_name': fullName,
+      'role': role,
+      'email': email,
+      'department': department,
+      'class_name': className,
+      'section_name': sectionName,
+      'roll_number': rollNumber,
+      'avatar_url': avatarUrl,
+      'role_type': roleType,
+    };
   }
 }
 
@@ -1142,6 +1224,8 @@ class SprintCapacityMemberModel {
   final String role;
   final String? avatarUrl;
   final String? department;
+  final String? teamId;
+  final String? teamName;
   final double capacityHours;
   final double plannedHours;
   final double actualHours;
@@ -1151,6 +1235,7 @@ class SprintCapacityMemberModel {
   final String status;
   final double dailyWorkingHours;
   final int workingDays;
+  final double daysOff;
   final double? overrideValue;
   final String? overrideReason;
   final String? notes;
@@ -1163,6 +1248,8 @@ class SprintCapacityMemberModel {
     this.role = 'Member',
     this.avatarUrl,
     this.department,
+    this.teamId,
+    this.teamName,
     this.capacityHours = 40.0,
     this.plannedHours = 0.0,
     this.actualHours = 0.0,
@@ -1171,7 +1258,8 @@ class SprintCapacityMemberModel {
     this.workItemsCount = 0,
     this.status = 'Balanced',
     this.dailyWorkingHours = 8.0,
-    this.workingDays = 5,
+    this.workingDays = 10,
+    this.daysOff = 0.0,
     this.overrideValue,
     this.overrideReason,
     this.notes,
@@ -1179,13 +1267,15 @@ class SprintCapacityMemberModel {
 
   factory SprintCapacityMemberModel.fromJson(Map<String, dynamic> json) {
     return SprintCapacityMemberModel(
-      id: json['id']?.toString() ?? '',
-      userId: json['user_id']?.toString() ?? '',
+      id: json['id']?.toString() ?? json['user_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '',
       fullName: json['full_name']?.toString() ?? 'Member',
       email: json['email']?.toString(),
       role: json['role']?.toString() ?? 'Member',
       avatarUrl: json['avatar_url']?.toString(),
       department: json['department']?.toString(),
+      teamId: json['team_id']?.toString(),
+      teamName: json['team_name']?.toString(),
       capacityHours: (json['capacity_hours'] as num?)?.toDouble() ?? 40.0,
       plannedHours: (json['planned_hours'] as num?)?.toDouble() ?? 0.0,
       actualHours: (json['actual_hours'] as num?)?.toDouble() ?? 0.0,
@@ -1194,7 +1284,8 @@ class SprintCapacityMemberModel {
       workItemsCount: (json['work_items_count'] as num?)?.toInt() ?? 0,
       status: json['status']?.toString() ?? 'Balanced',
       dailyWorkingHours: (json['daily_working_hours'] as num?)?.toDouble() ?? 8.0,
-      workingDays: (json['working_days'] as num?)?.toInt() ?? 5,
+      workingDays: (json['working_days'] as num?)?.toInt() ?? 10,
+      daysOff: (json['days_off'] as num?)?.toDouble() ?? 0.0,
       overrideValue: (json['override_value'] as num?)?.toDouble(),
       overrideReason: json['override_reason']?.toString(),
       notes: json['notes']?.toString(),
@@ -1208,6 +1299,9 @@ class SprintCapacityDailyPointModel {
   final double capacityHours;
   final double plannedHours;
   final double actualHours;
+  final double idealRemaining;
+  final double remainingHours;
+  final double completedHours;
 
   const SprintCapacityDailyPointModel({
     required this.fullDate,
@@ -1215,6 +1309,9 @@ class SprintCapacityDailyPointModel {
     required this.capacityHours,
     required this.plannedHours,
     required this.actualHours,
+    this.idealRemaining = 0.0,
+    this.remainingHours = 0.0,
+    this.completedHours = 0.0,
   });
 
   factory SprintCapacityDailyPointModel.fromJson(Map<String, dynamic> json) {
@@ -1224,6 +1321,9 @@ class SprintCapacityDailyPointModel {
       capacityHours: (json['capacity_hours'] as num?)?.toDouble() ?? 0.0,
       plannedHours: (json['planned_hours'] as num?)?.toDouble() ?? 0.0,
       actualHours: (json['actual_hours'] as num?)?.toDouble() ?? 0.0,
+      idealRemaining: (json['ideal_remaining'] as num?)?.toDouble() ?? 0.0,
+      remainingHours: (json['remaining_hours'] as num?)?.toDouble() ?? 0.0,
+      completedHours: (json['completed_hours'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -1350,7 +1450,7 @@ class SprintCapacitySprintItemModel {
       status: json['status']?.toString() ?? 'ACTIVE',
       startDate: json['start_date']?.toString() ?? '',
       endDate: json['end_date']?.toString() ?? '',
-      isSelected: json['is_selected'] == true,
+      isSelected: json['is_selected'] == true || json['is_current'] == true,
     );
   }
 }
@@ -1359,12 +1459,17 @@ class SprintCapacityDashboardModel {
   final String sprintId;
   final String sprintName;
   final String sprintDuration;
+  final int sprintDays;
+  final int workingDays;
   final String boardName;
   final String selectedTeam;
+  final String? selectedTeamId;
   final SprintCapacityKpisModel kpis;
   final List<SprintCapacityTeamModel> teams;
   final List<SprintCapacityMemberModel> members;
   final List<SprintCapacityDailyPointModel> dailyChart;
+  final List<SprintCapacityDailyPointModel> burndownChart;
+  final List<Map<String, dynamic>> availableRoles;
   final SprintCapacityUtilizationModel utilization;
   final SprintCapacitySummaryModel summary;
   final List<SprintCapacityInsightModel> insights;
@@ -1375,12 +1480,17 @@ class SprintCapacityDashboardModel {
     required this.sprintId,
     required this.sprintName,
     required this.sprintDuration,
+    this.sprintDays = 14,
+    this.workingDays = 10,
     required this.boardName,
     required this.selectedTeam,
+    this.selectedTeamId,
     required this.kpis,
     required this.teams,
     required this.members,
     required this.dailyChart,
+    this.burndownChart = const [],
+    this.availableRoles = const [],
     required this.utilization,
     required this.summary,
     required this.insights,
@@ -1392,12 +1502,17 @@ class SprintCapacityDashboardModel {
     String? sprintId,
     String? sprintName,
     String? sprintDuration,
+    int? sprintDays,
+    int? workingDays,
     String? boardName,
     String? selectedTeam,
+    String? selectedTeamId,
     SprintCapacityKpisModel? kpis,
     List<SprintCapacityTeamModel>? teams,
     List<SprintCapacityMemberModel>? members,
     List<SprintCapacityDailyPointModel>? dailyChart,
+    List<SprintCapacityDailyPointModel>? burndownChart,
+    List<Map<String, dynamic>>? availableRoles,
     SprintCapacityUtilizationModel? utilization,
     SprintCapacitySummaryModel? summary,
     List<SprintCapacityInsightModel>? insights,
@@ -1408,12 +1523,17 @@ class SprintCapacityDashboardModel {
       sprintId: sprintId ?? this.sprintId,
       sprintName: sprintName ?? this.sprintName,
       sprintDuration: sprintDuration ?? this.sprintDuration,
+      sprintDays: sprintDays ?? this.sprintDays,
+      workingDays: workingDays ?? this.workingDays,
       boardName: boardName ?? this.boardName,
       selectedTeam: selectedTeam ?? this.selectedTeam,
+      selectedTeamId: selectedTeamId ?? this.selectedTeamId,
       kpis: kpis ?? this.kpis,
       teams: teams ?? this.teams,
       members: members ?? this.members,
       dailyChart: dailyChart ?? this.dailyChart,
+      burndownChart: burndownChart ?? this.burndownChart,
+      availableRoles: availableRoles ?? this.availableRoles,
       utilization: utilization ?? this.utilization,
       summary: summary ?? this.summary,
       insights: insights ?? this.insights,
@@ -1428,12 +1548,22 @@ class SprintCapacityDashboardModel {
     final summaryJson = json['capacity_summary'] as Map<String, dynamic>? ?? {};
     final paginationJson = json['pagination'] as Map<String, dynamic>? ?? {};
 
+    final rawDaily = (json['daily_chart'] as List<dynamic>? ?? [])
+        .map((d) => SprintCapacityDailyPointModel.fromJson(d as Map<String, dynamic>))
+        .toList();
+    final rawBurndown = (json['burndown_chart'] as List<dynamic>? ?? [])
+        .map((d) => SprintCapacityDailyPointModel.fromJson(d as Map<String, dynamic>))
+        .toList();
+
     return SprintCapacityDashboardModel(
       sprintId: json['sprint_id']?.toString() ?? '',
       sprintName: json['sprint_name']?.toString() ?? 'Sprint',
       sprintDuration: json['sprint_duration']?.toString() ?? '',
+      sprintDays: (json['sprint_days'] as num?)?.toInt() ?? 14,
+      workingDays: (json['working_days'] as num?)?.toInt() ?? 10,
       boardName: json['board_name']?.toString() ?? 'Work Board',
       selectedTeam: json['selected_team']?.toString() ?? 'All Teams',
+      selectedTeamId: json['selected_team_id']?.toString(),
       kpis: SprintCapacityKpisModel.fromJson(kpisJson),
       teams: (json['teams'] as List<dynamic>? ?? [])
           .map((t) => SprintCapacityTeamModel.fromJson(t as Map<String, dynamic>))
@@ -1441,8 +1571,10 @@ class SprintCapacityDashboardModel {
       members: (json['members'] as List<dynamic>? ?? [])
           .map((m) => SprintCapacityMemberModel.fromJson(m as Map<String, dynamic>))
           .toList(),
-      dailyChart: (json['daily_chart'] as List<dynamic>? ?? [])
-          .map((d) => SprintCapacityDailyPointModel.fromJson(d as Map<String, dynamic>))
+      dailyChart: rawDaily,
+      burndownChart: rawBurndown.isNotEmpty ? rawBurndown : rawDaily,
+      availableRoles: (json['available_roles'] as List<dynamic>? ?? [])
+          .map((r) => r is Map<String, dynamic> ? r : {'name': r.toString(), 'label': r.toString()})
           .toList(),
       utilization: SprintCapacityUtilizationModel.fromJson(utilJson),
       summary: SprintCapacitySummaryModel.fromJson(summaryJson),
@@ -1596,6 +1728,8 @@ class TeamWorkItemModel {
   final int progressPercentage;
   final String assigneeName;
   final String? assigneeAvatar;
+  final String? sprintId;
+  final String? sprintName;
 
   const TeamWorkItemModel({
     required this.id,
@@ -1607,6 +1741,8 @@ class TeamWorkItemModel {
     required this.progressPercentage,
     required this.assigneeName,
     this.assigneeAvatar,
+    this.sprintId,
+    this.sprintName,
   });
 
   factory TeamWorkItemModel.fromJson(Map<String, dynamic> json) {
@@ -1620,6 +1756,8 @@ class TeamWorkItemModel {
       progressPercentage: (json['progress_percentage'] as num?)?.toInt() ?? 0,
       assigneeName: json['assignee_name']?.toString() ?? 'Unassigned',
       assigneeAvatar: json['assignee_avatar']?.toString(),
+      sprintId: json['sprint_id']?.toString(),
+      sprintName: json['sprint_name']?.toString() ?? 'Backlog',
     );
   }
 }
@@ -1946,9 +2084,12 @@ class SprintRetroEntryItemModel {
   final String category;
   final String content;
   final int votes;
+  final bool hasVoted;
   final int commentsCount;
   final bool isPinned;
   final int displayOrder;
+  final String? teamId;
+  final String? teamName;
   final String? authorId;
   final String authorName;
   final String? authorAvatar;
@@ -1959,9 +2100,12 @@ class SprintRetroEntryItemModel {
     required this.category,
     required this.content,
     this.votes = 0,
+    this.hasVoted = false,
     this.commentsCount = 0,
     this.isPinned = false,
     this.displayOrder = 0,
+    this.teamId,
+    this.teamName,
     this.authorId,
     this.authorName = 'Team Member',
     this.authorAvatar,
@@ -1974,9 +2118,12 @@ class SprintRetroEntryItemModel {
       category: json['category']?.toString().toUpperCase() ?? 'WENT_WELL',
       content: json['content']?.toString() ?? '',
       votes: (json['votes'] as num?)?.toInt() ?? 0,
+      hasVoted: json['has_voted'] == true,
       commentsCount: (json['comments_count'] as num?)?.toInt() ?? 0,
       isPinned: json['is_pinned'] == true,
       displayOrder: (json['display_order'] as num?)?.toInt() ?? 0,
+      teamId: json['team_id']?.toString(),
+      teamName: json['team_name']?.toString(),
       authorId: json['author_id']?.toString(),
       authorName: json['author_name']?.toString() ?? 'Team Member',
       authorAvatar: json['author_avatar']?.toString(),
@@ -1988,21 +2135,62 @@ class SprintRetroEntryItemModel {
     String? category,
     String? content,
     int? votes,
+    bool? hasVoted,
     int? commentsCount,
     bool? isPinned,
+    String? teamId,
+    String? teamName,
   }) {
     return SprintRetroEntryItemModel(
       id: id,
       category: category ?? this.category,
       content: content ?? this.content,
       votes: votes ?? this.votes,
+      hasVoted: hasVoted ?? this.hasVoted,
       commentsCount: commentsCount ?? this.commentsCount,
       isPinned: isPinned ?? this.isPinned,
       displayOrder: displayOrder,
+      teamId: teamId ?? this.teamId,
+      teamName: teamName ?? this.teamName,
       authorId: authorId,
       authorName: authorName,
       authorAvatar: authorAvatar,
       createdAt: createdAt,
+    );
+  }
+}
+
+class SprintRetroCommentModel {
+  final String id;
+  final String entryId;
+  final String content;
+  final String? authorId;
+  final String authorName;
+  final String? authorAvatar;
+  final String createdAt;
+  final bool isOwner;
+
+  const SprintRetroCommentModel({
+    required this.id,
+    required this.entryId,
+    required this.content,
+    this.authorId,
+    this.authorName = 'Team Member',
+    this.authorAvatar,
+    this.createdAt = '',
+    this.isOwner = false,
+  });
+
+  factory SprintRetroCommentModel.fromJson(Map<String, dynamic> json) {
+    return SprintRetroCommentModel(
+      id: json['id']?.toString() ?? '',
+      entryId: json['entry_id']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      authorId: json['author_id']?.toString(),
+      authorName: json['author_name']?.toString() ?? 'Team Member',
+      authorAvatar: json['author_avatar']?.toString(),
+      createdAt: json['created_at']?.toString() ?? '',
+      isOwner: json['is_owner'] == true,
     );
   }
 }
@@ -2031,6 +2219,20 @@ class SprintRetroCategoryColumnModel {
       entries: list,
     );
   }
+
+  SprintRetroCategoryColumnModel copyWith({
+    String? title,
+    String? key,
+    int? count,
+    List<SprintRetroEntryItemModel>? entries,
+  }) {
+    return SprintRetroCategoryColumnModel(
+      title: title ?? this.title,
+      key: key ?? this.key,
+      count: count ?? (entries?.length ?? this.count),
+      entries: entries ?? this.entries,
+    );
+  }
 }
 
 class SprintRetroActionItemModel {
@@ -2038,8 +2240,11 @@ class SprintRetroActionItemModel {
   final String itemKey;
   final String title;
   final String? description;
+  final String? teamId;
+  final String? teamName;
   final String? ownerId;
   final String ownerName;
+  final String? ownerEmail;
   final String? ownerAvatar;
   final String priority;
   final String dueDate;
@@ -2055,8 +2260,11 @@ class SprintRetroActionItemModel {
     required this.itemKey,
     required this.title,
     this.description,
+    this.teamId,
+    this.teamName,
     this.ownerId,
     this.ownerName = 'Unassigned',
+    this.ownerEmail,
     this.ownerAvatar,
     this.priority = 'MEDIUM',
     this.dueDate = '',
@@ -2074,8 +2282,11 @@ class SprintRetroActionItemModel {
       itemKey: json['item_key']?.toString() ?? 'RA-001',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString(),
+      teamId: json['team_id']?.toString(),
+      teamName: json['team_name']?.toString(),
       ownerId: json['owner_id']?.toString(),
       ownerName: json['owner_name']?.toString() ?? 'Unassigned',
+      ownerEmail: json['owner_email']?.toString(),
       ownerAvatar: json['owner_avatar']?.toString(),
       priority: json['priority']?.toString().toUpperCase() ?? 'MEDIUM',
       dueDate: json['due_date']?.toString() ?? '',
@@ -2091,8 +2302,11 @@ class SprintRetroActionItemModel {
   SprintRetroActionItemModel copyWith({
     String? title,
     String? description,
+    String? teamId,
+    String? teamName,
     String? ownerId,
     String? ownerName,
+    String? ownerEmail,
     String? ownerAvatar,
     String? priority,
     String? dueDate,
@@ -2107,8 +2321,11 @@ class SprintRetroActionItemModel {
       itemKey: itemKey,
       title: title ?? this.title,
       description: description ?? this.description,
+      teamId: teamId ?? this.teamId,
+      teamName: teamName ?? this.teamName,
       ownerId: ownerId ?? this.ownerId,
       ownerName: ownerName ?? this.ownerName,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
       ownerAvatar: ownerAvatar ?? this.ownerAvatar,
       priority: priority ?? this.priority,
       dueDate: dueDate ?? this.dueDate,
@@ -2182,6 +2399,7 @@ class SprintRetroHistoryItemModel {
 
 class SprintRetroFeedbackItemModel {
   final String id;
+  final String? userId;
   final String category;
   final int rating;
   final String? content;
@@ -2192,6 +2410,7 @@ class SprintRetroFeedbackItemModel {
 
   const SprintRetroFeedbackItemModel({
     required this.id,
+    this.userId,
     required this.category,
     required this.rating,
     this.content,
@@ -2204,12 +2423,13 @@ class SprintRetroFeedbackItemModel {
   factory SprintRetroFeedbackItemModel.fromJson(Map<String, dynamic> json) {
     return SprintRetroFeedbackItemModel(
       id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? json['author_id']?.toString(),
       category: json['category']?.toString() ?? 'General',
       rating: (json['rating'] as num?)?.toInt() ?? 5,
       content: json['content']?.toString(),
       suggestedImprovement: json['suggested_improvement']?.toString(),
       isAnonymous: json['is_anonymous'] == true,
-      userName: json['user_name']?.toString() ?? (json['is_anonymous'] == true ? 'Anonymous Contributor' : 'Team Member'),
+      userName: json['author_name']?.toString() ?? json['user_name']?.toString() ?? (json['is_anonymous'] == true ? 'Anonymous Contributor' : 'Team Member'),
       createdAt: json['created_at']?.toString() ?? '',
     );
   }
@@ -2246,6 +2466,8 @@ class SprintRetroWorkspaceModel {
   final List<SprintRetroHistoryItemModel> history;
   final List<SprintRetroFeedbackItemModel> feedback;
   final SprintRetroFeedbackStatsModel feedbackStats;
+  final List<SprintCapacityTeamModel> availableTeams;
+  final List<SprintCapacitySprintItemModel> availableSprints;
 
   const SprintRetroWorkspaceModel({
     required this.retrospective,
@@ -2258,6 +2480,8 @@ class SprintRetroWorkspaceModel {
     required this.history,
     required this.feedback,
     required this.feedbackStats,
+    this.availableTeams = const [],
+    this.availableSprints = const [],
   });
 
   factory SprintRetroWorkspaceModel.fromJson(Map<String, dynamic> json) {
@@ -2265,9 +2489,9 @@ class SprintRetroWorkspaceModel {
     final overviewJson = (json['sprint_overview'] as Map<String, dynamic>?) ?? {};
     final catJson = (json['categories'] as Map<String, dynamic>?) ?? {};
 
-    final wentWellJson = (catJson['went_well'] as Map<String, dynamic>?) ?? {};
-    final wentPoorlyJson = (catJson['did_not_go_well'] as Map<String, dynamic>?) ?? {};
-    final shouldImproveJson = (catJson['should_improve'] as Map<String, dynamic>?) ?? {};
+    final wentWellJson = (catJson['went_well'] as Map<String, dynamic>?) ?? (json['went_well'] as Map<String, dynamic>?) ?? {};
+    final wentPoorlyJson = (catJson['did_not_go_well'] as Map<String, dynamic>?) ?? (json['did_not_go_well'] as Map<String, dynamic>?) ?? {};
+    final shouldImproveJson = (catJson['should_improve'] as Map<String, dynamic>?) ?? (json['should_improve'] as Map<String, dynamic>?) ?? {};
 
     final actList = (json['action_items'] as List<dynamic>? ?? [])
         .map((a) => SprintRetroActionItemModel.fromJson(a as Map<String, dynamic>))
@@ -2287,6 +2511,14 @@ class SprintRetroWorkspaceModel {
 
     final feedStats = (json['feedback_stats'] as Map<String, dynamic>?) ?? {};
 
+    final teamsList = (json['available_teams'] as List<dynamic>? ?? [])
+        .map((t) => SprintCapacityTeamModel.fromJson(t as Map<String, dynamic>))
+        .toList();
+
+    final sprintsList = (json['available_sprints'] as List<dynamic>? ?? [])
+        .map((s) => SprintCapacitySprintItemModel.fromJson(s as Map<String, dynamic>))
+        .toList();
+
     return SprintRetroWorkspaceModel(
       retrospective: SprintRetroHeaderModel.fromJson(retroJson),
       sprintOverview: SprintRetroOverviewModel.fromJson(overviewJson),
@@ -2298,6 +2530,8 @@ class SprintRetroWorkspaceModel {
       history: histList,
       feedback: feedList,
       feedbackStats: SprintRetroFeedbackStatsModel.fromJson(feedStats),
+      availableTeams: teamsList,
+      availableSprints: sprintsList,
     );
   }
 
@@ -2312,6 +2546,8 @@ class SprintRetroWorkspaceModel {
     List<SprintRetroHistoryItemModel>? history,
     List<SprintRetroFeedbackItemModel>? feedback,
     SprintRetroFeedbackStatsModel? feedbackStats,
+    List<SprintCapacityTeamModel>? availableTeams,
+    List<SprintCapacitySprintItemModel>? availableSprints,
   }) {
     return SprintRetroWorkspaceModel(
       retrospective: retrospective ?? this.retrospective,
@@ -2324,6 +2560,8 @@ class SprintRetroWorkspaceModel {
       history: history ?? this.history,
       feedback: feedback ?? this.feedback,
       feedbackStats: feedbackStats ?? this.feedbackStats,
+      availableTeams: availableTeams ?? this.availableTeams,
+      availableSprints: availableSprints ?? this.availableSprints,
     );
   }
 }

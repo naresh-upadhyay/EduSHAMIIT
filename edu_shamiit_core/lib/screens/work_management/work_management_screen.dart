@@ -9,10 +9,12 @@ import 'widgets/board/work_board_tab_view.dart';
 import 'widgets/list/work_list_tab_view.dart';
 import 'widgets/backlog/work_backlog_tab_view.dart';
 import 'widgets/sprints/work_sprints_tab_view.dart';
+import 'widgets/sprints/sprint_team_tab_view.dart';
 import 'widgets/drawers/work_item_detail_drawer.dart';
 import 'widgets/dialogs/create_edit_work_item_dialog.dart';
 import 'widgets/dialogs/create_sprint_dialog.dart';
 import 'services/work_api_service.dart';
+import 'utils/work_filter_helper.dart';
 
 class WorkManagementScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -30,12 +32,67 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
   late int _activeTabIndex;
   final Set<int> _loadedTabs = {};
   WorkItemModel? _activeBoardDrawerItem;
+  final GlobalKey<WorkBoardTabViewState> _boardKey = GlobalKey<WorkBoardTabViewState>();
+  String? _boardTargetSprint;
+  String? _boardTargetSprintId;
 
   @override
   void initState() {
     super.initState();
     _activeTabIndex = widget.initialTabIndex;
     _loadedTabs.add(_activeTabIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshTabOnSwitch(_activeTabIndex);
+    });
+  }
+
+  void _navigateToBoardWithSprint(String sprintId) {
+    final allSprints = ref.read(allSprintsProvider).sprints;
+    final match = allSprints.where((s) => s.id == sprintId).firstOrNull;
+    final sprintLabel = match?.displayLabel ?? (match?.name.isNotEmpty == true ? match!.name : sprintId);
+
+    ref.read(allSprintsProvider.notifier).selectSprint(sprintId);
+    setState(() {
+      _boardTargetSprint = sprintLabel;
+      _boardTargetSprintId = sprintId;
+      _activeTabIndex = 0;
+      _loadedTabs.add(0);
+      _activeBoardDrawerItem = null;
+    });
+
+    WorkApiService.instance.invalidateCache();
+    _boardKey.currentState?.selectSprint(sprintLabel, sprintId);
+  }
+
+  void _refreshTabOnSwitch(int tabIndex) {
+    WorkApiService.instance.invalidateCache();
+    WorkFilterHelper.clearCache();
+    switch (tabIndex) {
+      case 0: // Board
+        if (_boardKey.currentState != null) {
+          _boardKey.currentState!.reloadCurrent();
+        } else {
+          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+        }
+        break;
+      case 1: // List
+        final currentBoardId = ref.read(workListProvider).boardId;
+        ref.read(workListProvider.notifier).loadPagedItems(boardId: currentBoardId, forceRefresh: true);
+        break;
+      case 2: // Backlog
+        ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+        break;
+      case 3: // Sprints
+        ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
+        ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+        break;
+      case 4: // Team
+        final allSprints = ref.read(allSprintsProvider).sprints;
+        final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
+        final sid = activeSprint?.id ?? ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
+        ref.read(workSprintTeamProvider.notifier).init(sid);
+        break;
+    }
   }
 
   void _openCreateDialog({
@@ -45,7 +102,21 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
     String? category,
     String? sprintId,
     String? parentId,
+    String? boardId,
   }) async {
+    String? effectiveBoardId = boardId;
+    if (effectiveBoardId == null || effectiveBoardId == 'all' || effectiveBoardId.isEmpty) {
+      if (_activeTabIndex == 0) {
+        effectiveBoardId = ref.read(workBoardProvider).boardId;
+      } else if (_activeTabIndex == 1) {
+        effectiveBoardId = ref.read(workListProvider).boardId;
+      } else if (_activeTabIndex == 2) {
+        effectiveBoardId = ref.read(workBacklogProvider).boardId;
+      } else if (_activeTabIndex == 3) {
+        effectiveBoardId = ref.read(workSprintDashboardProvider).sprint?.boardId;
+      }
+    }
+
     final res = await showDialog<bool>(
       context: context,
       builder: (ctx) => CreateEditWorkItemDialog(
@@ -53,16 +124,30 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
         initialStatus: status,
         initialPriority: priority,
         initialCategory: category,
+        boardId: effectiveBoardId,
         sprintId: sprintId,
         parentId: parentId,
       ),
     );
     if (res == true && mounted) {
+      ref.read(workApiServiceProvider).invalidateCache();
       ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
       ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
       ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
       ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
       ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      ref.read(workOverviewProvider.notifier).loadOverview();
+      if (_loadedTabs.contains(4)) {
+        final allSprints = ref.read(allSprintsProvider).sprints;
+        final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
+        final sid = activeSprint?.id ?? ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
+        final teamNotifier = ref.read(workSprintTeamProvider.notifier);
+        teamNotifier.init(sid);
+        final teamState = ref.read(workSprintTeamProvider);
+        if (teamState.selectedTeamId != null) {
+          teamNotifier.loadTeamDetail(teamState.selectedTeamId!, silent: true);
+        }
+      }
     }
   }
 
@@ -126,6 +211,12 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                   if (_loadedTabs.contains(1)) ref.read(workListProvider.notifier).loadPagedItems();
                   if (_loadedTabs.contains(2)) ref.read(workBacklogProvider.notifier).loadBacklog();
                   if (_loadedTabs.contains(3)) ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard();
+                  if (_loadedTabs.contains(4)) {
+                    final allSprints = ref.read(allSprintsProvider).sprints;
+                    final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
+                    final sid = activeSprint?.id ?? ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
+                    ref.read(workSprintTeamProvider.notifier).init(sid);
+                  }
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('All Work Management modules refreshed with live data!')),
                   );
@@ -231,26 +322,31 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                 onMoreOptions: _openMoreOptionsMenu,
               ),
 
-              // 2. Primary Tabs (Board | List | Backlog | Sprints)
+              // 2. Primary Tabs (Board | List | Backlog | Sprints | Teams)
               WorkTabsBar(
                 activeTab: _activeTabIndex,
                 onTabSelected: (idx) {
+                  final clampedIdx = idx.clamp(0, 4);
                   setState(() {
-                    _activeTabIndex = idx.clamp(0, 3);
-                    _loadedTabs.add(_activeTabIndex);
+                    _activeTabIndex = clampedIdx;
+                    _loadedTabs.add(clampedIdx);
                     _activeBoardDrawerItem = null;
                   });
+                  _refreshTabOnSwitch(clampedIdx);
                 },
               ),
 
               // 3. Tab Views Content (Lazily loaded for fast startup)
               Expanded(
                 child: IndexedStack(
-                  index: _activeTabIndex.clamp(0, 3),
+                  index: _activeTabIndex.clamp(0, 4),
                   children: [
                     // Tab 0: Board
                     _loadedTabs.contains(0)
                         ? WorkBoardTabView(
+                            key: _boardKey,
+                            initialSprint: _boardTargetSprint,
+                            targetSprintId: _boardTargetSprintId,
                             onOpenDetail: (item) {
                               setState(() => _activeBoardDrawerItem = item);
                             },
@@ -294,6 +390,24 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                             onCreateItem: _openCreateDialog,
                             onCreateSprint: _openCreateSprintDialog,
                             onOpenFilters: _openFiltersDialog,
+                            onOpenInBoard: (sprintId) {
+                              _navigateToBoardWithSprint(sprintId);
+                            },
+                          )
+                        : const SizedBox.shrink(),
+
+                    // Tab 4: Team
+                    _loadedTabs.contains(4)
+                        ? Consumer(
+                            builder: (context, ref, _) {
+                              final allSprints = ref.watch(allSprintsProvider).sprints;
+                              final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
+                              final sprintId = activeSprint?.id ?? ref.watch(workSprintDashboardProvider).sprint?.id ?? 's8';
+                              return SprintTeamTabView(
+                                sprintId: sprintId,
+                                selectedTeam: 'All Teams',
+                              );
+                            },
                           )
                         : const SizedBox.shrink(),
                   ],
@@ -303,7 +417,16 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
           ),
 
           // Detail Drawer for all tabs when an item is tapped
-          if (_activeBoardDrawerItem != null)
+          if (_activeBoardDrawerItem != null) ...[
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _activeBoardDrawerItem = null),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.35),
+                ),
+              ),
+            ),
             Positioned(
               top: 0,
               bottom: 0,
@@ -314,6 +437,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                 onClose: () => setState(() => _activeBoardDrawerItem = null),
               ),
             ),
+          ],
         ],
       ),
     );

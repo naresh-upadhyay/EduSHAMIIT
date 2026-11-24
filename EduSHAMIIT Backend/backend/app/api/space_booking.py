@@ -125,7 +125,9 @@ def _parse_time_str(time_str: str) -> time:
 
 class RecurringBookingCreateSchema(BaseModel):
     title: str = Field(..., min_length=2, max_length=250)
-    room_id: str
+    room_id: Optional[str] = None
+    facility_id: Optional[str] = None
+    space_target_type: Optional[str] = "room"
     start_date: date
     end_date: Optional[date] = None
     days_of_week: Optional[List[int]] = [1, 3, 5]
@@ -147,7 +149,9 @@ class SpaceBookingCreateUpdateSchema(BaseModel):
     visibility: Optional[str] = "Public"
     building_id: Optional[str] = None
     floor_id: Optional[str] = None
-    room_id: str
+    room_id: Optional[str] = None
+    facility_id: Optional[str] = None
+    space_target_type: Optional[str] = "room"
     booking_date: date
     start_time: str # "08:00:00" or "08:00"
     end_time: str
@@ -358,6 +362,8 @@ async def create_or_update_booking(
                 "title": payload.title,
                 "description": payload.description,
                 "room_id": payload.room_id,
+                "facility_id": payload.facility_id,
+                "space_target_type": payload.space_target_type or ("facility" if payload.facility_id else "room"),
                 "frequency": freq,
                 "start_date": str(start_d),
                 "end_date": str(end_d),
@@ -492,7 +498,8 @@ async def create_recurring_space_booking(
 
 @router.get("/check-slot", summary="Real-time Space Availability & Conflict Check")
 async def check_space_slot_availability(
-    room_id: str = Query(...),
+    room_id: Optional[str] = Query(None),
+    facility_id: Optional[str] = Query(None),
     booking_date: date = Query(..., alias="date"),
     start_time: str = Query(...),
     end_time: str = Query(...),
@@ -504,8 +511,9 @@ async def check_space_slot_availability(
     """Real-time conflict detection and free/busy query for space and time slot."""
     school_id = get_school_id(current_user)
     parsed_room_id = safe_uuid(room_id)
-    if not parsed_room_id:
-        return {"has_conflict": False, "status": "FREE", "message": "Room not selected"}
+    parsed_facility_id = safe_uuid(facility_id)
+    if not parsed_room_id and not parsed_facility_id:
+        return {"has_conflict": False, "status": "FREE", "message": "Space not selected"}
 
     parsed_exclude = safe_uuid(exclude_booking_id)
 
@@ -517,10 +525,10 @@ async def check_space_slot_availability(
 
     sql = """
     SELECT * FROM public.fn_space_booking_check_conflict(
-        %s::UUID, %s::UUID, %s::TIMESTAMPTZ, %s::TIMESTAMPTZ, %s::UUID, TRUE
+        %s::UUID, %s::UUID, %s::TIMESTAMPTZ, %s::TIMESTAMPTZ, %s::UUID, TRUE, %s::UUID
     );
     """
-    rows = await exec_sql(sql, (school_id, parsed_room_id, start_dt, end_dt, parsed_exclude))
+    rows = await exec_sql(sql, (school_id, parsed_room_id, start_dt, end_dt, parsed_exclude, parsed_facility_id))
     if not rows:
         return {"has_conflict": False, "status": "FREE", "message": "Slot is free and available"}
 

@@ -496,6 +496,207 @@ class RecordingSettings {
   }
 }
 
+enum RuleLogicalOperator { and, or }
+
+enum RuleField {
+  meetingTitle,
+  classSectionCombo,
+  subject,
+  teacherHost,
+  sessionType,
+  scheduledDay,
+}
+
+enum RuleConditionOperator {
+  contains,
+  doesNotContain,
+  equals,
+  doesNotEqual,
+  startsWith,
+  endsWith,
+  matchesPattern,
+}
+
+class AutoRecordingQueryClause {
+  String id;
+  RuleLogicalOperator logicalOp;
+  RuleField field;
+  RuleConditionOperator operator;
+  String value;
+
+  AutoRecordingQueryClause({
+    required this.id,
+    this.logicalOp = RuleLogicalOperator.and,
+    this.field = RuleField.meetingTitle,
+    this.operator = RuleConditionOperator.contains,
+    this.value = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'logical_op': logicalOp.name.toUpperCase(),
+        'field': field.name,
+        'operator': operator.name,
+        'value': value,
+      };
+
+  factory AutoRecordingQueryClause.fromJson(Map<String, dynamic> json) => AutoRecordingQueryClause(
+        id: json['id'] ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        logicalOp: (json['logical_op'] == 'OR') ? RuleLogicalOperator.or : RuleLogicalOperator.and,
+        field: RuleField.values.firstWhere((e) => e.name == json['field'], orElse: () => RuleField.meetingTitle),
+        operator: RuleConditionOperator.values.firstWhere((e) => e.name == json['operator'], orElse: () => RuleConditionOperator.contains),
+        value: json['value'] ?? '',
+      );
+}
+
+class AutoRecordingRuleSet {
+  final bool globalAutoRecordAll;
+  final Set<String> enabledClassSectionIds;
+  final List<AutoRecordingQueryClause> customQueryClauses;
+
+  AutoRecordingRuleSet({
+    this.globalAutoRecordAll = false,
+    Set<String>? enabledClassSectionIds,
+    List<AutoRecordingQueryClause>? customQueryClauses,
+  })  : enabledClassSectionIds = enabledClassSectionIds ?? {'10-A', 'Class 10 - 10-A'},
+        customQueryClauses = customQueryClauses ??
+            [
+              AutoRecordingQueryClause(
+                id: 'clause_1',
+                logicalOp: RuleLogicalOperator.and,
+                field: RuleField.subject,
+                operator: RuleConditionOperator.contains,
+                value: 'Computer Science',
+              ),
+              AutoRecordingQueryClause(
+                id: 'clause_2',
+                logicalOp: RuleLogicalOperator.or,
+                field: RuleField.meetingTitle,
+                operator: RuleConditionOperator.contains,
+                value: 'Exam',
+              ),
+            ];
+
+  bool get hasActiveRules => globalAutoRecordAll || enabledClassSectionIds.isNotEmpty || customQueryClauses.any((c) => c.value.trim().isNotEmpty);
+
+  AutoRecordingRuleSet copyWith({
+    bool? globalAutoRecordAll,
+    Set<String>? enabledClassSectionIds,
+    List<AutoRecordingQueryClause>? customQueryClauses,
+  }) {
+    return AutoRecordingRuleSet(
+      globalAutoRecordAll: globalAutoRecordAll ?? this.globalAutoRecordAll,
+      enabledClassSectionIds: enabledClassSectionIds ?? this.enabledClassSectionIds,
+      customQueryClauses: customQueryClauses ?? this.customQueryClauses,
+    );
+  }
+
+  bool evaluatesToTrue({
+    required String title,
+    required String classSection,
+    required String subject,
+    required String teacherName,
+    String? sessionType,
+    String? dayOfWeek,
+  }) {
+    if (globalAutoRecordAll) return true;
+
+    // Check assigned class/section toggles
+    for (final id in enabledClassSectionIds) {
+      if (classSection.trim().toLowerCase().contains(id.trim().toLowerCase()) ||
+          id.trim().toLowerCase().contains(classSection.trim().toLowerCase())) {
+        return true;
+      }
+    }
+
+    // Evaluate Azure DevOps query builder clauses
+    if (customQueryClauses.isEmpty) return false;
+
+    bool currentResult = false;
+    for (int i = 0; i < customQueryClauses.length; i++) {
+      final clause = customQueryClauses[i];
+      if (clause.value.trim().isEmpty) continue;
+      final bool match = _evaluateClause(
+        clause,
+        title: title,
+        classSection: classSection,
+        subject: subject,
+        teacherName: teacherName,
+        sessionType: sessionType,
+        dayOfWeek: dayOfWeek,
+      );
+
+      if (i == 0) {
+        currentResult = match;
+      } else {
+        if (clause.logicalOp == RuleLogicalOperator.and) {
+          currentResult = currentResult && match;
+        } else {
+          currentResult = currentResult || match;
+        }
+      }
+    }
+    return currentResult;
+  }
+
+  bool _evaluateClause(
+    AutoRecordingQueryClause clause, {
+    required String title,
+    required String classSection,
+    required String subject,
+    required String teacherName,
+    String? sessionType,
+    String? dayOfWeek,
+  }) {
+    String actual = '';
+    switch (clause.field) {
+      case RuleField.meetingTitle:
+        actual = title;
+        break;
+      case RuleField.classSectionCombo:
+        actual = classSection;
+        break;
+      case RuleField.subject:
+        actual = subject;
+        break;
+      case RuleField.teacherHost:
+        actual = teacherName;
+        break;
+      case RuleField.sessionType:
+        actual = sessionType ?? 'Regular';
+        break;
+      case RuleField.scheduledDay:
+        actual = dayOfWeek ?? '';
+        break;
+    }
+
+    final target = clause.value.trim().toLowerCase();
+    final cur = actual.trim().toLowerCase();
+
+    switch (clause.operator) {
+      case RuleConditionOperator.contains:
+        return cur.contains(target);
+      case RuleConditionOperator.doesNotContain:
+        return !cur.contains(target);
+      case RuleConditionOperator.equals:
+        return cur == target;
+      case RuleConditionOperator.doesNotEqual:
+        return cur != target;
+      case RuleConditionOperator.startsWith:
+        return cur.startsWith(target);
+      case RuleConditionOperator.endsWith:
+        return cur.endsWith(target);
+      case RuleConditionOperator.matchesPattern:
+        try {
+          return RegExp(target).hasMatch(cur);
+        } catch (_) {
+          return false;
+        }
+    }
+  }
+}
+
+
 class AnalyticsDataPoint {
   final String date;
   final int views;
@@ -528,6 +729,8 @@ class RecordingItem {
   final String sizeStr;
   final String status;
   final String visibility;
+  final String type;
+  final List<String> tags;
 
   RecordingItem({
     required this.id,
@@ -545,6 +748,8 @@ class RecordingItem {
     required this.sizeStr,
     required this.status,
     required this.visibility,
+    this.type = 'Live Class',
+    this.tags = const [],
   });
 
   factory RecordingItem.fromJson(Map<String, dynamic> json) {
@@ -564,6 +769,8 @@ class RecordingItem {
       sizeStr: json['size_str'] ?? '282 MB',
       status: json['status'] ?? 'Processed',
       visibility: json['visibility'] ?? 'CLASS',
+      type: json['type'] ?? 'Live Class',
+      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 }

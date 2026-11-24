@@ -58,12 +58,14 @@ class SelectedLocationItem {
 class LocationMultiSelector extends ConsumerStatefulWidget {
   final List<SelectedLocationItem> initialSelected;
   final bool allowMultiple;
+  final int initialSourceTab;
   final ValueChanged<List<SelectedLocationItem>> onSelectionChanged;
 
   const LocationMultiSelector({
     super.key,
     this.initialSelected = const [],
     this.allowMultiple = true,
+    this.initialSourceTab = 0,
     required this.onSelectionChanged,
   });
 
@@ -82,6 +84,11 @@ class _LocationMultiSelectorState extends ConsumerState<LocationMultiSelector> {
   void initState() {
     super.initState();
     _selectedItems.addAll(widget.initialSelected);
+    if (widget.initialSourceTab != 0) {
+      _sourceTab = widget.initialSourceTab;
+    } else if (widget.initialSelected.any((item) => item.locationType == 'facility')) {
+      _sourceTab = 1;
+    }
   }
 
   @override

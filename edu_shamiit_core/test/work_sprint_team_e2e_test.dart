@@ -36,12 +36,12 @@ class MockWorkSprintTeamNotifier extends WorkSprintTeamNotifier {
   }
 
   @override
-  Future<void> loadTeams({bool silent = false}) async {
+  Future<void> loadTeams({bool silent = false, bool forceRefresh = false}) async {
     // Keep initial state for test
   }
 
   @override
-  Future<void> loadTeamDetail(String teamId, {bool silent = false}) async {
+  Future<void> loadTeamDetail(String teamId, {bool silent = false, bool forceRefresh = true}) async {
     // Keep initial state for test
   }
 }

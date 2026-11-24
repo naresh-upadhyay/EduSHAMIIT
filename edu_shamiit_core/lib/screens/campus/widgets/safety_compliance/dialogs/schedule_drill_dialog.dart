@@ -28,6 +28,7 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
   String _status = 'Scheduled';
   String _performanceRating = 'Good';
   DateTime _scheduledDate = DateTime.now().add(const Duration(days: 14));
+  bool _isSaving = false;
 
   List<String> _drillTypes = [];
 
@@ -338,17 +339,24 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF06B6D4),
+                        disabledBackgroundColor: const Color(0xFF67E8F9),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      onPressed: _submit,
-                      child: const Text('Save Drill', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      onPressed: _isSaving ? null : _submit,
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Save Drill', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -361,7 +369,10 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
   }
 
   void _submit() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final payload = {
       'title': _titleController.text.trim(),
@@ -377,10 +388,23 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
       'observations': _observationsController.text.trim(),
     };
 
-    final notifier = ref.read(safetyComplianceProvider.notifier);
-    final success = await notifier.saveDrill(payload, drillId: widget.existingDrill?.id);
-    if (mounted && success) {
-      Navigator.pop(context);
+    try {
+      final notifier = ref.read(safetyComplianceProvider.notifier);
+      final success = await notifier.saveDrill(payload, drillId: widget.existingDrill?.id);
+      if (mounted) {
+        if (success) {
+          Navigator.pop(context, true);
+        } else {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save drill. Please try again.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

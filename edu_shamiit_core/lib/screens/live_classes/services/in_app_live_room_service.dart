@@ -90,6 +90,14 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool _isCamOff = true;
   bool _isRecording = false;
 
+  LocalAudioTrack? _localAudioTrack;
+  LocalVideoTrack? _localCameraTrack;
+  LocalVideoTrack? _localScreenShareTrack;
+
+  LocalAudioTrack? get localAudioTrack => _localAudioTrack;
+  LocalVideoTrack? get localCameraTrack => _localCameraTrack;
+  LocalVideoTrack? get localScreenShareTrack => _localScreenShareTrack;
+
   bool _allowStudentMic = true;
   bool _allowStudentCam = true;
   bool _allowStudentShare = false;
@@ -169,10 +177,9 @@ class InAppLiveRoomService extends ChangeNotifier {
       'targetUserId': targetUserId,
     });
     // If local user is target
-    if (targetUserId == currentUserId || targetUserId == 'all') {
-      if (isMuted && !_isMicMuted) {
-        await toggleMic();
-      } else if (!isMuted && _isMicMuted) {
+    final isLocal = targetUserId == currentUserId || targetUserId == 'all' || targetUserId.isEmpty;
+    if (isLocal) {
+      if (isMuted != _isMicMuted) {
         await toggleMic();
       }
     }
@@ -185,10 +192,9 @@ class InAppLiveRoomService extends ChangeNotifier {
       'targetUserId': targetUserId,
     });
     // If local user is target
-    if (targetUserId == currentUserId || targetUserId == 'all') {
-      if (turnOff && !_isCamOff) {
-        await toggleCamera();
-      } else if (!turnOff && _isCamOff) {
+    final isLocal = targetUserId == currentUserId || targetUserId == 'all' || targetUserId.isEmpty;
+    if (isLocal) {
+      if (turnOff != _isCamOff) {
         await toggleCamera();
       }
     }
@@ -235,6 +241,12 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool get isMicMuted => _isMicMuted;
   bool get isCamOff => _isCamOff;
   bool get isRecording => _isRecording;
+  void setIsRecording(bool val) {
+    if (_isRecording != val) {
+      _isRecording = val;
+      notifyListeners();
+    }
+  }
   List<LiveRoomChatMessage> get chatMessages => _chatMessages;
   Stream<Map<String, dynamic>> get onReactionReceived => _reactionStreamController.stream;
   Stream<Map<String, dynamic>> get onControlReceived => _controlStreamController.stream;
@@ -265,12 +277,18 @@ class InAppLiveRoomService extends ChangeNotifier {
     return 'Excellent';
   }
 
+  static InAppLiveRoomService? _lastInstance;
+  static InAppLiveRoomService get instance => _lastInstance ??= InAppLiveRoomService();
+
   InAppLiveRoomService({
     this.liveClassId = '',
     this.currentUserId = '',
     this.currentUserName = 'User',
     this.currentUserRole = 'teacher',
-  });
+  }) {
+    _lastInstance = this;
+    setupMediaStreamInterception();
+  }
 
   void initRoomConfig({
     required String liveClassId,
@@ -278,6 +296,7 @@ class InAppLiveRoomService extends ChangeNotifier {
     required String currentUserName,
     required String currentUserRole,
   }) {
+    setupMediaStreamInterception();
     this.liveClassId = liveClassId;
     this.currentUserId = currentUserId;
     this.currentUserName = currentUserName;
@@ -285,103 +304,125 @@ class InAppLiveRoomService extends ChangeNotifier {
     _isMicMuted = true;
     _isCamOff = true;
     _isScreenSharing = false;
+    _localAudioTrack?.mediaStreamTrack.stop();
+    _localAudioTrack?.stop();
+    _localAudioTrack?.dispose();
+    _localAudioTrack = null;
+    _localCameraTrack?.mediaStreamTrack.stop();
+    _localCameraTrack?.stop();
+    _localCameraTrack?.dispose();
+    _localCameraTrack = null;
+    _localScreenShareTrack?.mediaStreamTrack.stop();
+    _localScreenShareTrack?.stop();
+    _localScreenShareTrack?.dispose();
+    _localScreenShareTrack = null;
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: true);
     notifyListeners();
   }
 
   List<LiveKitParticipantTrack> get participantTracks {
     final tracks = <LiveKitParticipantTrack>[];
-    if (_room == null) return tracks;
 
     // 1. Add Local Participant
     final localPart = _room?.localParticipant;
+    VideoTrack? localVideo;
     if (localPart != null) {
       final camPub = localPart.videoTrackPublications
           .where((p) => p.source == TrackSource.camera)
           .firstOrNull;
+      localVideo = camPub?.track as VideoTrack? ??
+          (localPart.videoTrackPublications.firstOrNull?.track as VideoTrack?);
+    }
+    localVideo ??= _localCameraTrack;
+
+    tracks.add(LiveKitParticipantTrack(
+      userId: currentUserId,
+      name: currentUserName,
+      role: currentUserRole,
+      videoTrack: !_isCamOff ? localVideo : null,
+      isLocal: true,
+      isMicMuted: _isMicMuted,
+      isCamOff: _isCamOff,
+      isHandRaised: _raisedHands.contains(currentUserId),
+      isScreenShare: false,
+      isSpeaking: !_isMicMuted,
+    ));
+
+    // Screen Share Track
+    VideoTrack? screenVideo;
+    if (localPart != null) {
       final screenPub = localPart.videoTrackPublications
           .where((p) => p.source == TrackSource.screenShareVideo)
           .firstOrNull;
+      screenVideo = screenPub?.track as VideoTrack?;
+    }
+    screenVideo ??= _localScreenShareTrack;
 
-      final localVideo = camPub?.track as VideoTrack? ??
-          (screenPub == null ? localPart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
-
+    if (_isScreenSharing && screenVideo != null) {
       tracks.add(LiveKitParticipantTrack(
-        userId: currentUserId,
-        name: currentUserName,
+        userId: '${currentUserId}_screen',
+        name: '$currentUserName\'s Screen',
         role: currentUserRole,
-        videoTrack: localVideo,
+        videoTrack: screenVideo,
         isLocal: true,
-        isMicMuted: _isMicMuted,
-        isCamOff: _isCamOff,
-        isHandRaised: _raisedHands.contains(currentUserId),
-        isScreenShare: false,
-        isSpeaking: !_isMicMuted,
+        isMicMuted: true,
+        isCamOff: false,
+        isHandRaised: false,
+        isScreenShare: true,
       ));
-
-      if (screenPub != null && screenPub.track != null) {
-        tracks.add(LiveKitParticipantTrack(
-          userId: '${currentUserId}_screen',
-          name: '$currentUserName\'s Screen',
-          role: currentUserRole,
-          videoTrack: screenPub.track as VideoTrack?,
-          isLocal: true,
-          isMicMuted: true,
-          isCamOff: false,
-          isHandRaised: false,
-          isScreenShare: true,
-        ));
-      }
     }
 
     // 2. Add Remote Participants
-    _room?.remoteParticipants.forEach((peerId, remotePart) {
-      final assignedRole = _customRoles[peerId];
-      final role = assignedRole ?? (remotePart.metadata?.trim().isNotEmpty == true ? remotePart.metadata!.trim() : 'Student');
-      final name = remotePart.name.trim().isNotEmpty
-          ? remotePart.name.trim()
-          : (remotePart.identity.trim().isNotEmpty ? remotePart.identity.trim() : 'Participant');
+    if (_room != null) {
+      _room?.remoteParticipants.forEach((peerId, remotePart) {
+        final assignedRole = _customRoles[peerId];
+        final role = assignedRole ?? (remotePart.metadata?.trim().isNotEmpty == true ? remotePart.metadata!.trim() : 'Student');
+        final name = remotePart.name.trim().isNotEmpty
+            ? remotePart.name.trim()
+            : (remotePart.identity.trim().isNotEmpty ? remotePart.identity.trim() : 'Participant');
 
-      final camPub = remotePart.videoTrackPublications
-          .where((p) => p.source == TrackSource.camera)
-          .firstOrNull;
-      final screenPub = remotePart.videoTrackPublications
-          .where((p) => p.source == TrackSource.screenShareVideo)
-          .firstOrNull;
+        final camPub = remotePart.videoTrackPublications
+            .where((p) => p.source == TrackSource.camera)
+            .firstOrNull;
+        final screenPub = remotePart.videoTrackPublications
+            .where((p) => p.source == TrackSource.screenShareVideo)
+            .firstOrNull;
 
-      final video = camPub?.track as VideoTrack? ??
-          (screenPub == null ? remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
+        final video = camPub?.track as VideoTrack? ??
+            (screenPub == null ? remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
 
-      final micMuted = !(remotePart.audioTrackPublications.firstOrNull?.subscribed ?? false) ||
-          (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);
-      final camOff = camPub == null || !camPub.subscribed || camPub.muted;
+        final micMuted = !(remotePart.audioTrackPublications.firstOrNull?.subscribed ?? false) ||
+            (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);
+        final camOff = camPub == null || !camPub.subscribed || camPub.muted;
 
-      tracks.add(LiveKitParticipantTrack(
-        userId: peerId,
-        name: name,
-        role: role,
-        videoTrack: video,
-        isLocal: false,
-        isMicMuted: micMuted,
-        isCamOff: camOff,
-        isHandRaised: _raisedHands.contains(peerId),
-        isScreenShare: false,
-        isSpeaking: remotePart.isSpeaking,
-      ));
-
-      if (screenPub != null && screenPub.subscribed && !screenPub.muted && screenPub.track != null) {
         tracks.add(LiveKitParticipantTrack(
-          userId: '${peerId}_screen',
-          name: '$name\'s Screen',
+          userId: peerId,
+          name: name,
           role: role,
-          videoTrack: screenPub.track as VideoTrack?,
+          videoTrack: video,
           isLocal: false,
-          isMicMuted: true,
-          isCamOff: false,
-          isHandRaised: false,
-          isScreenShare: true,
+          isMicMuted: micMuted,
+          isCamOff: camOff,
+          isHandRaised: _raisedHands.contains(peerId),
+          isScreenShare: false,
+          isSpeaking: remotePart.isSpeaking,
         ));
-      }
-    });
+
+        if (screenPub != null && screenPub.subscribed && !screenPub.muted && screenPub.track != null) {
+          tracks.add(LiveKitParticipantTrack(
+            userId: '${peerId}_screen',
+            name: '$name\'s Screen',
+            role: role,
+            videoTrack: screenPub.track as VideoTrack?,
+            isLocal: false,
+            isMicMuted: true,
+            isCamOff: false,
+            isHandRaised: false,
+            isScreenShare: true,
+          ));
+        }
+      });
+    }
 
     if (_spotlightUserId != null) {
       tracks.sort((a, b) {
@@ -542,21 +583,42 @@ class InAppLiveRoomService extends ChangeNotifier {
   }
 
   Future<bool> toggleMic() async {
-    if (_room == null) {
-      _isMicMuted = !_isMicMuted;
-      notifyListeners();
-      _roomUpdateController.add(null);
-      return !_isMicMuted;
-    }
     final enable = _isMicMuted;
     try {
-      if (!enable) {
+      if (enable) {
+        // Turning ON Microphone -> Re-acquire device audio stream
+        bool sfuStarted = false;
+        if (_room != null && _room!.connectionState == ConnectionState.connected) {
+          try {
+            await _room?.localParticipant?.setMicrophoneEnabled(true);
+            sfuStarted = true;
+          } catch (_) {}
+        }
+        if (!sfuStarted) {
+          if (_localAudioTrack != null) {
+            await _localAudioTrack!.stop();
+            await _localAudioTrack!.dispose();
+            _localAudioTrack = null;
+          }
+          _localAudioTrack = await LocalAudioTrack.create(
+            const AudioCaptureOptions(
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            ),
+          );
+          await _localAudioTrack!.start();
+        }
+        _isMicMuted = false;
+      } else {
         // Turning OFF Microphone -> Completely release microphone hardware
         try {
-          await _room?.localParticipant?.setMicrophoneEnabled(
-            false,
-            audioCaptureOptions: const AudioCaptureOptions(stopAudioCaptureOnMute: true),
-          );
+          if (_room != null && _room!.connectionState == ConnectionState.connected) {
+            await _room?.localParticipant?.setMicrophoneEnabled(
+              false,
+              audioCaptureOptions: const AudioCaptureOptions(stopAudioCaptureOnMute: true),
+            );
+          }
         } catch (_) {}
 
         final localParticipant = _room?.localParticipant;
@@ -564,16 +626,24 @@ class InAppLiveRoomService extends ChangeNotifier {
           for (final pub in localParticipant.audioTrackPublications) {
             if (pub.source == TrackSource.microphone) {
               try {
-                await pub.track?.stop(); // Release browser audio device hardware
+                await pub.track?.mediaStreamTrack.stop();
+                await pub.track?.stop();
+                await pub.track?.dispose();
               } catch (_) {}
             }
           }
         }
+
+        if (_localAudioTrack != null) {
+          try {
+            await _localAudioTrack!.mediaStreamTrack.stop();
+            await _localAudioTrack!.stop();
+            await _localAudioTrack!.dispose();
+          } catch (_) {}
+          _localAudioTrack = null;
+        }
+        releaseHardwareMediaTracks(releaseVideo: false, releaseAudio: true);
         _isMicMuted = true;
-      } else {
-        // Turning ON Microphone -> Re-acquire device audio stream
-        await _room?.localParticipant?.setMicrophoneEnabled(true);
-        _isMicMuted = false;
       }
       notifyListeners();
       _roomUpdateController.add(null);
@@ -581,6 +651,15 @@ class InAppLiveRoomService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[LiveKitService] toggleMic error: $e');
       _isMicMuted = true;
+      if (_localAudioTrack != null) {
+        try {
+          await _localAudioTrack!.mediaStreamTrack.stop();
+          await _localAudioTrack!.stop();
+          await _localAudioTrack!.dispose();
+        } catch (_) {}
+        _localAudioTrack = null;
+      }
+      releaseHardwareMediaTracks(releaseVideo: false, releaseAudio: true);
       notifyListeners();
       _roomUpdateController.add(null);
       rethrow;
@@ -592,99 +671,165 @@ class InAppLiveRoomService extends ChangeNotifier {
     await toggleMic();
   }
 
+  Future<void> setCameraOff(bool off) async {
+    if (_isCamOff == off) return;
+    await toggleCamera();
+  }
+
   Future<bool> toggleCamera() async {
-    if (_room == null) {
-      _isCamOff = !_isCamOff;
+    final enable = _isCamOff;
+    try {
+      if (enable) {
+        // Turning ON Camera -> Access camera hardware
+        bool sfuStarted = false;
+        if (_room != null && _room!.connectionState == ConnectionState.connected) {
+          try {
+            await _room?.localParticipant?.setCameraEnabled(
+              true,
+              cameraCaptureOptions: const CameraCaptureOptions(
+                cameraPosition: CameraPosition.front,
+                params: VideoParametersPresets.h720_169,
+              ),
+            );
+            sfuStarted = true;
+          } catch (_) {}
+        }
+        if (!sfuStarted) {
+          if (_localCameraTrack != null) {
+            await _localCameraTrack!.mediaStreamTrack.stop();
+            await _localCameraTrack!.stop();
+            await _localCameraTrack!.dispose();
+            _localCameraTrack = null;
+          }
+          _localCameraTrack = await LocalVideoTrack.createCameraTrack(
+            const CameraCaptureOptions(
+              cameraPosition: CameraPosition.front,
+              params: VideoParametersPresets.h720_169,
+            ),
+          );
+          await _localCameraTrack!.start();
+        }
+        _isCamOff = false;
+      } else {
+        // Turning OFF Camera -> Completely release camera sensor and webcam LED
+        try {
+          if (_room != null && _room!.connectionState == ConnectionState.connected) {
+            await _room?.localParticipant?.setCameraEnabled(
+              false,
+              cameraCaptureOptions: const CameraCaptureOptions(stopCameraCaptureOnMute: true),
+            );
+          }
+        } catch (_) {}
+
+        final localParticipant = _room?.localParticipant;
+        if (localParticipant != null) {
+          for (final pub in localParticipant.videoTrackPublications) {
+            if (pub.source == TrackSource.camera) {
+              try {
+                await pub.track?.mediaStreamTrack.stop();
+                await pub.track?.stop();
+                await pub.track?.dispose();
+              } catch (_) {}
+            }
+          }
+        }
+
+        if (_localCameraTrack != null) {
+          try {
+            await _localCameraTrack!.mediaStreamTrack.stop();
+            await _localCameraTrack!.stop();
+            await _localCameraTrack!.dispose();
+          } catch (_) {}
+          _localCameraTrack = null;
+        }
+        releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: false);
+        _isCamOff = true;
+      }
       notifyListeners();
       _roomUpdateController.add(null);
       return !_isCamOff;
-    }
-    final enable = _isCamOff;
-    if (!enable) {
-      // Turning OFF Camera -> Completely release camera sensor and webcam LED
-      try {
-        await _room?.localParticipant?.setCameraEnabled(
-          false,
-          cameraCaptureOptions: const CameraCaptureOptions(stopCameraCaptureOnMute: true),
-        );
-      } catch (_) {}
-
-      final localParticipant = _room?.localParticipant;
-      if (localParticipant != null) {
-        for (final pub in localParticipant.videoTrackPublications) {
-          if (pub.source == TrackSource.camera) {
-            try {
-              await pub.track?.stop(); // Release browser webcam hardware device
-            } catch (_) {}
-          }
-        }
-      }
+    } catch (e) {
+      debugPrint('[LiveKitService] toggleCamera error: $e');
       _isCamOff = true;
+      if (_localCameraTrack != null) {
+        try {
+          await _localCameraTrack!.mediaStreamTrack.stop();
+          await _localCameraTrack!.stop();
+          await _localCameraTrack!.dispose();
+        } catch (_) {}
+        _localCameraTrack = null;
+      }
+      releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: false);
       notifyListeners();
       _roomUpdateController.add(null);
-      return false;
-    } else {
-      // Turning ON Camera -> Re-acquire camera stream
-      try {
-        _isCamOff = false;
-        await _publishCameraWithFallback();
-        notifyListeners();
-        _roomUpdateController.add(null);
-        return true;
-      } catch (e) {
-        debugPrint('[LiveKitService] toggleCamera error: $e');
-        _isCamOff = true;
-        notifyListeners();
-        _roomUpdateController.add(null);
-        rethrow;
-      }
-    }
-  }
-
-  Future<void> _publishCameraWithFallback() async {
-    final localParticipant = _room?.localParticipant;
-    if (localParticipant == null) return;
-
-    if (_isCamOff) {
-      await localParticipant.setCameraEnabled(false);
-      return;
+      rethrow;
     }
 
-    try {
-      await localParticipant.setCameraEnabled(
-        true,
-        cameraCaptureOptions: const CameraCaptureOptions(
-          cameraPosition: CameraPosition.front,
-          params: VideoParametersPresets.h720_169,
-        ),
-      );
-    } catch (e) {
-      try {
-        await localParticipant.setCameraEnabled(true);
-      } catch (_) {
-        _isCamOff = true;
-        rethrow;
-      }
-    }
   }
 
   Future<bool> toggleScreenShare() async {
-    if (_room == null) {
-      _isScreenSharing = !_isScreenSharing;
+    final enable = !_isScreenSharing;
+    try {
+      if (enable) {
+        // Starting screen sharing -> access real display stream
+        bool sfuStarted = false;
+        if (_room != null && _room!.connectionState == ConnectionState.connected) {
+          try {
+            await _room?.localParticipant?.setScreenShareEnabled(true);
+            sfuStarted = true;
+          } catch (_) {}
+        }
+        if (!sfuStarted) {
+          if (_localScreenShareTrack != null) {
+            await _localScreenShareTrack!.stop();
+            await _localScreenShareTrack!.dispose();
+            _localScreenShareTrack = null;
+          }
+          _localScreenShareTrack = await LocalVideoTrack.createScreenShareTrack(
+            const ScreenShareCaptureOptions(),
+          );
+          await _localScreenShareTrack!.start();
+        }
+
+        _localScreenShareTrack?.mediaStreamTrack.onEnded = () {
+          _isScreenSharing = false;
+          _localScreenShareTrack?.stop();
+          _localScreenShareTrack?.dispose();
+          _localScreenShareTrack = null;
+          notifyListeners();
+          _roomUpdateController.add(null);
+        };
+        _isScreenSharing = true;
+      } else {
+        // Stopping screen sharing
+        try {
+          if (_room != null && _room!.connectionState == ConnectionState.connected) {
+            await _room?.localParticipant?.setScreenShareEnabled(false);
+          }
+        } catch (_) {}
+
+        if (_localScreenShareTrack != null) {
+          try {
+            await _localScreenShareTrack!.stop();
+            await _localScreenShareTrack!.dispose();
+          } catch (_) {}
+          _localScreenShareTrack = null;
+        }
+        _isScreenSharing = false;
+      }
       notifyListeners();
       _roomUpdateController.add(null);
       return _isScreenSharing;
-    }
-    final enable = !_isScreenSharing;
-    try {
-      await _room?.localParticipant?.setScreenShareEnabled(enable);
-      _isScreenSharing = enable;
-      notifyListeners();
-      _roomUpdateController.add(null);
-      return enable;
     } catch (e) {
       debugPrint('[LiveKitService] toggleScreenShare error: $e');
       _isScreenSharing = false;
+      if (_localScreenShareTrack != null) {
+        try {
+          await _localScreenShareTrack!.stop();
+          await _localScreenShareTrack!.dispose();
+        } catch (_) {}
+        _localScreenShareTrack = null;
+      }
       notifyListeners();
       _roomUpdateController.add(null);
       rethrow;
@@ -963,21 +1108,48 @@ class InAppLiveRoomService extends ChangeNotifier {
     } catch (_) {}
 
     // Explicitly release all media stream hardware before disconnecting
+    if (_localAudioTrack != null) {
+      try {
+        await _localAudioTrack!.mediaStreamTrack.stop();
+        await _localAudioTrack!.stop();
+        await _localAudioTrack!.dispose();
+      } catch (_) {}
+      _localAudioTrack = null;
+    }
+    if (_localCameraTrack != null) {
+      try {
+        await _localCameraTrack!.mediaStreamTrack.stop();
+        await _localCameraTrack!.stop();
+        await _localCameraTrack!.dispose();
+      } catch (_) {}
+      _localCameraTrack = null;
+    }
+    if (_localScreenShareTrack != null) {
+      try {
+        await _localScreenShareTrack!.mediaStreamTrack.stop();
+        await _localScreenShareTrack!.stop();
+        await _localScreenShareTrack!.dispose();
+      } catch (_) {}
+      _localScreenShareTrack = null;
+    }
     final localParticipant = _room?.localParticipant;
     if (localParticipant != null) {
       for (final pub in localParticipant.videoTrackPublications) {
         try {
+          await pub.track?.mediaStreamTrack.stop();
           await pub.track?.stop();
           await pub.track?.dispose();
         } catch (_) {}
       }
       for (final pub in localParticipant.audioTrackPublications) {
         try {
+          await pub.track?.mediaStreamTrack.stop();
           await pub.track?.stop();
           await pub.track?.dispose();
         } catch (_) {}
       }
     }
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: true);
 
     if (_room != null) {
       await _room!.disconnect();
@@ -991,23 +1163,51 @@ class InAppLiveRoomService extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _heartbeatTimer?.cancel();
+    if (_localAudioTrack != null) {
+      try {
+        _localAudioTrack?.mediaStreamTrack.stop();
+        _localAudioTrack?.stop();
+        _localAudioTrack?.dispose();
+      } catch (_) {}
+      _localAudioTrack = null;
+    }
+    if (_localCameraTrack != null) {
+      try {
+        _localCameraTrack?.mediaStreamTrack.stop();
+        _localCameraTrack?.stop();
+        _localCameraTrack?.dispose();
+      } catch (_) {}
+      _localCameraTrack = null;
+    }
+    if (_localScreenShareTrack != null) {
+      try {
+        _localScreenShareTrack?.mediaStreamTrack.stop();
+        _localScreenShareTrack?.stop();
+        _localScreenShareTrack?.dispose();
+      } catch (_) {}
+      _localScreenShareTrack = null;
+    }
     final localParticipant = _room?.localParticipant;
     if (localParticipant != null) {
       for (final pub in localParticipant.videoTrackPublications) {
         try {
+          pub.track?.mediaStreamTrack.stop();
           pub.track?.stop();
           pub.track?.dispose();
         } catch (_) {}
       }
       for (final pub in localParticipant.audioTrackPublications) {
         try {
+          pub.track?.mediaStreamTrack.stop();
           pub.track?.stop();
           pub.track?.dispose();
         } catch (_) {}
       }
     }
+    releaseHardwareMediaTracks(releaseVideo: true, releaseAudio: true);
     _room?.disconnect().catchError((_) {});
     _room = null;
+
     if (!_reactionStreamController.isClosed) _reactionStreamController.close();
     if (!_controlStreamController.isClosed) _controlStreamController.close();
     if (!_roomUpdateController.isClosed) _roomUpdateController.close();

@@ -302,6 +302,9 @@ class StudentFeeStructureItem {
   final String? description;
   final String status;
   final String academicYear;
+  final String academicStartDate;
+  final List<dynamic> installmentDates;
+  final Map<String, dynamic> reminderStages;
 
   StudentFeeStructureItem({
     required this.id,
@@ -322,6 +325,9 @@ class StudentFeeStructureItem {
     this.description,
     this.status = 'ACTIVE',
     this.academicYear = '2026 - 2027',
+    this.academicStartDate = '2026-04-01',
+    this.installmentDates = const [],
+    this.reminderStages = const {'d_10': true, 'd_5': true, 'd_2': true, 'd_1': true, 'd_due': true, 'd_overdue': true},
   });
 
   String get amountFormatted => formatIndianCurrency(amount);
@@ -365,6 +371,11 @@ class StudentFeeStructureItem {
       description: json['description']?.toString(),
       status: json['status']?.toString() ?? 'ACTIVE',
       academicYear: json['academic_year']?.toString() ?? '2026 - 2027',
+      academicStartDate: json['academic_start_date']?.toString() ?? '2026-04-01',
+      installmentDates: (json['installment_dates'] as List?) ?? [],
+      reminderStages: (json['reminder_stages'] as Map?)?.cast<String, dynamic>() ?? const {
+        'd_10': true, 'd_5': true, 'd_2': true, 'd_1': true, 'd_due': true, 'd_overdue': true,
+      },
     );
   }
 }

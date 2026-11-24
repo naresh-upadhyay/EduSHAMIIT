@@ -274,7 +274,7 @@ class InspectionPayload(BaseModel):
 
 class BuildingDocumentPayload(BaseModel):
     id: Optional[str] = None
-    building_id: str
+    building_id: Optional[str] = None
     room_id: Optional[str] = None
     document_name: str = Field(..., min_length=1, max_length=200)
     document_type: Optional[str] = "Compliance"
@@ -289,7 +289,7 @@ class BuildingDocumentPayload(BaseModel):
 
 class CampusMaintenancePayload(BaseModel):
     id: Optional[str] = None
-    building_id: str
+    building_id: Optional[str] = None
     floor_id: Optional[str] = None
     room_id: Optional[str] = None
     location_display: Optional[str] = None
@@ -1305,9 +1305,10 @@ async def list_building_documents(
     school_id = _get_school_id(user)
     try:
         sort_col = "created_at"
-        if sort_by in ["document_name", "document_type", "status", "issue_date", "expiry_date", "created_at"]:
-            sort_col = sort_by
-        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
+        sort_by_str = sort_by if isinstance(sort_by, str) else None
+        if sort_by_str in ["document_name", "document_type", "status", "issue_date", "expiry_date", "created_at"]:
+            sort_col = sort_by_str
+        order_dir = "ASC" if isinstance(sort_order, str) and sort_order.lower() == "asc" else "DESC"
 
         count_sql = """
             SELECT COUNT(*) AS total
@@ -1317,7 +1318,9 @@ async def list_building_documents(
         count_rows = await exec_sql(count_sql, (building_id, school_id))
         total = count_rows[0]["total"] if count_rows else 0
 
-        offset = max(0, (page - 1) * page_size)
+        page_val = page if isinstance(page, int) else 1
+        page_size_val = page_size if isinstance(page_size, int) else 50
+        offset = max(0, (page_val - 1) * page_size_val)
         sql = f"""
             SELECT id, school_id, building_id, room_id, document_name, document_type,
                    file_url, file_size_bytes, mime_type, issue_date, expiry_date,
@@ -1327,12 +1330,12 @@ async def list_building_documents(
             ORDER BY {sort_col} {order_dir}
             LIMIT %s OFFSET %s
         """
-        rows = await exec_sql(sql, (building_id, school_id, page_size, offset))
+        rows = await exec_sql(sql, (building_id, school_id, page_size_val, offset))
         return {
             "success": True,
             "total_count": total,
-            "page": page,
-            "page_size": page_size,
+            "page": page_val,
+            "page_size": page_size_val,
             "data": [_serialize_val(r) for r in rows]
         }
     except Exception as e:
@@ -2301,19 +2304,22 @@ async def list_building_maintenance(
         total = count_rows[0]["total"] if count_rows else 0
 
         sort_col = "mr.created_at"
-        if sort_by == "request_code": sort_col = "mr.request_code"
-        elif sort_by == "title": sort_col = "mr.title"
-        elif sort_by == "request_type": sort_col = "mr.request_type"
-        elif sort_by == "priority": sort_col = "mr.priority"
-        elif sort_by == "status": sort_col = "mr.status"
-        elif sort_by == "room_number": sort_col = "r.room_number"
-        elif sort_by == "assigned_to_name": sort_col = "mr.assigned_to_name"
-        elif sort_by == "scheduled_at": sort_col = "mr.scheduled_at"
-        elif sort_by == "estimated_cost": sort_col = "mr.estimated_cost"
-        elif sort_by == "created_at": sort_col = "mr.created_at"
+        sort_by_str = sort_by if isinstance(sort_by, str) else None
+        if sort_by_str == "request_code": sort_col = "mr.request_code"
+        elif sort_by_str == "title": sort_col = "mr.title"
+        elif sort_by_str == "request_type": sort_col = "mr.request_type"
+        elif sort_by_str == "priority": sort_col = "mr.priority"
+        elif sort_by_str == "status": sort_col = "mr.status"
+        elif sort_by_str == "room_number": sort_col = "r.room_number"
+        elif sort_by_str == "assigned_to_name": sort_col = "mr.assigned_to_name"
+        elif sort_by_str == "scheduled_at": sort_col = "mr.scheduled_at"
+        elif sort_by_str == "estimated_cost": sort_col = "mr.estimated_cost"
+        elif sort_by_str == "created_at": sort_col = "mr.created_at"
 
-        order_dir = "ASC" if (sort_order or "").lower() == "asc" else "DESC"
-        offset = max(0, (page - 1) * page_size)
+        order_dir = "ASC" if isinstance(sort_order, str) and sort_order.lower() == "asc" else "DESC"
+        page_val = page if isinstance(page, int) else 1
+        page_size_val = page_size if isinstance(page_size, int) else 50
+        offset = max(0, (page_val - 1) * page_size_val)
 
         sql = f"""
             SELECT mr.id, mr.request_code, mr.title, mr.description, mr.request_type,
@@ -2329,12 +2335,12 @@ async def list_building_maintenance(
             ORDER BY {sort_col} {order_dir}
             LIMIT %s OFFSET %s
         """
-        rows = await exec_sql(sql, (building_id, building_id, school_id, page_size, offset))
+        rows = await exec_sql(sql, (building_id, building_id, school_id, page_size_val, offset))
         return {
             "success": True,
             "total_count": total,
-            "page": page,
-            "page_size": page_size,
+            "page": page_val,
+            "page_size": page_size_val,
             "data": [_serialize_val(r) for r in rows]
         }
     except Exception as e:
@@ -2361,9 +2367,9 @@ async def create_building_maintenance(
             b_name = b_res[0]["code"] if b_res and b_res[0].get("code") else (b_res[0]["name"] if b_res else "Building")
             parts.append(b_name)
             if payload.floor_id:
-                f_res = await exec_sql("SELECT name, floor_number FROM public.building_floors WHERE id = %s::UUID LIMIT 1;", (payload.floor_id,))
+                f_res = await exec_sql("SELECT name, floor_level FROM public.building_floors WHERE id = %s::UUID LIMIT 1;", (payload.floor_id,))
                 if f_res:
-                    parts.append(f_res[0]["name"] or f"Floor {f_res[0]['floor_number']}")
+                    parts.append(f_res[0]["name"] or f"Floor {f_res[0]['floor_level']}")
             if payload.room_id:
                 r_res = await exec_sql("SELECT room_number, name FROM public.rooms WHERE id = %s::UUID LIMIT 1;", (payload.room_id,))
                 if r_res:
@@ -2511,12 +2517,14 @@ async def list_campus_facilities(
 ):
     school_id = _get_school_id(user)
     try:
-        search_term = f"%{search.strip().lower()}%" if search and search.strip() else None
-        cat = category if (category and category != 'All Categories') else None
-        stat = status if (status and status != 'All Statuses') else None
-        b_id = building_id if (building_id and building_id != 'all') else None
+        search_term = f"%{search.strip().lower()}%" if isinstance(search, str) and search.strip() else None
+        cat = category if (isinstance(category, str) and category != 'All Categories') else None
+        stat = status if (isinstance(status, str) and status != 'All Statuses') else None
+        b_id = building_id if (isinstance(building_id, str) and building_id != 'all') else None
 
-        offset = (page - 1) * page_size
+        p_num = page if isinstance(page, int) else 1
+        p_sz = page_size if isinstance(page_size, int) else 20
+        offset = (p_num - 1) * p_sz
         sql = """
             SELECT 
                 f.id, f.name, f.code, f.category, f.building_id, f.floor_id,
@@ -2541,7 +2549,7 @@ async def list_campus_facilities(
             cat, cat,
             stat, stat,
             b_id, b_id,
-            page_size, offset
+            p_sz, offset
         )
         rows = await exec_sql(sql, params)
 
@@ -2561,9 +2569,9 @@ async def list_campus_facilities(
             "success": True,
             "data": _serialize_val(rows),
             "total_count": total_count,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+            "page": p_num,
+            "page_size": p_sz,
+            "total_pages": max(1, (total_count + p_sz - 1) // p_sz),
         }
     except Exception as e:
         logger.error(f"Error listing facilities: {e}")
@@ -2578,10 +2586,14 @@ async def save_campus_facility(
     school_id = _get_school_id(user)
     user_id = _get_user_id(user)
     try:
-        b_id = payload.building_id if (payload.building_id and payload.building_id != 'all') else None
-        f_id = payload.floor_id if (payload.floor_id and payload.floor_id != 'all') else None
+        target_id = payload.id.strip() if (payload.id and payload.id.strip() and payload.id.strip().lower() != 'null') else None
+        b_id = payload.building_id.strip() if (payload.building_id and payload.building_id.strip() and payload.building_id.strip().lower() not in ('all', 'none', 'null', '')) else None
+        f_id = payload.floor_id.strip() if (payload.floor_id and payload.floor_id.strip() and payload.floor_id.strip().lower() not in ('all', 'none', 'null', '')) else None
 
-        if payload.id:
+        capacity_val = payload.capacity if payload.capacity is not None else 50
+        area_val = payload.area if payload.area is not None else 0.0
+
+        if target_id:
             sql = """
                 UPDATE public.campus_facilities
                 SET name = %s, code = %s, category = %s,
@@ -2593,10 +2605,13 @@ async def save_campus_facility(
                 RETURNING *;
             """
             params = (
-                payload.name, payload.code, payload.category or "Specialized Laboratory",
-                b_id, f_id, payload.capacity or 50, payload.area or 0.0,
-                payload.manager_name, payload.manager_phone, payload.status or "Operational",
-                payload.description, user_id, payload.id, school_id
+                payload.name.strip(), payload.code.strip(), payload.category or "Specialized Laboratory",
+                b_id, f_id, capacity_val, area_val,
+                payload.manager_name.strip() if payload.manager_name else None,
+                payload.manager_phone.strip() if payload.manager_phone else None,
+                payload.status or "Operational",
+                payload.description.strip() if payload.description else None,
+                user_id, target_id, school_id
             )
         else:
             sql = """
@@ -2611,19 +2626,27 @@ async def save_campus_facility(
                 RETURNING *;
             """
             params = (
-                school_id, payload.name, payload.code, payload.category or "Specialized Laboratory",
-                b_id, f_id, payload.capacity or 50, payload.area or 0.0,
-                payload.manager_name, payload.manager_phone, payload.status or "Operational",
-                payload.description, user_id, user_id
+                school_id, payload.name.strip(), payload.code.strip(), payload.category or "Specialized Laboratory",
+                b_id, f_id, capacity_val, area_val,
+                payload.manager_name.strip() if payload.manager_name else None,
+                payload.manager_phone.strip() if payload.manager_phone else None,
+                payload.status or "Operational",
+                payload.description.strip() if payload.description else None,
+                user_id, user_id
             )
 
         rows = await exec_sql(sql, params)
         if not rows:
             raise HTTPException(status_code=400, detail="Failed to save facility")
         return {"success": True, "data": _serialize_val(rows[0])}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error saving facility: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        err_msg = str(e)
+        if "uq_campus_facilities_school_code" in err_msg:
+            err_msg = f"A facility with code '{payload.code}' already exists."
+        raise HTTPException(status_code=400 if "uq_campus_facilities" in str(e) else 500, detail=err_msg)
 
 
 @router.delete("/facilities/{facility_id}", summary="Delete Campus Facility")
@@ -2694,9 +2717,11 @@ async def list_utility_readings(
 ):
     school_id = _get_school_id(user)
     try:
-        search_term = f"%{search.strip().lower()}%" if search and search.strip() else None
-        u_type = utility_type if (utility_type and utility_type != 'All') else None
-        offset = (page - 1) * page_size
+        search_term = f"%{search.strip().lower()}%" if isinstance(search, str) and search.strip() else None
+        u_type = utility_type if (isinstance(utility_type, str) and utility_type != 'All') else None
+        p_num = page if isinstance(page, int) else 1
+        p_sz = page_size if isinstance(page_size, int) else 20
+        offset = (p_num - 1) * p_sz
 
         sql = """
             SELECT 
@@ -2711,7 +2736,7 @@ async def list_utility_readings(
             ORDER BY recorded_at DESC
             LIMIT %s OFFSET %s;
         """
-        rows = await exec_sql(sql, (school_id, u_type, u_type, search_term, search_term, search_term, page_size, offset))
+        rows = await exec_sql(sql, (school_id, u_type, u_type, search_term, search_term, search_term, p_sz, offset))
 
         count_sql = """
             SELECT COUNT(*) AS total
@@ -2727,9 +2752,9 @@ async def list_utility_readings(
             "success": True,
             "data": _serialize_val(rows),
             "total_count": total_count,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+            "page": p_num,
+            "page_size": p_sz,
+            "total_pages": max(1, (total_count + p_sz - 1) // p_sz),
         }
     except Exception as e:
         logger.error(f"Error listing utility readings: {e}")
@@ -2762,13 +2787,12 @@ async def log_utility_reading(
         # Automatically execute utility anomaly check and trigger ticket if > 1.5x baseline
         anomaly_result = None
         try:
-            anom_row = await exec_sql(
+            anom_rows = await exec_sql(
                 "SELECT public.sp_check_utility_anomalies(%s::UUID, %s::UUID) AS result;",
-                (school_id, reading_data["id"]),
-                fetch_one=True
+                (school_id, reading_data["id"])
             )
-            if anom_row and anom_row.get("result"):
-                anomaly_result = anom_row["result"]
+            if anom_rows and anom_rows[0].get("result"):
+                anomaly_result = anom_rows[0]["result"]
         except Exception as anom_err:
             logger.warning(f"Could not execute automatic anomaly check: {anom_err}")
 
@@ -2790,10 +2814,10 @@ async def check_utility_anomalies(
     school_id = _get_school_id(user)
     sql = "SELECT public.sp_check_utility_anomalies(%s::UUID, %s::UUID) AS result;"
     r_id = reading_id if reading_id else None
-    row = await exec_sql(sql, (school_id, r_id), fetch_one=True)
-    if not row or not row.get("result"):
+    rows = await exec_sql(sql, (school_id, r_id))
+    if not rows or not rows[0].get("result"):
         return {"success": False, "message": "Failed to check utility anomalies"}
-    return row.get("result")
+    return rows[0].get("result")
 
 
 # ============================================================================

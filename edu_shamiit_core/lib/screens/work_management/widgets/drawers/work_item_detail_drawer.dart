@@ -2,11 +2,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../config/app_config.dart';
+import '../../../../providers/auth_provider.dart';
 import '../../../../utils/download_helper.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../utils/work_filter_helper.dart';
+import '../dialogs/create_edit_work_item_dialog.dart';
 
 class WorkItemDetailDrawer extends ConsumerStatefulWidget {
   final WorkItemModel? item;
@@ -28,6 +31,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _commentController = TextEditingController();
+  final ScrollController _commentsScrollController = ScrollController();
   final TextEditingController _newChecklistController = TextEditingController();
   final TextEditingController _newLabelController = TextEditingController();
 
@@ -91,6 +95,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   void dispose() {
     _tabController.dispose();
     _commentController.dispose();
+    _commentsScrollController.dispose();
     _newChecklistController.dispose();
     _newLabelController.dispose();
     _storyPointsController.dispose();
@@ -98,6 +103,12 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     _remainingHoursController.dispose();
     _actualHoursController.dispose();
     super.dispose();
+  }
+
+  void _updateItemInAllProviders(WorkItemModel updatedItem) {
+    ref.read(workBoardProvider.notifier).updateItemLocally(updatedItem);
+    ref.read(workListProvider.notifier).updateItemLocally(updatedItem);
+    ref.read(workBacklogProvider.notifier).updateItemLocally(updatedItem);
   }
 
   WorkItemModel? get _effectiveItem {
@@ -132,10 +143,12 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   }
 
   Future<void> _loadDetail(String itemId, {bool notifyParent = false}) async {
-    setState(() => _isLoading = true);
+    if (_fullDetail == null) {
+      setState(() => _isLoading = true);
+    }
     try {
       final api = ref.read(workApiServiceProvider);
-      final detail = await api.getWorkItemDetail(itemId);
+      final detail = await api.getWorkItemDetail(itemId, forceRefresh: true);
       if (mounted) {
         setState(() {
           _fullDetail = detail;
@@ -258,14 +271,25 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
       _selectedTeamName = (t == null || t == 'UNASSIGN' || t == 'Unassigned') ? null : t;
     }
 
+    // Optimistically apply updates to local state for zero-latency UI
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated.addAll(payload);
+    setState(() => _fullDetail = updated);
+    if (_effectiveItem != null) {
+      if (widget.onUpdated != null) widget.onUpdated!(_effectiveItem!);
+      _updateItemInAllProviders(_effectiveItem!);
+    }
+
     final ok = await api.updateItem(item.id, payload);
     if (ok) {
+      api.invalidateCache();
       await _loadDetail(item.id, notifyParent: true);
       _refreshAllProviders();
       if (successMessage != null) {
         _showSnack(successMessage);
       }
     } else {
+      await _loadDetail(item.id);
       _showSnack('Failed to update work item.', isError: true);
     }
   }
@@ -312,203 +336,34 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
         .map((a) => a.userId.isNotEmpty ? a.userId : a.id)
         .where((id) => id.isNotEmpty)
         .toSet();
-    final searchCtrl = TextEditingController();
-    String roleFilter = 'All';
-    bool isSaving = false;
 
-    final saved = await showDialog<bool>(
+    await WorkFilterHelper.openManageAssigneesDialog(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDlgState) {
-            final isDark = Theme.of(ctx).brightness == Brightness.dark;
-            final q = searchCtrl.text.trim().toLowerCase();
-            final filteredUsers = _assignableUsers.where((u) {
-              if (roleFilter != 'All' && u.role.toLowerCase() != roleFilter.toLowerCase()) {
-                return false;
-              }
-              if (q.isNotEmpty) {
-                final mName = u.fullName.toLowerCase().contains(q);
-                final mEmail = (u.email ?? '').toLowerCase().contains(q);
-                final mRole = u.role.toLowerCase().contains(q);
-                final mDept = (u.department ?? '').toLowerCase().contains(q);
-                if (!mName && !mEmail && !mRole && !mDept) return false;
-              }
-              return true;
-            }).toList();
+      itemIds: [item.id],
+      availableUsers: _assignableUsers,
+      api: ref.read(workApiServiceProvider),
+      initialSelectedUserIds: selectedIds,
+      onApply: ({
+        required List<String> itemIds,
+        required List<String> selectedUserIds,
+        required List<WorkAssigneeModel> selectedUsers,
+      }) async {
+        final newAssignees = selectedUsers.map((u) => u.toJson()).toList();
+        final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+        updated['assignees'] = newAssignees;
+        if (mounted) setState(() => _fullDetail = updated);
+        if (_effectiveItem != null) {
+          if (widget.onUpdated != null) widget.onUpdated!(_effectiveItem!);
+          _updateItemInAllProviders(_effectiveItem!);
+        }
 
-            return AlertDialog(
-              backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
-              ),
-              title: Row(
-                children: [
-                  const Icon(Icons.group_add_rounded, color: Color(0xFF2563EB), size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Manage Assignees (${selectedIds.length} selected)',
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-                  if (selectedIds.isNotEmpty)
-                    TextButton(
-                      onPressed: () => setDlgState(() => selectedIds.clear()),
-                      child: const Text('Clear all', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
-                    ),
-                ],
-              ),
-              content: SizedBox(
-                width: 480,
-                height: 440,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: searchCtrl,
-                      onChanged: (_) => setDlgState(() {}),
-                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
-                      decoration: InputDecoration(
-                        hintText: 'Search teachers, students, staff by name, role, email...',
-                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF3B82F6)),
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: ['All', 'teacher', 'student', 'admin', 'staff', 'super_admin'].map((r) {
-                          final active = roleFilter == r;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(
-                                r == 'All' ? 'All Roles' : r.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: active ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-                                ),
-                              ),
-                              selected: active,
-                              selectedColor: const Color(0xFF2563EB),
-                              backgroundColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF1F5F9),
-                              onSelected: (_) => setDlgState(() => roleFilter = r),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: filteredUsers.isEmpty
-                          ? const Center(
-                              child: Text('No matching users found.', style: TextStyle(color: Color(0xFF94A3B8))),
-                            )
-                          : ListView.separated(
-                              itemCount: filteredUsers.length,
-                              separatorBuilder: (_, __) => Divider(
-                                height: 1,
-                                color: isDark ? const Color(0xFF1F293D) : const Color(0xFFF1F5F9),
-                              ),
-                              itemBuilder: (context, idx) {
-                                final u = filteredUsers[idx];
-                                final uid = u.userId.isNotEmpty ? u.userId : u.id;
-                                final isChecked = selectedIds.contains(uid);
-                                return CheckboxListTile(
-                                  value: isChecked,
-                                  dense: true,
-                                  activeColor: const Color(0xFF2563EB),
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  title: Text(
-                                    u.fullName,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${u.role.toUpperCase()}${u.department != null && u.department!.isNotEmpty ? ' • ${u.department}' : ''}${u.email != null ? ' • ${u.email}' : ''}',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  secondary: CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                                    backgroundImage: (u.avatarUrl != null && u.avatarUrl!.isNotEmpty)
-                                        ? NetworkImage(u.avatarUrl!)
-                                        : null,
-                                    child: (u.avatarUrl == null || u.avatarUrl!.isEmpty)
-                                        ? Text(
-                                            u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : 'U',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
-                                          )
-                                        : null,
-                                  ),
-                                  onChanged: (val) {
-                                    setDlgState(() {
-                                      if (val == true) {
-                                        selectedIds.add(uid);
-                                      } else {
-                                        selectedIds.remove(uid);
-                                      }
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          setDlgState(() => isSaving = true);
-                          Navigator.pop(ctx, true);
-                        },
-                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-                  label: Text('Save (${selectedIds.length})', style: const TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ],
-            );
-          },
+        await _updateFields(
+          {'assignee_ids': selectedUserIds},
+          successMessage: 'Updated assignees (${selectedUserIds.length} assigned)',
         );
+        return true;
       },
     );
-
-    if (saved == true) {
-      await _updateFields(
-        {'assignee_ids': selectedIds.toList()},
-        successMessage: 'Updated assignees (${selectedIds.length} assigned)',
-      );
-    }
   }
 
   Future<void> _removeSingleAssignee(WorkItemModel item, String userIdToRemove) async {
@@ -516,6 +371,19 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
         .map((a) => a.userId.isNotEmpty ? a.userId : a.id)
         .where((id) => id.isNotEmpty && id != userIdToRemove)
         .toList();
+    final currentAssignees = List<dynamic>.from((_fullDetail?['assignees'] as List<dynamic>?) ?? []);
+    currentAssignees.removeWhere((a) {
+      final id = a is Map ? (a['user_id']?.toString() ?? a['id']?.toString() ?? '') : '';
+      return id == userIdToRemove;
+    });
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated['assignees'] = currentAssignees;
+    setState(() => _fullDetail = updated);
+    if (_effectiveItem != null) {
+      if (widget.onUpdated != null) widget.onUpdated!(_effectiveItem!);
+      _updateItemInAllProviders(_effectiveItem!);
+    }
+
     await _updateFields(
       {'assignee_ids': remaining},
       successMessage: 'Removed assignee',
@@ -530,7 +398,23 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     final text = _newChecklistController.text.trim();
     if (item == null || text.isEmpty) return;
 
-    setState(() => _isAddingChecklist = true);
+    // Optimistically insert into local state immediately
+    final checklists = List<dynamic>.from((_fullDetail?['checklists'] as List<dynamic>?) ?? []);
+    checklists.add({
+      'id': 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      'title': text,
+      'is_completed': false,
+    });
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated['checklists'] = checklists;
+
+    setState(() {
+      _fullDetail = updated;
+      _newChecklistController.clear();
+      _showAddChecklistInput = false;
+      _isAddingChecklist = true;
+    });
+
     final api = ref.read(workApiServiceProvider);
     final res = await api.addChecklistEntry(item.id, text);
     if (mounted) {
@@ -538,12 +422,12 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     }
 
     if (res['success'] == true) {
-      _newChecklistController.clear();
-      setState(() => _showAddChecklistInput = false);
+      api.invalidateCache();
       await _loadDetail(item.id, notifyParent: true);
       _refreshAllProviders();
       _showSnack('Checklist item added');
     } else {
+      await _loadDetail(item.id);
       _showSnack(res['error']?.toString() ?? 'Failed to add checklist item', isError: true);
     }
   }
@@ -551,11 +435,30 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   Future<void> _toggleChecklist(String checkId, bool currentVal) async {
     final item = _effectiveItem;
     if (item == null) return;
+
+    // Optimistic toggle in local state for zero latency
+    final checklists = List<dynamic>.from((_fullDetail?['checklists'] as List<dynamic>?) ?? []);
+    for (int i = 0; i < checklists.length; i++) {
+      final c = checklists[i];
+      if (c is Map && c['id']?.toString() == checkId) {
+        final m = Map<String, dynamic>.from(c);
+        m['is_completed'] = !currentVal;
+        checklists[i] = m;
+        break;
+      }
+    }
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated['checklists'] = checklists;
+    setState(() => _fullDetail = updated);
+
     final api = ref.read(workApiServiceProvider);
     final ok = await api.toggleChecklistEntry(checkId, !currentVal);
     if (ok) {
+      api.invalidateCache();
       await _loadDetail(item.id, notifyParent: true);
       _refreshAllProviders();
+    } else {
+      await _loadDetail(item.id);
     }
   }
 
@@ -599,7 +502,9 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
       final api = ref.read(workApiServiceProvider);
       final ok = await api.updateChecklistEntry(checkId, title: ctrl.text.trim());
       if (ok) {
+        api.invalidateCache();
         await _loadDetail(item.id, notifyParent: true);
+        _refreshAllProviders();
         _showSnack('Checklist item updated');
       }
     }
@@ -608,12 +513,23 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   Future<void> _deleteChecklist(String checkId) async {
     final item = _effectiveItem;
     if (item == null) return;
+
+    // Optimistically remove from state
+    final checklists = List<dynamic>.from((_fullDetail?['checklists'] as List<dynamic>?) ?? []);
+    checklists.removeWhere((c) => c is Map && c['id']?.toString() == checkId);
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated['checklists'] = checklists;
+    setState(() => _fullDetail = updated);
+
     final api = ref.read(workApiServiceProvider);
     final ok = await api.deleteChecklistEntry(checkId);
     if (ok) {
+      api.invalidateCache();
       await _loadDetail(item.id, notifyParent: true);
       _refreshAllProviders();
       _showSnack('Checklist item deleted');
+    } else {
+      await _loadDetail(item.id);
     }
   }
 
@@ -641,144 +557,20 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   }
 
   Future<void> _editTitleDescDialog(WorkItemModel item) async {
-    final titleCtrl = TextEditingController(text: item.title);
-    final descCtrl = TextEditingController(text: item.description);
-    final catCtrl = TextEditingController(text: item.category);
-    String selectedType = item.workType.toUpperCase();
-
+    final effective = _effectiveItem ?? item;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDlgState) {
-            final isDark = Theme.of(ctx).brightness == Brightness.dark;
-            return AlertDialog(
-              backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0)),
-              ),
-              title: Text(
-                'Edit ${item.itemNumber}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              content: SizedBox(
-                width: 480,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Title *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: titleCtrl,
-                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                        isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Work Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
-                              const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
-                                initialValue: ['EPIC', 'STORY', 'TASK', 'BUG', 'ISSUE', 'HOMEWORK', 'ASSIGNMENT'].contains(selectedType)
-                                    ? selectedType
-                                    : 'TASK',
-                                isDense: true,
-                                dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                items: const ['TASK', 'STORY', 'BUG', 'EPIC', 'ISSUE', 'HOMEWORK', 'ASSIGNMENT']
-                                    .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12.5))))
-                                    .toList(),
-                                onChanged: (v) => setDlgState(() => selectedType = v ?? 'TASK'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Area / Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: catCtrl,
-                                style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : Colors.black),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                                  isDense: true,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: descCtrl,
-                      maxLines: 4,
-                      style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : Colors.black),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                        isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () {
-                    if (titleCtrl.text.trim().isNotEmpty) {
-                      Navigator.pop(ctx, true);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-                  child: const Text('Save Changes', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (ctx) => CreateEditWorkItemDialog(
+        existingItem: effective,
+        boardId: effective.boardId ?? _selectedBoardId,
+        sprintId: effective.sprintId ?? _selectedSprintId,
+        parentId: effective.parentId,
+      ),
     );
 
     if (confirmed == true) {
-      await _updateFields(
-        {
-          'title': titleCtrl.text.trim(),
-          'description': descCtrl.text.trim(),
-          'category': catCtrl.text.trim(),
-          'work_type': selectedType,
-        },
-        successMessage: 'Saved changes to ${item.itemNumber}',
-      );
+      await _loadDetail(effective.id, notifyParent: true);
+      _refreshAllProviders();
     }
   }
 
@@ -857,12 +649,51 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
     final item = _effectiveItem;
     if (text.isEmpty || item == null) return;
 
-    setState(() => _isAddingComment = true);
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString('user_name');
+    final currentUser = (savedName != null && savedName.isNotEmpty)
+        ? savedName
+        : (ref.read(authProvider).userData?['full_name'] as String? ?? 'King Doe');
+    final now = DateTime.now();
+    final timeStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final tempComment = {
+      'id': 'temp_${now.millisecondsSinceEpoch}',
+      'author_name': currentUser,
+      'comment_text': text,
+      'content': text,
+      'created_at': timeStr,
+      'author_avatar': '',
+    };
+
+    // Optimistically update comments immediately for 0ms instant display
+    final currentComments = List<dynamic>.from((_fullDetail?['comments'] as List<dynamic>?) ?? []);
+    currentComments.add(tempComment);
+
+    final updatedDetail = Map<String, dynamic>.from(_fullDetail ?? {});
+    updatedDetail['comments'] = currentComments;
+
+    setState(() {
+      _fullDetail = updatedDetail;
+      _commentController.clear();
+      _isAddingComment = true;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_commentsScrollController.hasClients) {
+        _commentsScrollController.animateTo(
+          _commentsScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+
     final api = ref.read(workApiServiceProvider);
     final ok = await api.addComment(item.id, text);
     if (ok) {
-      _commentController.clear();
+      api.invalidateCache();
       await _loadDetail(item.id, notifyParent: true);
+      _refreshAllProviders();
     }
     if (mounted) {
       setState(() => _isAddingComment = false);
@@ -872,7 +703,18 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
   Future<void> _changeStatus(String newStatus) async {
     final item = _effectiveItem;
     if (item == null) return;
+
+    // Optimistic status update
+    final updated = Map<String, dynamic>.from(_fullDetail ?? {});
+    updated['status'] = newStatus;
+    setState(() => _fullDetail = updated);
+    if (_effectiveItem != null) {
+      if (widget.onUpdated != null) widget.onUpdated!(_effectiveItem!);
+      _updateItemInAllProviders(_effectiveItem!);
+    }
+
     await ref.read(workBoardProvider.notifier).transitionStatus(item.id, newStatus);
+    ref.read(workApiServiceProvider).invalidateCache();
     await _loadDetail(item.id, notifyParent: true);
     _refreshAllProviders();
     _showSnack('Status changed to $newStatus');
@@ -1958,14 +1800,16 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
       builder: (context, constraints) {
         final isHeightBounded = constraints.hasBoundedHeight;
         final mediaWidth = MediaQuery.of(context).size.width;
-        final responsiveWidth = mediaWidth < 500 ? mediaWidth : 480.0;
+        final screenHeight = MediaQuery.of(context).size.height;
+        final fallbackHeight = (screenHeight - 160).clamp(520.0, 850.0);
+        final responsiveWidth = mediaWidth < 600 ? double.infinity : (mediaWidth < 1200 ? 390.0 : 430.0);
         final targetWidth = constraints.hasBoundedWidth
             ? (constraints.maxWidth < responsiveWidth ? constraints.maxWidth : responsiveWidth)
-            : responsiveWidth;
+            : (mediaWidth < 600 ? mediaWidth : responsiveWidth);
 
         return Container(
           width: targetWidth,
-          height: isHeightBounded ? null : 850,
+          height: isHeightBounded ? null : fallbackHeight,
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF13182C) : Colors.white,
             border: Border(
@@ -1995,7 +1839,10 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 item.itemNumber,
@@ -2005,7 +1852,6 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                                   color: Color(0xFF2563EB),
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
@@ -2096,6 +1942,8 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                 ),
                 child: TabBar(
                   controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
                   labelColor: const Color(0xFF2563EB),
                   unselectedLabelColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   indicatorColor: const Color(0xFF2563EB),
@@ -2563,13 +2411,16 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                   children: [
                     const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFF3B82F6)),
                     const SizedBox(width: 6),
-                    Text(
-                      item.startDate != null && item.startDate!.length >= 10
-                          ? item.startDate!.substring(0, 10)
-                          : 'Set Start Date',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                    Flexible(
+                      child: Text(
+                        item.startDate != null && item.startDate!.length >= 10
+                            ? item.startDate!.substring(0, 10)
+                            : 'Set Start Date',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -2598,13 +2449,16 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                   children: [
                     const Icon(Icons.event_outlined, size: 13, color: Color(0xFF3B82F6)),
                     const SizedBox(width: 6),
-                    Text(
-                      item.dueDate != null && item.dueDate!.length >= 10
-                          ? item.dueDate!.substring(0, 10)
-                          : 'Set Due Date',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                    Flexible(
+                      child: Text(
+                        item.dueDate != null && item.dueDate!.length >= 10
+                            ? item.dueDate!.substring(0, 10)
+                            : 'Set Due Date',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -2903,14 +2757,18 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Checklist ($completedChecks/$totalChecks)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+              Expanded(
+                child: Text(
+                  'Checklist ($completedChecks/$totalChecks)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () {
                   setState(() => _showAddChecklistInput = !_showAddChecklistInput);
@@ -3054,14 +2912,18 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Attachments (${attachments.length})',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+              Expanded(
+                child: Text(
+                  'Attachments (${attachments.length})',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: _uploadAttachmentDialog,
                 borderRadius: BorderRadius.circular(6),
@@ -3254,6 +3116,8 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                     ),
                   )
                 : ListView.separated(
+                    controller: _commentsScrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: comments.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, idx) {

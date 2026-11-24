@@ -182,6 +182,60 @@ class CampusLookupHelper {
     }
   }
 
+  List<Map<String, dynamic>> _cachedClasses = [];
+
+  Future<List<Map<String, dynamic>>> getClasses({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedClasses.isNotEmpty) return _cachedClasses;
+    try {
+      final res = await CampusApiService.instance.getAcademicEntitiesForAllocation();
+      if (res['success'] == true && res['classes'] is List) {
+        _cachedClasses = List<Map<String, dynamic>>.from(res['classes']);
+        return _cachedClasses;
+      }
+    } catch (_) {}
+    return _cachedClasses;
+  }
+
+  List<Map<String, dynamic>> _cachedFacilities = [];
+
+  Future<List<Map<String, dynamic>>> getFacilitiesList({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedFacilities.isNotEmpty) return _cachedFacilities;
+    try {
+      final res = await CampusApiService.instance.getFacilities(page: 1, pageSize: 100);
+      final list = (res['data'] as List?) ?? [];
+      _cachedFacilities = list.map((e) {
+        if (e is Map) return Map<String, dynamic>.from(e);
+        try {
+          return {
+            'id': e.id,
+            'name': e.name,
+            'code': e.code,
+            'category': e.category,
+            'capacity': e.capacity,
+            'building_id': e.buildingId,
+          };
+        } catch (_) {
+          return <String, dynamic>{};
+        }
+      }).where((m) => m.isNotEmpty).toList();
+      return _cachedFacilities;
+    } catch (_) {}
+    return _cachedFacilities;
+  }
+
+  List<RoomModel> _cachedRooms = [];
+
+  Future<List<RoomModel>> getAllRooms({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedRooms.isNotEmpty) return _cachedRooms;
+    try {
+      final res = await CampusApiService.instance.getRooms(page: 1, pageSize: 150);
+      final list = (res['data'] as List<RoomModel>?) ?? [];
+      _cachedRooms = list;
+      return _cachedRooms;
+    } catch (_) {}
+    return _cachedRooms;
+  }
+
   List<Map<String, dynamic>> _cachedUsers = [];
 
   List<Map<String, dynamic>> _getDefaultStaffUsers() {
@@ -265,6 +319,66 @@ class CampusLookupHelper {
       _cachedUsers = _getDefaultStaffUsers();
     }
     return _cachedUsers;
+  }
+
+  List<Map<String, dynamic>> _cachedRoles = [];
+
+  List<Map<String, dynamic>> _getDefaultAppRoles() {
+    return const [
+      {'name': 'super_admin', 'display_name': 'Super Admin', 'code': 'SUPER_ADMIN'},
+      {'name': 'admin', 'display_name': 'Campus Administrator', 'code': 'ADMIN'},
+      {'name': 'safety_officer', 'display_name': 'Safety & Compliance Officer', 'code': 'SAFETY_OFFICER'},
+      {'name': 'fire_marshal', 'display_name': 'Fire Marshal', 'code': 'FIRE_MARSHAL'},
+      {'name': 'facilities_head', 'display_name': 'Facilities Head', 'code': 'FACILITIES_HEAD'},
+      {'name': 'external_auditor', 'display_name': 'External Auditor / Inspector', 'code': 'EXTERNAL_AUDITOR'},
+      {'name': 'teacher', 'display_name': 'Faculty / Teacher', 'code': 'TEACHER'},
+      {'name': 'staff', 'display_name': 'Administrative Staff', 'code': 'STAFF'},
+      {'name': 'security_supervisor', 'display_name': 'Chief Security Officer', 'code': 'SECURITY_SUPERVISOR'},
+      {'name': 'lab_assistant', 'display_name': 'Laboratory Custodian', 'code': 'LAB_ASSISTANT'},
+      {'name': 'maintenance_lead', 'display_name': 'Maintenance Supervisor', 'code': 'MAINTENANCE_LEAD'},
+    ];
+  }
+
+  /// Fetch canonical application roles directly from Roles Management / public.app_roles table
+  Future<List<Map<String, dynamic>>> getAppRoles({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedRoles.isNotEmpty) {
+      return _cachedRoles;
+    }
+    try {
+      final res = await _api.get('/admin/schools/roles', useCache: false);
+      final rawData = res['data'] ?? (res is List ? res : null);
+      if (rawData is List && rawData.isNotEmpty) {
+        _cachedRoles = rawData.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        return _cachedRoles;
+      }
+    } catch (_) {}
+    if (_cachedRoles.isEmpty) {
+      _cachedRoles = List<Map<String, dynamic>>.from(_getDefaultAppRoles());
+    }
+    return _cachedRoles;
+  }
+
+  /// Get role display name strings for dropdowns
+  Future<List<String>> getRoleLabels({bool forceRefresh = false}) async {
+    final roles = await getAppRoles(forceRefresh: forceRefresh);
+    return roles
+        .map((r) => (r['display_name'] ?? r['name'] ?? '').toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  /// Synchronously get immediate role display names
+  List<String> getImmediateRoleLabels() {
+    if (_cachedRoles.isNotEmpty) {
+      return _cachedRoles
+          .map((r) => (r['display_name'] ?? r['name'] ?? '').toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    getAppRoles();
+    return _getDefaultAppRoles()
+        .map((r) => (r['display_name'] ?? r['name'] ?? '').toString().trim())
+        .toList();
   }
 
   Future<List<String>> getDepartments() async {
@@ -464,6 +578,24 @@ class CampusLookupHelper {
           CampusLookupItem(id: '5', code: 'INACTIVE', label: 'Inactive'),
         ];
 
+      case 'SPACE_TYPE':
+        return const [
+          CampusLookupItem(id: '1', code: 'CLASSROOM', label: 'Classroom'),
+          CampusLookupItem(id: '2', code: 'SMART_CLASSROOM', label: 'Smart Classroom'),
+          CampusLookupItem(id: '3', code: 'AUDITORIUM', label: 'Auditorium'),
+          CampusLookupItem(id: '4', code: 'MEETING_ROOM', label: 'Meeting Room'),
+          CampusLookupItem(id: '5', code: 'COMPUTER_LAB', label: 'Computer Lab'),
+          CampusLookupItem(id: '6', code: 'PHYSICS_LAB', label: 'Physics Lab'),
+          CampusLookupItem(id: '7', code: 'CHEMISTRY_LAB', label: 'Chemistry Lab'),
+          CampusLookupItem(id: '8', code: 'BIOLOGY_LAB', label: 'Biology Lab'),
+          CampusLookupItem(id: '9', code: 'SPORTS_FACILITY', label: 'Sports Facility'),
+          CampusLookupItem(id: '10', code: 'GYMNASIUM', label: 'Gymnasium'),
+          CampusLookupItem(id: '11', code: 'LIBRARY_HALL', label: 'Library Hall'),
+          CampusLookupItem(id: '12', code: 'CAFETERIA_HUB', label: 'Cafeteria Hub'),
+          CampusLookupItem(id: '13', code: 'HEALTH_CENTER', label: 'Health Center & Clinic'),
+          CampusLookupItem(id: '14', code: 'ROBOTICS_LAB', label: 'Robotics & FabLab'),
+        ];
+
       case 'BOOKING_PURPOSE':
         return const [
           CampusLookupItem(id: '1', code: 'CLASS_LECTURE', label: 'Class / Lecture Instruction'),
@@ -545,6 +677,39 @@ class CampusLookupHelper {
           CampusLookupItem(id: '6', code: 'VANDALISM', label: 'Vandalism / Property Damage'),
           CampusLookupItem(id: '7', code: 'UNAUTHORIZED_ACCESS', label: 'Unauthorized Access / Security Breach'),
           CampusLookupItem(id: '8', code: 'MEDICAL_EMERGENCY', label: 'Medical Emergency / Fainting'),
+        ];
+
+      case 'INSPECTION_CATEGORY':
+      case 'SAFETY_CATEGORY':
+        return const [
+          CampusLookupItem(id: '1', code: 'FIRE_SAFETY', label: 'Fire Safety'),
+          CampusLookupItem(id: '2', code: 'ELECTRICAL_SAFETY', label: 'Electrical Safety'),
+          CampusLookupItem(id: '3', code: 'LAB_CHEMICAL_SAFETY', label: 'Lab & Chemical Safety'),
+          CampusLookupItem(id: '4', code: 'STRUCTURAL_INTEGRITY', label: 'Structural Integrity'),
+          CampusLookupItem(id: '5', code: 'SANITATION_HYGIENE', label: 'Sanitation & Hygiene'),
+          CampusLookupItem(id: '6', code: 'CCTV_PHYSICAL_SECURITY', label: 'CCTV & Physical Security'),
+          CampusLookupItem(id: '7', code: 'SPORTS_PLAYGROUND', label: 'Sports & Playground'),
+          CampusLookupItem(id: '8', code: 'FOOD_WATER_SAFETY', label: 'Food & Water Safety'),
+        ];
+
+      case 'INSPECTION_STATUS':
+      case 'SAFETY_INSPECTION_STATUS':
+        return const [
+          CampusLookupItem(id: '1', code: 'PASSED', label: 'Passed'),
+          CampusLookupItem(id: '2', code: 'NEEDS_ATTENTION', label: 'Needs Attention'),
+          CampusLookupItem(id: '3', code: 'CRITICAL_ACTION', label: 'Critical Action'),
+          CampusLookupItem(id: '4', code: 'SCHEDULED', label: 'Scheduled'),
+        ];
+
+      case 'INSPECTION_ROLE':
+        return const [
+          CampusLookupItem(id: '1', code: 'SAFETY_OFFICER', label: 'Safety Officer'),
+          CampusLookupItem(id: '2', code: 'FIRE_MARSHAL', label: 'Fire Marshal'),
+          CampusLookupItem(id: '3', code: 'FACILITIES_HEAD', label: 'Facilities Head'),
+          CampusLookupItem(id: '4', code: 'EXTERNAL_AUDITOR', label: 'External Auditor'),
+          CampusLookupItem(id: '5', code: 'CHIEF_SECURITY_OFFICER', label: 'Chief Security Officer'),
+          CampusLookupItem(id: '6', code: 'SENIOR_ENGINEER', label: 'Senior Electrical Engineer'),
+          CampusLookupItem(id: '7', code: 'CAMPUS_ADMIN', label: 'Campus Administrator'),
         ];
 
       case 'INCIDENT_SEVERITY':

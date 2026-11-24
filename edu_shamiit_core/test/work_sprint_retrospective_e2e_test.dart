@@ -44,6 +44,16 @@ class MockWorkSprintRetroNotifier extends WorkSprintRetroNotifier {
   Future<void> loadWorkspace({bool silent = false}) async {
     // Keep initial state for tests
   }
+
+  @override
+  Future<List<SprintRetroCommentModel>> loadComments(String entryId) async {
+    return [];
+  }
+
+  @override
+  Future<bool> voteEntry(String entryId) async {
+    return true;
+  }
 }
 
 void main() {
@@ -726,8 +736,9 @@ void main() {
       expect(find.text('Show Less'), findsOneWidget);
 
       // Tap Show Less to collapse back
+      await tester.ensureVisible(find.text('Show Less'));
       await tester.tap(find.text('Show Less'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('Went well item #3'), findsNothing);
       expect(find.text('View All (6)'), findsOneWidget);
@@ -824,6 +835,234 @@ void main() {
 
       // Verify DataTable checkbox column is native (only one checkbox per row, exactly 2 checkboxes total: 1 header + 1 row)
       expect(find.byType(Checkbox), findsNWidgets(2));
+    });
+
+    testWidgets('Clicking retrospective discussion card opens detail dialog with observation, upvotes, and conversion', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final mockWs = SprintRetroWorkspaceModel(
+        retrospective: const SprintRetroHeaderModel(
+          id: 'retro-8-id',
+          sprintId: 'sprint-8-id',
+          title: 'Sprint Retrospective',
+          status: 'COMPLETED',
+        ),
+        sprintOverview: const SprintRetroOverviewModel(
+          sprintId: 'sprint-8-id',
+          sprintName: 'Sprint 8',
+          dateRange: 'Nov 15, 2026 – Nov 28, 2026',
+        ),
+        wentWell: const SprintRetroCategoryColumnModel(
+          title: 'What Went Well?',
+          key: 'WENT_WELL',
+          count: 1,
+          entries: [
+            SprintRetroEntryItemModel(
+              id: 'e1',
+              category: 'WENT_WELL',
+              content: 'Some requirements were not clearly defined in the initial planning.',
+              authorName: 'Rahul Mehta',
+              votes: 3,
+              commentsCount: 2,
+            ),
+          ],
+        ),
+        didNotGoWell: const SprintRetroCategoryColumnModel(
+          title: "What Didn't Go Well?",
+          key: 'DID_NOT_GO_WELL',
+          count: 0,
+          entries: [],
+        ),
+        shouldImprove: const SprintRetroCategoryColumnModel(
+          title: 'What Should Improve?',
+          key: 'TO_IMPROVE',
+          count: 0,
+          entries: [],
+        ),
+        actionItems: [],
+        participants: [],
+        history: [],
+        feedback: [],
+        feedbackStats: const SprintRetroFeedbackStatsModel(),
+      );
+
+      final notifier = MockWorkSprintRetroNotifier(WorkSprintRetroState(
+        sprintId: 'sprint-8-id',
+        workspace: mockWs,
+        activeTab: 'Discussion Board',
+      ));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
+            workSprintRetroProvider.overrideWith((ref) => notifier),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SprintRetrospectiveTabView(
+                  sprintId: 'sprint-8-id',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      // Card is displayed on the board
+      final cardFinder = find.text('Some requirements were not clearly defined in the initial planning.');
+      expect(cardFinder, findsOneWidget);
+
+      // Tap on the card
+      await tester.tap(cardFinder);
+      await tester.pumpAndSettle();
+
+      // Verify that the Retro Card Detail Dialog is now open!
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('3 Upvotes'), findsOneWidget);
+      expect(find.text('Rahul Mehta'), findsWidgets);
+      expect(find.text('Convert to Action Item'), findsOneWidget);
+      expect(find.text('Move to Category'), findsOneWidget);
+      expect(find.text('Delete Card'), findsOneWidget);
+      expect(find.text('Done'), findsOneWidget);
+
+      // Tap 'Done' to close the dialog
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      // Dialog is closed
+      expect(find.byType(Dialog), findsNothing);
+    });
+
+    testWidgets('Sprint Retro dynamic available teams, participation and clearTeamId work accurately', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final jsonWithTeams = {
+        'retrospective': {
+          'id': 'retro-1',
+          'sprint_id': 'sprint-1',
+          'title': 'Sprint Retrospective',
+          'status': 'COMPLETED',
+          'total_participants': 2,
+          'participant_count': 2,
+          'participation_pct': 100,
+        },
+        'sprint_overview': {
+          'sprint_id': 'sprint-1',
+          'sprint_name': 'Sprint 9',
+          'status': 'Planned',
+          'date_range': 'Jan 15, 2025 - Jan 28, 2025 (14 days)',
+          'team_name': 'KING',
+          'completed_work': '0 of 15 (0%)',
+        },
+        'categories': {
+          'went_well': {'title': 'What Went Well?', 'key': 'WENT_WELL', 'count': 0, 'entries': []},
+          'did_not_go_well': {'title': "What Didn't Go Well?", 'key': 'DID_NOT_GO_WELL', 'count': 0, 'entries': []},
+          'should_improve': {'title': 'What Should Improve?', 'key': 'TO_IMPROVE', 'count': 0, 'entries': []},
+        },
+        'action_items': [
+          {
+            'id': 'act-1',
+            'item_key': 'RA-001',
+            'title': 'KING Action Item',
+            'team_id': 'king-team-id',
+            'team_name': 'KING',
+            'owner_name': 'Archana Shukla',
+            'owner_email': 'archana@edushamiit.com',
+            'priority': 'HIGH',
+            'status': 'OPEN',
+            'due_date': 'Jan 28, 2025',
+          }
+        ],
+        'participants': [
+          {
+            'id': 'p1',
+            'user_id': 'u1',
+            'name': 'Archana Shukla',
+            'email': 'archana@edushamiit.com',
+            'role': 'Lead',
+            'attendance_status': 'ATTENDED',
+          },
+          {
+            'id': 'p2',
+            'user_id': 'u2',
+            'name': 'King Doe',
+            'email': 'king@edushamiit.com',
+            'role': 'Admin',
+            'attendance_status': 'ATTENDED',
+          },
+        ],
+        'available_teams': [
+          {'id': 'team-1', 'name': 'Academic Systems Team', 'members_count': 8, 'is_selected': false},
+          {'id': 'team-2', 'name': 'Digital Campus Team', 'members_count': 7, 'is_selected': false},
+          {'id': 'team-3', 'name': 'Examination Team', 'members_count': 6, 'is_selected': false},
+          {'id': 'king-team-id', 'name': 'KING', 'members_count': 2, 'is_selected': true},
+        ],
+        'available_sprints': [
+          {'id': 'sprint-1', 'name': 'Sprint 9', 'status': 'PLANNED', 'is_current': true},
+          {'id': 'sprint-2', 'name': 'Sprint 8', 'status': 'COMPLETED', 'is_current': false},
+        ],
+      };
+
+      final ws = SprintRetroWorkspaceModel.fromJson(jsonWithTeams);
+      expect(ws.availableTeams.length, 4);
+      expect(ws.availableTeams[3].name, 'KING');
+      expect(ws.availableTeams[3].membersCount, 2);
+      expect(ws.availableSprints.length, 2);
+      expect(ws.actionItems.first.teamName, 'KING');
+      expect(ws.actionItems.first.ownerEmail, 'archana@edushamiit.com');
+      expect(ws.participants.length, 2);
+      expect(ws.participants.first.email, 'archana@edushamiit.com');
+
+      // Test WorkSprintRetroState clearTeamId functionality
+      var retroState = WorkSprintRetroState(sprintId: 'sprint-1', teamId: 'KING', workspace: ws);
+      expect(retroState.teamId, 'KING');
+
+      // Clearing teamId via clearTeamId
+      retroState = retroState.copyWith(clearTeamId: true);
+      expect(retroState.teamId, isNull);
+
+      final notifier = MockWorkSprintRetroNotifier(WorkSprintRetroState(
+        sprintId: 'sprint-1',
+        teamId: 'KING',
+        workspace: ws,
+        activeTab: 'Discussion Board',
+      ));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
+            workSprintRetroProvider.overrideWith((ref) => notifier),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SprintRetrospectiveTabView(
+                  sprintId: 'sprint-1',
+                  selectedTeam: 'KING',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify Participation card displays actual 2 participants count
+      expect(find.text('Participation (2)'), findsOneWidget);
+      expect(find.text('100%'), findsWidgets);
+
+      // Verify Duration displays Jan 15, 2025 - Jan 28, 2025 (not suppressed)
+      expect(find.text('Jan 15, 2025 - Jan 28, 2025 (14 days)'), findsOneWidget);
     });
   });
 }

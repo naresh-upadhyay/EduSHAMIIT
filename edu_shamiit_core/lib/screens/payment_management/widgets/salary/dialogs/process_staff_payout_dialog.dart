@@ -49,6 +49,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
   late TextEditingController _daController;
   late TextEditingController _taController;
   late TextEditingController _allowanceController;
+  late TextEditingController _medicalController;
   late TextEditingController _bonusController;
 
   // Variable Bonus Classification & Remarks
@@ -72,6 +73,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
   late TextEditingController _pfController;
   late TextEditingController _tdsController;
   late TextEditingController _ptaxController;
+  late TextEditingController _insuranceController;
   late TextEditingController _advanceDeductionController;
   late TextEditingController _otherDeductionsController;
   late TextEditingController _otherDeductionsRemarksController;
@@ -119,12 +121,14 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
     _daController = TextEditingController(text: '5000');
     _taController = TextEditingController(text: '2500');
     _allowanceController = TextEditingController(text: '3000');
+    _medicalController = TextEditingController(text: '1500');
     _bonusController = TextEditingController(text: '0');
     _bonusRemarksController = TextEditingController();
 
     _pfController = TextEditingController(text: '4200');
     _tdsController = TextEditingController(text: '2500');
     _ptaxController = TextEditingController(text: '200');
+    _insuranceController = TextEditingController(text: '1000');
     _advanceDeductionController = TextEditingController(text: '0');
     _otherDeductionsController = TextEditingController(text: '0');
     _otherDeductionsRemarksController = TextEditingController();
@@ -216,11 +220,13 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
       _daController.text = ((staff['da'] as num?)?.toDouble() ?? 5000.0).toInt().toString();
       _taController.text = ((staff['ta'] as num?)?.toDouble() ?? 2500.0).toInt().toString();
       _allowanceController.text = ((staff['special_allowance'] as num?)?.toDouble() ?? 3000.0).toInt().toString();
+      _medicalController.text = ((staff['medical_allowance'] as num?)?.toDouble() ?? 1500.0).toInt().toString();
 
       // Statutory Deductions
       _pfController.text = ((staff['pf_deduction'] as num?)?.toDouble() ?? 4200.0).toInt().toString();
       _tdsController.text = ((staff['tds'] as num?)?.toDouble() ?? 2500.0).toInt().toString();
       _ptaxController.text = ((staff['professional_tax'] as num?)?.toDouble() ?? 200.0).toInt().toString();
+      _insuranceController.text = ((staff['insurance_deduction'] as num?)?.toDouble() ?? 1000.0).toInt().toString();
 
       // Tender & Banking
       final bName = staff['bank_name']?.toString() ?? '';
@@ -250,22 +256,28 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
         _advanceDeductionController.text = '0';
       }
 
-      // Check if already paid for this specific month
+      // Check payout status for this specific month
       final pStatus = staff['payout_status']?.toString() ?? 'Pending';
       if (pStatus == 'Paid') {
         _payoutStatus = 'Paid';
         if (staff['payout_txn_ref'] != null) {
           _txnRefController.text = staff['payout_txn_ref'].toString();
         }
-        // Variable Bonus for this month if already paid
         _bonusController.text = ((staff['payout_bonus'] as num?)?.toDouble() ?? 0.0).toInt().toString();
         _bonusType = staff['payout_bonus_type']?.toString() ?? 'NONE';
         _bonusRemarksController.text = staff['payout_bonus_remarks']?.toString() ?? '';
         _otherDeductionsController.text = ((staff['payout_other_deductions'] as num?)?.toDouble() ?? 0.0).toInt().toString();
         _otherDeductionsRemarksController.text = staff['payout_other_deductions_remarks']?.toString() ?? '';
+      } else if (pStatus == 'On Hold' || pStatus == 'On-Hold') {
+        _payoutStatus = 'On Hold';
+        _bonusController.text = ((staff['payout_bonus'] as num?)?.toDouble() ?? 0.0).toInt().toString();
+        _bonusType = staff['payout_bonus_type']?.toString() ?? 'NONE';
+        _bonusRemarksController.text = staff['payout_bonus_remarks']?.toString() ?? '';
+        _otherDeductionsController.text = ((staff['payout_other_deductions'] as num?)?.toDouble() ?? 0.0).toInt().toString();
+        _otherDeductionsRemarksController.text = staff['payout_other_deductions_remarks']?.toString() ?? '';
+        _txnRefController.text = staff['payout_txn_ref']?.toString() ?? 'UTR-${DateFormat('yyyyMMdd').format(DateTime.now())}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
       } else {
-        // Variable additions & deductions RESET for this fresh cycle
-        _payoutStatus = 'Paid';
+        _payoutStatus = 'Pending';
         _bonusController.text = '0';
         _bonusType = 'NONE';
         _bonusRemarksController.clear();
@@ -342,12 +354,14 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
     _daController.dispose();
     _taController.dispose();
     _allowanceController.dispose();
+    _medicalController.dispose();
     _bonusController.dispose();
     _bonusRemarksController.dispose();
 
     _pfController.dispose();
     _tdsController.dispose();
     _ptaxController.dispose();
+    _insuranceController.dispose();
     _advanceDeductionController.dispose();
     _otherDeductionsController.dispose();
     _otherDeductionsRemarksController.dispose();
@@ -370,12 +384,14 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
       (double.tryParse(_daController.text) ?? 0) +
       (double.tryParse(_taController.text) ?? 0) +
       (double.tryParse(_allowanceController.text) ?? 0) +
+      (double.tryParse(_medicalController.text) ?? 0) +
       (double.tryParse(_bonusController.text) ?? 0);
 
   double get _deductions =>
       (double.tryParse(_pfController.text) ?? 0) +
       (double.tryParse(_tdsController.text) ?? 0) +
       (double.tryParse(_ptaxController.text) ?? 0) +
+      (double.tryParse(_insuranceController.text) ?? 0) +
       (double.tryParse(_advanceDeductionController.text) ?? 0) +
       (double.tryParse(_otherDeductionsController.text) ?? 0);
 
@@ -704,20 +720,35 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                                 ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isPaid ? const Color(0xFF16A34A) : const Color(0xFFF59E0B)).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                isPaid ? '✓ Paid' : 'Pending',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: isPaid ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
-                                ),
-                              ),
+                            Builder(
+                              builder: (ctx) {
+                                final isOnHold = status == 'On Hold' || status == 'On-Hold';
+                                final bColor = isPaid
+                                    ? const Color(0xFF16A34A)
+                                    : isOnHold
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFFF59E0B);
+                                final bText = isPaid
+                                    ? '✓ Paid'
+                                    : isOnHold
+                                        ? '⏸ On Hold'
+                                        : '⏳ Pending';
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: bColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    bText,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: bColor,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -803,38 +834,49 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                 ),
               ),
               // Period Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isAlreadyPaid
-                      ? const Color(0xFF16A34A).withValues(alpha: 0.15)
-                      : const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: isAlreadyPaid
-                        ? const Color(0xFF16A34A).withValues(alpha: 0.4)
-                        : const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isAlreadyPaid ? Icons.check_circle_rounded : Icons.pending_actions_rounded,
-                      size: 14,
-                      color: isAlreadyPaid ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+              Builder(
+                builder: (ctx) {
+                  final isOnHold = payoutStatus == 'On Hold' || payoutStatus == 'On-Hold';
+                  final bColor = isAlreadyPaid
+                      ? const Color(0xFF16A34A)
+                      : isOnHold
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFFF59E0B);
+                  final bIcon = isAlreadyPaid
+                      ? Icons.check_circle_rounded
+                      : isOnHold
+                          ? Icons.pause_circle_rounded
+                          : Icons.pending_actions_rounded;
+                  final bLabel = isAlreadyPaid
+                      ? 'Paid for $_selectedMonthStr'
+                      : isOnHold
+                          ? 'On Hold for $_selectedMonthStr'
+                          : 'Pending for $_selectedMonthStr';
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: bColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: bColor.withValues(alpha: 0.4)),
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isAlreadyPaid ? 'Paid for $_selectedMonthStr' : 'Pending for $_selectedMonthStr',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: isAlreadyPaid ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(bIcon, size: 14, color: bColor),
+                        const SizedBox(width: 5),
+                        Text(
+                          bLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: bColor,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
           ),
@@ -1084,6 +1126,8 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                 _buildNumberInput('Travel Allowance (TA)', _taController, isDark),
                 const SizedBox(height: 8),
                 _buildNumberInput('Special Allowance', _allowanceController, isDark),
+                const SizedBox(height: 8),
+                _buildNumberInput('Medical Allowance', _medicalController, isDark),
                 const SizedBox(height: 12),
 
                 // Variable Performance Bonus Section
@@ -1176,6 +1220,8 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                 _buildNumberInput('TDS / Income Tax', _tdsController, isDark),
                 const SizedBox(height: 8),
                 _buildNumberInput('Professional Tax (PTax)', _ptaxController, isDark),
+                const SizedBox(height: 8),
+                _buildNumberInput('Insurance / ESI', _insuranceController, isDark),
                 const SizedBox(height: 8),
                 _buildNumberInput('Advance Loan Recovery (EMI)', _advanceDeductionController, isDark, highlight: _hasActiveLoans),
                 const SizedBox(height: 12),
@@ -1298,7 +1344,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
               ),
               const SizedBox(height: 2),
               Text(
-                'Gross Earnings (₹ ${NumberFormat('#,##,###').format(_gross.toInt())})  —  Deductions (₹ ${NumberFormat('#,##,###').format(_deductions.toInt())})',
+                'Gross Earnings (₹ ${NumberFormat('#,##,###').format(_gross.toInt())})  -  Deductions (₹ ${NumberFormat('#,##,###').format(_deductions.toInt())})',
                 style: TextStyle(
                   fontSize: 11,
                   color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
@@ -1476,6 +1522,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
 
   // Bottom Action Buttons
   Widget _buildBottomActionButtons(bool isDark) {
+    final isAlreadyPaid = _selectedStaffRecord?['payout_status']?.toString() == 'Paid';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
@@ -1507,7 +1554,11 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
               const SizedBox(width: 12),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
+                  backgroundColor: _payoutStatus == 'Paid'
+                      ? const Color(0xFF16A34A)
+                      : _payoutStatus == 'On Hold'
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFF2563EB),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1515,13 +1566,22 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                 ),
                 icon: _submitting
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.send_rounded, size: 16),
+                    : Icon(
+                        _payoutStatus == 'Paid'
+                            ? Icons.send_rounded
+                            : _payoutStatus == 'On Hold'
+                                ? Icons.pause_circle_filled_rounded
+                                : Icons.save_rounded,
+                        size: 16,
+                      ),
                 label: Text(
                   _submitting
                       ? 'Processing...'
                       : _payoutStatus == 'Paid'
-                          ? 'Disburse & Authorize (₹ ${NumberFormat('#,##,###').format(_net.toInt())})'
-                          : 'Save as $_payoutStatus',
+                          ? (isAlreadyPaid ? 'Update Disbursal (₹ ${NumberFormat('#,##,###').format(_net.toInt())})' : 'Disburse & Authorize (₹ ${NumberFormat('#,##,###').format(_net.toInt())})')
+                          : _payoutStatus == 'On Hold'
+                              ? 'Place Payout On Hold (₹ ${NumberFormat('#,##,###').format(_net.toInt())})'
+                              : 'Save as Pending (₹ ${NumberFormat('#,##,###').format(_net.toInt())})',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 ),
                 onPressed: _submitting ? null : _submit,
@@ -1637,12 +1697,14 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
       'da': double.tryParse(_daController.text) ?? 0,
       'ta': double.tryParse(_taController.text) ?? 0,
       'special_allowance': double.tryParse(_allowanceController.text) ?? 0,
+      'medical_allowance': double.tryParse(_medicalController.text) ?? 0,
       'bonus': double.tryParse(_bonusController.text) ?? 0,
       'bonus_type': _bonusType,
       'bonus_remarks': _bonusRemarksController.text.trim().isNotEmpty ? _bonusRemarksController.text.trim() : null,
       'pf_deduction': double.tryParse(_pfController.text) ?? 0,
       'tds': double.tryParse(_tdsController.text) ?? 0,
       'professional_tax': double.tryParse(_ptaxController.text) ?? 0,
+      'insurance_deduction': double.tryParse(_insuranceController.text) ?? 0,
       'advance_deduction': double.tryParse(_advanceDeductionController.text) ?? 0,
       'other_deductions': double.tryParse(_otherDeductionsController.text) ?? 0,
       'other_deductions_remarks': _otherDeductionsRemarksController.text.trim().isNotEmpty ? _otherDeductionsRemarksController.text.trim() : null,
@@ -1702,12 +1764,14 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
               'da': double.tryParse(_daController.text) ?? 0,
               'ta': double.tryParse(_taController.text) ?? 0,
               'special_allowance': double.tryParse(_allowanceController.text) ?? 0,
+              'medical_allowance': double.tryParse(_medicalController.text) ?? 0,
               'bonus': double.tryParse(_bonusController.text) ?? 0,
               'bonus_type': _bonusType,
               'bonus_remarks': _bonusRemarksController.text.trim(),
               'pf_deduction': double.tryParse(_pfController.text) ?? 0,
               'tds': double.tryParse(_tdsController.text) ?? 0,
               'professional_tax': double.tryParse(_ptaxController.text) ?? 200,
+              'insurance_deduction': double.tryParse(_insuranceController.text) ?? 0,
               'advance_deduction': double.tryParse(_advanceDeductionController.text) ?? 0,
               'other_deductions': double.tryParse(_otherDeductionsController.text) ?? 0,
               'net_pay': _net,

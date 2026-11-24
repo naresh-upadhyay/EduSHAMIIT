@@ -174,5 +174,30 @@ ThemeData getStudentTheme({Brightness brightness = Brightness.light, Color? prim
       ),
       insetPadding: const ResponsiveInsetPadding(),
     ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbVisibility: WidgetStateProperty.all(true),
+      trackVisibility: WidgetStateProperty.all(true),
+      interactive: true,
+      thickness: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.hovered) || states.contains(WidgetState.dragged)) {
+          return 10.0;
+        }
+        return 8.0;
+      }),
+      radius: const Radius.circular(4),
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.dragged)) {
+          return activePrimary;
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return activePrimary.withValues(alpha: 0.85);
+        }
+        return isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.3);
+      }),
+      trackColor: WidgetStateProperty.all(
+        isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+      ),
+      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+    ),
   );
 }

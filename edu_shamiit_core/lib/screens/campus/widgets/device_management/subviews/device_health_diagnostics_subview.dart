@@ -4138,28 +4138,31 @@ class _DeviceHealthDiagnosticsSubviewState
             ],
           ),
           const SizedBox(height: 16),
-          DataTable(
-            columns: const [
-              DataColumn(label: Text('Ticket Code')),
-              DataColumn(label: Text('Title')),
-              DataColumn(label: Text('Device')),
-              DataColumn(label: Text('Priority')),
-              DataColumn(label: Text('Status')),
-            ],
-            rows: [
-              DataRow(cells: [
-                const DataCell(Text('MR-PRJ-2025-001',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-                const DataCell(Text(
-                    'Projector Dust Filter Cleaning & Thermal Inspection')),
-                const DataCell(Text('Projector (A1-102)')),
-                const DataCell(Text('Medium',
-                    style: TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.bold))),
-                DataCell(_buildHealthBadge('warning')),
-              ]),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Ticket Code')),
+                DataColumn(label: Text('Title')),
+                DataColumn(label: Text('Device')),
+                DataColumn(label: Text('Priority')),
+                DataColumn(label: Text('Status')),
+              ],
+              rows: [
+                DataRow(cells: [
+                  const DataCell(Text('MR-PRJ-2025-001',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  const DataCell(Text(
+                      'Projector Dust Filter Cleaning & Thermal Inspection')),
+                  const DataCell(Text('Projector (A1-102)')),
+                  const DataCell(Text('Medium',
+                      style: TextStyle(
+                          color: Color(0xFFF59E0B),
+                          fontWeight: FontWeight.bold))),
+                  DataCell(_buildHealthBadge('warning')),
+                ]),
+              ],
+            ),
           ),
         ],
       ),

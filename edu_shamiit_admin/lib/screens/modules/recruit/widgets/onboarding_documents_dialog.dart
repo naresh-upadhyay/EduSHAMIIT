@@ -380,9 +380,11 @@ class _OnboardingDocumentsDialogState extends State<OnboardingDocumentsDialog> {
                           ),
                         )
                       : SingleChildScrollView(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: DataTable(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 750),
+                              child: DataTable(
                               columnSpacing: 16,
                               horizontalMargin: 8,
                               headingRowHeight: 40,
@@ -523,6 +525,7 @@ class _OnboardingDocumentsDialogState extends State<OnboardingDocumentsDialog> {
                             ),
                           ),
                         ),
+                      ),
             ),
 
             // Pagination

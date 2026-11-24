@@ -94,6 +94,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   bool _isLoadingClasses = true;
   bool _isSubmitting = false;
   Timer? _searchDebounce;
+  int _previewRequestId = 0;
 
   final List<String> _types = [
     'TASK',
@@ -135,6 +136,11 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     super.initState();
     final rawType = (widget.initialWorkType ?? widget.existingItem?.workType ?? 'TASK').toUpperCase();
     _workType = _types.contains(rawType) ? rawType : 'TASK';
+    if (_workType == 'HOMEWORK' || _workType == 'ASSIGNMENT') {
+      _assignmentMode = 'CLASS_SECTION';
+    } else {
+      _assignmentMode = 'INDIVIDUAL';
+    }
 
     final rawPriority = (widget.initialPriority ?? widget.existingItem?.priority ?? 'MEDIUM').toUpperCase();
     _priority = _priorities.contains(rawPriority) ? rawPriority : 'MEDIUM';
@@ -145,6 +151,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     _status = _statuses.contains(rawStatus) ? rawStatus : 'NEW';
 
     _category = widget.initialCategory ?? widget.existingItem?.category ?? (_workType == 'HOMEWORK' || _workType == 'ASSIGNMENT' ? 'Academic' : 'General');
+    if (!_categories.contains(_category)) _categories.add(_category);
     _selectedSprintId = widget.sprintId ?? widget.existingItem?.sprintId;
     _selectedParentId = widget.parentId ?? widget.existingItem?.parentId;
     _selectedTeamName = widget.existingItem?.teamName;
@@ -157,9 +164,24 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       if (item.storyPoints > 0) _pointsController.text = '${item.storyPoints}';
       if (item.dueDate != null) _dueDate = DateTime.tryParse(item.dueDate!);
       if (item.startDate != null) _startDate = DateTime.tryParse(item.startDate!);
+      if (item.labels.isNotEmpty) _tagsController.text = item.labels.join(', ');
+      if (item.assignmentMode != null && item.assignmentMode!.isNotEmpty) {
+        _assignmentMode = item.assignmentMode!;
+      }
+      if (item.classId != null) _selectedClassId = item.classId;
+      if (item.className != null) _selectedClassName = item.className;
+      if (item.sectionId != null) _selectedSectionId = item.sectionId;
+      if (item.sectionName != null) _selectedSectionName = item.sectionName;
+      if (item.targetRole != null && item.targetRole!.isNotEmpty) {
+        _targetClassRole = item.targetRole!;
+        _selectedRole = item.targetRole!;
+      }
       for (final a in item.assignees) {
-        _selectedUserIds.add(a.userId.isNotEmpty ? a.userId : a.id);
-        _selectedUsersMap[a.userId.isNotEmpty ? a.userId : a.id] = a;
+        final uid = a.userId.isNotEmpty ? a.userId : a.id;
+        if (uid.isNotEmpty) {
+          _selectedUserIds.add(uid);
+          _selectedUsersMap[uid] = a;
+        }
       }
     }
 
@@ -180,13 +202,33 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     super.dispose();
   }
 
+  String? _effectiveBoardId() {
+    if (widget.boardId != null && widget.boardId != 'all' && widget.boardId!.isNotEmpty) {
+      return widget.boardId;
+    }
+    final boardTabState = ref.read(workBoardProvider);
+    if (boardTabState.boardId != null && boardTabState.boardId != 'all' && boardTabState.boardId!.isNotEmpty) {
+      return boardTabState.boardId;
+    }
+    final listTabState = ref.read(workListProvider);
+    if (listTabState.boardId != null && listTabState.boardId != 'all' && listTabState.boardId!.isNotEmpty) {
+      return listTabState.boardId;
+    }
+    final backlogTabState = ref.read(workBacklogProvider);
+    if (backlogTabState.boardId != null && backlogTabState.boardId != 'all' && backlogTabState.boardId!.isNotEmpty) {
+      return backlogTabState.boardId;
+    }
+    return null;
+  }
+
   Future<void> _loadInitialData() async {
     final api = ref.read(workApiServiceProvider);
     try {
+      final activeBoard = _effectiveBoardId();
       final usersFuture = api.getAssignableUsers(limit: 200);
       final academicOptionsFuture = api.getAcademicOptions();
-      final sprintsFuture = api.getSprints(boardId: widget.boardId);
-      final backlogFuture = api.getBacklogTree(boardId: widget.boardId, pageSize: 100);
+      final sprintsFuture = api.getSprints(boardId: activeBoard);
+      final backlogFuture = api.getBacklogTree(boardId: activeBoard, pageSize: 100);
 
       final results = await Future.wait([usersFuture, academicOptionsFuture, sprintsFuture, backlogFuture]);
       final users = results[0] as List<WorkAssigneeModel>;
@@ -228,19 +270,33 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       if (mounted) {
         setState(() {
           _allUsers = users;
-          _displayedUsers = users;
-          _isLoadingUsers = false;
+          if (_assignmentMode == 'CLASS_SECTION') {
+            _displayedUsers = [];
+            _isLoadingUsers = true;
+          } else {
+            _displayedUsers = users;
+            _isLoadingUsers = false;
+          }
 
           _classesList = classes;
           _allSubjects = allSubjects;
           _classSubjectsMap = classSubjectsMap;
           _isLoadingClasses = false;
           if (classes.isNotEmpty) {
-            _selectedClassId ??= classes.first.id;
-            _selectedClassName ??= classes.first.name;
-            if (classes.first.sections.isNotEmpty) {
-              _selectedSectionId ??= classes.first.sections.first.id;
-              _selectedSectionName ??= classes.first.sections.first.name;
+            final preferredClass = classes.firstWhere(
+              (c) => c.sections.isNotEmpty,
+              orElse: () => classes.first,
+            );
+            _selectedClassId ??= preferredClass.id;
+            _selectedClassName ??= preferredClass.name;
+            final currentCls = classes.firstWhere(
+              (c) => c.id == _selectedClassId,
+              orElse: () => preferredClass,
+            );
+            if (currentCls.sections.isNotEmpty &&
+                (_selectedSectionId == null || !currentCls.sections.any((s) => s.id == _selectedSectionId))) {
+              _selectedSectionId = currentCls.sections.first.id;
+              _selectedSectionName = currentCls.sections.first.name;
             }
           }
 
@@ -295,6 +351,10 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             }
           }
         });
+
+        if (mounted && _assignmentMode == 'CLASS_SECTION') {
+          _refreshPreview();
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -309,7 +369,11 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   void _onSearchUserChanged(String val) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      _filterUsers();
+      if (_assignmentMode == 'CLASS_SECTION' || _assignmentMode == 'ROLE') {
+        _refreshPreview();
+      } else {
+        _filterUsers();
+      }
     });
   }
 
@@ -330,6 +394,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   }
 
   Future<void> _refreshPreview() async {
+    final reqId = ++_previewRequestId;
     setState(() => _isLoadingUsers = true);
     final api = ref.read(workApiServiceProvider);
     try {
@@ -342,6 +407,21 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
           q: _searchUserController.text.trim(),
         );
       } else if (_assignmentMode == 'CLASS_SECTION') {
+        if (_classesList.isNotEmpty) {
+          final cls = _classesList.firstWhere(
+            (c) => c.id == _selectedClassId,
+            orElse: () => _classesList.firstWhere((c) => c.sections.isNotEmpty, orElse: () => _classesList.first),
+          );
+          if (_selectedClassId != cls.id) {
+            _selectedClassId = cls.id;
+            _selectedClassName = cls.name;
+          }
+          if (cls.sections.isNotEmpty &&
+              (_selectedSectionId == null || !cls.sections.any((s) => s.id == _selectedSectionId))) {
+            _selectedSectionId = cls.sections.first.id;
+            _selectedSectionName = cls.sections.first.name;
+          }
+        }
         res = await api.previewAssignees(
           assignmentMode: 'CLASS_SECTION',
           targetRole: _targetClassRole,
@@ -360,14 +440,16 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
         );
       }
 
-      if (mounted) {
+      if (mounted && reqId == _previewRequestId) {
         setState(() {
           _displayedUsers = res;
           _isLoadingUsers = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingUsers = false);
+      if (mounted && reqId == _previewRequestId) {
+        setState(() => _isLoadingUsers = false);
+      }
     }
   }
 
@@ -414,7 +496,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       'priority': _priority,
       'status': _status,
       'category': _category,
-      'board_id': widget.boardId,
+      'board_id': _effectiveBoardId(),
       'sprint_id': _selectedSprintId,
       'parent_id': _selectedParentId,
       'team_name': _selectedTeamName,
@@ -448,12 +530,20 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
       result = await api.createWorkItem(payload);
     }
 
-    if (result.isNotEmpty && result['success'] == true) {
+    if (result.isNotEmpty && (result['success'] == true || result.containsKey('item_id') || result.containsKey('id'))) {
+      api.invalidateCache();
       ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
       ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
       ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
       ref.read(workSprintDashboardProvider.notifier).loadSprintDashboard(forceRefresh: true);
       ref.read(allSprintsProvider.notifier).loadSprints(forceRefresh: true);
+      final teamNotifier = ref.read(workSprintTeamProvider.notifier);
+      teamNotifier.loadTeams(silent: true, forceRefresh: true);
+      final teamState = ref.read(workSprintTeamProvider);
+      if (teamState.selectedTeamId != null) {
+        teamNotifier.loadTeamDetail(teamState.selectedTeamId!, silent: true);
+      }
+      ref.read(workOverviewProvider.notifier).loadOverview();
       if (mounted) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -645,7 +735,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                 Row(
                   children: [
                     Text(
-                      widget.existingItem != null ? 'Edit Work Item' : 'Create New Work Item',
+                      widget.existingItem != null ? 'Edit ${widget.existingItem!.itemNumber}' : 'Create New Work Item',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -734,11 +824,30 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                   if (type == 'HOMEWORK' || type == 'ASSIGNMENT') {
                     _category = 'Academic';
                     _assignmentMode = 'CLASS_SECTION';
+                    if (_classesList.isNotEmpty) {
+                      final cls = _classesList.firstWhere(
+                        (c) => c.id == _selectedClassId,
+                        orElse: () => _classesList.firstWhere((c) => c.sections.isNotEmpty, orElse: () => _classesList.first),
+                      );
+                      _selectedClassId = cls.id;
+                      _selectedClassName = cls.name;
+                      if (cls.sections.isNotEmpty && (_selectedSectionId == null || !cls.sections.any((s) => s.id == _selectedSectionId))) {
+                        _selectedSectionId = cls.sections.first.id;
+                        _selectedSectionName = cls.sections.first.name;
+                      }
+                    }
                     if (_subjectController.text.trim().isEmpty && _currentClassSubjects.isNotEmpty) {
                       _selectedSubjectId = _currentClassSubjects.first['id']?.toString();
                       _subjectController.text = _currentClassSubjects.first['name']?.toString() ?? '';
                     }
+                    _selectedUserIds.clear();
+                    _selectedUsersMap.clear();
+                    _displayedUsers = [];
+                    _isLoadingUsers = true;
                     _refreshPreview();
+                  } else {
+                    _assignmentMode = 'INDIVIDUAL';
+                    _filterUsers();
                   }
                 }),
                 borderRadius: BorderRadius.circular(8),
@@ -1267,6 +1376,20 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
               _selectedUserIds.clear();
               _selectedUsersMap.clear();
             }
+            if (mode == 'CLASS_SECTION' && _classesList.isNotEmpty) {
+              final cls = _classesList.firstWhere(
+                (c) => c.id == _selectedClassId,
+                orElse: () => _classesList.firstWhere((c) => c.sections.isNotEmpty, orElse: () => _classesList.first),
+              );
+              _selectedClassId = cls.id;
+              _selectedClassName = cls.name;
+              if (cls.sections.isNotEmpty && (_selectedSectionId == null || !cls.sections.any((s) => s.id == _selectedSectionId))) {
+                _selectedSectionId = cls.sections.first.id;
+                _selectedSectionName = cls.sections.first.name;
+              }
+            }
+            _displayedUsers = [];
+            _isLoadingUsers = true;
           });
           _refreshPreview();
         },
@@ -1424,11 +1547,22 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
     // Current class sections
     final currentClass = _classesList.firstWhere(
       (c) => c.id == _selectedClassId,
-      orElse: () => _classesList.isNotEmpty
-          ? _classesList.first
-          : const WorkAcademicClassModel(id: '', name: 'Class 10', sections: []),
+      orElse: () => _classesList.firstWhere(
+        (c) => c.sections.isNotEmpty,
+        orElse: () => _classesList.isNotEmpty
+            ? _classesList.first
+            : const WorkAcademicClassModel(id: '', name: 'Class 5', sections: []),
+      ),
     );
     final sections = currentClass.sections;
+    if (_selectedClassId != currentClass.id) {
+      _selectedClassId = currentClass.id;
+      _selectedClassName = currentClass.name;
+    }
+    if (sections.isNotEmpty && (_selectedSectionId == null || !sections.any((s) => s.id == _selectedSectionId))) {
+      _selectedSectionId = sections.first.id;
+      _selectedSectionName = sections.first.name;
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1485,10 +1619,13 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                   value: _targetClassRole,
                   items: ['student', 'teacher'],
                   onChanged: (v) {
+                    if (v == null) return;
                     setState(() {
-                      _targetClassRole = v!;
+                      _targetClassRole = v;
                       _selectedUserIds.clear();
                       _selectedUsersMap.clear();
+                      _displayedUsers = [];
+                      _isLoadingUsers = true;
                     });
                     _refreshPreview();
                   },
@@ -1561,6 +1698,8 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                   // Clear assignees so students/teachers from previous class aren't left selected
                   _selectedUserIds.clear();
                   _selectedUsersMap.clear();
+                  _displayedUsers = [];
+                  _isLoadingUsers = true;
                 });
                 _refreshPreview();
               },
@@ -1609,6 +1748,8 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
                   _selectedSectionName = sec.name;
                   _selectedUserIds.clear();
                   _selectedUsersMap.clear();
+                  _displayedUsers = [];
+                  _isLoadingUsers = true;
                 });
                 _refreshPreview();
               },
@@ -2097,8 +2238,10 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
   }
 
   Widget _buildTeamDropdown(bool isDark) {
+    final dynamicTeams = ref.watch(workTeamsListProvider);
     final teamNames = <String>{
-      ...WorkFilterHelper.defaultTeams.where((t) => t != 'All'),
+      ...dynamicTeams.where((t) => t != 'All' && t != 'All Teams'),
+      ...WorkFilterHelper.defaultTeams.where((t) => t != 'All' && t != 'All Teams'),
       if (_selectedTeamName != null && _selectedTeamName!.isNotEmpty && _selectedTeamName != 'Unassigned')
         _selectedTeamName!,
       if (widget.existingItem?.teamName != null && widget.existingItem!.teamName!.isNotEmpty && widget.existingItem!.teamName != 'Unassigned')

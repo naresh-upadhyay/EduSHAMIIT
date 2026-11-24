@@ -23,6 +23,9 @@ class EditStudentFeeStructureDialog extends ConsumerStatefulWidget {
   final bool? initialRefundable;
   final String? initialDescription;
   final String? initialAcademicYear;
+  final String? initialAcademicStartDate;
+  final List<dynamic>? initialInstallmentDates;
+  final Map<String, dynamic>? initialReminderStages;
 
   const EditStudentFeeStructureDialog({
     super.key,
@@ -43,6 +46,9 @@ class EditStudentFeeStructureDialog extends ConsumerStatefulWidget {
     this.initialRefundable,
     this.initialDescription,
     this.initialAcademicYear,
+    this.initialAcademicStartDate,
+    this.initialInstallmentDates,
+    this.initialReminderStages,
   });
 
   @override
@@ -68,58 +74,46 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
   bool _isMandatory = true;
   bool _isRefundable = false;
   String _academicYear = '2026 - 2027';
+  DateTime _academicStartDate = DateTime(2026, 4, 1);
   bool _submitting = false;
+
+  List<Map<String, dynamic>> _installmentDates = [];
+  final Map<String, bool> _reminderStages = {
+    'd_10': true,
+    'd_5': true,
+    'd_2': true,
+    'd_1': true,
+    'd_due': true,
+    'd_overdue': true,
+  };
 
   List<PaymentLookupItem> _feeTypes = [];
   final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-  final List<Map<String, dynamic>> _frequencies = [
-    {
-      'type': 'Monthly',
-      'label': 'Monthly (12x/yr)',
-      'cycle': 'Monthly',
-      'icon': Icons.calendar_month_rounded,
-      'desc': 'Standard monthly academic tuition & services'
-    },
-    {
-      'type': 'Quarterly',
-      'label': 'Quarterly (4x/yr)',
-      'cycle': 'Quarterly',
-      'icon': Icons.view_agenda_outlined,
-      'desc': 'Composite term charges & computer/science labs'
-    },
-    {
-      'type': 'Half-Yearly',
-      'label': 'Half-Yearly (2x/yr)',
-      'cycle': 'Half-Yearly',
-      'icon': Icons.pie_chart_outline_rounded,
-      'desc': 'Mid-term and semestral examination fees'
-    },
-    {
-      'type': 'Annual',
-      'label': 'Annual (1x/yr)',
-      'cycle': 'Annual',
-      'icon': Icons.event_available_rounded,
-      'desc': 'Development fee, sports & digital library access'
-    },
-    {
-      'type': 'One-Time',
-      'label': 'One-Time (Admission)',
-      'cycle': 'One-Time',
-      'icon': Icons.verified_user_outlined,
-      'desc': 'Admission registration or refundable caution money'
-    },
+  final List<Map<String, String>> _frequencyOptions = [
+    {'type': 'Monthly', 'label': 'Monthly (12 Installments / Year)', 'cycle': 'Monthly'},
+    {'type': 'Quarterly', 'label': 'Quarterly (4 Installments / Year)', 'cycle': 'Quarterly'},
+    {'type': 'Half-Yearly', 'label': 'Half-Yearly (2 Installments / Year)', 'cycle': 'Half-Yearly'},
+    {'type': 'Annual', 'label': 'Annual (1 Installment / Year)', 'cycle': 'Annual'},
+    {'type': 'One-Time', 'label': 'One-Time / Admission (1 Installment)', 'cycle': 'One-Time'},
+    {'type': 'Custom', 'label': 'Custom Installment Schedule', 'cycle': 'Custom'},
   ];
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? 'Tuition Fee - Academic');
-    _amountController = TextEditingController(text: widget.initialAmount != null ? widget.initialAmount!.toInt().toString() : '4500');
-    _descController = TextEditingController(text: widget.initialDescription ?? 'Mandatory academic & learning facility charge');
+    _amountController = TextEditingController(
+      text: widget.initialAmount != null ? widget.initialAmount!.toInt().toString() : '4500',
+    );
+    _descController = TextEditingController(
+      text: widget.initialDescription ?? 'Mandatory academic & learning facility charge',
+    );
     _dueDayController = TextEditingController(text: (widget.initialDueDay ?? 10).toString());
     _gracePeriodController = TextEditingController(text: (widget.initialGracePeriod ?? 5).toString());
-    _lateFineAmountController = TextEditingController(text: (widget.initialLateFine ?? 50.0).toInt().toString());
+    _lateFineAmountController = TextEditingController(
+      text: (widget.initialLateFine ?? 50.0).toInt().toString(),
+    );
 
     _feeType = widget.initialType ?? 'Tuition Fee';
     _classGrade = widget.initialClass ?? 'All Classes';
@@ -132,7 +126,101 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
     _isRefundable = widget.initialRefundable ?? false;
     _academicYear = widget.initialAcademicYear ?? '2026 - 2027';
 
+    if (widget.initialAcademicStartDate != null && widget.initialAcademicStartDate!.isNotEmpty) {
+      final parsed = DateTime.tryParse(widget.initialAcademicStartDate!);
+      if (parsed != null) _academicStartDate = parsed;
+    }
+
+    if (widget.initialReminderStages != null) {
+      widget.initialReminderStages!.forEach((k, v) {
+        _reminderStages[k] = v == true;
+      });
+    }
+
+    if (widget.initialInstallmentDates != null && widget.initialInstallmentDates!.isNotEmpty) {
+      _installmentDates = widget.initialInstallmentDates!
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      _generateDefaultInstallments();
+    }
+
     _loadLookups();
+  }
+
+  void _generateDefaultInstallments() {
+    final amt = _currentAmount;
+    final List<Map<String, dynamic>> dates = [];
+    final startYear = _academicStartDate.year;
+    final startMonth = _academicStartDate.month;
+
+    if (_frequencyType == 'Monthly') {
+      for (int i = 0; i < 12; i++) {
+        final totalMonth = startMonth - 1 + i;
+        final curYear = startYear + (totalMonth ~/ 12);
+        final curMonth = (totalMonth % 12) + 1;
+        final lastDay = DateTime(curYear, curMonth + 1, 0).day;
+        final d = DateTime(curYear, curMonth, lastDay);
+        final label = DateFormat('MMM yyyy').format(DateTime(curYear, curMonth, 1));
+        dates.add({
+          'seq': i + 1,
+          'label': label,
+          'date': DateFormat('yyyy-MM-dd').format(d),
+          'amount': amt,
+        });
+      }
+    } else if (_frequencyType == 'Quarterly') {
+      final quarterOffsets = [2, 5, 8, 11]; // End of Q1, Q2, Q3, Q4
+      for (int q = 0; q < quarterOffsets.length; q++) {
+        final totalMonth = startMonth - 1 + quarterOffsets[q];
+        final curYear = startYear + (totalMonth ~/ 12);
+        final curMonth = (totalMonth % 12) + 1;
+        final lastDay = DateTime(curYear, curMonth + 1, 0).day;
+        final d = DateTime(curYear, curMonth, lastDay);
+        final qNames = ['Q1 (Apr-Jun)', 'Q2 (Jul-Sep)', 'Q3 (Oct-Dec)', 'Q4 (Jan-Mar)'];
+        dates.add({
+          'seq': q + 1,
+          'label': q < qNames.length ? qNames[q] : 'Quarter ${q + 1}',
+          'date': DateFormat('yyyy-MM-dd').format(d),
+          'amount': amt,
+        });
+      }
+    } else if (_frequencyType == 'Half-Yearly') {
+      final hOffsets = [5, 11]; // End of Sem 1, Sem 2
+      final hNames = ['Term 1 / Mid-Year', 'Term 2 / Final Year'];
+      for (int h = 0; h < hOffsets.length; h++) {
+        final totalMonth = startMonth - 1 + hOffsets[h];
+        final curYear = startYear + (totalMonth ~/ 12);
+        final curMonth = (totalMonth % 12) + 1;
+        final lastDay = DateTime(curYear, curMonth + 1, 0).day;
+        final d = DateTime(curYear, curMonth, lastDay);
+        dates.add({
+          'seq': h + 1,
+          'label': h < hNames.length ? hNames[h] : 'Half-Year ${h + 1}',
+          'date': DateFormat('yyyy-MM-dd').format(d),
+          'amount': amt,
+        });
+      }
+    } else if (_frequencyType == 'Annual') {
+      final lastDay = DateTime(startYear, startMonth + 1, 0).day;
+      dates.add({
+        'seq': 1,
+        'label': 'Academic Year $startYear-${startYear + 1}',
+        'date': DateFormat('yyyy-MM-dd').format(DateTime(startYear, startMonth, lastDay)),
+        'amount': amt,
+      });
+    } else if (_frequencyType == 'One-Time') {
+      dates.add({
+        'seq': 1,
+        'label': 'Admission Enrollment',
+        'date': DateFormat('yyyy-MM-dd').format(_academicStartDate),
+        'amount': amt,
+      });
+    }
+
+    setState(() {
+      _installmentDates = dates;
+    });
   }
 
   Future<void> _loadLookups() async {
@@ -158,6 +246,12 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
   double get _currentAmount => double.tryParse(_amountController.text.trim()) ?? 0.0;
 
   double get _annualLiability {
+    if (_installmentDates.isNotEmpty) {
+      return _installmentDates.fold(
+        0.0,
+        (sum, item) => sum + ((item['amount'] as num?)?.toDouble() ?? _currentAmount),
+      );
+    }
     final amt = _currentAmount;
     switch (_frequencyType) {
       case 'One-Time':
@@ -185,6 +279,80 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
     return ['All Sections', 'Section A', 'Section B', 'Section C', 'Section D'];
   }
 
+  Future<void> _pickAcademicStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _academicStartDate,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2030, 12, 31),
+      helpText: 'SELECT ACADEMIC SESSION START DATE',
+      confirmText: 'SET START DATE',
+    );
+    if (picked != null && picked != _academicStartDate) {
+      setState(() {
+        _academicStartDate = picked;
+      });
+      _generateDefaultInstallments();
+    }
+  }
+
+  Future<void> _editInstallmentDate(int index) async {
+    final item = _installmentDates[index];
+    DateTime currentDate = DateTime.tryParse(item['date']?.toString() ?? '') ?? DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: currentDate,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2030, 12, 31),
+      helpText: 'SELECT DUE DATE FOR ${item['label']}',
+      confirmText: 'UPDATE DATE',
+    );
+
+    if (picked != null) {
+      setState(() {
+        item['date'] = DateFormat('yyyy-MM-dd').format(picked);
+      });
+    }
+  }
+
+  void _addCustomInstallment() {
+    final nextSeq = _installmentDates.length + 1;
+    final lastDateStr = _installmentDates.isNotEmpty ? _installmentDates.last['date']?.toString() : null;
+    DateTime nextDate = lastDateStr != null
+        ? (DateTime.tryParse(lastDateStr)?.add(const Duration(days: 30)) ?? DateTime.now())
+        : DateTime.now();
+
+    setState(() {
+      _installmentDates.add({
+        'seq': nextSeq,
+        'label': 'Inst #$nextSeq (${DateFormat('MMM yyyy').format(nextDate)})',
+        'date': DateFormat('yyyy-MM-dd').format(nextDate),
+        'amount': _currentAmount,
+      });
+      _frequencyType = 'Custom';
+    });
+  }
+
+  void _removeInstallment(int index) {
+    if (_installmentDates.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('At least one installment date is required for a fee structure.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _installmentDates.removeAt(index);
+      for (int i = 0; i < _installmentDates.length; i++) {
+        _installmentDates[i]['seq'] = i + 1;
+      }
+      _frequencyType = 'Custom';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -208,8 +376,8 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 620,
-          maxHeight: MediaQuery.of(context).size.height * 0.90,
+          maxWidth: 680,
+          maxHeight: MediaQuery.of(context).size.height * 0.92,
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -247,7 +415,7 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Standardize school fee heads, collection frequencies & due date rules',
+                              'Standardize school fee heads, flexible installment dates & automated parent notice rules',
                               style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                             ),
                           ],
@@ -262,9 +430,9 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                 ),
                 const Divider(height: 24),
 
-                // SECTION 1: IDENTIFICATION & CATEGORY
+                // SECTION 1: IDENTIFICATION & ACADEMIC SESSION
                 Text(
-                  '1. FEE HEAD IDENTIFICATION',
+                  '1. FEE HEAD IDENTIFICATION & ACADEMIC SESSION',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
                 ),
                 const SizedBox(height: 10),
@@ -275,7 +443,7 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                   controller: _nameController,
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a fee head name' : null,
                   decoration: InputDecoration(
-                    hintText: 'e.g. Standard Tuition Fee, Science Lab & Practical',
+                    hintText: 'e.g. Standard Tuition Fee, Science Lab & Practical, Exam Fee',
                     filled: true,
                     fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -285,7 +453,9 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                 const SizedBox(height: 14),
 
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Fee Category Type
                     Expanded(
                       flex: 3,
                       child: Column(
@@ -316,26 +486,54 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                       ),
                     ),
                     const SizedBox(width: 12),
+
+                    // Academic Year & Start Date
                     Expanded(
-                      flex: 2,
+                      flex: 4,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Academic Year', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Text('Academic Session & Start Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                           const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.school_outlined, size: 16, color: Color(0xFF64748B)),
-                                const SizedBox(width: 6),
-                                Text(_academicYear, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              ],
+                          InkWell(
+                            onTap: _pickAcademicStartDate,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9.5),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF2563EB)),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(_academicYear, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                          Text(
+                                            'Starts: ${DateFormat('dd MMM yyyy').format(_academicStartDate)}',
+                                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('Change', style: TextStyle(fontSize: 10, color: Color(0xFF2563EB), fontWeight: FontWeight.w700)),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -428,78 +626,101 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                 ),
                 const SizedBox(height: 20),
 
-                // SECTION 3: BILLING FREQUENCY & TIMING
-                Text(
-                  '3. BILLING FREQUENCY & TIMING',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
-                ),
-                const SizedBox(height: 8),
-
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _frequencies.map((f) {
-                    final isSel = _frequencyType == f['type'];
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _frequencyType = f['type'] as String;
-                          _billingCycle = f['cycle'] as String;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel
-                              ? (isDark ? const Color(0xFF1D4ED8).withValues(alpha: 0.25) : const Color(0xFFEFF6FF))
-                              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSel ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                            width: isSel ? 1.5 : 1.0,
+                // SECTION 3: BILLING FREQUENCY & INSTALLMENT SCHEDULE DATES
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '3. BILLING FREQUENCY & INSTALLMENT SCHEDULE',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
+                    ),
+                    InkWell(
+                      onTap: _addCustomInstallment,
+                      child: const Row(
+                        children: [
+                          Icon(Icons.add_circle_outline_rounded, size: 14, color: Color(0xFF2563EB)),
+                          SizedBox(width: 4),
+                          Text(
+                            '+ Add Custom Date',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(f['icon'] as IconData, size: 15, color: isSel ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
-                            const SizedBox(width: 6),
-                            Text(
-                              f['label'] as String,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                                color: isSel ? const Color(0xFF2563EB) : (isDark ? Colors.white : const Color(0xFF334155)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                Row(
+                  children: [
+                    // Frequency Dropdown
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Collection Frequency', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _frequencyOptions.any((f) => f['type'] == _frequencyType) ? _frequencyType : 'Custom',
+                                isExpanded: true,
+                                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                items: _frequencyOptions.map((f) {
+                                  return DropdownMenuItem<String>(
+                                    value: f['type'],
+                                    child: Text(f['label']!, style: const TextStyle(fontSize: 12)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _frequencyType = val;
+                                      final match = _frequencyOptions.firstWhere((f) => f['type'] == val, orElse: () => {'cycle': 'Monthly'});
+                                      _billingCycle = match['cycle'] ?? 'Monthly';
+                                    });
+                                    if (val != 'Custom') {
+                                      _generateDefaultInstallments();
+                                    }
+                                  }
+                                },
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
+                    ),
+                    const SizedBox(width: 12),
 
-                // SECTION 4: AMOUNT & REAL-TIME COMMITMENT
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    // Amount Per Installment
                     Expanded(
                       flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Standard Amount Per Cycle (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Text('Amount Per Installment (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _amountController,
                             keyboardType: TextInputType.number,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (val) {
+                              final amt = double.tryParse(val.trim()) ?? 0.0;
+                              setState(() {
+                                for (var inst in _installmentDates) {
+                                  inst['amount'] = amt;
+                                }
+                              });
+                            },
                             validator: (v) {
                               final amt = double.tryParse(v ?? '');
-                              if (amt == null || amt <= 0) return 'Enter valid amount > 0';
+                              if (amt == null || amt <= 0) return 'Enter amount > 0';
                               return null;
                             },
                             decoration: InputDecoration(
@@ -508,52 +729,172 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                               filled: true,
                               fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0B1329) : const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.calculate_outlined, size: 14, color: Color(0xFF16A34A)),
-                                SizedBox(width: 4),
-                                Text('ANNUAL COMMITMENT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Color(0xFF16A34A))),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              currencyFmt.format(_annualLiability),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
-                            ),
-                            Text(
-                              _getAnnualCommitmentFormula(),
-                              style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
-                            ),
-                          ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Annual Commitment Summary Card
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0B1329) : const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.calculate_outlined, size: 20, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('ANNUAL LIABILITY COMMITMENT', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Color(0xFF16A34A))),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${currencyFmt.format(_currentAmount)} × ${_installmentDates.length} scheduled installment(s)',
+                                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Text(
+                        currencyFmt.format(_annualLiability),
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Interactive Installment Schedule List
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'SCHEDULED INSTALLMENT DATES (${_installmentDates.length})',
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                          ),
+                          Text(
+                            'Tap any date to customize (e.g. Feb 20th)',
+                            style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _installmentDates.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          itemBuilder: (context, idx) {
+                            final inst = _installmentDates[idx];
+                            final dateStr = inst['date']?.toString() ?? '';
+                            final parsedDate = DateTime.tryParse(dateStr);
+                            final formattedDate = parsedDate != null ? DateFormat('dd MMM yyyy').format(parsedDate) : dateStr;
+                            final instAmount = (inst['amount'] as num?)?.toDouble() ?? _currentAmount;
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '${idx + 1}',
+                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF2563EB)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      inst['label']?.toString() ?? 'Installment ${idx + 1}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () => _editInstallmentDate(idx),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.edit_calendar_rounded, size: 13, color: Color(0xFF2563EB)),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            formattedDate,
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    currencyFmt.format(instAmount),
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    tooltip: 'Remove Installment',
+                                    onPressed: () => _removeInstallment(idx),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
 
-                // SECTION 5: DUE DATE SCHEDULE & LATE FINE RULES
+                // SECTION 4: DUE DATE WINDOW, LATE FINES & AUTOMATED REMINDERS
                 Text(
-                  '4. DUE DATE WINDOW & LATE FINE RULES',
+                  '4. DUE DATE WINDOW, LATE FINES & AUTOMATED NOTICES',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
                 ),
                 const SizedBox(height: 10),
@@ -564,7 +905,7 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Due Day of Cycle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Text('Default Due Day of Cycle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _dueDayController,
@@ -695,9 +1036,51 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // Multi-Stage Automated Parent Reminder Notice Milestones
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.mark_email_read_rounded, size: 16, color: Color(0xFF2563EB)),
+                          SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Automated Multi-Stage Parent Email Notices', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              Text('Sends notifications with dynamic UPI QR code, advance wallet balance & late fine warnings', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _buildReminderChip('d_10', '10 Days Before', isDark),
+                          _buildReminderChip('d_5', '5 Days Before', isDark),
+                          _buildReminderChip('d_2', '2 Days Before', isDark),
+                          _buildReminderChip('d_1', '1 Day Before (Final)', isDark),
+                          _buildReminderChip('d_due', 'On Due Date', isDark),
+                          _buildReminderChip('d_overdue', 'Overdue Alert', isDark),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
 
-                // SECTION 6: POLICIES & DESCRIPTIONS
+                // SECTION 5: POLICIES & DESCRIPTIONS
                 Text(
                   '5. POLICIES & DESCRIPTION',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)),
@@ -778,22 +1161,19 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
     );
   }
 
-  String _getAnnualCommitmentFormula() {
-    final amt = currencyFmt.format(_currentAmount);
-    switch (_frequencyType) {
-      case 'Monthly':
-        return '$amt/month × 12 months';
-      case 'Quarterly':
-        return '$amt/quarter × 4 quarters';
-      case 'Half-Yearly':
-        return '$amt/term × 2 terms';
-      case 'Annual':
-        return '$amt once per academic year';
-      case 'One-Time':
-        return '$amt one-time enrollment charge';
-      default:
-        return '$amt/cycle';
-    }
+  Widget _buildReminderChip(String key, String label, bool isDark) {
+    final active = _reminderStages[key] == true;
+    return FilterChip(
+      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+      selected: active,
+      selectedColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
+      checkmarkColor: const Color(0xFF2563EB),
+      onSelected: (val) {
+        setState(() {
+          _reminderStages[key] = val;
+        });
+      },
+    );
   }
 
   List<DropdownMenuItem<String>> _getCategoryItems() {
@@ -851,6 +1231,9 @@ class _EditStudentFeeStructureDialogState extends ConsumerState<EditStudentFeeSt
       'is_refundable': _isRefundable,
       'description': _descController.text.trim(),
       'academic_year': _academicYear,
+      'academic_start_date': DateFormat('yyyy-MM-dd').format(_academicStartDate),
+      'installment_dates': _installmentDates,
+      'reminder_stages': _reminderStages,
     };
 
     bool ok = false;

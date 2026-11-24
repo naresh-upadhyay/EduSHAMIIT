@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
 import '../providers/live_class_management_provider.dart';
 import '../utils/live_class_theme.dart';
-import '../widgets/create_instant_class_dialog.dart';
 import '../widgets/live_class_stat_card.dart';
+import '../widgets/upload_recording_dialog.dart';
+import '../widgets/auto_recording_rules_dialog.dart';
 
 class RecordingsTab extends ConsumerStatefulWidget {
   const RecordingsTab({super.key});
@@ -15,9 +16,12 @@ class RecordingsTab extends ConsumerStatefulWidget {
 }
 
 class _RecordingsTabState extends ConsumerState<RecordingsTab> {
-  String _selectedSubnav = 'My Recordings';
+  String _selectedScope = 'My Recordings';
+  String _dateFilter = 'All Dates';
+  String _typeFilter = 'All Types';
   RecordingItem? _selectedRecording;
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _tableScrollController = ScrollController();
 
   // Settings state
   bool _autoRecording = true;
@@ -40,15 +44,8 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _tableScrollController.dispose();
     super.dispose();
-  }
-
-  void _showCreateClassDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const CreateInstantClassDialog(),
-    );
   }
 
   void _showShareDialog(RecordingItem item) {
@@ -110,20 +107,18 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
           _buildKpiRow(dashboard),
           const SizedBox(height: 16),
 
-          // 2. Middle Main Workspace (Left subnav + Center table + Right Preview & Details)
+          // 2. Middle Main Workspace (Recordings Table + Preview & Details - Left Nav removed)
           LayoutBuilder(
             builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 950;
-              final isMedium = constraints.maxWidth < 1250;
+              final isStacked = constraints.maxWidth < 1180;
+              final isMedium = constraints.maxWidth < 1450;
 
-              if (isMobile) {
+              if (isStacked) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildHorizontalSubnav(),
-                    const SizedBox(height: 12),
                     _buildRecordingsTableSection(recordings, state, currentSelected),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _buildPreviewAndDetailsSection(currentSelected),
                   ],
                 );
@@ -132,16 +127,11 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: isMedium ? 180 : 200,
-                    child: _buildLeftSubnav(),
-                  ),
-                  const SizedBox(width: 14),
                   Expanded(
                     flex: 7,
                     child: _buildRecordingsTableSection(recordings, state, currentSelected),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 16),
                   Expanded(
                     flex: isMedium ? 5 : 4,
                     child: _buildPreviewAndDetailsSection(currentSelected),
@@ -193,76 +183,7 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
     );
   }
 
-  Widget _buildHorizontalSubnav() {
-    final items = [
-      (Icons.video_library_rounded, 'My Recordings'),
-      (Icons.grid_view_rounded, 'All Recordings'),
-      (Icons.school_outlined, 'By Class / Section'),
-      (Icons.menu_book_outlined, 'By Subject'),
-      (Icons.share_outlined, 'Shared Recordings'),
-      (Icons.assignment_turned_in_outlined, 'Recording Requests'),
-      (Icons.cloud_queue_rounded, 'Storage & Retention'),
-      (Icons.cloud_upload_outlined, 'Upload Recording'),
-      (Icons.rule_folder_outlined, 'Auto Recording Rules'),
-    ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cardBorder),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _showCreateClassDialog,
-              icon: const Icon(Icons.add, size: 14),
-              label: const Text('New Class', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1D4ED8),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ...items.map((item) {
-              final isSelected = _selectedSubnav == item.$2;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: FilterChip(
-                  avatar: Icon(
-                    item.$1,
-                    size: 14,
-                    color: isSelected ? Colors.white : textSecondary,
-                  ),
-                  label: Text(
-                    item.$2,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : textSecondary,
-                    ),
-                  ),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFF1D4ED8),
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  checkmarkColor: Colors.white,
-                  showCheckmark: false,
-                  onSelected: (val) {
-                    setState(() => _selectedSubnav = item.$2);
-                  },
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildKpiRow(RecordingsDashboardData? data) {
     return LayoutBuilder(
@@ -417,85 +338,35 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
     );
   }
 
-  Widget _buildLeftSubnav() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _showCreateClassDialog,
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Start New Class', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1D4ED8),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Divider(height: 1, color: cardDivider),
-          const SizedBox(height: 10),
-          _buildSubnavItem(Icons.video_library_rounded, 'My Recordings'),
-          _buildSubnavItem(Icons.grid_view_rounded, 'All Recordings'),
-          _buildSubnavItem(Icons.school_outlined, 'By Class / Section'),
-          _buildSubnavItem(Icons.menu_book_outlined, 'By Subject'),
-          _buildSubnavItem(Icons.share_outlined, 'Shared Recordings'),
-          _buildSubnavItem(Icons.assignment_turned_in_outlined, 'Recording Requests'),
-          _buildSubnavItem(Icons.cloud_queue_rounded, 'Storage & Retention'),
-          _buildSubnavItem(Icons.cloud_upload_outlined, 'Upload Recording'),
-          _buildSubnavItem(Icons.rule_folder_outlined, 'Auto Recording Rules'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubnavItem(IconData icon, String label) {
-    final isSelected = _selectedSubnav == label;
-
+  Widget _buildScopePill(String title, IconData icon) {
+    final isSelected = _selectedScope == title;
     return InkWell(
       onTap: () {
-        setState(() => _selectedSubnav = label);
+        setState(() => _selectedScope = title);
       },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        margin: const EdgeInsets.symmetric(vertical: 2),
+      borderRadius: BorderRadius.circular(7),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFEFF6FF)) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: isSelected ? Border.all(color: const Color(0xFF3B82F6), width: 1) : null,
+          color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 16,
-              color: isSelected ? const Color(0xFF3B82F6) : textSecondary,
+              size: 13,
+              color: isSelected ? Colors.white : textSecondary,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? (isDark ? Colors.white : const Color(0xFF1D4ED8)) : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
-                ),
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 5),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : textSecondary,
               ),
             ),
           ],
@@ -513,6 +384,34 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
     final classes = meta?.classes ?? [];
     final subjects = meta?.subjects ?? [];
 
+    final filteredRecordings = recordings.where((rec) {
+      if (_selectedScope == 'Shared') {
+        if (!rec.tags.contains('shared') && rec.visibility != 'SHARED') {
+          return false;
+        }
+      } else if (_selectedScope == 'Requests') {
+        if (rec.status.toLowerCase() != 'requested') {
+          return false;
+        }
+      }
+
+      if (_typeFilter == 'Auto (Live Class)') {
+        if (rec.type.toLowerCase() == 'upload' || rec.tags.contains('upload')) return false;
+      } else if (_typeFilter == 'Uploaded') {
+        if (rec.type.toLowerCase() != 'upload' && !rec.tags.contains('upload')) return false;
+      }
+
+      if (_searchCtrl.text.trim().isNotEmpty) {
+        final q = _searchCtrl.text.trim().toLowerCase();
+        final match = rec.title.toLowerCase().contains(q) ||
+            rec.classSection.toLowerCase().contains(q) ||
+            rec.subjectName.toLowerCase().contains(q) ||
+            rec.teacherName.toLowerCase().contains(q);
+        if (!match) return false;
+      }
+      return true;
+    }).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -529,39 +428,101 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header with View Analytics
+          // Top Header: Scope Selector Pills + Two Action Buttons
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
-                    const Icon(Icons.video_library_outlined, size: 18, color: Color(0xFF2563EB)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'My Recordings',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textPrimary),
+                    // Scope Selector Pills
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildScopePill('My Recordings', Icons.video_library_rounded),
+                          _buildScopePill('All Recordings', Icons.grid_view_rounded),
+                          _buildScopePill('Shared', Icons.share_rounded),
+                          _buildScopePill('Requests', Icons.assignment_turned_in_rounded),
+                        ],
+                      ),
+                    ),
+
+                    // Action Buttons Row: [ ⚙️ Auto Recording Rules ] and [ + Upload Recording ]
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        // Auto Recording Rules Button
+                        OutlinedButton.icon(
+                          onPressed: () => AutoRecordingRulesDialog.show(context),
+                          icon: const Icon(Icons.tune_rounded, size: 15, color: Color(0xFF3B82F6)),
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Auto Recording Rules',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF3B82F6)),
+                              ),
+                              if (state.autoRecordingRules.hasActiveRules) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                                  ),
+                                  child: const Text('Active', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                                ),
+                              ],
+                            ],
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF3B82F6), width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+
+                        // Upload Recording Button
+                        ElevatedButton.icon(
+                          onPressed: () => UploadRecordingDialog.show(context),
+                          icon: const Icon(Icons.cloud_upload_rounded, size: 16),
+                          label: const Text(
+                            'Upload Recording',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                InkWell(
-                  onTap: () {},
-                  child: const Row(
-                    children: [
-                      Text('View Analytics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF2563EB)),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
+          Divider(height: 1, color: cardDivider),
 
           // Filters Row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -593,7 +554,7 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
                 ),
                 _buildFilterDropdown(
                   value: (meta?.teachers ?? []).where((t) => t.id == state.recordingTeacherFilter).firstOrNull?.name ?? 'All Teachers',
-                  items: ['All Teachers', ...(meta?.teachers.map((t) => t.name) ?? ['R. Kumar', 'P. Sharma', 'A. Gupta'])],
+                  items: ['All Teachers', ...(meta?.teachers.map((t) => t.name) ?? ['R. Kumar', 'P. Sharma', 'A. Gupta', 'King Doe'])],
                   onChanged: (v) {
                     if (v == null || v == 'All Teachers') {
                       ref.read(liveClassManagementProvider.notifier).setRecordingsTeacherFilter(null);
@@ -604,14 +565,18 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
                   },
                 ),
                 _buildFilterDropdown(
-                  value: 'All Dates',
+                  value: _dateFilter,
                   items: const ['All Dates', 'Today', 'This Week', 'This Month'],
-                  onChanged: (_) {},
+                  onChanged: (v) {
+                    if (v != null) setState(() => _dateFilter = v);
+                  },
                 ),
                 _buildFilterDropdown(
-                  value: 'Recording Type',
-                  items: const ['Recording Type', 'Auto (Live Class)', 'Uploaded'],
-                  onChanged: (_) {},
+                  value: _typeFilter,
+                  items: const ['All Types', 'Auto (Live Class)', 'Uploaded'],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _typeFilter = v);
+                  },
                 ),
                 SizedBox(
                   width: 170,
@@ -619,6 +584,7 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
                   child: TextField(
                     controller: _searchCtrl,
                     onChanged: (v) {
+                      setState(() {});
                       ref.read(liveClassManagementProvider.notifier).setRecordingsSearch(v);
                     },
                     style: TextStyle(fontSize: 11, color: textPrimary),
@@ -640,219 +606,345 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
                     ),
                   ),
                 ),
+                if (state.recordingClassFilter != null ||
+                    state.recordingSubjectFilter != null ||
+                    state.recordingTeacherFilter != null ||
+                    _dateFilter != 'All Dates' ||
+                    _typeFilter != 'All Types' ||
+                    _searchCtrl.text.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _dateFilter = 'All Dates';
+                        _typeFilter = 'All Types';
+                        _searchCtrl.clear();
+                      });
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsClassFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsSubjectFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsTeacherFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsSearch('');
+                    },
+                    icon: const Icon(Icons.clear_rounded, size: 13, color: Colors.redAccent),
+                    label: const Text('Reset', style: TextStyle(fontSize: 11, color: Colors.redAccent)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                  ),
               ],
             ),
           ),
           const SizedBox(height: 6),
 
-          // Scrollable Table Area
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: 960,
+          if (filteredRecordings.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+              alignment: Alignment.center,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Table Header
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    color: headerRowBg,
-                    child: Row(
-                      children: [
-                        SizedBox(width: 24, child: Icon(Icons.check_box_outline_blank, size: 16, color: textSecondary)),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 230, child: Text('Recording Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 90, child: Text('Class / Section', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 100, child: Text('Subject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 130, child: Text('Date & Time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 65, child: Text('Duration', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 50, child: Text('Views', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 60, child: Text('Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 70, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 65, child: Text('Actions', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
-                      ],
-                    ),
+                  Icon(Icons.video_library_outlined, size: 48, color: textSecondary.withValues(alpha: 0.4)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No recordings found matching your current filter',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textSecondary),
                   ),
-                  Divider(height: 1, color: cardBorder),
-
-                  // Table Rows
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recordings.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: cardDivider),
-                    itemBuilder: (context, index) {
-                      final rec = recordings[index];
-                      final isSelected = currentSelected?.id == rec.id;
-
-                      return InkWell(
-                        onTap: () {
-                          setState(() => _selectedRecording = rec);
-                        },
-                        child: Container(
-                          color: isSelected ? selectedRowBg : Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          child: Row(
-                            children: [
-                              SizedBox(width: 24, child: Icon(Icons.check_box_outline_blank, size: 16, color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))),
-                              const SizedBox(width: 8),
-                              // Title with Play Icon
-                              SizedBox(
-                                width: 230,
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.play_circle_fill_rounded, size: 16, color: Color(0xFF2563EB)),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        rec.title,
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(width: 90, child: Text(rec.classSection, style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis)),
-                              const SizedBox(width: 8),
-                              SizedBox(width: 100, child: Text(rec.subjectName, style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis)),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 130,
-                                child: Text(
-                                  rec.dateTimeStr,
-                                  style: TextStyle(fontSize: 10, color: textSecondary),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(width: 65, child: Text(rec.durationStr, style: TextStyle(fontSize: 11, color: textSecondary))),
-                              const SizedBox(width: 8),
-                              SizedBox(width: 50, child: Text('${rec.views}', style: TextStyle(fontSize: 11, color: textSecondary))),
-                              const SizedBox(width: 8),
-                              SizedBox(width: 60, child: Text(rec.sizeStr, style: TextStyle(fontSize: 11, color: textSecondary))),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 70,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    rec.status,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF34D399) : const Color(0xFF16A34A)),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 65,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    InkWell(
-                                      onTap: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Downloading ${rec.title}...')),
-                                        );
-                                      },
-                                      child: const Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF2563EB)),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    PopupMenuButton<String>(
-                                      icon: Icon(Icons.more_vert, size: 16, color: textSecondary),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onSelected: (val) {
-                                        if (val == 'share') _showShareDialog(rec);
-                                      },
-                                      itemBuilder: (ctx) => [
-                                        const PopupMenuItem(value: 'share', child: Text('Share Recording', style: TextStyle(fontSize: 12))),
-                                        const PopupMenuItem(value: 'details', child: Text('View Details', style: TextStyle(fontSize: 12))),
-                                        const PopupMenuItem(value: 'delete', child: Text('Delete Recording', style: TextStyle(fontSize: 12, color: Colors.red))),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                  const SizedBox(height: 6),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedScope = 'My Recordings';
+                        _dateFilter = 'All Dates';
+                        _typeFilter = 'All Types';
+                        _searchCtrl.clear();
+                      });
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsClassFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsSubjectFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsTeacherFilter(null);
+                      ref.read(liveClassManagementProvider.notifier).setRecordingsSearch('');
                     },
+                    icon: const Icon(Icons.refresh_rounded, size: 14),
+                    label: const Text('Reset All Filters', style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
             ),
-          ),
-
-          // Pagination Footer
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: cardBorder)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Showing 1 - ${recordings.length} of ${state.recordingsTotalCount} recordings',
-                  style: TextStyle(fontSize: 11, color: textSecondary),
-                ),
-                Row(
-                  children: [
-                    _buildPageButton(
-                      '<',
-                      false,
-                      onTap: state.recordingsPage > 1
-                          ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage - 1)
-                          : null,
-                    ),
-                    for (int p = 1; p <= math.min(state.recordingsTotalPages, 5); p++)
-                      _buildPageButton(
-                        '$p',
-                        p == state.recordingsPage,
-                        onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(p),
+          ] else ...[
+            // Scrollable Table Area with Always Visible Scrollbar
+            Scrollbar(
+              controller: _tableScrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _tableScrollController,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: 960,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Table Header
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        color: headerRowBg,
+                        child: Row(
+                          children: [
+                            SizedBox(width: 24, child: Icon(Icons.check_box_outline_blank, size: 16, color: textSecondary)),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 230, child: Text('Recording Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 90, child: Text('Class / Section', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 100, child: Text('Subject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 130, child: Text('Date & Time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 65, child: Text('Duration', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 50, child: Text('Views', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 60, child: Text('Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 70, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 65, child: Text('Actions', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                          ],
+                        ),
                       ),
-                    if (state.recordingsTotalPages > 5) ...[
-                      Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text('...', style: TextStyle(color: textSecondary))),
-                      _buildPageButton(
-                        '${state.recordingsTotalPages}',
-                        state.recordingsPage == state.recordingsTotalPages,
-                        onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsTotalPages),
+                      Divider(height: 1, color: cardBorder),
+
+                      // Table Rows
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredRecordings.length,
+                        separatorBuilder: (_, __) => Divider(height: 1, color: cardDivider),
+                        itemBuilder: (context, index) {
+                          final rec = filteredRecordings[index];
+                          final isSelected = currentSelected?.id == rec.id;
+
+                          return InkWell(
+                            onTap: () {
+                              setState(() => _selectedRecording = rec);
+                            },
+                            child: Container(
+                              color: isSelected ? selectedRowBg : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
+                                children: [
+                                  SizedBox(width: 24, child: Icon(Icons.check_box_outline_blank, size: 16, color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))),
+                                  const SizedBox(width: 8),
+                                  // Title with Play Icon
+                                  SizedBox(
+                                    width: 230,
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.play_circle_fill_rounded, size: 16, color: Color(0xFF2563EB)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            rec.title,
+                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(width: 90, child: Text(rec.classSection, style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis)),
+                                  const SizedBox(width: 8),
+                                  SizedBox(width: 100, child: Text(rec.subjectName, style: TextStyle(fontSize: 11, color: textSecondary), overflow: TextOverflow.ellipsis)),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 130,
+                                    child: Text(
+                                      rec.dateTimeStr,
+                                      style: TextStyle(fontSize: 10, color: textSecondary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(width: 65, child: Text(rec.durationStr, style: TextStyle(fontSize: 11, color: textSecondary))),
+                                  const SizedBox(width: 8),
+                                  SizedBox(width: 50, child: Text('${rec.views}', style: TextStyle(fontSize: 11, color: textSecondary))),
+                                  const SizedBox(width: 8),
+                                  SizedBox(width: 60, child: Text(rec.sizeStr, style: TextStyle(fontSize: 11, color: textSecondary))),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 70,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        rec.status,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF34D399) : const Color(0xFF16A34A)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    width: 65,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        InkWell(
+                                          onTap: () {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Downloading ${rec.title}...')),
+                                            );
+                                          },
+                                          child: const Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF2563EB)),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: PopupMenuButton<String>(
+                                            icon: Icon(Icons.more_vert, size: 16, color: textSecondary),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            onSelected: (val) {
+                                              if (val == 'share') _showShareDialog(rec);
+                                            },
+                                            itemBuilder: (ctx) => [
+                                              const PopupMenuItem(value: 'share', child: Text('Share Recording', style: TextStyle(fontSize: 12))),
+                                              const PopupMenuItem(value: 'details', child: Text('View Details', style: TextStyle(fontSize: 12))),
+                                              const PopupMenuItem(value: 'delete', child: Text('Delete Recording', style: TextStyle(fontSize: 12, color: Colors.red))),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
-                    _buildPageButton(
-                      '>',
-                      false,
-                      onTap: state.recordingsPage < state.recordingsTotalPages
-                          ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage + 1)
-                          : null,
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          // Pagination Footer (Responsive for Mobile / Tablet / Desktop)
+          LayoutBuilder(
+            builder: (context, footerConstraints) {
+              final isNarrow = footerConstraints.maxWidth < 620;
+
+              if (isNarrow) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: cardBorder)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Showing 1 - ${recordings.length} of ${state.recordingsTotalCount} recordings',
+                        style: TextStyle(fontSize: 11, color: textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildPageButton(
+                              '<',
+                              false,
+                              onTap: state.recordingsPage > 1
+                                  ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage - 1)
+                                  : null,
+                            ),
+                            for (int p = 1; p <= math.min(state.recordingsTotalPages, 5); p++)
+                              _buildPageButton(
+                                '$p',
+                                p == state.recordingsPage,
+                                onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(p),
+                              ),
+                            if (state.recordingsTotalPages > 5) ...[
+                              Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text('...', style: TextStyle(color: textSecondary))),
+                              _buildPageButton(
+                                '${state.recordingsTotalPages}',
+                                state.recordingsPage == state.recordingsTotalPages,
+                                onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsTotalPages),
+                              ),
+                            ],
+                            _buildPageButton(
+                              '>',
+                              false,
+                              onTap: state.recordingsPage < state.recordingsTotalPages
+                                  ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage + 1)
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: cardBorder)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Showing 1 - ${recordings.length} of ${state.recordingsTotalCount} recordings',
+                      style: TextStyle(fontSize: 11, color: textSecondary),
+                    ),
+                    Row(
+                      children: [
+                        _buildPageButton(
+                          '<',
+                          false,
+                          onTap: state.recordingsPage > 1
+                              ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage - 1)
+                              : null,
+                        ),
+                        for (int p = 1; p <= math.min(state.recordingsTotalPages, 5); p++)
+                          _buildPageButton(
+                            '$p',
+                            p == state.recordingsPage,
+                            onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(p),
+                          ),
+                        if (state.recordingsTotalPages > 5) ...[
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text('...', style: TextStyle(color: textSecondary))),
+                          _buildPageButton(
+                            '${state.recordingsTotalPages}',
+                            state.recordingsPage == state.recordingsTotalPages,
+                            onTap: () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsTotalPages),
+                          ),
+                        ],
+                        _buildPageButton(
+                          '>',
+                          false,
+                          onTap: state.recordingsPage < state.recordingsTotalPages
+                              ? () => ref.read(liveClassManagementProvider.notifier).setRecordingsPage(state.recordingsPage + 1)
+                              : null,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text('Rows per page:', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        const SizedBox(width: 6),
+                        Text('8', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary)),
+                        Icon(Icons.arrow_drop_down, size: 16, color: textSecondary),
+                      ],
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Text('Rows per page:', style: TextStyle(fontSize: 11, color: textSecondary)),
-                    const SizedBox(width: 6),
-                    Text('8', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary)),
-                    Icon(Icons.arrow_drop_down, size: 16, color: textSecondary),
-                  ],
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),

@@ -403,22 +403,25 @@ class _EquationEditorDialogState extends State<EquationEditorDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Mathematical Equation Editor',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Text(
+                        'Mathematical Equation Editor',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
                       ),
-                      child: const Text('LaTeX & Math Engine', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('LaTeX & Math Engine', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
+                      ),
+                    ],
+                  ),
                 ),
                 Text(
                   'Compose and format rich formulas, expressions and matrices',

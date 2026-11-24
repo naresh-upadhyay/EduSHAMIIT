@@ -304,9 +304,11 @@ class _OnboardingTasksDialogState extends State<OnboardingTasksDialog> {
                           ),
                         )
                       : SingleChildScrollView(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: DataTable(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 800),
+                              child: DataTable(
                               columnSpacing: 16,
                               horizontalMargin: 8,
                               headingRowHeight: 40,
@@ -409,6 +411,7 @@ class _OnboardingTasksDialogState extends State<OnboardingTasksDialog> {
                             ),
                           ),
                         ),
+                      ),
             ),
 
             // Pagination

@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../utils/work_sprint_date_helper.dart';
 import '../../utils/work_filter_helper.dart';
+import '../work_searchable_dropdown.dart';
 import '../drawers/work_item_detail_drawer.dart';
 
 class WorkListTabView extends ConsumerStatefulWidget {
@@ -33,7 +35,7 @@ class WorkListTabView extends ConsumerStatefulWidget {
 }
 
 class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
-  String _selectedBoard = 'Institute Work Board';
+  String _selectedBoard = 'All Boards';
   String _selectedView = 'All Work Items';
   String _selectedType = 'All Types';
   String _selectedStatus = 'All Status';
@@ -110,8 +112,9 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   void initState() {
     super.initState();
     _loadAssignees();
-    // Default select first item (WM-1050) as seen in screenshot 2
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final effectiveBoardId = WorkFilterHelper.resolveBoardId(_selectedBoard);
+      ref.read(workListProvider.notifier).loadPagedItems(boardId: effectiveBoardId, forceRefresh: true);
       final listState = ref.read(workListProvider);
       if (!_isDrawerClosedByUser && listState.items.isNotEmpty && _activeDrawerItem == null) {
         setState(() {
@@ -172,8 +175,18 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       _classFilter = 'All';
       _sectionFilter = 'All';
       _teamFilter = 'All';
+      _selectedType = 'All Types';
+      _selectedStatus = 'All Status';
+      _selectedAssignee = 'All Assignees';
+      _selectedView = 'All Work Items';
+      _selectedKpi = 'ALL';
       _clientPage = 1;
     });
+    ref.read(workListProvider.notifier).setFilter(
+      workType: 'All',
+      status: 'All',
+      clearAssignee: true,
+    );
   }
 
   Color _getTypeColor(String type) {
@@ -238,8 +251,29 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final listState = ref.watch(workListProvider);
 
-    // Real-time Azure DevOps & Top Selectors Filtering
-    final filteredItems = listState.items.where((item) {
+    // 0. Status mapping helpers
+    bool isStatusNew(String s) => s == 'NEW' || s == 'OPEN' || s == 'PLANNED' || s == 'NOT STARTED' || s == 'NOT_STARTED' || s == 'TODO';
+    bool isStatusActive(String s) => s == 'ACTIVE' || s == 'IN_PROGRESS' || s == 'IN PROGRESS' || s == 'DOING' || s == 'CRITICAL';
+    bool isStatusResolved(String s) => s == 'RESOLVED' || s == 'TESTING' || s == 'QA' || s == 'CODE REVIEW';
+    bool isStatusCompleted(String s) => s == 'COMPLETED' || s == 'CLOSED' || s == 'DONE';
+
+    bool matchesStatus(String itemStatus, String filter) {
+      if (filter == 'All' || filter == 'All Status') return true;
+      final isF = filter.trim().toUpperCase();
+      final isS = itemStatus.trim().toUpperCase();
+      if (isF == isS) return true;
+      if (isF == 'NEW') return isStatusNew(isS);
+      if (isF == 'ACTIVE' || isF == 'IN PROGRESS' || isF == 'IN_PROGRESS') return isStatusActive(isS);
+      if (isF == 'RESOLVED') return isStatusResolved(isS);
+      if (isF == 'COMPLETED') return isStatusCompleted(isS);
+      return false;
+    }
+
+    // 1. Items matching all non-KPI criteria (Search, Type, Status, Priority, Category, View, Assignee, Advanced)
+    final effectiveTypeFilter = _typeFilter != 'All' ? _typeFilter : (_selectedType != 'All Types' ? _selectedType : 'All');
+    final effectiveStatusFilter = _statusFilter != 'All' ? _statusFilter : (_selectedStatus != 'All Status' ? _selectedStatus : 'All');
+
+    final baseFilteredItems = listState.items.where((item) {
       if (_keywordFilter.isNotEmpty) {
         final q = _keywordFilter.toLowerCase();
         final matchesTitle = item.title.toLowerCase().contains(q);
@@ -248,8 +282,8 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         final matchesLabels = item.labels.any((l) => l.toLowerCase().contains(q));
         if (!matchesTitle && !matchesNum && !matchesDesc && !matchesLabels) return false;
       }
-      if (_typeFilter != 'All' && item.workType.toUpperCase() != _typeFilter.toUpperCase()) return false;
-      if (_statusFilter != 'All' && item.status.toUpperCase() != _statusFilter.toUpperCase()) return false;
+      if (effectiveTypeFilter != 'All' && item.workType.toUpperCase() != effectiveTypeFilter.toUpperCase()) return false;
+      if (!matchesStatus(item.status, effectiveStatusFilter)) return false;
       if (_priorityFilter != 'All' && item.priority.toUpperCase() != _priorityFilter.toUpperCase()) return false;
       if (_categoryFilter != 'All' && item.category.toLowerCase() != _categoryFilter.toLowerCase()) return false;
 
@@ -266,19 +300,6 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         if (item.assignees.isEmpty) return false;
       } else if (_selectedAssignee == 'Unassigned') {
         if (item.assignees.isNotEmpty) return false;
-      }
-
-      // KPI Card Filter
-      if (_selectedKpi == 'OVERDUE') {
-        if (!item.isOverdue) return false;
-      } else if (_selectedKpi == 'NEW' && item.status.toUpperCase() != 'NEW') {
-        return false;
-      } else if (_selectedKpi == 'ACTIVE' && item.status.toUpperCase() != 'ACTIVE' && item.status.toUpperCase() != 'IN_PROGRESS') {
-        return false;
-      } else if (_selectedKpi == 'RESOLVED' && item.status.toUpperCase() != 'RESOLVED') {
-        return false;
-      } else if (_selectedKpi == 'COMPLETED' && item.status.toUpperCase() != 'COMPLETED') {
-        return false;
       }
 
       if (_assigneeFilter != 'All') {
@@ -308,23 +329,66 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       return true;
     }).toList();
 
+    // 2. Real-time KPI counts based on current active filters
+    final hasClientOnlyFilters = _keywordFilter.isNotEmpty ||
+        _categoryFilter != 'All' ||
+        _selectedView != 'All Work Items' ||
+        _selectedAssignee != 'All Assignees' ||
+        _assigneeFilter != 'All' ||
+        _roleFilter != 'All' ||
+        _departmentFilter != 'All' ||
+        _classFilter != 'All' ||
+        _sectionFilter != 'All' ||
+        _teamFilter != 'All' ||
+        _priorityFilter != 'All';
+
+    final totalCount = !hasClientOnlyFilters && listState.kpis['total'] != null
+        ? (listState.kpis['total'] as num).toInt()
+        : baseFilteredItems.length;
+    final newCount = !hasClientOnlyFilters && listState.kpis['new'] != null
+        ? (listState.kpis['new'] as num).toInt()
+        : baseFilteredItems.where((i) => isStatusNew(i.status.trim().toUpperCase())).length;
+    final activeCount = !hasClientOnlyFilters && listState.kpis['active'] != null
+        ? (listState.kpis['active'] as num).toInt()
+        : baseFilteredItems.where((i) => isStatusActive(i.status.trim().toUpperCase())).length;
+    final resolvedCount = !hasClientOnlyFilters && listState.kpis['resolved'] != null
+        ? (listState.kpis['resolved'] as num).toInt()
+        : baseFilteredItems.where((i) => isStatusResolved(i.status.trim().toUpperCase())).length;
+    final completedCount = !hasClientOnlyFilters && listState.kpis['completed'] != null
+        ? (listState.kpis['completed'] as num).toInt()
+        : baseFilteredItems.where((i) => isStatusCompleted(i.status.trim().toUpperCase())).length;
+    final overdueCount = !hasClientOnlyFilters && listState.kpis['overdue'] != null
+        ? (listState.kpis['overdue'] as num).toInt()
+        : baseFilteredItems.where((i) => i.isOverdue).length;
+
+    // 3. Apply KPI card selection to determine table items
+    final filteredItems = baseFilteredItems.where((item) {
+      final s = item.status.trim().toUpperCase();
+      if (_selectedKpi == 'OVERDUE') {
+        if (!item.isOverdue) return false;
+      } else if (_selectedKpi == 'NEW' && !isStatusNew(s)) {
+        return false;
+      } else if (_selectedKpi == 'ACTIVE' && !isStatusActive(s)) {
+        return false;
+      } else if (_selectedKpi == 'RESOLVED' && !isStatusResolved(s)) {
+        return false;
+      } else if (_selectedKpi == 'COMPLETED' && !isStatusCompleted(s)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
     // If active item is not set yet and drawer was not closed by user, pick first item from filteredItems
     if (!_isDrawerClosedByUser && _activeDrawerItem == null && filteredItems.isNotEmpty) {
       _activeDrawerItem = filteredItems.first;
     }
 
-    final totalCount = filteredItems.length;
-    final totalPages = (totalCount / _clientPageSize).ceil().clamp(1, 9999);
+    final displayCount = filteredItems.length;
+    final totalPages = (displayCount / _clientPageSize).ceil().clamp(1, 9999);
     final currentPage = _clientPage.clamp(1, totalPages);
-    final startIdx = totalCount == 0 ? 0 : (currentPage - 1) * _clientPageSize;
-    final endIdx = (startIdx + _clientPageSize).clamp(0, totalCount);
-    final pagedItems = totalCount == 0 ? <WorkItemModel>[] : filteredItems.sublist(startIdx, endIdx);
-
-    final newCount = filteredItems.where((i) => i.status.toUpperCase() == 'NEW').length;
-    final activeCount = filteredItems.where((i) => i.status.toUpperCase() == 'ACTIVE' || i.status.toUpperCase() == 'IN_PROGRESS').length;
-    final resolvedCount = filteredItems.where((i) => i.status.toUpperCase() == 'RESOLVED').length;
-    final completedCount = filteredItems.where((i) => i.status.toUpperCase() == 'COMPLETED').length;
-    final overdueCount = filteredItems.where((i) => i.isOverdue).length;
+    final startIdx = displayCount == 0 ? 0 : (currentPage - 1) * _clientPageSize;
+    final endIdx = (startIdx + _clientPageSize).clamp(0, displayCount);
+    final pagedItems = displayCount == 0 ? <WorkItemModel>[] : filteredItems.sublist(startIdx, endIdx);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -361,50 +425,71 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           ],
 
           // 4. Main Data Grid with integrated Right Detail Drawer
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Main Table
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF13182C) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildTable(context, listState, pagedItems, isDark),
-                      Divider(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0), height: 1),
-                      _buildPaginationFooter(
-                        context,
-                        currentPage: currentPage,
-                        totalPages: totalPages,
-                        totalItems: totalCount,
-                        startIdx: totalCount == 0 ? 0 : startIdx + 1,
-                        endIdx: endIdx,
-                        isDark: isDark,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 1050;
+              final isDrawerOpen = _activeDrawerItem != null;
 
-              // Right-Side Detail Drawer (When an item is selected)
-              if (_activeDrawerItem != null) ...[
-                const SizedBox(width: 16),
-                WorkItemDetailDrawer(
-                  item: _activeDrawerItem,
-                  onUpdated: (updated) => setState(() => _activeDrawerItem = updated),
-                  onClose: () => setState(() {
-                    _activeDrawerItem = null;
-                    _isDrawerClosedByUser = true;
-                  }),
+              final tableContainer = Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF13182C) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
+                  ),
                 ),
-              ],
-            ],
+                child: Column(
+                  children: [
+                    _buildTable(context, listState, pagedItems, isDark),
+                    Divider(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0), height: 1),
+                    _buildPaginationFooter(
+                      context,
+                      currentPage: currentPage,
+                      totalPages: totalPages,
+                      totalItems: displayCount,
+                      startIdx: displayCount == 0 ? 0 : startIdx + 1,
+                      endIdx: endIdx,
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
+              );
+
+              final drawerWidget = isDrawerOpen
+                  ? WorkItemDetailDrawer(
+                      item: _activeDrawerItem,
+                      onUpdated: (updated) => setState(() => _activeDrawerItem = updated),
+                      onClose: () => setState(() {
+                        _activeDrawerItem = null;
+                        _isDrawerClosedByUser = true;
+                      }),
+                    )
+                  : const SizedBox.shrink();
+
+              if (isDesktop) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: tableContainer),
+                    if (isDrawerOpen) ...[
+                      const SizedBox(width: 16),
+                      drawerWidget,
+                    ],
+                  ],
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    tableContainer,
+                    if (isDrawerOpen) ...[
+                      const SizedBox(height: 16),
+                      drawerWidget,
+                    ],
+                  ],
+                );
+              }
+            },
           ),
           const SizedBox(height: 32),
         ],
@@ -422,19 +507,37 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _buildSelector('Board', _selectedBoard, WorkFilterHelper.boardOptions, (v) {
-              setState(() => _selectedBoard = v!);
-              ref.read(workListProvider.notifier).setFilter(boardId: WorkFilterHelper.resolveBoardId(v));
+              final newB = v ?? 'Institute Work Board';
+              setState(() {
+                _selectedBoard = newB;
+                _clientPage = 1;
+              });
+              final resolvedId = WorkFilterHelper.resolveBoardId(newB);
+              ref.read(workListProvider.notifier).setFilter(
+                boardId: resolvedId,
+                clearBoard: resolvedId == null,
+              );
             }, isDark),
             _buildSelector('View', _selectedView, ['All Work Items', 'My Tasks', 'High Priority'], (v) {
               setState(() => _selectedView = v!);
             }, isDark),
             _buildSelector('Work Type', _selectedType, ['All Types', 'Task', 'Story', 'Bug', 'Epic'], (v) {
-              setState(() => _selectedType = v!);
-              ref.read(workListProvider.notifier).setFilter(workType: v == 'All Types' ? null : v);
+              final newType = v ?? 'All Types';
+              setState(() {
+                _selectedType = newType;
+                _typeFilter = newType == 'All Types' ? 'All' : newType;
+                _clientPage = 1;
+              });
+              ref.read(workListProvider.notifier).setFilter(workType: newType == 'All Types' ? 'All' : newType);
             }, isDark),
             _buildSelector('Status', _selectedStatus, ['All Status', 'New', 'Active', 'Resolved', 'Completed'], (v) {
-              setState(() => _selectedStatus = v!);
-              ref.read(workListProvider.notifier).setFilter(status: v == 'All Status' ? null : v);
+              final newStatus = v ?? 'All Status';
+              setState(() {
+                _selectedStatus = newStatus;
+                _statusFilter = newStatus == 'All Status' ? 'All' : newStatus;
+                _clientPage = 1;
+              });
+              ref.read(workListProvider.notifier).setFilter(status: newStatus == 'All Status' ? 'All' : newStatus);
             }, isDark),
             _buildSelector('Assignee', _selectedAssignee, ['All Assignees', 'Assigned to Me', 'Unassigned'], (v) {
               setState(() => _selectedAssignee = v!);
@@ -442,8 +545,10 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           ],
         );
 
-        final buttons = Row(
-          mainAxisSize: MainAxisSize.min,
+        final buttons = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             InkWell(
               onTap: () {
@@ -617,7 +722,14 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 label: 'Types',
                 value: _typeFilter,
                 items: const ['All', 'TASK', 'STORY', 'BUG', 'EPIC', 'HOMEWORK', 'ASSIGNMENT'],
-                onChanged: (v) => setState(() => _typeFilter = v!),
+                onChanged: (v) {
+                  final val = v ?? 'All';
+                  setState(() {
+                    _typeFilter = val;
+                    _selectedType = val == 'All' ? 'All Types' : (val[0] + val.substring(1).toLowerCase());
+                    _clientPage = 1;
+                  });
+                },
                 isDark: isDark,
               ),
 
@@ -626,7 +738,14 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 label: 'Status',
                 value: _statusFilter,
                 items: const ['All', 'NEW', 'ACTIVE', 'RESOLVED', 'COMPLETED'],
-                onChanged: (v) => setState(() => _statusFilter = v!),
+                onChanged: (v) {
+                  final val = v ?? 'All';
+                  setState(() {
+                    _statusFilter = val;
+                    _selectedStatus = val == 'All' ? 'All Status' : (val[0] + val.substring(1).toLowerCase());
+                    _clientPage = 1;
+                  });
+                },
                 isDark: isDark,
               ),
 
@@ -669,7 +788,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
               WorkFilterHelper.buildFilterDropdown(
                 label: 'Team',
                 value: _teamFilter,
-                items: _teamsList,
+                items: <String>{'All', ...ref.watch(workTeamsListProvider), ..._teamsList}.toList(),
                 onChanged: (v) => setState(() {
                   _teamFilter = v ?? 'All';
                   _clientPage = 1;
@@ -778,9 +897,23 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                     setState(() => _keywordFilter = '');
                   }),
                 if (_typeFilter != 'All')
-                  _buildActiveFilterChip('Type: $_typeFilter', () => setState(() => _typeFilter = 'All')),
+                  _buildActiveFilterChip('Type: $_typeFilter', () {
+                    setState(() {
+                      _typeFilter = 'All';
+                      _selectedType = 'All Types';
+                      _clientPage = 1;
+                    });
+                    ref.read(workListProvider.notifier).setFilter(workType: 'All');
+                  }),
                 if (_statusFilter != 'All')
-                  _buildActiveFilterChip('Status: $_statusFilter', () => setState(() => _statusFilter = 'All')),
+                  _buildActiveFilterChip('Status: $_statusFilter', () {
+                    setState(() {
+                      _statusFilter = 'All';
+                      _selectedStatus = 'All Status';
+                      _clientPage = 1;
+                    });
+                    ref.read(workListProvider.notifier).setFilter(status: 'All');
+                  }),
                 if (_assigneeFilter != 'All')
                   _buildActiveFilterChip('Assigned: $_assigneeFilter', () => setState(() => _assigneeFilter = 'All')),
                 if (_roleFilter != 'All')
@@ -840,53 +973,16 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     required ValueChanged<String?> onChanged,
     required bool isDark,
   }) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: label,
+      value: value,
+      items: items,
+      compact: true,
+      onChanged: (v) => onChanged(v),
     );
   }
 
   Widget _buildAssigneeFilterDropdown(bool isDark) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
     final allAssigneeNames = <String>['All', 'Unassigned'];
     for (final a in _assigneesList) {
       if (!allAssigneeNames.contains(a.fullName)) {
@@ -894,124 +990,32 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Assigned to: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: allAssigneeNames.contains(_assigneeFilter) ? _assigneeFilter : 'All',
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-              items: allAssigneeNames.map((name) {
-                return DropdownMenuItem<String>(
-                  value: name,
-                  child: Text(name),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _assigneeFilter = v!),
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: 'Assigned to',
+      value: _assigneeFilter,
+      items: allAssigneeNames,
+      icon: Icons.person_outline,
+      compact: true,
+      onChanged: (v) => setState(() => _assigneeFilter = v),
     );
   }
 
   Widget _buildPriorityFilterDropdown(bool isDark) {
-    final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1);
     const priorities = ['All', 'CRITICAL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW'];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Priority: ',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            ),
-          ),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: priorities.contains(_priorityFilter) ? _priorityFilter : 'All',
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              items: priorities.map((p) {
-                Color dotColor;
-                switch (p) {
-                  case 'CRITICAL':
-                    dotColor = const Color(0xFFEF4444);
-                    break;
-                  case 'URGENT':
-                    dotColor = const Color(0xFFF97316);
-                    break;
-                  case 'HIGH':
-                    dotColor = const Color(0xFFF59E0B);
-                    break;
-                  case 'MEDIUM':
-                    dotColor = const Color(0xFF3B82F6);
-                    break;
-                  case 'LOW':
-                    dotColor = const Color(0xFF10B981);
-                    break;
-                  default:
-                    dotColor = Colors.transparent;
-                }
-                return DropdownMenuItem<String>(
-                  value: p,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (dotColor != Colors.transparent) ...[
-                        Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        p,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _priorityFilter = v!),
-            ),
-          ),
-        ],
-      ),
+    return WorkSearchableDropdown(
+      label: 'Priority',
+      value: _priorityFilter,
+      items: priorities,
+      compact: true,
+      itemColors: const {
+        'CRITICAL': Color(0xFFEF4444),
+        'URGENT': Color(0xFFF97316),
+        'HIGH': Color(0xFFF59E0B),
+        'MEDIUM': Color(0xFF3B82F6),
+        'LOW': Color(0xFF10B981),
+      },
+      onChanged: (v) => setState(() => _priorityFilter = v),
     );
   }
 
@@ -1047,45 +1051,12 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     ValueChanged<String?> onChanged,
     bool isDark,
   ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF13182C) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-              isDense: true,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF1E293B),
-              ),
-              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-              onChanged: onChanged,
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
+    return WorkSearchableDropdown(
+      label: label,
+      value: value,
+      items: items,
+      compact: false,
+      onChanged: (v) => onChanged(v),
     );
   }
 
@@ -1107,7 +1078,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'ALL',
             onTap: () => setState(() {
               _selectedKpi = 'ALL';
-              _statusFilter = 'All';
+              _clientPage = 1;
             }),
             iconWidget: Container(
               padding: const EdgeInsets.all(6),
@@ -1125,7 +1096,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'NEW',
             onTap: () => setState(() {
               _selectedKpi = _selectedKpi == 'NEW' ? 'ALL' : 'NEW';
-              _statusFilter = _selectedKpi == 'NEW' ? 'NEW' : 'All';
+              _clientPage = 1;
             }),
             dotColor: const Color(0xFF64748B),
             isDark: isDark,
@@ -1136,7 +1107,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'ACTIVE',
             onTap: () => setState(() {
               _selectedKpi = _selectedKpi == 'ACTIVE' ? 'ALL' : 'ACTIVE';
-              _statusFilter = _selectedKpi == 'ACTIVE' ? 'ACTIVE' : 'All';
+              _clientPage = 1;
             }),
             dotColor: const Color(0xFF3B82F6),
             isDark: isDark,
@@ -1147,7 +1118,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'RESOLVED',
             onTap: () => setState(() {
               _selectedKpi = _selectedKpi == 'RESOLVED' ? 'ALL' : 'RESOLVED';
-              _statusFilter = _selectedKpi == 'RESOLVED' ? 'RESOLVED' : 'All';
+              _clientPage = 1;
             }),
             dotColor: const Color(0xFF10B981),
             isDark: isDark,
@@ -1158,7 +1129,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'COMPLETED',
             onTap: () => setState(() {
               _selectedKpi = _selectedKpi == 'COMPLETED' ? 'ALL' : 'COMPLETED';
-              _statusFilter = _selectedKpi == 'COMPLETED' ? 'COMPLETED' : 'All';
+              _clientPage = 1;
             }),
             dotColor: const Color(0xFF8B5CF6),
             isDark: isDark,
@@ -1169,7 +1140,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             isSelected: _selectedKpi == 'OVERDUE',
             onTap: () => setState(() {
               _selectedKpi = _selectedKpi == 'OVERDUE' ? 'ALL' : 'OVERDUE';
-              _statusFilter = 'All';
+              _clientPage = 1;
             }),
             valueColor: const Color(0xFFEF4444),
             iconWidget: const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFFEF4444)),
@@ -1303,23 +1274,31 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       children: [
         if (listState.isLoading)
           const LinearProgressIndicator(minHeight: 2.5, color: Color(0xFF2563EB), backgroundColor: Color(0xFFEFF6FF)),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 880),
-            child: DataTable(
-              showCheckboxColumn: true,
-              onSelectAll: (val) {
-                setState(() {
-                  if (val == true) {
-                    _selectedItemIds.addAll(items.map((i) => i.id));
-                  } else {
-                    _selectedItemIds.removeAll(items.map((i) => i.id));
-                  }
-                });
-              },
-              horizontalMargin: 16,
-              columnSpacing: 20,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const minTableWidth = 980.0;
+            final availableWidth = constraints.maxWidth;
+            final targetWidth = availableWidth < minTableWidth ? minTableWidth : availableWidth;
+            final dynamicSpacing = math.max(12.0, math.min(24.0, (targetWidth - 850) / 9));
+            final titleMaxWidth = targetWidth > 1200 ? 320.0 : (targetWidth > 1000 ? 250.0 : 200.0);
+
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: targetWidth),
+                child: DataTable(
+                  showCheckboxColumn: true,
+                  onSelectAll: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedItemIds.addAll(items.map((i) => i.id));
+                      } else {
+                        _selectedItemIds.removeAll(items.map((i) => i.id));
+                      }
+                    });
+                  },
+                  horizontalMargin: 16,
+                  columnSpacing: dynamicSpacing,
               headingRowHeight: 44,
               dataRowMinHeight: 52,
               dataRowMaxHeight: 54,
@@ -1344,7 +1323,12 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 DataColumn(label: Text('Priority')),
                 DataColumn(label: Text('Status')),
                 DataColumn(label: Text('Assignee(s)')),
-                DataColumn(label: Text('Due Date')),
+                DataColumn(
+                  label: SizedBox(
+                    width: 105,
+                    child: Text('Due Date'),
+                  ),
+                ),
                 DataColumn(label: Text('Progress')),
                 DataColumn(label: Text('')),
               ],
@@ -1397,7 +1381,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                     _isDrawerClosedByUser = false;
                   }),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 240),
+                    constraints: BoxConstraints(maxWidth: titleMaxWidth),
                     child: Text(
                       item.title,
                       style: TextStyle(
@@ -1582,9 +1566,28 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             ],
           );
         }).toList(),
+                ),
+              ),
+            );
+          },
+        ),
+    if (items.isEmpty && listState.isLoading)
+      Container(
+        height: 220,
+        alignment: Alignment.center,
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF2563EB)),
+            ),
+            SizedBox(height: 12),
+            Text('Loading work items...', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+          ],
+        ),
       ),
-    ),
-  ),
     if (items.isEmpty && !listState.isLoading)
       Container(
         height: 220,
@@ -1627,7 +1630,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 620;
+          final isNarrow = constraints.maxWidth < 780;
           final infoWidget = Text(
             totalItems == 0 ? 'Showing 0 items' : 'Showing $startIdx - $endIdx of $totalItems items',
             style: TextStyle(
@@ -1757,8 +1760,9 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                infoWidget,
-                controlsWidget,
+                Flexible(child: infoWidget),
+                const SizedBox(width: 12),
+                Flexible(child: controlsWidget),
               ],
             );
           }
@@ -2028,49 +2032,27 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
   }
 
   void _openBulkAssignDialog(List<String> itemIds) {
-    if (_assigneesList.isEmpty) return;
-    String? selectedUserId = _assigneesList.first.id;
-
-    showDialog(
+    WorkFilterHelper.openManageAssigneesDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text('Assign ${itemIds.length} Work Items', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          content: DropdownButtonFormField<String>(
-            initialValue: selectedUserId,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: _assigneesList.map((u) => DropdownMenuItem(value: u.id, child: Text('${u.fullName} (${u.role})'))).toList(),
-            onChanged: (v) => setDlgState(() => selectedUserId = v),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                Navigator.pop(ctx);
-                final success = await ref.read(workListProvider.notifier).bulkUpdate(
-                  itemIds: itemIds,
-                  assigneeId: selectedUserId,
-                );
-                if (!mounted) return;
-                setState(() => _selectedItemIds.clear());
-                messenger.showSnackBar(
-                  SnackBar(content: Text(success ? 'Assigned ${itemIds.length} items successfully!' : 'Failed to assign items.')),
-                );
-              },
-              child: const Text('Assign Items', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
+      itemIds: itemIds,
+      availableUsers: _assigneesList,
+      api: ref.read(workApiServiceProvider),
+      onApply: ({
+        required List<String> itemIds,
+        required List<String> selectedUserIds,
+        required List<WorkAssigneeModel> selectedUsers,
+      }) async {
+        return await ref.read(workListProvider.notifier).bulkUpdate(
+          itemIds: itemIds,
+          assigneeIds: selectedUserIds,
+          assignees: selectedUsers,
+        );
+      },
+      onSuccess: () {
+        if (mounted) {
+          setState(() => _selectedItemIds.clear());
+        }
+      },
     );
   }
 

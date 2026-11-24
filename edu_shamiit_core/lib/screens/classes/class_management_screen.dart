@@ -40,6 +40,7 @@ class ClassManagementScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0B1120) : const Color(0xFFF1F5F9),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 1. Top ERP Header Bar
           const ClassHeaderBar(),

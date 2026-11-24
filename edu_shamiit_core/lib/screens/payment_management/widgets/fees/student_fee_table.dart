@@ -1293,6 +1293,9 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                                           initialMandatory: f.isMandatory,
                                           initialRefundable: f.isRefundable,
                                           initialAcademicYear: f.academicYear,
+                                          initialAcademicStartDate: f.academicStartDate,
+                                          initialInstallmentDates: f.installmentDates,
+                                          initialReminderStages: f.reminderStages,
                                         ),
                                       );
                                     },

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../config/app_config.dart';
 import '../../models/campus_models.dart';
@@ -165,16 +166,27 @@ class BuildingLeftPanel extends StatelessWidget {
                                   height: 48,
                                   color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                   child: bld.imageUrl != null && bld.imageUrl!.isNotEmpty
-                                      ? Image.network(
-                                          AppConfig.resolveUrl(bld.imageUrl),
-                                          key: ValueKey('${bld.id}_${bld.imageUrl}'),
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.apartment_rounded,
-                                            color: Color(0xFF64748B),
-                                            size: 24,
-                                          ),
-                                        )
+                                      ? (bld.imageUrl!.startsWith('data:')
+                                          ? Image.memory(
+                                              base64Decode(bld.imageUrl!.split(',').last),
+                                              key: ValueKey('${bld.id}_${bld.imageUrl}'),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.apartment_rounded,
+                                                color: Color(0xFF64748B),
+                                                size: 24,
+                                              ),
+                                            )
+                                          : Image.network(
+                                              AppConfig.resolveUrl(bld.imageUrl),
+                                              key: ValueKey('${bld.id}_${bld.imageUrl}'),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.apartment_rounded,
+                                                color: Color(0xFF64748B),
+                                                size: 24,
+                                              ),
+                                            ))
                                       : const Icon(
                                           Icons.apartment_rounded,
                                           color: Color(0xFF64748B),

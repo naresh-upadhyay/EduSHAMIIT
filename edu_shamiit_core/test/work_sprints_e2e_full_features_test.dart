@@ -6,6 +6,7 @@ import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart
 import 'package:edu_shamiit_core/screens/work_management/services/work_api_service.dart';
 import 'package:edu_shamiit_core/screens/work_management/providers/work_management_provider.dart';
 import 'package:edu_shamiit_core/screens/work_management/widgets/sprints/work_sprints_tab_view.dart';
+import 'package:edu_shamiit_core/screens/work_management/widgets/sprints/sprint_task_board_view.dart';
 
 class _TestHttpOverrides extends HttpOverrides {
   @override
@@ -70,7 +71,7 @@ class MockWorkSprintDashboardNotifier extends WorkSprintDashboardNotifier {
 
   @override
   Future<void> loadSprintDashboard({
-    String sprintId = 's8',
+    String? sprintId,
     String? boardId,
     String? team,
     String? search,
@@ -199,7 +200,7 @@ void main() {
   }
 
   group('Work Sprints Tab View E2E Tests', () {
-    testWidgets('1. Renders Sprint 8 hero card, top filter bar, and live KPI cards', (tester) async {
+    testWidgets('1. Renders subtabs and default All Sprints Grid', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -207,90 +208,23 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      // Top Filter Bar
-      expect(find.text('Board: '), findsWidgets);
-      expect(find.text('Institute Work Board'), findsWidgets);
-      expect(find.text('Sprint: '), findsWidgets);
-      expect(find.textContaining('Sprint 8'), findsWidgets);
-      expect(find.text('Team: '), findsWidgets);
-      expect(find.text('All Teams'), findsWidgets);
+      // Sub-tabs
+      expect(find.text('All Sprints (Grid)'), findsOneWidget);
+      expect(find.text('Capacity'), findsOneWidget);
+      expect(find.text('Retrospective'), findsOneWidget);
 
-      // Hero Card
-      expect(find.text('Sprint 8'), findsWidgets);
-      expect(find.text('Active'), findsWidgets);
+      // Verify removed subtabs
+      expect(find.text('Sprint Backlog'), findsNothing);
+      expect(find.text('Boards (Task Board)'), findsNothing);
 
-      // KPIs
-      expect(find.text('Total Items'), findsOneWidget);
-      expect(find.text('Completed'), findsWidgets);
-      expect(find.text('In Progress'), findsWidgets);
-      expect(find.text('Not Started'), findsWidgets);
-      expect(find.text('Blocked'), findsWidgets);
-
-      // Grid items
-      expect(find.text('ST-101'), findsOneWidget);
-      expect(find.text('Student Portal Enhancement'), findsOneWidget);
-      expect(find.text('ST-102'), findsOneWidget);
-      expect(find.text('Faculty Management Module'), findsOneWidget);
+      // Default active view: All Sprints Grid
+      expect(find.text('Total Sprints'), findsOneWidget);
+      expect(find.text('Active Sprints'), findsOneWidget);
+      expect(find.text('Planned Sprints'), findsOneWidget);
+      expect(find.text('Total Capacity'), findsWidgets);
     });
 
-    testWidgets('2. Interactive KPI cards toggle status filter and filter items', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Tap 'Completed' KPI card
-      await tester.tap(find.byKey(const ValueKey('kpi_Completed')));
-      await tester.pumpAndSettle();
-
-      // In completed mode, ST-102 (completed) is shown
-      expect(find.text('ST-102'), findsOneWidget);
-
-      // Tap 'Total Items' KPI card to reset
-      await tester.tap(find.byKey(const ValueKey('kpi_Total Items')));
-      await tester.pumpAndSettle();
-
-      // Both stories shown
-      expect(find.text('ST-101'), findsOneWidget);
-      expect(find.text('ST-102'), findsOneWidget);
-    });
-
-    testWidgets('3. Master checkbox selects all items and displays floating action bar', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Initially no floating action bar
-      expect(find.textContaining('items selected'), findsNothing);
-
-      // Tap master checkbox in table header
-      final checkboxes = find.byIcon(Icons.check_box_outline_blank_rounded);
-      expect(checkboxes, findsWidgets);
-      await tester.tap(checkboxes.first);
-      await tester.pumpAndSettle();
-
-      // Floating action bar appears
-      expect(find.textContaining('items selected'), findsOneWidget);
-      expect(find.text('Move to Sprint'), findsOneWidget);
-      expect(find.text('Change Status'), findsOneWidget);
-      expect(find.text('Change Priority'), findsOneWidget);
-      expect(find.text('Assign To'), findsOneWidget);
-      expect(find.text('Delete'), findsOneWidget);
-
-      // Tap Clear Selection icon
-      await tester.tap(find.byIcon(Icons.close_rounded).first);
-      await tester.pumpAndSettle();
-
-      // Floating action bar dismissed
-      expect(find.textContaining('items selected'), findsNothing);
-    });
-
-    testWidgets('4. Sub-tabs switch between Backlog, Task Board, Capacity, Team, and Retrospective', (tester) async {
+    testWidgets('2. Sub-tabs switch between All Sprints, Capacity, and Retrospective', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -298,116 +232,43 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-
-      // Switch to Boards (Task Board)
-      await tester.tap(find.text('Boards (Task Board)'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Sprint Task Board'), findsOneWidget);
 
       // Switch to Capacity
       await tester.tap(find.text('Capacity'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Capacity vs Workload (Daily)'), findsOneWidget);
 
       // Switch to Retrospective
       await tester.tap(find.text('Retrospective'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Sprint Retrospective'), findsWidgets);
 
-      // Switch back to Sprint Backlog
-      await tester.tap(find.text('Sprint Backlog'));
+      // Switch back to All Sprints (Grid)
+      await tester.tap(find.text('All Sprints (Grid)'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('ST-101'), findsOneWidget);
+      expect(find.text('Total Sprints'), findsOneWidget);
     });
 
-    testWidgets('5. Pagination controls render rows per page and page info', (tester) async {
+    testWidgets('3. Standalone Sprint Task Board renders Draggable cards and DragTarget columns', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Rows per page: '), findsOneWidget);
-      expect(find.textContaining('Showing 1 - 2 of 2 stories'), findsOneWidget);
-    });
-
-    testWidgets('6. Sprint filter dropdown strictly matches the loaded sprint', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      // Create state with renamed sprint "Sprint 10 11"
-      final customSprintState = WorkSprintDashboardState(
-        isLoading: false,
-        sprint: const WorkSprintModel(
-          id: 's10',
-          name: 'Sprint 10 11',
-          status: 'ACTIVE',
-          sprintNumber: 10,
-          goal: 'Mobile release',
-          boardName: 'Institute Work Board',
-          teamName: 'Digital Campus Team',
-        ),
-        items: sampleStories,
-        metrics: const {
-          'total_items': 6,
-          'completed_items': 3,
-          'in_progress_items': 2,
-          'not_started_items': 1,
-          'blocked_items': 0,
-          'completion_percentage': 50,
-        },
-      );
-
-      const customAllSprintsState = WorkAllSprintsState(
-        isLoading: false,
-        sprints: [
-          WorkSprintModel(id: 's8', name: 'Sprint 8', status: 'COMPLETED', sprintNumber: 8),
-          WorkSprintModel(id: 's10', name: 'Sprint 10 11', status: 'ACTIVE', sprintNumber: 10),
-        ],
-        selectedSprintId: 's10',
-      );
 
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
-            workSprintDashboardProvider.overrideWith((ref) => MockWorkSprintDashboardNotifier(customSprintState)),
-            allSprintsProvider.overrideWith((ref) => WorkAllSprintsNotifier(ref, FakeWorkApiService(), customAllSprintsState)),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: WorkSprintsTabView(
-                onOpenDetail: (_) {},
-                onQuickAction: (_) {},
-                onCreateSprint: () {},
-              ),
+        MaterialApp(
+          home: Scaffold(
+            body: SprintTaskBoardView(
+              items: sampleStories,
+              onOpenDetail: (_) {},
+              onQuickAction: (_) {},
+              sprintId: 's8',
             ),
           ),
         ),
       );
-      await tester.pumpAndSettle();
-
-      // Dropdown and card both display Sprint 10 11
-      expect(find.textContaining('Sprint 10 11'), findsWidgets);
-      // It should not display Sprint 8 in the dropdown value
-      expect(find.text('Sprint 8 (Active)'), findsNothing);
-    });
-
-    testWidgets('7. Sprint Task Board renders Draggable cards and DragTarget columns', (tester) async {
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Switch to Boards (Task Board)
-      await tester.tap(find.text('Boards (Task Board)'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 

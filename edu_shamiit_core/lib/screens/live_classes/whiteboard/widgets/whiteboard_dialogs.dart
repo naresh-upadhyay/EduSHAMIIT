@@ -171,7 +171,7 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
                         value: _fontSize,
                         dropdownColor: dialogBg,
                         isDense: true,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF2563EB)),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                         items: allSizes
                             .map((s) => DropdownMenuItem(
                                   value: s,
@@ -724,6 +724,10 @@ class _WhiteboardShareDialogState extends ConsumerState<WhiteboardShareDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final menuBg = isDark ? const Color(0xFF1E2235) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Row(
@@ -741,16 +745,18 @@ class _WhiteboardShareDialogState extends ConsumerState<WhiteboardShareDialog> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _shareType,
+              dropdownColor: menuBg,
+              style: TextStyle(fontSize: 13, color: textPrimary),
               decoration: InputDecoration(
                 labelText: 'Share With',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              items: const [
-                DropdownMenuItem(value: 'class', child: Text('Class')),
-                DropdownMenuItem(value: 'section', child: Text('Section')),
-                DropdownMenuItem(value: 'student', child: Text('Selected Student(s)')),
-                DropdownMenuItem(value: 'teacher', child: Text('Faculty / Teachers')),
-                DropdownMenuItem(value: 'link', child: Text('Authorized Institutional Link')),
+              items: [
+                DropdownMenuItem(value: 'class', child: Text('Class', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'section', child: Text('Section', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'student', child: Text('Selected Student(s)', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'teacher', child: Text('Faculty / Teachers', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'link', child: Text('Authorized Institutional Link', style: TextStyle(color: textPrimary))),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _shareType = v);
@@ -767,14 +773,16 @@ class _WhiteboardShareDialogState extends ConsumerState<WhiteboardShareDialog> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _accessLevel,
+              dropdownColor: menuBg,
+              style: TextStyle(fontSize: 13, color: textPrimary),
               decoration: InputDecoration(
                 labelText: 'Access Level',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              items: const [
-                DropdownMenuItem(value: 'VIEW', child: Text('View Only')),
-                DropdownMenuItem(value: 'ANNOTATE', child: Text('View & Annotate')),
-                DropdownMenuItem(value: 'EDIT', child: Text('Full Collaborate / Edit')),
+              items: [
+                DropdownMenuItem(value: 'VIEW', child: Text('View Only', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'ANNOTATE', child: Text('View & Annotate', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'EDIT', child: Text('Full Collaborate / Edit', style: TextStyle(color: textPrimary))),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _accessLevel = v);
@@ -848,6 +856,10 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final menuBg = isDark ? const Color(0xFF1E2235) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Row(
@@ -864,14 +876,16 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
           children: [
             DropdownButtonFormField<String>(
               initialValue: _format,
+              dropdownColor: menuBg,
+              style: TextStyle(fontSize: 13, color: textPrimary),
               decoration: InputDecoration(
                 labelText: 'Export Format',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              items: const [
-                DropdownMenuItem(value: 'PDF', child: Text('Multi-Page Vector PDF (.pdf)')),
-                DropdownMenuItem(value: 'PNG', child: Text('High-Resolution Image (.png)')),
-                DropdownMenuItem(value: 'JPEG', child: Text('Compressed Image (.jpg)')),
+              items: [
+                DropdownMenuItem(value: 'PDF', child: Text('Multi-Page Vector PDF (.pdf)', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'PNG', child: Text('High-Resolution Image (.png)', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'JPEG', child: Text('Compressed Image (.jpg)', style: TextStyle(color: textPrimary))),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _format = v);
@@ -880,13 +894,15 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _scope,
+              dropdownColor: menuBg,
+              style: TextStyle(fontSize: 13, color: textPrimary),
               decoration: InputDecoration(
                 labelText: 'Pages Scope',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              items: const [
-                DropdownMenuItem(value: 'all_pages', child: Text('All Whiteboard Pages')),
-                DropdownMenuItem(value: 'current_page', child: Text('Current Active Page Only')),
+              items: [
+                DropdownMenuItem(value: 'all_pages', child: Text('All Whiteboard Pages', style: TextStyle(color: textPrimary))),
+                DropdownMenuItem(value: 'current_page', child: Text('Current Active Page Only', style: TextStyle(color: textPrimary))),
               ],
               onChanged: (v) {
                 if (v != null) setState(() => _scope = v);
@@ -896,13 +912,15 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _orientation,
+                dropdownColor: menuBg,
+                style: TextStyle(fontSize: 13, color: textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Page Orientation',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'landscape', child: Text('Landscape (Widescreen)')),
-                  DropdownMenuItem(value: 'portrait', child: Text('Portrait (A4 Document)')),
+                items: [
+                  DropdownMenuItem(value: 'landscape', child: Text('Landscape (Widescreen)', style: TextStyle(color: textPrimary))),
+                  DropdownMenuItem(value: 'portrait', child: Text('Portrait (A4 Document)', style: TextStyle(color: textPrimary))),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _orientation = v);

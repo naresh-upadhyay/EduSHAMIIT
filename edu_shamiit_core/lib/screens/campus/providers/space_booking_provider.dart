@@ -14,10 +14,15 @@ class SpaceBookingState {
   final String displayMode; // 'Timeline', 'List'
   final String selectedNav; // 'My Bookings', 'Pending Requests', etc.
   final String statusFilter; // 'All', 'Pending', 'Approved', 'Rejected'
+  final String selectedDomain; // 'all', 'rooms', 'facilities'
   final String selectedBuildingId;
+  final String selectedFloorId;
+  final String selectedRoomId;
   final String selectedSpaceType;
   final String selectedCapacity;
   final String selectedPurpose;
+  final String selectedClassId;
+  final String selectedDepartment;
   final DateTime? dateRangeFrom;
   final DateTime? dateRangeTo;
   final String searchQuery;
@@ -41,10 +46,15 @@ class SpaceBookingState {
     this.displayMode = 'Timeline',
     this.selectedNav = 'Booking Spaces',
     this.statusFilter = 'All',
+    this.selectedDomain = 'all',
     this.selectedBuildingId = 'all',
+    this.selectedFloorId = 'all',
+    this.selectedRoomId = 'all',
     this.selectedSpaceType = 'All',
     this.selectedCapacity = 'Any Capacity',
     this.selectedPurpose = 'All',
+    this.selectedClassId = 'all',
+    this.selectedDepartment = 'all',
     this.dateRangeFrom,
     this.dateRangeTo,
     this.searchQuery = '',
@@ -69,10 +79,15 @@ class SpaceBookingState {
     String? displayMode,
     String? selectedNav,
     String? statusFilter,
+    String? selectedDomain,
     String? selectedBuildingId,
+    String? selectedFloorId,
+    String? selectedRoomId,
     String? selectedSpaceType,
     String? selectedCapacity,
     String? selectedPurpose,
+    String? selectedClassId,
+    String? selectedDepartment,
     DateTime? dateRangeFrom,
     DateTime? dateRangeTo,
     bool clearDateRange = false,
@@ -97,10 +112,15 @@ class SpaceBookingState {
       displayMode: displayMode ?? this.displayMode,
       selectedNav: selectedNav ?? this.selectedNav,
       statusFilter: statusFilter ?? this.statusFilter,
+      selectedDomain: selectedDomain ?? this.selectedDomain,
       selectedBuildingId: selectedBuildingId ?? this.selectedBuildingId,
+      selectedFloorId: selectedFloorId ?? this.selectedFloorId,
+      selectedRoomId: selectedRoomId ?? this.selectedRoomId,
       selectedSpaceType: selectedSpaceType ?? this.selectedSpaceType,
       selectedCapacity: selectedCapacity ?? this.selectedCapacity,
       selectedPurpose: selectedPurpose ?? this.selectedPurpose,
+      selectedClassId: selectedClassId ?? this.selectedClassId,
+      selectedDepartment: selectedDepartment ?? this.selectedDepartment,
       dateRangeFrom: clearDateRange ? null : (dateRangeFrom ?? this.dateRangeFrom),
       dateRangeTo: clearDateRange ? null : (dateRangeTo ?? this.dateRangeTo),
       searchQuery: searchQuery ?? this.searchQuery,
@@ -383,10 +403,16 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
   Future<void> resetFilters() async {
     state = state.copyWith(
       clearDateRange: true,
+      selectedDomain: 'all',
       selectedBuildingId: 'all',
+      selectedFloorId: 'all',
+      selectedRoomId: 'all',
       selectedSpaceType: 'All',
       selectedCapacity: 'Any Capacity',
       selectedPurpose: 'All',
+      selectedClassId: 'all',
+      selectedDepartment: 'all',
+      statusFilter: 'All',
       searchQuery: '',
       sortBy: 'booking_date',
       sortOrder: 'ASC',
@@ -397,16 +423,30 @@ class SpaceBookingNotifier extends StateNotifier<SpaceBookingState> {
   }
 
   Future<void> applyQuickFilters({
+    String? domain,
     String? buildingId,
+    String? floorId,
+    String? roomId,
     String? spaceType,
+    String? purpose,
+    String? classId,
+    String? department,
     String? capacity,
+    String? status,
     DateTime? dateFrom,
     DateTime? dateTo,
   }) async {
     state = state.copyWith(
+      selectedDomain: domain ?? state.selectedDomain,
       selectedBuildingId: buildingId ?? state.selectedBuildingId,
+      selectedFloorId: floorId ?? state.selectedFloorId,
+      selectedRoomId: roomId ?? state.selectedRoomId,
       selectedSpaceType: spaceType ?? state.selectedSpaceType,
+      selectedPurpose: purpose ?? state.selectedPurpose,
+      selectedClassId: classId ?? state.selectedClassId,
+      selectedDepartment: department ?? state.selectedDepartment,
       selectedCapacity: capacity ?? state.selectedCapacity,
+      statusFilter: status ?? state.statusFilter,
       dateRangeFrom: dateFrom ?? state.dateRangeFrom,
       dateRangeTo: dateTo ?? state.dateRangeTo,
       currentPage: 1,

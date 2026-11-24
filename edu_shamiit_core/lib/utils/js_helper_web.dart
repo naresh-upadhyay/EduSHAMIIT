@@ -594,16 +594,18 @@ String _buildStaffPayslipHtmlTemplate({required Map<String, dynamic> payslip}) {
   final da = (payslip['da'] as num?)?.toDouble() ?? 7000.0;
   final ta = (payslip['ta'] as num?)?.toDouble() ?? 4000.0;
   final special = (payslip['special_allowance'] as num?)?.toDouble() ?? 3000.0;
+  final medical = (payslip['medical_allowance'] as num?)?.toDouble() ?? 0.0;
   final bonus = (payslip['bonus'] as num?)?.toDouble() ?? 0.0;
-  final gross = (payslip['gross_earnings'] as num?)?.toDouble() ?? (bpay + hra + da + ta + special + bonus);
+  final gross = bpay + hra + da + ta + special + medical + bonus;
 
   final pf = (payslip['pf_deduction'] as num?)?.toDouble() ?? 5400.0;
   final tds = (payslip['tds'] as num?)?.toDouble() ?? 3850.0;
   final ptax = (payslip['professional_tax'] as num?)?.toDouble() ?? 200.0;
+  final insurance = (payslip['insurance_deduction'] as num?)?.toDouble() ?? 0.0;
   final advDed = (payslip['advance_deduction'] as num?)?.toDouble() ?? 0.0;
   final otherDed = (payslip['other_deductions'] as num?)?.toDouble() ?? 0.0;
-  final totalDed = (payslip['total_deductions'] as num?)?.toDouble() ?? (pf + tds + ptax + advDed + otherDed);
-  final net = (payslip['net_pay'] as num?)?.toDouble() ?? (gross - totalDed);
+  final totalDed = pf + tds + ptax + insurance + advDed + otherDed;
+  final net = gross - totalDed;
 
   final pMode = payslip['payment_mode']?.toString() ?? 'Direct Bank Transfer (NEFT/RTGS)';
   final txnRef = payslip['transaction_reference']?.toString() ?? 'UTR-DISBURSED';
@@ -1012,10 +1014,16 @@ String _buildStaffPayslipHtmlTemplate({required Map<String, dynamic> payslip}) {
           <td class="amt-col">₹ ${fmt.format(otherDed)}</td>
         </tr>
         <tr>
+          <td>Medical Allowance</td>
+          <td class="amt-col">₹ ${fmt.format(medical)}</td>
+          <td>Insurance / Health Scheme (ESI)</td>
+          <td class="amt-col">₹ ${fmt.format(insurance)}</td>
+        </tr>
+        <tr>
           <td>Performance Bonus / Arrears</td>
           <td class="amt-col">₹ ${fmt.format(bonus)}</td>
-          <td>Insurance / Health Scheme</td>
-          <td class="amt-col">₹ 0.00</td>
+          <td>&nbsp;</td>
+          <td class="amt-col">&nbsp;</td>
         </tr>
         <tr class="row-total">
           <td>Total Gross Earnings</td>
@@ -1740,6 +1748,138 @@ void printCampusInstitutionalDossierHtml({
     debugPrint('[JSHelper] Error printing campus dossier: $e');
   }
 }
+
+void setupMediaStreamInterception() {
+  try {
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        if (window._eduMediaInterceptionInitialized) return;
+        window._eduMediaInterceptionInitialized = true;
+        window._activeEduStreams = window._activeEduStreams || [];
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+          navigator.mediaDevices.getUserMedia = async function(constraints) {
+            const stream = await originalGetUserMedia(constraints);
+            if (stream) {
+              window._activeEduStreams.push(stream);
+              const cleanUp = () => {
+                window._activeEduStreams = window._activeEduStreams.filter(s => s !== stream);
+              };
+              stream.addEventListener('inactive', cleanUp);
+              stream.getTracks().forEach(t => t.addEventListener('ended', cleanUp));
+            }
+            return stream;
+          };
+        }
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+          const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+          navigator.mediaDevices.getDisplayMedia = async function(constraints) {
+            const stream = await originalGetDisplayMedia(constraints);
+            if (stream) {
+              window._activeEduStreams.push(stream);
+              const cleanUp = () => {
+                window._activeEduStreams = window._activeEduStreams.filter(s => s !== stream);
+              };
+              stream.addEventListener('inactive', cleanUp);
+              stream.getTracks().forEach(t => t.addEventListener('ended', cleanUp));
+            }
+            return stream;
+          };
+        }
+
+        window._eduReleaseHardwareMediaTracks = function(releaseVideo, releaseAudio) {
+          try {
+            // 1. Release active streams recorded by interception
+            if (window._activeEduStreams && Array.isArray(window._activeEduStreams)) {
+              window._activeEduStreams.forEach(stream => {
+                try {
+                  if (releaseVideo) {
+                    stream.getVideoTracks().forEach(track => {
+                      try {
+                        track.enabled = false;
+                        track.stop();
+                      } catch (e) {}
+                    });
+                  }
+                  if (releaseAudio) {
+                    stream.getAudioTracks().forEach(track => {
+                      try {
+                        track.enabled = false;
+                        track.stop();
+                      } catch (e) {}
+                    });
+                  }
+                } catch (e) {}
+              });
+              window._activeEduStreams = window._activeEduStreams.filter(stream => {
+                try {
+                  return stream.getTracks().some(t => t.readyState === 'live');
+                } catch (e) {
+                  return false;
+                }
+              });
+            }
+
+            // 2. Scan all video & audio elements in the DOM
+            const mediaEls = document.querySelectorAll('video, audio');
+            mediaEls.forEach(el => {
+              try {
+                if (el.srcObject) {
+                  const stream = el.srcObject;
+                  if (stream && typeof stream.getTracks === 'function') {
+                    if (releaseVideo) {
+                      stream.getVideoTracks().forEach(t => {
+                        try {
+                          t.enabled = false;
+                          t.stop();
+                        } catch (e) {}
+                      });
+                    }
+                    if (releaseAudio) {
+                      stream.getAudioTracks().forEach(t => {
+                        try {
+                          t.enabled = false;
+                          t.stop();
+                        } catch (e) {}
+                      });
+                    }
+                    const remainingLiveTracks = stream.getTracks().filter(t => t.readyState === 'live');
+                    if (remainingLiveTracks.length === 0) {
+                      el.srcObject = null;
+                    }
+                  }
+                }
+              } catch (e) {}
+            });
+          } catch (e) {
+            console.warn('[EduSHAMIIT] _eduReleaseHardwareMediaTracks error:', e);
+          }
+        };
+      })();
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] setupMediaStreamInterception error: $e');
+  }
+}
+
+void releaseHardwareMediaTracks({bool releaseVideo = true, bool releaseAudio = true}) {
+  try {
+    js.context.callMethod('eval', [
+      '''
+      if (typeof window._eduReleaseHardwareMediaTracks === 'function') {
+        window._eduReleaseHardwareMediaTracks($releaseVideo, $releaseAudio);
+      }
+      '''
+    ]);
+  } catch (e) {
+    debugPrint('[JSHelper] releaseHardwareMediaTracks error: $e');
+  }
+}
+
 
 
 

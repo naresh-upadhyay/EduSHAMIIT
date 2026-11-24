@@ -26,6 +26,7 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
   String _status = 'Valid';
   DateTime _issueDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _expiryDate = DateTime.now().add(const Duration(days: 335));
+  bool _isSaving = false;
 
   List<String> _categories = [];
 
@@ -284,7 +285,7 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),
@@ -292,10 +293,17 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
+                          disabledBackgroundColor: const Color(0xFF6EE7B7),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                         ),
-                        onPressed: _submit,
-                        child: const Text('Save Certificate', overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        onPressed: _isSaving ? null : _submit,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Save Certificate', overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -309,7 +317,10 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
   }
 
   void _submit() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final payload = {
       'title': _titleController.text.trim(),
@@ -323,10 +334,23 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
       'notes': _notesController.text.trim(),
     };
 
-    final notifier = ref.read(safetyComplianceProvider.notifier);
-    final success = await notifier.saveCertificate(payload, certificateId: widget.existingCertificate?.id);
-    if (mounted && success) {
-      Navigator.pop(context);
+    try {
+      final notifier = ref.read(safetyComplianceProvider.notifier);
+      final success = await notifier.saveCertificate(payload, certificateId: widget.existingCertificate?.id);
+      if (mounted) {
+        if (success) {
+          Navigator.pop(context, true);
+        } else {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save certificate. Please try again.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

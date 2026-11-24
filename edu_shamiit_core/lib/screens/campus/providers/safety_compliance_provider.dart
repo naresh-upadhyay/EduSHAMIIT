@@ -258,7 +258,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.saveInspection(payload, inspectionId: inspectionId);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -271,7 +271,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.deleteInspection(id);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -284,7 +284,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.saveIncident(payload, incidentId: incidentId);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -297,7 +297,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.deleteIncident(id);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -310,7 +310,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.saveCertificate(payload, certificateId: certificateId);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -323,7 +323,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.deleteCertificate(id);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -336,7 +336,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.saveDrill(payload, drillId: drillId);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());
@@ -349,7 +349,7 @@ class SafetyComplianceNotifier extends StateNotifier<SafetyComplianceState> {
     try {
       await _api.deleteDrill(id);
       state = state.copyWith(isSubmitting: false);
-      await loadAll();
+      loadAll();
       return true;
     } catch (e) {
       state = state.copyWith(isSubmitting: false, errorMessage: e.toString());

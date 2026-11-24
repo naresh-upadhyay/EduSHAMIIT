@@ -87,6 +87,7 @@ class EduShamiitAdminApp extends ConsumerWidget {
       title: systemConfig?.systemTitle ?? 'EduSHAMIIT Admin Suite',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
+      scrollBehavior: const EduShamiitScrollBehavior(),
       theme: getStudentTheme(brightness: Brightness.light, primaryColor: customPrimary),
       darkTheme: getStudentTheme(brightness: Brightness.dark, primaryColor: customPrimary),
       routerConfig: router,

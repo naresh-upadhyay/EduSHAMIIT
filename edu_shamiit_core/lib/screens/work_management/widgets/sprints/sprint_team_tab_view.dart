@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
+import '../work_searchable_dropdown.dart';
 
 class SprintTeamTabView extends ConsumerStatefulWidget {
   final String sprintId;
@@ -20,11 +21,34 @@ class SprintTeamTabView extends ConsumerStatefulWidget {
 class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
   final TextEditingController _searchController = TextEditingController();
   List<WorkAssigneeModel> _assignableUsers = const [];
+  List<String> _departments = [
+    'Academic / Teaching',
+    'Administration',
+    'Mathematics',
+    'Science',
+    'English / Languages',
+    'Social Studies & Humanities',
+    'Computer Science & IT',
+    'Finance & Accounts',
+    'Human Resources',
+    'Library & Information',
+    'Physical Education & Sports',
+    'Arts & Performing Arts',
+    'Transport & Fleet',
+    'Hostel & Residential',
+    'Security & Safety',
+    'Medical & Health Clinic',
+    'Maintenance & Facilities',
+    'Examination & Assessment',
+    'Student Affairs & Admissions',
+    'General / Unassigned',
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadAssignableUsers();
+    _loadDepartments();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(workSprintTeamProvider.notifier).init(widget.sprintId);
     });
@@ -49,9 +73,19 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
   Future<void> _loadAssignableUsers() async {
     try {
       final api = ref.read(workApiServiceProvider);
-      final users = await api.getAssignableUsers(limit: 60);
+      final users = await api.getAssignableUsers(limit: 200);
       if (mounted && users.isNotEmpty) {
         setState(() => _assignableUsers = users);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadDepartments() async {
+    try {
+      final api = ref.read(workApiServiceProvider);
+      final depts = await api.getDepartments();
+      if (mounted && depts.isNotEmpty) {
+        setState(() => _departments = depts);
       }
     } catch (_) {}
   }
@@ -118,53 +152,56 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final teamState = ref.watch(workSprintTeamProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Top 7 Metric KPI Cards Row
-        _buildTopKpiCards(teamState.kpis, isDark),
-        const SizedBox(height: 20),
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Top 7 Metric KPI Cards Row
+          _buildTopKpiCards(teamState.kpis, isDark),
+          const SizedBox(height: 20),
 
-        // 2. Main Two-Column Layout (Left Directory Table + Right Team Drawer)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 1150;
-            final isDrawerOpen = teamState.isDrawerOpen && teamState.selectedTeamDetail != null;
+          // 2. Main Two-Column Layout (Left Directory Table + Right Team Drawer)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 1150;
+              final isDrawerOpen = teamState.isDrawerOpen && teamState.selectedTeamDetail != null;
 
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left: Teams Directory Table
-                  Expanded(
-                    flex: isDrawerOpen ? 65 : 100,
-                    child: _buildTeamsDirectoryCard(teamState, isDark),
-                  ),
-                  if (isDrawerOpen) ...[
-                    const SizedBox(width: 18),
-                    // Right: Selected Team Details Panel / Drawer
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left: Teams Directory Table
                     Expanded(
-                      flex: 35,
-                      child: _buildSelectedTeamDrawer(teamState, isDark),
+                      flex: isDrawerOpen ? 65 : 100,
+                      child: _buildTeamsDirectoryCard(teamState, isDark),
                     ),
+                    if (isDrawerOpen) ...[
+                      const SizedBox(width: 18),
+                      // Right: Selected Team Details Panel / Drawer
+                      Expanded(
+                        flex: 35,
+                        child: _buildSelectedTeamDrawer(teamState, isDark),
+                      ),
+                    ],
                   ],
-                ],
-              );
-            } else {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTeamsDirectoryCard(teamState, isDark),
-                  if (isDrawerOpen) ...[
-                    const SizedBox(height: 20),
-                    _buildSelectedTeamDrawer(teamState, isDark),
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTeamsDirectoryCard(teamState, isDark),
+                    if (isDrawerOpen) ...[
+                      const SizedBox(height: 20),
+                      _buildSelectedTeamDrawer(teamState, isDark),
+                    ],
                   ],
-                ],
-              );
-            }
-          },
-        ),
-      ],
+                );
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -583,14 +620,9 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                 _buildFilterDropdown(
                   label: 'Department',
                   value: state.departmentFilter,
-                  items: const [
-                    DropdownMenuItem(value: 'ALL', child: Text('Department: All')),
-                    DropdownMenuItem(value: 'IT & Digitalization', child: Text('IT & Digitalization')),
-                    DropdownMenuItem(value: 'Academics', child: Text('Academics')),
-                    DropdownMenuItem(value: 'Examinations', child: Text('Examinations')),
-                    DropdownMenuItem(value: 'IT Operations', child: Text('IT Operations')),
-                    DropdownMenuItem(value: 'Administration', child: Text('Administration')),
-                    DropdownMenuItem(value: 'Library', child: Text('Library')),
+                  items: [
+                    const DropdownMenuItem(value: 'ALL', child: Text('Department: All')),
+                    ..._departments.map((dept) => DropdownMenuItem(value: dept, child: Text(dept))),
                   ],
                   onChanged: (v) => ref.read(workSprintTeamProvider.notifier).setDepartmentFilter(v ?? 'ALL'),
                   isDark: isDark,
@@ -604,8 +636,6 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   items: const [
                     DropdownMenuItem(value: 'NAME_ASC', child: Text('Sort By: Name (A-Z)')),
                     DropdownMenuItem(value: 'NAME_DESC', child: Text('Sort By: Name (Z-A)')),
-                    DropdownMenuItem(value: 'CAPACITY_DESC', child: Text('Sort By: Capacity (High-Low)')),
-                    DropdownMenuItem(value: 'UTIL_DESC', child: Text('Sort By: Utilization (%)')),
                     DropdownMenuItem(value: 'MEMBERS_DESC', child: Text('Sort By: Members Count')),
                   ],
                   onChanged: (v) => ref.read(workSprintTeamProvider.notifier).setSortBy(v ?? 'NAME_ASC'),
@@ -650,6 +680,41 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
             ),
           ),
           const Divider(height: 1),
+
+          // Bulk Action Toolbar when teams are selected
+          if (state.selectedTeamIds.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${state.selectedTeamIds.length} team(s) selected',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => _confirmBulkArchiveTeams(state.selectedTeamIds.toList(), isDark),
+                    icon: const Icon(Icons.archive_outlined, size: 15, color: Color(0xFFEF4444)),
+                    label: const Text('Archive Selected', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Clear selection',
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: () => ref.read(workSprintTeamProvider.notifier).toggleAllSelection(false),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Main Table or Grid View
           if (state.isLoading)
@@ -704,28 +769,57 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     required bool isDark,
     required Color borderColor,
   }) {
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: items.any((i) => i.value == value) ? value : items.first.value,
-          items: items,
-          onChanged: onChanged,
-          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-          ),
-          icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-        ),
-      ),
+    final itemStrings = items.map((i) {
+      final textWidget = i.child;
+      if (textWidget is Text) {
+        final raw = textWidget.data ?? '';
+        if (raw.toLowerCase().startsWith('${label.toLowerCase()}: ')) {
+          return raw.substring(label.length + 2).trim();
+        }
+        return raw;
+      }
+      return i.value ?? '';
+    }).toList();
+
+    String currentDisplay = value;
+    for (final i in items) {
+      if (i.value == value) {
+        if (i.child is Text) {
+          final raw = (i.child as Text).data ?? '';
+          if (raw.toLowerCase().startsWith('${label.toLowerCase()}: ')) {
+            currentDisplay = raw.substring(label.length + 2).trim();
+          } else {
+            currentDisplay = raw;
+          }
+        }
+        break;
+      }
+    }
+
+    return WorkSearchableDropdown(
+      label: label,
+      value: currentDisplay,
+      items: itemStrings,
+      compact: true,
+      onChanged: (selectedDisplay) {
+        String? selectedValue;
+        for (final i in items) {
+          if (i.child is Text) {
+            var raw = (i.child as Text).data ?? '';
+            if (raw.toLowerCase().startsWith('${label.toLowerCase()}: ')) {
+              raw = raw.substring(label.length + 2).trim();
+            }
+            if (raw == selectedDisplay) {
+              selectedValue = i.value;
+              break;
+            }
+          } else if (i.value == selectedDisplay) {
+            selectedValue = i.value;
+            break;
+          }
+        }
+        onChanged(selectedValue ?? selectedDisplay);
+      },
     );
   }
 
@@ -755,27 +849,19 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   ),
                   const SizedBox(width: 8),
                   const Expanded(
-                    flex: 30,
+                    flex: 38,
                     child: Text('Team Name ⇅', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
                   ),
                   const Expanded(
-                    flex: 18,
+                    flex: 24,
                     child: Text('Department', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
                   ),
                   const Expanded(
-                    flex: 14,
+                    flex: 22,
                     child: Text('Members', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
                   ),
                   const Expanded(
-                    flex: 12,
-                    child: Text('Capacity (h)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
-                  ),
-                  const Expanded(
-                    flex: 14,
-                    child: Text('Utilization', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
-                  ),
-                  const Expanded(
-                    flex: 10,
+                    flex: 16,
                     child: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
                   ),
                   const SizedBox(
@@ -821,7 +907,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
 
                         // Team Name & Icon
                         Expanded(
-                          flex: 30,
+                          flex: 38,
                           child: Row(
                             children: [
                               Container(
@@ -867,7 +953,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
 
                         // Department
                         Expanded(
-                          flex: 18,
+                          flex: 24,
                           child: Text(
                             team.department,
                             style: TextStyle(
@@ -879,55 +965,13 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
 
                         // Members Avatar Stack
                         Expanded(
-                          flex: 14,
+                          flex: 22,
                           child: _buildAvatarStack(team.members, team.memberCount),
-                        ),
-
-                        // Capacity (h)
-                        Expanded(
-                          flex: 12,
-                          child: Text(
-                            '${team.capacityHours.toInt()} h',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ),
-
-                        // Utilization
-                        Expanded(
-                          flex: 14,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${team.utilizationPct.toStringAsFixed(1)}%',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF10B981),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: LinearProgressIndicator(
-                                  value: (team.utilizationPct / 100.0).clamp(0.0, 1.0),
-                                  minHeight: 4,
-                                  backgroundColor: const Color(0xFFE2E8F0),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
 
                         // Status Badge
                         Expanded(
-                          flex: 10,
+                          flex: 16,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -1102,13 +1146,22 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined, size: 16),
+                                tooltip: 'Edit Team',
                                 onPressed: () => _openEditTeamDialog(team, isDark),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                 padding: EdgeInsets.zero,
                               ),
                               IconButton(
                                 icon: const Icon(Icons.copy_outlined, size: 16),
+                                tooltip: 'Duplicate Team',
                                 onPressed: () => _openDuplicateTeamDialog(team, isDark),
+                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                padding: EdgeInsets.zero,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                                tooltip: 'Archive Team',
+                                onPressed: () => _confirmDeleteTeam(team, isDark),
                                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                                 padding: EdgeInsets.zero,
                               ),
@@ -1140,12 +1193,17 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
         for (int i = 0; i < showCount.length; i++) ...[
           Transform.translate(
             offset: Offset(-i * 8.0, 0),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
+            child: Tooltip(
+              message: (showCount[i].email != null && showCount[i].email!.isNotEmpty)
+                  ? '${showCount[i].name} (${showCount[i].email})'
+                  : '${showCount[i].name} (${showCount[i].role})',
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: _buildAvatar(showCount[i].avatarUrl, showCount[i].name, size: 24),
               ),
-              child: _buildAvatar(showCount[i].avatarUrl, showCount[i].name, size: 24),
             ),
           ),
         ],
@@ -1333,16 +1391,80 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                     PopupMenuButton<String>(
                       icon: Icon(Icons.more_vert, size: 18, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                       onSelected: (val) {
+                        final matching = state.teams.where((t) => t.id == team.id);
+                        final dirTeam = matching.isNotEmpty
+                            ? matching.first
+                            : TeamDirectoryItemModel(
+                                id: team.id,
+                                name: team.name,
+                                teamKey: team.teamKey,
+                                department: team.department,
+                                description: team.description,
+                                icon: 'layers',
+                                color: '#2563EB',
+                                status: 'ACTIVE',
+                                isActive: true,
+                                tags: team.tags,
+                                goal: team.goal,
+                                lead: team.lead,
+                                memberCount: team.members.length,
+                                members: team.members,
+                                capacityHours: team.capacity.totalCapacityHours,
+                                plannedHours: team.capacity.plannedHours,
+                                remainingHours: team.capacity.remainingHours,
+                                utilizationPct: team.capacity.utilizationPct,
+                              );
                         if (val == 'edit') {
-                          final dirTeam = state.teams.firstWhere((t) => t.id == team.id);
                           _openEditTeamDialog(dirTeam, isDark);
+                        } else if (val == 'duplicate') {
+                          _openDuplicateTeamDialog(dirTeam, isDark);
                         } else if (val == 'add_member') {
                           _openAddMemberDialog(team.id, isDark);
+                        } else if (val == 'archive') {
+                          _confirmDeleteTeam(dirTeam, isDark);
                         }
                       },
                       itemBuilder: (ctx) => [
-                        const PopupMenuItem(value: 'edit', child: Text('Edit Team')),
-                        const PopupMenuItem(value: 'add_member', child: Text('Add Member')),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 15, color: Color(0xFF64748B)),
+                              SizedBox(width: 8),
+                              Text('Edit Team', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy_outlined, size: 15, color: Color(0xFF64748B)),
+                              SizedBox(width: 8),
+                              Text('Duplicate Team', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'add_member',
+                          child: Row(
+                            children: [
+                              Icon(Icons.person_add_outlined, size: 15, color: Color(0xFF2563EB)),
+                              SizedBox(width: 8),
+                              Text('Add Member', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'archive',
+                          child: Row(
+                            children: [
+                              Icon(Icons.archive_outlined, size: 15, color: Color(0xFFEF4444)),
+                              SizedBox(width: 8),
+                              Text('Archive Team', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444))),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     IconButton(
@@ -1451,7 +1573,16 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   const SizedBox(height: 12),
                   _buildMetaItem('Department', team.department, isDark),
                   const SizedBox(height: 12),
-                  _buildMetaItemWithAvatar('Team Lead', team.lead.name, team.lead.avatarUrl, isDark),
+                  _buildMetaItemWithAvatar(
+                    'Team Lead',
+                    team.lead.name,
+                    team.lead.avatarUrl,
+                    isDark,
+                    subtitle: team.lead.email,
+                    onUnassign: (team.lead.id != null && team.lead.name.toLowerCase() != 'unassigned')
+                        ? () => _confirmRemoveMember(team.id, team.lead.id!, team.lead.name, isDark)
+                        : null,
+                  ),
                 ],
               ),
             ),
@@ -1582,32 +1713,37 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: team.members.map((m) {
-              return Container(
-                width: 78,
-                margin: const EdgeInsets.only(right: 8),
-                child: Column(
-                  children: [
-                    _buildAvatar(m.avatarUrl, m.name, size: 38),
-                    const SizedBox(height: 6),
-                    Text(
-                      m.name,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+              return Tooltip(
+                message: (m.email != null && m.email!.isNotEmpty)
+                    ? '${m.name}\n${m.email}\n${m.role}'
+                    : '${m.name}\n${m.role}',
+                child: Container(
+                  width: 78,
+                  margin: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    children: [
+                      _buildAvatar(m.avatarUrl, m.name, size: 38),
+                      const SizedBox(height: 6),
+                      Text(
+                        m.name,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      m.role,
-                      style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      Text(
+                        m.role,
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -1788,28 +1924,74 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     );
   }
 
-  Widget _buildMetaItemWithAvatar(String label, String value, String? avatarUrl, bool isDark) {
+  Widget _buildMetaItemWithAvatar(
+    String label,
+    String value,
+    String? avatarUrl,
+    bool isDark, {
+    String? subtitle,
+    VoidCallback? onUnassign,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            ),
+            if (onUnassign != null)
+              InkWell(
+                onTap: onUnassign,
+                borderRadius: BorderRadius.circular(4),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.close, size: 12, color: Color(0xFFEF4444)),
+                      SizedBox(width: 2),
+                      Text(
+                        'Unassign',
+                        style: TextStyle(fontSize: 10, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            _buildAvatar(avatarUrl, value, size: 20),
-            const SizedBox(width: 6),
+            _buildAvatar(avatarUrl, value, size: 22),
+            const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -1886,7 +2068,25 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                             ],
                           ],
                         ),
-                        Text(m.role, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                        if (m.email != null && m.email!.isNotEmpty) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            m.email!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 2),
+                        Text(
+                          m.role,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1972,9 +2172,34 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
         ),
         const SizedBox(height: 12),
         if (team.workItems.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Center(child: Text('No work items assigned to this team in current sprint')),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.assignment_outlined, size: 32, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No work items assigned to ${team.name}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF1E293B)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Click "+ Tag Items to Team" to assign work items.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
           )
         else
           ListView.separated(
@@ -1984,6 +2209,11 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, idx) {
               final wi = team.workItems[idx];
+              final sprintBadgeText = (wi.sprintName != null && wi.sprintName!.isNotEmpty)
+                  ? wi.sprintName!
+                  : 'Backlog';
+              final isBacklog = sprintBadgeText.toLowerCase().contains('backlog');
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -2007,25 +2237,63 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          Text('${wi.type} • ${wi.status}', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: isBacklog
+                                      ? (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9))
+                                      : const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  sprintBadgeText,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    color: isBacklog
+                                        ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
+                                        : const Color(0xFF6366F1),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${wi.type} • ${wi.priority} • ${wi.status}',
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 6),
                     _buildAvatar(wi.assigneeAvatar, wi.assigneeName, size: 22),
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.link_off_rounded, size: 16, color: Color(0xFF94A3B8)),
-                      tooltip: 'Untag from Team',
+                      tooltip: 'Untag from ${team.name}',
                       onPressed: () async {
                         final api = ref.read(workApiServiceProvider);
                         final notifier = ref.read(workSprintTeamProvider.notifier);
                         final ok = await api.bulkUpdateWorkItems(itemIds: [wi.id], teamName: 'UNASSIGN');
                         if (!context.mounted) return;
                         if (ok) {
+                          api.invalidateCache();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Untagged ${wi.itemKey} from ${team.name}')),
                           );
-                          await notifier.loadTeamDetail(team.id);
+                          await notifier.loadTeamDetail(team.id, forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workSprintCapacityProvider.notifier).loadTeams(forceRefresh: true);
                         }
                       },
                     ),
@@ -2093,9 +2361,13 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     // Fetch available items
     List<WorkItemModel> availableItems = [];
     try {
-      final paged = await api.getItemsPaged(pageSize: 50);
+      final paged = await api.getItemsPaged(pageSize: 200, forceRefresh: true);
       if (paged['items'] is List) {
-        availableItems = (paged['items'] as List).map((i) => WorkItemModel.fromJson(i)).toList();
+        availableItems = (paged['items'] as List).map((i) {
+          if (i is WorkItemModel) return i;
+          if (i is Map<String, dynamic>) return WorkItemModel.fromJson(i);
+          return null;
+        }).whereType<WorkItemModel>().toList();
       }
     } catch (_) {}
 
@@ -2103,12 +2375,19 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
 
     final selectedIds = <String>{};
     String searchQuery = '';
+    String filterScope = 'ALL'; // 'ALL', 'UNTAGGED', 'ALREADY'
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final alreadyTaggedCount = availableItems.where((i) => (i.teamName ?? '').toLowerCase() == team.name.toLowerCase()).length;
+          final untaggedCount = availableItems.length - alreadyTaggedCount;
+
           final filtered = availableItems.where((item) {
+            final isAlready = (item.teamName ?? '').toLowerCase() == team.name.toLowerCase();
+            if (filterScope == 'UNTAGGED' && isAlready) return false;
+            if (filterScope == 'ALREADY' && !isAlready) return false;
             if (searchQuery.trim().isEmpty) return true;
             final q = searchQuery.toLowerCase();
             return item.title.toLowerCase().contains(q) || item.itemNumber.toLowerCase().contains(q);
@@ -2141,8 +2420,8 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
               ],
             ),
             content: SizedBox(
-              width: 520,
-              height: 420,
+              width: 540,
+              height: 460,
               child: Column(
                 children: [
                   TextField(
@@ -2155,7 +2434,24 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                     ),
                     onChanged: (v) => setDialogState(() => searchQuery = v),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+                  // Scope Filters
+                  Row(
+                    children: [
+                      _buildDialogFilterChip('All (${availableItems.length})', filterScope == 'ALL', () {
+                        setDialogState(() => filterScope = 'ALL');
+                      }, isDark),
+                      const SizedBox(width: 6),
+                      _buildDialogFilterChip('Untagged ($untaggedCount)', filterScope == 'UNTAGGED', () {
+                        setDialogState(() => filterScope = 'UNTAGGED');
+                      }, isDark),
+                      const SizedBox(width: 6),
+                      _buildDialogFilterChip('Already in ${team.name} ($alreadyTaggedCount)', filterScope == 'ALREADY', () {
+                        setDialogState(() => filterScope = 'ALREADY');
+                      }, isDark),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -2185,6 +2481,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                               final item = filtered[idx];
                               final isSelected = selectedIds.contains(item.id);
                               final isAlreadyInTeam = (item.teamName ?? '').toLowerCase() == team.name.toLowerCase();
+                              final sprintLabel = (item.sprintId != null && item.sprintId!.isNotEmpty) ? 'In Sprint' : 'Backlog';
 
                               return CheckboxListTile(
                                 value: isSelected,
@@ -2227,7 +2524,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                                       ),
                                   ],
                                 ),
-                                subtitle: Text('${item.workType} • ${item.priority} • ${item.status}', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                subtitle: Text('${item.workType} • ${item.priority} • ${item.status} • $sprintLabel', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                               );
                             },
                           ),
@@ -2252,13 +2549,18 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                         );
                         if (!context.mounted) return;
                         if (success) {
+                          api.invalidateCache();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Successfully tagged ${selectedIds.length} items to ${team.name}!'),
                               backgroundColor: const Color(0xFF10B981),
                             ),
                           );
-                          await notifier.loadTeamDetail(team.id);
+                          await notifier.loadTeamDetail(team.id, silent: true, forceRefresh: true);
+                          ref.read(workBoardProvider.notifier).loadBoard(forceRefresh: true);
+                          ref.read(workListProvider.notifier).loadPagedItems(forceRefresh: true);
+                          ref.read(workBacklogProvider.notifier).loadBacklog(forceRefresh: true);
+                          ref.read(workSprintCapacityProvider.notifier).loadTeams(forceRefresh: true);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -2278,15 +2580,38 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     );
   }
 
+  Widget _buildDialogFilterChip(String label, bool isSelected, VoidCallback onTap, bool isDark) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF6366F1)
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _openCreateTeamDialog(bool isDark) {
     final nameCtrl = TextEditingController();
     final keyCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final goalCtrl = TextEditingController();
-    String department = 'IT & Digitalization';
+    String department = _departments.isNotEmpty ? _departments.first : 'Academic / Teaching';
     String? selectedLeadId = _assignableUsers.isNotEmpty ? _assignableUsers.first.userId : null;
     String selectedIcon = 'layers';
-    double capacity = 280.0;
 
     showDialog(
       context: context,
@@ -2339,17 +2664,16 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                             const Text('Department', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                             const SizedBox(height: 6),
                             DropdownButtonFormField<String>(
-                              initialValue: department,
+                              initialValue: _departments.contains(department) ? department : (_departments.isNotEmpty ? _departments.first : null),
+                              isExpanded: true,
                               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                              items: const [
-                                DropdownMenuItem(value: 'IT & Digitalization', child: Text('IT & Digitalization')),
-                                DropdownMenuItem(value: 'Academics', child: Text('Academics')),
-                                DropdownMenuItem(value: 'Examinations', child: Text('Examinations')),
-                                DropdownMenuItem(value: 'IT Operations', child: Text('IT Operations')),
-                                DropdownMenuItem(value: 'Administration', child: Text('Administration')),
-                                DropdownMenuItem(value: 'Library', child: Text('Library')),
-                              ],
-                              onChanged: (v) => setDialogState(() => department = v ?? 'Academics'),
+                              items: _departments.map((d) {
+                                return DropdownMenuItem(
+                                  value: d,
+                                  child: Text(d, overflow: TextOverflow.ellipsis),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setDialogState(() => department = v ?? department),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -2363,21 +2687,36 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   const SizedBox(height: 12),
                   const Text('Team Lead', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedLeadId,
-                    isExpanded: true,
-                    dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                    items: _assignableUsers.map((u) {
-                      return DropdownMenuItem(
-                        value: u.userId,
-                        child: Text('${u.fullName} (${u.role})', overflow: TextOverflow.ellipsis),
+                  Builder(
+                    builder: (context) {
+                      final uniqueLeadUsers = <String, WorkAssigneeModel>{};
+                      for (final u in _assignableUsers) {
+                        if (u.userId.isNotEmpty) uniqueLeadUsers.putIfAbsent(u.userId, () => u);
+                      }
+                      final leadUserList = uniqueLeadUsers.values.toList();
+                      final effectiveLeadId = leadUserList.any((u) => u.userId == selectedLeadId) ? selectedLeadId : null;
+
+                      return DropdownButtonFormField<String>(
+                        initialValue: effectiveLeadId,
+                        isExpanded: true,
+                        dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                        items: leadUserList.map((u) {
+                          final label = (u.email != null && u.email!.isNotEmpty)
+                              ? '${u.fullName} (${u.email})'
+                              : '${u.fullName} (${u.role})';
+                          return DropdownMenuItem(
+                            value: u.userId,
+                            child: Text(label, overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setDialogState(() => selectedLeadId = v),
+                        decoration: InputDecoration(
+                          hintText: 'Select Team Lead...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
                       );
-                    }).toList(),
-                    onChanged: (v) => setDialogState(() => selectedLeadId = v),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
+                    },
                   ),
                   const SizedBox(height: 12),
                   const Text('Description', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
@@ -2423,7 +2762,6 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   'lead_id': selectedLeadId,
                   'description': descCtrl.text.trim(),
                   'goal': goalCtrl.text.trim(),
-                  'capacity_hours': capacity,
                   'icon': selectedIcon,
                 });
               },
@@ -2442,7 +2780,6 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     final descCtrl = TextEditingController(text: team.description);
     final goalCtrl = TextEditingController(text: team.goal);
     String department = team.department;
-    double capacity = team.capacityHours;
 
     showDialog(
       context: context,
@@ -2490,12 +2827,19 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Capacity (h)', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                            const Text('Department', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                             const SizedBox(height: 6),
-                            TextFormField(
-                              initialValue: capacity.toInt().toString(),
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) => capacity = double.tryParse(v) ?? capacity,
+                            DropdownButtonFormField<String>(
+                              initialValue: _departments.contains(department) ? department : (_departments.isNotEmpty ? _departments.first : null),
+                              isExpanded: true,
+                              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                              items: _departments.map((d) {
+                                return DropdownMenuItem(
+                                  value: d,
+                                  child: Text(d, overflow: TextOverflow.ellipsis),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setDialogState(() => department = v ?? department),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -2546,7 +2890,6 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   'department': department,
                   'description': descCtrl.text.trim(),
                   'goal': goalCtrl.text.trim(),
-                  'capacity_hours': capacity,
                 });
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
@@ -2558,96 +2901,302 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     );
   }
 
-  void _openAddMemberDialog(String teamId, bool isDark) {
-    String? selectedUserId = _assignableUsers.isNotEmpty ? _assignableUsers.first.userId : null;
-    String selectedRole = 'Developer';
-    double capacity = 40.0;
+  void _openAddMemberDialog(String teamId, bool isDark) async {
+    final teamState = ref.read(workSprintTeamProvider);
+    final existingMemberIds = teamState.selectedTeamDetail?.members.map((m) => m.userId).toSet() ?? {};
+    final selectedUserIds = <String>{};
+    String searchQuery = '';
+    String selectedRoleFilter = 'ALL';
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-          title: const Text('Add Member to Team', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select Institute User', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: selectedUserId,
-                isExpanded: true,
-                dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                items: _assignableUsers.map((u) {
-                  return DropdownMenuItem(
-                    value: u.userId,
-                    child: Text('${u.fullName} (${u.role})', overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-                onChanged: (v) => setDialogState(() => selectedUserId = v),
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        builder: (context, setDialogState) {
+          final roles = {'ALL', ..._assignableUsers.map((u) => u.role).where((r) => r.isNotEmpty)};
+
+          final filteredUsers = _assignableUsers.where((u) {
+            if (selectedRoleFilter != 'ALL' && u.role.toLowerCase() != selectedRoleFilter.toLowerCase()) {
+              return false;
+            }
+            if (searchQuery.trim().isEmpty) return true;
+            final q = searchQuery.toLowerCase();
+            final nameMatch = u.fullName.toLowerCase().contains(q);
+            final emailMatch = (u.email ?? '').toLowerCase().contains(q);
+            final roleMatch = u.role.toLowerCase().contains(q);
+            return nameMatch || emailMatch || roleMatch;
+          }).toList();
+
+          final availableCandidates = filteredUsers.where((u) => !existingMemberIds.contains(u.userId)).toList();
+          final allAvailableSelected = availableCandidates.isNotEmpty &&
+              availableCandidates.every((u) => selectedUserIds.contains(u.userId));
+
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_add_rounded, color: Color(0xFF2563EB), size: 20),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Team Role', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: selectedRole,
-                dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                items: const [
-                  DropdownMenuItem(value: 'Team Lead', child: Text('Team Lead')),
-                  DropdownMenuItem(value: 'Senior Developer', child: Text('Senior Developer')),
-                  DropdownMenuItem(value: 'UI/UX Designer', child: Text('UI/UX Designer')),
-                  DropdownMenuItem(value: 'Backend Developer', child: Text('Backend Developer')),
-                  DropdownMenuItem(value: 'QA Engineer', child: Text('QA Engineer')),
-                  DropdownMenuItem(value: 'DevOps Engineer', child: Text('DevOps Engineer')),
-                  DropdownMenuItem(value: 'System Analyst', child: Text('System Analyst')),
-                  DropdownMenuItem(value: 'Developer', child: Text('Developer')),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Assign Team Members', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Select multiple users in one shot to add to this team.',
+                        style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 540,
+              height: 480,
+              child: Column(
+                children: [
+                  // Search Box
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search user by name, email, or role...',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    onChanged: (v) => setDialogState(() => searchQuery = v),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Role Filter Chips
+                  if (roles.length > 2)
+                    SizedBox(
+                      height: 32,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: roles.map((r) {
+                          final isChipSelected = selectedRoleFilter == r;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(r == 'ALL' ? 'All Roles' : r, style: const TextStyle(fontSize: 11)),
+                              selected: isChipSelected,
+                              selectedColor: const Color(0xFF2563EB).withValues(alpha: 0.18),
+                              onSelected: (_) => setDialogState(() => selectedRoleFilter = r),
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+
+                  // Selection Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Users (${filteredUsers.length}) • ${selectedUserIds.length} selected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        ),
+                      ),
+                      if (availableCandidates.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              if (allAvailableSelected) {
+                                for (final u in availableCandidates) {
+                                  selectedUserIds.remove(u.userId);
+                                }
+                              } else {
+                                for (final u in availableCandidates) {
+                                  selectedUserIds.add(u.userId);
+                                }
+                              }
+                            });
+                          },
+                          child: Text(
+                            allAvailableSelected ? 'Deselect All' : 'Select All Available',
+                            style: const TextStyle(fontSize: 11.5),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 1),
+
+                  // User List
+                  Expanded(
+                    child: filteredUsers.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No users found matching search',
+                              style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filteredUsers.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (_, idx) {
+                              final u = filteredUsers[idx];
+                              final isAlreadyMember = existingMemberIds.contains(u.userId);
+                              final isSelected = selectedUserIds.contains(u.userId);
+
+                              return CheckboxListTile(
+                                value: isAlreadyMember ? true : isSelected,
+                                enabled: !isAlreadyMember,
+                                activeColor: isAlreadyMember ? const Color(0xFF94A3B8) : const Color(0xFF2563EB),
+                                onChanged: isAlreadyMember
+                                    ? null
+                                    : (val) {
+                                        setDialogState(() {
+                                          if (val == true) {
+                                            selectedUserIds.add(u.userId);
+                                          } else {
+                                            selectedUserIds.remove(u.userId);
+                                          }
+                                        });
+                                      },
+                                secondary: _buildAvatar(u.avatarUrl, u.fullName, size: 34),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        u.fullName,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isAlreadyMember)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          'Already in Team',
+                                          style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEFF6FF),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          u.role,
+                                          style: const TextStyle(fontSize: 10, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  u.email != null && u.email!.isNotEmpty
+                                      ? u.email!
+                                      : (u.department ?? u.role),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                dense: true,
+                                controlAffinity: ListTileControlAffinity.trailing,
+                              );
+                            },
+                          ),
+                  ),
                 ],
-                onChanged: (v) => setDialogState(() => selectedRole = v ?? 'Developer'),
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                ),
               ),
-              const SizedBox(height: 12),
-              const Text('Capacity (Hours / Sprint)', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(height: 6),
-              TextFormField(
-                initialValue: '40',
-                keyboardType: TextInputType.number,
-                onChanged: (v) => capacity = double.tryParse(v) ?? 40.0,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selectedUserIds.isEmpty
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        Navigator.pop(ctx);
+                        final idsList = selectedUserIds.toList();
+                        final success = await ref.read(workSprintTeamProvider.notifier).addMembers(teamId, idsList);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? 'Added ${idsList.length} member(s) to the team successfully!'
+                                    : 'Failed to add members to team.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  disabledBackgroundColor: const Color(0xFF93C5FD),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                child: Text(
+                  selectedUserIds.isEmpty ? 'Select Members' : 'Add Selected (${selectedUserIds.length})',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedUserId == null) return;
-                Navigator.pop(ctx);
-                await ref.read(workSprintTeamProvider.notifier).addMember(teamId, {
-                  'user_id': selectedUserId,
-                  'role': selectedRole,
-                  'capacity_hours': capacity,
-                  'is_lead': selectedRole == 'Team Lead',
-                });
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-              child: const Text('Add Member', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmBulkArchiveTeams(List<String> teamIds, bool isDark) {
+    if (teamIds.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+        title: Text('Archive ${teamIds.length} Teams?', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Are you sure you want to archive ${teamIds.length} selected teams? They will be removed from the active directory.',
+          style: const TextStyle(fontSize: 13),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final count = await ref.read(workSprintTeamProvider.notifier).deleteTeamsBulk(teamIds);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Archived $count team(s) successfully!')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Archive Selected', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -2744,8 +3293,21 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
-              await ref.read(workSprintTeamProvider.notifier).removeMember(teamId, userId);
+              final success = await ref.read(workSprintTeamProvider.notifier).removeMember(teamId, userId);
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Removed $memberName from the team successfully.'
+                          : 'Failed to remove $memberName from the team.',
+                    ),
+                    backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
             child: const Text('Remove', style: TextStyle(color: Colors.white)),

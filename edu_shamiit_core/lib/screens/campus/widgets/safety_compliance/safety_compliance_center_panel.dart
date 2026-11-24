@@ -340,9 +340,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        headingRowHeight: 34,
-        dataRowMinHeight: 32,
-        dataRowMaxHeight: 35,
+        headingRowHeight: 40,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 60,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -362,24 +362,37 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
             cells: [
               DataCell(Text(item.inspectionCode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary))),
               DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-                    Text(item.category, style: TextStyle(fontSize: 10.5, color: textMuted)),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(item.category, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textMuted)),
+                    ],
+                  ),
                 ),
               ),
-              DataCell(Text(item.locationDisplay, style: TextStyle(fontSize: 12, color: textPrimary))),
               DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.inspectorName, style: TextStyle(fontSize: 12, color: textPrimary)),
-                    Text(item.inspectorRole, style: TextStyle(fontSize: 10.5, color: textMuted)),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Text(item.locationDisplay, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary)),
+                ),
+              ),
+              DataCell(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item.inspectorName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(item.inspectorRole, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textMuted)),
+                    ],
+                  ),
                 ),
               ),
               DataCell(Text('${item.inspectionDate.day}/${item.inspectionDate.month}/${item.inspectionDate.year}', style: TextStyle(fontSize: 12, color: textMuted))),
@@ -447,9 +460,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        headingRowHeight: 34,
-        dataRowMinHeight: 32,
-        dataRowMaxHeight: 35,
+        headingRowHeight: 40,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 60,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -472,13 +485,17 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
             cells: [
               DataCell(Text(item.incidentCode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary))),
               DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-                    Text(item.incidentType, style: TextStyle(fontSize: 10.5, color: textMuted)),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(item.incidentType, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textMuted)),
+                    ],
+                  ),
                 ),
               ),
               DataCell(
@@ -590,9 +607,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        headingRowHeight: 34,
-        dataRowMinHeight: 32,
-        dataRowMaxHeight: 35,
+        headingRowHeight: 40,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 60,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -614,13 +631,17 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
             cells: [
               DataCell(Text(item.certificateCode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary))),
               DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-                    Text(item.issuingAuthority, style: TextStyle(fontSize: 10.5, color: textMuted)),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(item.issuingAuthority, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textMuted)),
+                    ],
+                  ),
                 ),
               ),
               DataCell(Text(item.category, style: TextStyle(fontSize: 12, color: textPrimary))),
@@ -692,9 +713,9 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
       child: DataTable(
         border: TableBorder(horizontalInside: BorderSide(color: borderColor, width: 0.8)),
         headingRowColor: WidgetStateProperty.all(headerBg),
-        headingRowHeight: 34,
-        dataRowMinHeight: 32,
-        dataRowMaxHeight: 35,
+        headingRowHeight: 40,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 60,
         columnSpacing: 18,
         columns: [
           DataColumn(label: Text('# Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textMuted))),
@@ -714,13 +735,17 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
             cells: [
               DataCell(Text(item.drillCode, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary))),
               DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(item.title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
-                    Text(item.drillType, style: TextStyle(fontSize: 10.5, color: textMuted)),
-                  ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(item.drillType, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: textMuted)),
+                    ],
+                  ),
                 ),
               ),
               DataCell(Text(item.locationDisplay, style: TextStyle(fontSize: 12, color: textPrimary))),

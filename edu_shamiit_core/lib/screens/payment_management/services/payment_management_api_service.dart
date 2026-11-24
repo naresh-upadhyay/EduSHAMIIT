@@ -1247,6 +1247,30 @@ class PaymentManagementApiService {
     }
   }
 
+  Future<Map<String, dynamic>> createBatchCohortSchedules({
+    required String targetClass,
+    String targetSection = 'All Sections',
+    String academicYear = '2026 - 2027',
+    bool autoDeductAdvanceCredit = true,
+    bool sendParentEmail = true,
+  }) async {
+    try {
+      final res = await _api.post(
+        '/v1/payment-management/student-fees/schedules/batch-from-cohort',
+        {
+          'target_class': targetClass,
+          'target_section': targetSection,
+          'academic_year': academicYear,
+          'auto_deduct_advance_credit': autoDeductAdvanceCredit,
+          'send_parent_email': sendParentEmail,
+        },
+      );
+      return Map<String, dynamic>.from(res);
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to batch schedule cohort: $e'};
+    }
+  }
+
   Future<Map<String, dynamic>> updateFeeScheduleRule(String ruleId, Map<String, dynamic> payload) async {
     try {
       final res = await _api.put(
@@ -1363,6 +1387,60 @@ class PaymentManagementApiService {
       return [];
     } catch (_) {
       return [];
+    }
+  }
+
+  /// Evaluates fee structure catalog against calendar rules to identify due heads vs protected future heads
+  Future<Map<String, dynamic>> getCohortDueFeeHeads({
+    required String classGrade,
+    required String sectionName,
+    String academicYear = '2026 - 2027',
+    String? referenceDate,
+  }) async {
+    try {
+      final encClass = Uri.encodeComponent(classGrade);
+      final encSec = Uri.encodeComponent(sectionName);
+      final encYear = Uri.encodeComponent(academicYear);
+      var url = '/v1/payment-management/student-fees/cohort-due-heads?class_grade=$encClass&section_name=$encSec&academic_year=$encYear';
+      if (referenceDate != null && referenceDate.isNotEmpty) {
+        url += '&reference_date=${Uri.encodeComponent(referenceDate)}';
+      }
+      final res = await _api.get(url, useCache: false);
+      if (res['success'] == true) {
+        return Map<String, dynamic>.from(res as Map);
+      }
+      return {'due_heads': [], 'future_heads': [], 'completed_heads': []};
+    } catch (_) {
+      return {'due_heads': [], 'future_heads': [], 'completed_heads': []};
+    }
+  }
+
+  /// 1-Click batch generator for all active due heads with advance credit deductions & parent emails
+  Future<Map<String, dynamic>> bulkGenerateCohortDueHeads({
+    required String targetClass,
+    required String targetSection,
+    String academicYear = '2026 - 2027',
+    List<String>? selectedHeadIds,
+    bool autoDeductAdvanceCredit = true,
+    bool sendParentEmail = true,
+    String? noticeStage,
+    String? referenceDate,
+  }) async {
+    try {
+      final payload = {
+        'target_class': targetClass,
+        'target_section': targetSection,
+        'academic_year': academicYear,
+        'selected_head_ids': selectedHeadIds ?? [],
+        'auto_deduct_advance_credit': autoDeductAdvanceCredit,
+        'send_parent_email': sendParentEmail,
+        if (noticeStage != null) 'notice_stage': noticeStage,
+        if (referenceDate != null) 'reference_date': referenceDate,
+      };
+      final res = await _api.post('/v1/payment-management/student-fees/invoices/bulk-generate-due-heads', payload);
+      return Map<String, dynamic>.from(res as Map);
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to batch generate due heads: $e'};
     }
   }
 }

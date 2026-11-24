@@ -278,9 +278,21 @@ class _SprintTaskBoardViewState extends ConsumerState<SprintTaskBoardView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _statuses.map((status) {
                   final columnItems = allSprintItems.where((i) {
-                    final s = i.status.toUpperCase();
+                    final s = i.status.trim().toUpperCase();
+                    if (status == 'NEW') {
+                      return s == 'NEW' || s == 'OPEN' || s == 'PLANNED' || s == 'NOT STARTED' || s == 'NOT_STARTED' || s == 'TODO';
+                    }
+                    if (status == 'ACTIVE') {
+                      return s == 'ACTIVE' || s == 'CRITICAL';
+                    }
                     if (status == 'IN PROGRESS') {
-                      return s == 'IN PROGRESS' || s == 'IN_PROGRESS';
+                      return s == 'IN PROGRESS' || s == 'IN_PROGRESS' || s == 'DOING';
+                    }
+                    if (status == 'RESOLVED') {
+                      return s == 'RESOLVED' || s == 'TESTING' || s == 'QA' || s == 'CODE REVIEW';
+                    }
+                    if (status == 'COMPLETED') {
+                      return s == 'COMPLETED' || s == 'CLOSED' || s == 'DONE';
                     }
                     return s == status;
                   }).toList();

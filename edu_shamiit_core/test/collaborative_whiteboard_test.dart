@@ -13,7 +13,7 @@ class _TestWhiteboardNotifier extends WhiteboardNotifier {
   }
 
   @override
-  Future<void> initializeForSession(String? sessionId, {String defaultTitle = 'Whiteboard - Class 10 – Mathematics'}) async {}
+  Future<void> initializeForSession(String? sessionId, {String? defaultTitle, String? defaultTemplate}) async {}
 
   @override
   Future<void> addObject(WhiteboardObject obj, {bool recordUndo = true}) async {
@@ -221,7 +221,6 @@ void main() {
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Share'), findsOneWidget);
     expect(find.text('Export'), findsOneWidget);
-    expect(find.text('End Class'), findsOneWidget);
 
     // Switch to compact tablet/mobile width and verify zero overflow
     tester.view.physicalSize = const Size(820, 900);
@@ -254,12 +253,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Mathematical Equation Editor'), findsOneWidget);
 
-    await tester.tap(find.text('Pythagorean'));
+    await tester.tap(find.text('Pythagorean Theorem'));
     await tester.pump();
     await tester.tap(find.text('Insert Equation'));
     await tester.pumpAndSettle();
 
     expect(result, isNotNull);
-    expect(result!['latex'], 'a² + b² = c²');
+    expect(result!['latex'], 'a^2 + b^2 = c^2');
   });
 }

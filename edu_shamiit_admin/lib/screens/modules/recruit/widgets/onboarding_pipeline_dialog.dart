@@ -596,9 +596,11 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
                           ),
                         )
                       : SingleChildScrollView(
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: DataTable(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 850),
+                              child: DataTable(
                               columnSpacing: 20,
                               horizontalMargin: 12,
                               headingRowHeight: 42,
@@ -710,6 +712,7 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
                             ),
                           ),
                         ),
+                      ),
             ),
 
             // Pagination Footer

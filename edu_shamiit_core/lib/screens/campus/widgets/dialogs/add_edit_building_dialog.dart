@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../config/app_config.dart';
 import '../../models/campus_models.dart';
 import '../../services/campus_api_service.dart';
 import '../../services/campus_lookup_helper.dart';
@@ -195,8 +197,14 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
       );
       if (picked == null || !mounted) return;
 
-      final croppedBytes = await _cropImage(picked.path);
-      if (croppedBytes == null || !mounted) return; // User cancelled crop
+      Uint8List? imageBytes;
+      try {
+        imageBytes = await _cropImage(picked.path);
+      } catch (cropErr) {
+        debugPrint('Image crop skipped or unsupported: $cropErr');
+      }
+      imageBytes ??= await picked.readAsBytes();
+      if (imageBytes.isEmpty || !mounted) return;
 
       String filename = picked.name;
       if (!filename.contains('.')) {
@@ -204,17 +212,23 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
       }
 
       setState(() {
-        _pickedImageBytes = croppedBytes;
+        _pickedImageBytes = imageBytes;
         _pickedImageName = filename;
         _isUploadingImage = true;
       });
 
-      final uploadedUrl = await CampusApiService.instance.uploadImage(croppedBytes, filename);
+      final uploadedUrl = await CampusApiService.instance.uploadImage(imageBytes, filename);
       if (mounted) {
         setState(() {
           _isUploadingImage = false;
           if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
             _imageCtrl.text = uploadedUrl;
+          } else {
+            // Robust Base64 fallback so image is never lost and preview always displays!
+            final b64 = base64Encode(imageBytes!);
+            final ext = filename.split('.').last.toLowerCase();
+            final mime = ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+            _imageCtrl.text = 'data:$mime;base64,$b64';
           }
         });
       }
@@ -797,13 +811,21 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                                       color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
                                       child: _pickedImageBytes != null
                                           ? Image.memory(_pickedImageBytes!, fit: BoxFit.cover)
-                                          : Image.network(
-                                              _imageCtrl.text.trim(),
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const Center(
-                                                child: Icon(Icons.broken_image, size: 36, color: Colors.grey),
-                                              ),
-                                            ),
+                                          : (_imageCtrl.text.trim().startsWith('data:')
+                                              ? Image.memory(
+                                                  base64Decode(_imageCtrl.text.trim().split(',').last),
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => const Center(
+                                                    child: Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                                                  ),
+                                                )
+                                              : Image.network(
+                                                  AppConfig.resolveUrl(_imageCtrl.text.trim()),
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => const Center(
+                                                    child: Icon(Icons.broken_image, size: 36, color: Colors.grey),
+                                                  ),
+                                                )),
                                     ),
                                   ),
                                   const SizedBox(height: 10),

@@ -4315,7 +4315,9 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                     child: loading
                         ? const Center(child: CircularProgressIndicator())
                         : SingleChildScrollView(
-                            child: DataTable(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
                               headingRowColor:
                                   WidgetStateProperty.all(_innerCardBg),
                               dividerThickness: 1,
@@ -4497,6 +4499,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                               }).toList(),
                             ),
                           ),
+                        ),
                   ),
                   Divider(height: 20, color: _cardBorder),
                   Row(

@@ -30,6 +30,7 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
   String _status = 'Reported';
   bool _firstAidProvided = false;
   DateTime _incidentTime = DateTime.now();
+  bool _isSaving = false;
 
   List<String> _severities = [];
   List<String> _incidentTypes = [];
@@ -314,7 +315,7 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),
@@ -322,10 +323,17 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFDC2626),
+                          disabledBackgroundColor: const Color(0xFFFCA5A5),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                         ),
-                        onPressed: _submit,
-                        child: const Text('Save Incident', overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        onPressed: _isSaving ? null : _submit,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Save Incident', overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -339,7 +347,10 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
   }
 
   void _submit() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
 
     final payload = {
       'title': _titleController.text.trim(),
@@ -357,10 +368,23 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
       'incident_time': _incidentTime.toIso8601String(),
     };
 
-    final notifier = ref.read(safetyComplianceProvider.notifier);
-    final success = await notifier.saveIncident(payload, incidentId: widget.existingIncident?.id);
-    if (mounted && success) {
-      Navigator.pop(context);
+    try {
+      final notifier = ref.read(safetyComplianceProvider.notifier);
+      final success = await notifier.saveIncident(payload, incidentId: widget.existingIncident?.id);
+      if (mounted) {
+        if (success) {
+          Navigator.pop(context, true);
+        } else {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save incident. Please try again.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

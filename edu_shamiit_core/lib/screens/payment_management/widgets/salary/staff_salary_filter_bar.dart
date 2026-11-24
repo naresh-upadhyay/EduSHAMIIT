@@ -456,7 +456,7 @@ class StaffSalaryFilterBar extends ConsumerWidget {
           elevation: 0,
         ),
         icon: const Icon(Icons.add_rounded, size: 18),
-        label: const Text('+ Add Structure', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        label: const Text('Add Structure', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         onPressed: () {
           showDialog(
             context: context,

@@ -78,6 +78,8 @@ class FakeWorkApiService extends WorkApiService {
     String entryId, {
     required String category,
     required String content,
+    String? teamId,
+    String? teamName,
   }) async => true;
 
   Future<bool> moveRetroFeedbackEntry(String entryId, String newCategory) async => true;
@@ -168,11 +170,12 @@ void main() {
         ),
       );
 
-      // Verify the 4 primary tabs are present
+      // Verify the primary tabs are present
       expect(find.text('Board'), findsOneWidget);
       expect(find.text('List'), findsOneWidget);
       expect(find.text('Backlog'), findsOneWidget);
       expect(find.text('Sprints'), findsOneWidget);
+      expect(find.text('Team'), findsOneWidget);
 
       // Verify ghost tabs are NOT present
       expect(find.text('Calendar'), findsNothing);
@@ -192,6 +195,10 @@ void main() {
       await tester.tap(find.text('Sprints'));
       await tester.pump();
       expect(activeIndex, 3);
+
+      await tester.tap(find.text('Team'));
+      await tester.pump();
+      expect(activeIndex, 4);
 
       await tester.tap(find.text('Board'));
       await tester.pump();
@@ -481,6 +488,33 @@ void main() {
       final updatedWorkspace = container.read(workSprintRetroProvider).workspace;
       final inWentPoorly = updatedWorkspace?.didNotGoWell.entries.any((e) => e.id == entryToMove.id) ?? false;
       expect(inWentPoorly, true);
+    });
+  });
+
+  group('7. Live DB Refresh on Tab Switch & List Tab Filter Synchronization', () {
+    test('WorkListNotifier loads paged items and setFilter properly updates board and type', () async {
+      final fakeApi = FakeWorkApiService();
+      final container = ProviderContainer(
+        overrides: [
+          workApiServiceProvider.overrideWithValue(fakeApi),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(workListProvider.notifier);
+      expect(notifier.state.boardId, isNull);
+
+      // Test setFilter
+      notifier.setFilter(boardId: '31dacd93-15ee-4eed-8994-56973fd81245', workType: 'STORY', status: 'ACTIVE');
+      expect(notifier.state.boardId, '31dacd93-15ee-4eed-8994-56973fd81245');
+      expect(notifier.state.workType, 'STORY');
+      expect(notifier.state.status, 'ACTIVE');
+
+      // Test reset filter and clear board
+      notifier.setFilter(workType: 'All', status: 'All', clearBoard: true);
+      expect(notifier.state.workType, 'All');
+      expect(notifier.state.status, 'All');
+      expect(notifier.state.boardId, isNull);
     });
   });
 }

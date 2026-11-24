@@ -56,6 +56,8 @@ class MockWorkBacklogNotifier extends WorkBacklogNotifier {
     String? status,
     String? priority,
     String? assigneeId,
+    List<String>? assigneeIds,
+    List<WorkAssigneeModel>? assignees,
     String? sprintId,
     String? teamId,
     String? teamName,
@@ -213,19 +215,17 @@ void main() {
     await tester.pumpWidget(createBacklogWidget());
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Find EP-003 in RichText
-    final ep3Finder = find.byWidgetPredicate(
-      (widget) => widget is RichText && widget.text.toPlainText().contains('EP-003'),
-    );
+    // Find EP-003
+    final ep3Finder = find.textContaining('EP-003');
     expect(ep3Finder, findsWidgets);
 
     // Tap on EP-003
     await tester.tap(ep3Finder.first);
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Center banner should now display EP-003
+    // Center banner should now display EP-003 with dynamic work items count
     expect(find.textContaining('EP-003'), findsWidgets);
-    expect(find.textContaining('24'), findsWidgets);
+    expect(find.textContaining('work items'), findsWidgets);
   });
 
   testWidgets('Multiselect Checkboxes: Toggling story checkbox selects items and shows selection action bar', (tester) async {

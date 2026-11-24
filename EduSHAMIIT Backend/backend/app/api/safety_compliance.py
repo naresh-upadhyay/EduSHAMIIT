@@ -110,6 +110,7 @@ class SafetyInspectionCreateUpdateSchema(BaseModel):
     location_display: str = Field(..., min_length=1, max_length=150)
     inspector_name: str = Field(default="Safety Officer")
     inspector_role: str = Field(default="Safety Officer")
+    inspector_user_id: Optional[str] = None
     inspection_date: Optional[date] = None
     status: str = Field(default="Passed")
     compliance_score: Optional[float] = 95.0

@@ -16,7 +16,6 @@ import '../widgets/live_class_chat_panel.dart';
 import '../widgets/live_class_stat_card.dart';
 import '../widgets/live_classroom_stage.dart';
 import '../whiteboard/providers/whiteboard_provider.dart';
-import '../whiteboard/widgets/whiteboard_workspace.dart';
 import '../streaming/streaming_and_broadcast_workspace.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/role_provider.dart';
@@ -50,6 +49,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
   // Subnav switcher: defaults to 'My Classes (Today)' matching the primary requirement
   String _selectedSubnav = 'My Classes (Today)';
+  StageMode _classroomStageMode = StageMode.teacherPresentation;
   bool _isStageFullscreen = false;
   final TextEditingController _searchCtrl = TextEditingController();
   final GlobalKey<LiveClassChatPanelState> _chatPanelKey = GlobalKey<LiveClassChatPanelState>();
@@ -1006,7 +1006,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
       template = 'concept_mind_map';
     }
 
-    setState(() => _selectedSubnav = 'Open Whiteboard');
+    setState(() {
+      _selectedSubnav = 'Conduct Class';
+      _classroomStageMode = StageMode.interactiveWhiteboard;
+    });
     ref.read(whiteboardProvider.notifier).initializeForSession(
           sid,
           defaultTitle: title,
@@ -1021,7 +1024,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
       (Icons.person_add_alt_1_rounded, 'Guest Join'),
       (Icons.headphones_outlined, 'Device & Audio Test'),
       (Icons.poll_outlined, 'Live Polls & Q&A'),
-      (Icons.draw_outlined, 'Open Whiteboard'),
       (Icons.podcasts_rounded, 'Streaming & Broadcast'),
     ];
 
@@ -1103,6 +1105,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         child: LiveClassroomStage(
           session: activeSess,
           isFullscreen: true,
+          initialStageMode: _classroomStageMode,
           onToggleFullscreen: () {
             setState(() => _isStageFullscreen = false);
             leaveBrowserFullscreen();
@@ -1229,6 +1232,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           child: LiveClassroomStage(
                             session: activeSess,
                             isFullscreen: _isStageFullscreen,
+                            initialStageMode: _classroomStageMode,
                             onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
                             onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
                             onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
@@ -1262,36 +1266,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       ] else ...[
                         _buildNoLiveClassView(),
                       ],
-                    ] else if (_selectedSubnav == 'Open Whiteboard') ...[
-                      SizedBox(
-                        height: (MediaQuery.of(context).size.height - 180).clamp(620.0, 920.0),
-                        child: WhiteboardWorkspace(
-                          sessionId: activeSess?.id ?? state.selectedMyClass?.id,
-                          sessionTitle: activeSess != null
-                              ? 'Whiteboard - ${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
-                              : (state.selectedMyClass != null
-                                  ? 'Whiteboard - ${state.selectedMyClass!.classSection} : ${state.selectedMyClass!.subjectName} – ${state.selectedMyClass!.topic}'
-                                  : 'Whiteboard - Class 12 - A – Chemistry'),
-                          onBackToClassroom: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                          onOpenPolls: _showLivePollsDialog,
-                          onOpenQA: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                          onLeaveClass: () async {
-                            if (activeSess != null) {
-                              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
-                          onEndClass: () {
-                            if (activeSess != null) {
-                              ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Live class ended & whiteboard saved.')),
-                              );
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
-                        ),
-                      ),
                     ] else if (_selectedSubnav == 'Class Settings') ...[
                       _buildClassSettingsWorkspace(state, constraints),
                     ] else if (_selectedSubnav == 'Join via Code') ...[
@@ -1330,6 +1304,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                           child: LiveClassroomStage(
                             session: activeSess,
                             isFullscreen: _isStageFullscreen,
+                            initialStageMode: _classroomStageMode,
                             onToggleFullscreen: () => setState(() => _isStageFullscreen = !_isStageFullscreen),
                             onOpenChat: () => _chatPanelKey.currentState?.selectTab(1),
                             onOpenParticipants: () => _chatPanelKey.currentState?.selectTab(0),
@@ -1370,38 +1345,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                         child: _buildNoLiveClassView(),
                       ),
                     ],
-                  ] else if (_selectedSubnav == 'Open Whiteboard') ...[
-                    Expanded(
-                      child: SizedBox(
-                        height: (MediaQuery.of(context).size.height - 180).clamp(620.0, 920.0),
-                        child: WhiteboardWorkspace(
-                          sessionId: activeSess?.id ?? state.selectedMyClass?.id,
-                          sessionTitle: activeSess != null
-                              ? 'Whiteboard - ${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
-                              : (state.selectedMyClass != null
-                                  ? 'Whiteboard - ${state.selectedMyClass!.classSection} : ${state.selectedMyClass!.subjectName} – ${state.selectedMyClass!.topic}'
-                                  : 'Whiteboard - Class 12 - A – Chemistry'),
-                          onBackToClassroom: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                          onOpenPolls: _showLivePollsDialog,
-                          onOpenQA: () => setState(() => _selectedSubnav = 'Conduct Class'),
-                          onLeaveClass: () async {
-                            if (activeSess != null) {
-                              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
-                          onEndClass: () {
-                            if (activeSess != null) {
-                              ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Live class ended & whiteboard saved.')),
-                              );
-                            }
-                            setState(() => _selectedSubnav = 'My Classes (Today)');
-                          },
-                        ),
-                      ),
-                    ),
                   ] else if (_selectedSubnav == 'Class Settings') ...[
                     Expanded(
                       child: _buildClassSettingsWorkspace(state, constraints),
@@ -1568,19 +1511,23 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                 ? state.myClassesList.length
                 : (conductStats?.todaysClasses ?? 1)));
 
-    final totalLiveStudents = (selClass?.viewerCount != null && selClass!.viewerCount > 0)
-        ? selClass.viewerCount
-        : ((myDash?.totalStudents != null && myDash!.totalStudents > 0)
-            ? myDash.totalStudents
-            : (conductStats?.totalParticipantsLive ?? 43));
+    final roomService = ref.watch(liveRoomServiceProvider);
+    final realJoinedCount = roomService.participantTracks.where((t) => !t.isScreenShare).length;
+    final totalLiveStudents = realJoinedCount > 0
+        ? realJoinedCount
+        : (state.conductSessionData?.participants.isNotEmpty == true
+            ? state.conductSessionData!.participants.length
+            : ((selClass?.viewerCount != null && selClass!.viewerCount > 0)
+                ? selClass.viewerCount
+                : (state.conductSessionData != null ? 1 : 0)));
 
     final liveCount = (myDash?.ongoingLive != null && myDash!.ongoingLive > 0)
         ? myDash.ongoingLive
         : (state.conductSessionData != null ? 1 : (conductStats?.liveNow ?? 1));
 
-    final recInProgress = selClass != null
-        ? (selClass.recordingEnabled ? 1 : 0)
-        : (conductStats?.recordingInProgress ?? 1);
+    final bool isRecordingActive = roomService.isRecording ||
+        (state.conductSessionData?.activeSession.recordingStatus.toUpperCase() == 'RECORDING');
+    final recInProgress = isRecordingActive ? 1 : 0;
 
     final avgDuration = (selClass?.durationMinutes != null && selClass!.durationMinutes > 0)
         ? '${selClass.durationMinutes} min'
@@ -1777,7 +1724,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           _buildSubnavItem(Icons.settings_outlined, 'Class Settings'),
           _buildSubnavItem(Icons.headphones_outlined, 'Device & Audio Test'),
           _buildSubnavItem(Icons.poll_outlined, 'Live Polls & Q&A'),
-          _buildSubnavItem(Icons.draw_outlined, 'Open Whiteboard'),
           _buildSubnavItem(Icons.podcasts_rounded, 'Streaming & Broadcast'),
         ],
       ),
@@ -1801,8 +1747,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           _showDeviceTestDialog();
         } else if (label == 'Live Polls & Q&A') {
           _showLivePollsDialog();
-        } else if (label == 'Open Whiteboard') {
-          _openWhiteboardWorkspace();
         } else if (label == 'Streaming & Broadcast') {
           setState(() => _selectedSubnav = 'Streaming & Broadcast');
         } else {

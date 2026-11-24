@@ -178,7 +178,9 @@ class ApiService {
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
@@ -197,7 +199,9 @@ class ApiService {
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
@@ -216,7 +220,9 @@ class ApiService {
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
@@ -230,7 +236,9 @@ class ApiService {
       final response = await _client
           .delete(uri, headers: await _headers)
           .timeout(AppConfig.apiTimeout);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(e.toString().replaceAll(RegExp(r'^(ApiException:|Exception:|\s*Api)+', caseSensitive: false), '').trim());
@@ -296,7 +304,9 @@ class ApiService {
       final streamedResponse =
           await request.send().timeout(AppConfig.apiTimeout);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       throw ApiException('Multipart POST failed: $e');
     }
@@ -349,7 +359,9 @@ class ApiService {
 
       final streamedResponse = await request.send().timeout(AppConfig.apiTimeout);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response);
+      final res = _handleResponse(response);
+      clearCache();
+      return res;
     } catch (e) {
       throw ApiException('Multipart POST (bytes) failed: $e');
     }

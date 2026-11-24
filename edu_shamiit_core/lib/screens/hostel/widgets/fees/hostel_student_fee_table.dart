@@ -1024,46 +1024,52 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   )
                 : SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Billing Period', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Paid', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Balance', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                      ],
-                      rows: invoices.map((inv) {
-                        final isPaid = inv.status.toUpperCase() == 'PAID';
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(inv.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)))),
-                            DataCell(Text(inv.studentName ?? 'Student')),
-                            DataCell(Text(inv.billingPeriod)),
-                            DataCell(Text('₹ ${inv.netAmount.toInt()}')),
-                            DataCell(Text('₹ ${inv.paidAmount.toInt()}')),
-                            DataCell(Text('₹ ${inv.balanceAmount.toInt()}', style: TextStyle(color: inv.balanceAmount > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: isPaid ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  inv.status,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: isPaid ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 800),
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Billing Period', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Paid', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Balance', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
+                          ],
+                          rows: invoices.map((inv) {
+                            final isPaid = inv.status.toUpperCase() == 'PAID';
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(inv.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)))),
+                                DataCell(Text(inv.studentName ?? 'Student')),
+                                DataCell(Text(inv.billingPeriod)),
+                                DataCell(Text('₹ ${inv.netAmount.toInt()}')),
+                                DataCell(Text('₹ ${inv.paidAmount.toInt()}')),
+                                DataCell(Text('₹ ${inv.balanceAmount.toInt()}', style: TextStyle(color: inv.balanceAmount > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)))),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isPaid ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      inv.status,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isPaid ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
                   ),
           ),
@@ -1158,39 +1164,45 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   )
                 : SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Receipt #', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Method', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                      ],
-                      rows: payments.map((pmt) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(pmt.receiptNumber, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)))),
-                            DataCell(Text(pmt.studentName ?? 'Student')),
-                            DataCell(Text(pmt.amountFormatted, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF16A34A)))),
-                            DataCell(Text(pmt.paymentMethod)),
-                            DataCell(Text(pmt.paymentDate ?? 'Recent')),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDCFCE7),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  pmt.status,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF15803D)),
-                                ),
-                              ),
-                            ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 750),
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Receipt #', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Method', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
                           ],
-                        );
-                      }).toList(),
+                          rows: payments.map((pmt) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(pmt.receiptNumber, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2563EB)))),
+                                DataCell(Text(pmt.studentName ?? 'Student')),
+                                DataCell(Text(pmt.amountFormatted, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF16A34A)))),
+                                DataCell(Text(pmt.paymentMethod)),
+                                DataCell(Text(pmt.paymentDate ?? 'Recent')),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      pmt.status,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF15803D)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
                   ),
           ),
@@ -1274,56 +1286,62 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   )
                 : SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Reason', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Requested Date', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                        DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.w700))),
-                      ],
-                      rows: refunds.map((rf) {
-                        final status = rf['status']?.toString() ?? rf['refund_status']?.toString() ?? 'PENDING';
-                        final isPending = status.toUpperCase() == 'PENDING';
-                        final rfId = rf['id']?.toString() ?? '';
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(rf['student_name']?.toString() ?? 'Resident')),
-                            DataCell(Text('₹ ${(rf['amount'] as num?)?.toInt() ?? 0}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                            DataCell(Text(rf['reason']?.toString() ?? 'Caution Deposit Refund')),
-                            DataCell(Text(rf['created_at']?.toString().split('T')[0] ?? 'Recent')),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: isPending ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  status,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: isPending ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 750),
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Reason', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Requested Date', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
+                            DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.w700))),
+                          ],
+                          rows: refunds.map((rf) {
+                            final status = rf['status']?.toString() ?? rf['refund_status']?.toString() ?? 'PENDING';
+                            final isPending = status.toUpperCase() == 'PENDING';
+                            final rfId = rf['id']?.toString() ?? '';
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(rf['student_name']?.toString() ?? 'Resident')),
+                                DataCell(Text('₹ ${(rf['amount'] as num?)?.toInt() ?? 0}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                                DataCell(Text(rf['reason']?.toString() ?? 'Caution Deposit Refund')),
+                                DataCell(Text(rf['created_at']?.toString().split('T')[0] ?? 'Recent')),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isPending ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isPending ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            DataCell(
-                              isPending
-                                  ? TextButton(
-                                      onPressed: () async {
-                                        await notifier.approveRefund(rfId, {'status': 'APPROVED'});
-                                        notifier.showSuccess('Refund request approved');
-                                      },
-                                      child: const Text('Approve'),
-                                    )
-                                  : const Text('Settled', style: TextStyle(color: Color(0xFF64748B))),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                                DataCell(
+                                  isPending
+                                      ? TextButton(
+                                          onPressed: () async {
+                                            await notifier.approveRefund(rfId, {'status': 'APPROVED'});
+                                            notifier.showSuccess('Refund request approved');
+                                          },
+                                          child: const Text('Approve'),
+                                        )
+                                      : const Text('Settled', style: TextStyle(color: Color(0xFF64748B))),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
                   ),
           ),

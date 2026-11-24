@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
-import '../../providers/campus_provider.dart';
 import '../../providers/facilities_provider.dart';
 import '../common/campus_pagination_bar.dart';
 import 'dialogs/add_edit_facility_dialog.dart';
 import '../space_booking/dialogs/create_edit_booking_dialog.dart';
+import '../maintenance/dialogs/create_edit_maintenance_dialog.dart';
 
 class FacilitiesTabView extends ConsumerStatefulWidget {
   const FacilitiesTabView({super.key});
@@ -82,16 +82,55 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
     }
   }
 
+  void _reportFacilityIssue(Map<String, dynamic> f) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CreateEditMaintenanceDialog(
+        initialFacilityId: f['id']?.toString(),
+        initialFacilityName: f['name']?.toString(),
+        initialLocation: f['name']?.toString(),
+        initialBuildingId: f['building_id']?.toString(),
+        initialFloorId: f['floor_id']?.toString(),
+        initialTitle: 'Maintenance: ${f['name'] ?? 'Campus Facility'}',
+        onSaved: () {
+          ref.read(facilitiesProvider.notifier).loadData();
+        },
+      ),
+    );
+  }
+
   void _bookFacility(Map<String, dynamic> f) {
-    ref.read(campusProvider.notifier).setActiveCampusTab(2); // Jump to Space Booking tab
-    final roomId = f['room_id'] ?? f['id'];
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => CreateEditBookingDialog(
-        preselectedRoomId: roomId?.toString(),
+        initialFacilityId: f['id']?.toString(),
+        initialFacilityName: f['name']?.toString(),
+        initialFacilityCategory: f['category']?.toString(),
+        initialFacilityCapacity: int.tryParse(f['capacity']?.toString() ?? ''),
+        initialBuildingId: f['building_id']?.toString(),
+        initialFloorId: f['floor_id']?.toString(),
+        initialPurpose: _suggestPurposeForFacility(f['category']?.toString()),
+        onSaved: () {
+          ref.read(facilitiesProvider.notifier).loadData();
+        },
       ),
     );
+  }
+
+  String _suggestPurposeForFacility(String? category) {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('sport') || cat.contains('ground') || cat.contains('gym') || cat.contains('pool')) {
+      return 'Sports Event';
+    } else if (cat.contains('auditorium') || cat.contains('theatre') || cat.contains('amphitheater')) {
+      return 'Cultural Event';
+    } else if (cat.contains('lab')) {
+      return 'Workshop';
+    } else if (cat.contains('health') || cat.contains('clinic') || cat.contains('dispensary')) {
+      return 'Other Special Event';
+    }
+    return 'Other Special Event';
   }
 
   @override
@@ -476,6 +515,13 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                                   onPressed: () => _deleteFacility(f),
                                 ),
                                 IconButton(
+                                  icon: const Icon(Icons.build_rounded, size: 15, color: Color(0xFFF59E0B)),
+                                  tooltip: 'Report Maintenance Issue',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                  onPressed: () => _reportFacilityIssue(f),
+                                ),
+                                IconButton(
                                   icon: Icon(Icons.event_seat_rounded, size: 15, color: primaryColor),
                                   tooltip: 'Book in Space Booking',
                                   padding: EdgeInsets.zero,
@@ -700,9 +746,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () {
-                      ref.read(campusProvider.notifier).setActiveCampusTab(3); // Jump to Maintenance
-                    },
+                    onPressed: () => _reportFacilityIssue(f),
                     icon: const Icon(Icons.build_rounded, size: 12),
                     label: const Text('Report Issue', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(

@@ -556,10 +556,24 @@ class CampusNotifier extends StateNotifier<CampusState> {
     state = state.copyWith(
       filterFloorId: targetFloorId,
       clearFloorFilter: targetFloorId == null,
+      roomSearchQuery: '',
+      clearRoomTypeFilter: true,
+      clearRoomStatusFilter: true,
+      clearAssignmentFilter: true,
       roomsPage: 1,
       activeBuildingSubTab: 1,
     );
     await loadBuildingDetails(buildingId);
+
+    // If rooms list is empty but building has rooms (e.g. floor mismatch), auto-clear floor filter so room is visible
+    if (state.rooms.isEmpty && state.totalRoomsCount > 0 && state.filterFloorId != null) {
+      state = state.copyWith(
+        filterFloorId: null,
+        clearFloorFilter: true,
+        roomsPage: 1,
+      );
+      await loadBuildingDetails(buildingId);
+    }
   }
 
   // =========================================================================

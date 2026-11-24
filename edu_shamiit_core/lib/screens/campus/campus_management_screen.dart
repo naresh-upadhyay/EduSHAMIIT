@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'models/campus_models.dart';
 import 'providers/campus_provider.dart';
+import 'providers/facilities_provider.dart';
 import 'services/campus_api_service.dart';
 import 'widgets/campus_header_bar.dart';
 import 'widgets/campus_tabs_bar.dart';
@@ -432,18 +434,22 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
 
       _showSnackbar('Uploading cropped building image...');
       final uploadedUrl = await CampusApiService.instance.uploadImage(croppedBytes, filename);
-      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
-        final saveRes = await CampusApiService.instance.updateBuildingPhoto(building.id, uploadedUrl);
-        if (saveRes['success'] == true || saveRes['status'] == 'success') {
-          ref.read(campusProvider.notifier).updateBuildingImage(building.id, uploadedUrl);
-          await ref.read(campusProvider.notifier).loadAll();
-          ref.read(campusProvider.notifier).updateBuildingImage(building.id, uploadedUrl);
-          _showSnackbar('Building photo updated successfully!');
-        } else {
-          _showSnackbar(saveRes['message'] ?? 'Failed to save building photo. Please try again.', isError: true);
-        }
+      String? photoUrl = (uploadedUrl != null && uploadedUrl.isNotEmpty) ? uploadedUrl : null;
+      if (photoUrl == null) {
+        final b64 = base64Encode(croppedBytes);
+        final ext = filename.split('.').last.toLowerCase();
+        final mime = ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+        photoUrl = 'data:$mime;base64,$b64';
+      }
+
+      final saveRes = await CampusApiService.instance.updateBuildingPhoto(building.id, photoUrl);
+      if (saveRes['success'] == true || saveRes['status'] == 'success') {
+        ref.read(campusProvider.notifier).updateBuildingImage(building.id, photoUrl);
+        await ref.read(campusProvider.notifier).loadAll();
+        ref.read(campusProvider.notifier).updateBuildingImage(building.id, photoUrl);
+        _showSnackbar('Building photo updated successfully!');
       } else {
-        _showSnackbar('Failed to upload building image. Please try again.', isError: true);
+        _showSnackbar(saveRes['message'] ?? 'Failed to save building photo. Please try again.', isError: true);
       }
     } catch (e) {
       _showSnackbar('Failed to update image: $e', isError: true);
@@ -642,7 +648,10 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
       context: context,
       barrierDismissible: false,
       builder: (_) => AddEditFacilityDialog(
-        onSaved: () => _showSnackbar('Facility registered successfully!'),
+        onSaved: () {
+          ref.read(facilitiesProvider.notifier).loadData();
+          _showSnackbar('Facility registered successfully!');
+        },
       ),
     );
   }

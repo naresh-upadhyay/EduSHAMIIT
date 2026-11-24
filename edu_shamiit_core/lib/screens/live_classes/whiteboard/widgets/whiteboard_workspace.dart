@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../../providers/live_class_management_provider.dart';
 import '../../services/in_app_live_room_service.dart';
 import '../../widgets/live_class_chat_panel.dart';
 import '../models/whiteboard_models.dart';
@@ -24,6 +23,7 @@ class WhiteboardWorkspace extends ConsumerStatefulWidget {
   final VoidCallback? onOpenPolls;
   final VoidCallback? onOpenQA;
   final bool isFullscreenRoute;
+  final bool isEmbeddedInStage;
 
   const WhiteboardWorkspace({
     super.key,
@@ -35,6 +35,7 @@ class WhiteboardWorkspace extends ConsumerStatefulWidget {
     this.onOpenPolls,
     this.onOpenQA,
     this.isFullscreenRoute = false,
+    this.isEmbeddedInStage = false,
   });
 
   @override
@@ -53,6 +54,9 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
   @override
   void initState() {
     super.initState();
+    if (widget.isEmbeddedInStage) {
+      _showRightPanel = false;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!widget.isFullscreenRoute) {
         final currentDoc = ref.read(whiteboardProvider).document;
@@ -74,13 +78,6 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
     _elapsedTimer?.cancel();
     _keyboardFocus.dispose();
     super.dispose();
-  }
-
-  String _formatElapsed(int totalSec) {
-    final h = (totalSec ~/ 3600).toString().padLeft(2, '0');
-    final m = ((totalSec % 3600) ~/ 60).toString().padLeft(2, '0');
-    final s = (totalSec % 60).toString().padLeft(2, '0');
-    return '$h:$m:$s';
   }
 
   Future<void> _handleEditText(WhiteboardObject? existing, Offset logicalPos) async {
@@ -320,6 +317,14 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
     return KeyEventResult.ignored;
   }
 
+  bool get isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get cardBg => isDark ? const Color(0xFF13182C) : Colors.white;
+  Color get barBg => isDark ? const Color(0xFF1A2238) : const Color(0xFFF8FAFC);
+  Color get borderColor => isDark ? const Color(0xFF2E3852) : const Color(0xFFE2E8F0);
+  Color get textPrimary => isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+  Color get textSecondary => isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get menuBg => isDark ? const Color(0xFF1E2235) : Colors.white;
+
   Widget _buildTopHeader() {
     return Row(
       children: [
@@ -327,24 +332,24 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFEFF6FF),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
+            border: Border.all(color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.5) : const Color(0xFFBFDBFE)),
           ),
           child: const Icon(Icons.draw_outlined, color: Color(0xFF2563EB), size: 18),
         ),
         const SizedBox(width: 10),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Open Whiteboard',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
               ),
               Text(
                 'Collaborate, teach and explain in real time using an interactive whiteboard.',
-                style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11.5, color: textSecondary),
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -356,8 +361,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             icon: const Icon(Icons.arrow_back_rounded, size: 14),
             label: const Text('Back to Classroom', style: TextStyle(fontSize: 12)),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1E293B),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: textPrimary,
+              side: BorderSide(color: borderColor),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
           ),
@@ -368,15 +373,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
   @override
   Widget build(BuildContext context) {
     final wbState = ref.watch(whiteboardProvider);
-    final lcState = ref.watch(liveClassManagementProvider);
-    final roomService = ref.watch(liveRoomServiceProvider);
     final doc = wbState.document;
-
-    final int participantCount = roomService.isConnected
-        ? roomService.participantTracks.where((t) => !t.isScreenShare).length
-        : (lcState.conductSessionData?.participants.length ??
-            lcState.joinDashboard?.participants.length ??
-            1);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -389,15 +386,15 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           children: [
             // LEFT: Whiteboard Workspace Card
             Expanded(
-              flex: 8,
+              flex: widget.isEmbeddedInStage ? 1 : 8,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(widget.isEmbeddedInStage ? 10 : 14),
+                  border: Border.all(color: borderColor),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -443,7 +440,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 ),
               ),
             ),
-            if (_showRightPanel && !isCompact) ...[
+            if (!widget.isEmbeddedInStage && _showRightPanel && !isCompact) ...[
               const SizedBox(width: 12),
               // RIGHT: Matching meeting participants, chat, and Q&A (removes duplicate code!)
               SizedBox(
@@ -465,6 +462,15 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 child: mainRow,
               );
 
+        if (widget.isEmbeddedInStage) {
+          return Focus(
+            focusNode: _keyboardFocus,
+            autofocus: true,
+            onKeyEvent: _handleKeyEvent,
+            child: mainRow,
+          );
+        }
+
         return Focus(
           focusNode: _keyboardFocus,
           autofocus: !widget.isFullscreenRoute,
@@ -479,11 +485,6 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
               // MAIN COLLABORATIVE WHITEBOARD + PARTICIPANTS ROW
               mainArea,
-
-              const SizedBox(height: 10),
-
-              // BOTTOM PERSISTENT LIVE SESSION CONTROL BAR (Matching mockup footer)
-              _buildBottomLiveSessionBar(participantCount, roomService, lcState, wbState),
             ],
           ),
         );
@@ -498,30 +499,39 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2235) : Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(widget.isEmbeddedInStage ? 10 : 14),
+          topRight: Radius.circular(widget.isEmbeddedInStage ? 10 : 14),
+        ),
+        border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            if (widget.isFullscreenRoute && widget.onBackToClassroom != null) ...[
+            if ((widget.isFullscreenRoute || widget.isEmbeddedInStage) && widget.onBackToClassroom != null) ...[
               TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB),
+                  backgroundColor: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFEFF6FF),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
                 onPressed: widget.onBackToClassroom,
-                icon: const Icon(Icons.arrow_back_rounded, size: 15),
-                label: const Text('Back to Classroom', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                icon: const Icon(Icons.arrow_back_rounded, size: 14),
+                label: const Text('Exit Board', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
             ],
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.co_present_rounded, color: Color(0xFF2563EB), size: 16),
+              child: Icon(Icons.co_present_rounded, color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB), size: 16),
             ),
             const SizedBox(width: 8),
             InkWell(
@@ -531,12 +541,12 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 children: [
                   Text(
                     widget.sessionTitle ?? doc?.title ?? 'Whiteboard - Class 12 - A – Chemistry',
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
                   ),
                   if (doc?.myPermission.canManagePages == true)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4),
-                      child: Icon(Icons.edit_outlined, size: 13, color: Color(0xFF94A3B8)),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(Icons.edit_outlined, size: 13, color: textSecondary),
                     ),
                 ],
               ),
@@ -546,14 +556,18 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
+                color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.4) : const Color(0xFFDCFCE7),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF059669) : const Color(0xFF86EFAC),
+                  width: 0.8,
+                ),
               ),
               child: Row(
                 children: [
                   Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
                   const SizedBox(width: 4),
-                  const Text('Live', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                  Text('Live', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))),
                 ],
               ),
             ),
@@ -618,7 +632,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: InkWell(
                 onTap: notifier.resetView,
-                child: Text('${(wbState.zoom * 100).round()}%', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                child: Text('${(wbState.zoom * 100).round()}%', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textPrimary)),
               ),
             ),
             _iconBtn(Icons.zoom_in_rounded, 'Zoom In', notifier.zoomIn),
@@ -660,7 +674,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             const SizedBox(width: 4),
             PopupMenuButton<String>(
               tooltip: 'More Actions',
-              icon: const Icon(Icons.more_horiz_rounded, size: 18, color: Color(0xFF475569)),
+              color: menuBg,
+              icon: Icon(Icons.more_horiz_rounded, size: 18, color: textSecondary),
               onSelected: (v) {
                 if (v == 'history') {
                   showDialog(context: context, builder: (_) => const WhiteboardVersionHistoryDialog());
@@ -672,11 +687,11 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   setState(() => _boardsSidebarCollapsed = !_boardsSidebarCollapsed);
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'history', child: Text('Version History & Checkpoints', style: TextStyle(fontSize: 12))),
-                PopupMenuItem(value: 'permissions', child: Text('Permissions & Lock Controls', style: TextStyle(fontSize: 12))),
-                PopupMenuItem(value: 'spotlight', child: Text('Toggle Teacher Spotlight', style: TextStyle(fontSize: 12))),
-                PopupMenuItem(value: 'boards_collapse', child: Text('Toggle Boards Panel', style: TextStyle(fontSize: 12))),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'history', child: Text('Version History & Checkpoints', style: TextStyle(fontSize: 12, color: textPrimary))),
+                PopupMenuItem(value: 'permissions', child: Text('Permissions & Lock Controls', style: TextStyle(fontSize: 12, color: textPrimary))),
+                PopupMenuItem(value: 'spotlight', child: Text('Toggle Teacher Spotlight', style: TextStyle(fontSize: 12, color: textPrimary))),
+                PopupMenuItem(value: 'boards_collapse', child: Text('Toggle Boards Panel', style: TextStyle(fontSize: 12, color: textPrimary))),
               ],
             ),
             IconButton(
@@ -684,13 +699,13 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               icon: Icon(
                 _showRightPanel ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
                 size: 17,
-                color: _showRightPanel ? const Color(0xFF2563EB) : const Color(0xFF475569),
+                color: _showRightPanel ? const Color(0xFF2563EB) : textSecondary,
               ),
               onPressed: () => setState(() => _showRightPanel = !_showRightPanel),
             ),
             IconButton(
               tooltip: widget.isFullscreenRoute ? 'Exit Fullscreen' : 'Fullscreen Whiteboard',
-              icon: Icon(widget.isFullscreenRoute ? Icons.close_fullscreen_rounded : Icons.open_in_full_rounded, size: 17, color: const Color(0xFF475569)),
+              icon: Icon(widget.isFullscreenRoute ? Icons.close_fullscreen_rounded : Icons.open_in_full_rounded, size: 17, color: textSecondary),
               onPressed: _openFullscreen,
             ),
           ],
@@ -707,38 +722,38 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
     switch (state) {
       case WhiteboardSaveState.saving:
-        bg = const Color(0xFFEFF6FF);
-        fg = const Color(0xFF2563EB);
+        bg = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : const Color(0xFFEFF6FF);
+        fg = isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
         txt = 'Saving...';
         icon = Icons.sync_rounded;
         break;
       case WhiteboardSaveState.unsaved:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFB45309);
+        bg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : const Color(0xFFFEF3C7);
+        fg = isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
         txt = 'Unsaved Changes';
         icon = Icons.edit_notifications_outlined;
         break;
       case WhiteboardSaveState.offline:
-        bg = const Color(0xFFF1F5F9);
-        fg = const Color(0xFF64748B);
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+        fg = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
         txt = 'Offline';
         icon = Icons.cloud_off_rounded;
         break;
       case WhiteboardSaveState.syncing:
-        bg = const Color(0xFFE0F2FE);
-        fg = const Color(0xFF0284C7);
+        bg = isDark ? const Color(0xFF075985).withValues(alpha: 0.35) : const Color(0xFFE0F2FE);
+        fg = isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7);
         txt = 'Syncing...';
         icon = Icons.cloud_sync_rounded;
         break;
       case WhiteboardSaveState.syncFailed:
-        bg = const Color(0xFFFEE2E2);
-        fg = const Color(0xFFDC2626);
+        bg = isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : const Color(0xFFFEE2E2);
+        fg = isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626);
         txt = 'Sync Failed';
         icon = Icons.error_outline_rounded;
         break;
       case WhiteboardSaveState.saved:
-        bg = const Color(0xFFF8FAFC);
-        fg = const Color(0xFF475569);
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+        fg = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
         txt = wsConnected ? 'Saved • Live Sync' : 'Saved';
         icon = Icons.cloud_done_outlined;
         break;
@@ -769,9 +784,9 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: barBg,
+        border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -780,15 +795,27 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             Text('Tool: ${s.activeTool.name.toUpperCase()}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
             const SizedBox(width: 12),
             // Background quick switcher
-            const Text('Canvas:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+            Text('Canvas:', style: TextStyle(fontSize: 11, color: textSecondary)),
             const SizedBox(width: 4),
             DropdownButtonHideUnderline(
               child: DropdownButton<WhiteboardBackgroundType>(
                 value: activeBg,
                 isDense: true,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                dropdownColor: menuBg,
+                iconEnabledColor: textSecondary,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary),
                 items: WhiteboardBackgroundType.values
-                    .map((bg) => DropdownMenuItem(value: bg, child: Text(bg.label)))
+                    .map((bg) => DropdownMenuItem(
+                          value: bg,
+                          child: Text(
+                            bg.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: bg == activeBg ? FontWeight.bold : FontWeight.w500,
+                              color: textPrimary,
+                            ),
+                          ),
+                        ))
                     .toList(),
                 onChanged: (bg) {
                   if (bg != null) notifier.changePageBackground(bg);
@@ -797,20 +824,22 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             ),
             const SizedBox(width: 14),
             if (s.activeTool == WhiteboardTool.eraser) ...[
-              const Text('Eraser Mode:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              Text('Eraser Mode:', style: TextStyle(fontSize: 11, color: textSecondary)),
               const SizedBox(width: 6),
               for (final m in EraserMode.values)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: ChoiceChip(
-                    label: Text(m.name, style: const TextStyle(fontSize: 10)),
+                    label: Text(m.name, style: TextStyle(fontSize: 10, color: s.eraserMode == m ? Colors.white : textPrimary)),
                     selected: s.eraserMode == m,
+                    selectedColor: const Color(0xFF2563EB),
+                    backgroundColor: isDark ? const Color(0xFF1E2235) : const Color(0xFFF1F5F9),
                     visualDensity: VisualDensity.compact,
                     onSelected: (_) => notifier.setEraserMode(m),
                   ),
                 ),
             ] else if (s.activeTool == WhiteboardTool.select && s.selectedObjectIds.isNotEmpty) ...[
-              Text('${s.selectedObjectIds.length} selected', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+              Text('${s.selectedObjectIds.length} selected', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary)),
               const SizedBox(width: 8),
               if (s.selectedObjectIds.length == 1) ...[
                 () {
@@ -826,8 +855,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                           visualDensity: VisualDensity.compact,
-                          backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                          foregroundColor: const Color(0xFF1D4ED8),
+                          backgroundColor: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.25 : 0.12),
+                          foregroundColor: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
                         ),
                         onPressed: () => _handleEditEdge(sel, Offset.zero),
                       ),
@@ -841,8 +870,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                           visualDensity: VisualDensity.compact,
-                          backgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
-                          foregroundColor: const Color(0xFF6D28D9),
+                          backgroundColor: const Color(0xFF7C3AED).withValues(alpha: isDark ? 0.25 : 0.12),
+                          foregroundColor: isDark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9),
                         ),
                         onPressed: () => _handleEditEquation(sel, Offset.zero),
                       ),
@@ -856,8 +885,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                           visualDensity: VisualDensity.compact,
-                          backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                          foregroundColor: const Color(0xFF0369A1),
+                          backgroundColor: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.25 : 0.12),
+                          foregroundColor: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0369A1),
                         ),
                         onPressed: () => _handleEditText(sel, Offset.zero),
                       ),
@@ -866,16 +895,31 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   return const SizedBox.shrink();
                 }(),
               ],
-              TextButton.icon(icon: const Icon(Icons.copy_rounded, size: 13), label: const Text('Duplicate', style: TextStyle(fontSize: 11)), onPressed: notifier.duplicateSelected),
-              TextButton.icon(icon: const Icon(Icons.flip_to_front, size: 13), label: const Text('Forward', style: TextStyle(fontSize: 11)), onPressed: notifier.bringForwardSelected),
-              TextButton.icon(icon: const Icon(Icons.flip_to_back, size: 13), label: const Text('Back', style: TextStyle(fontSize: 11)), onPressed: notifier.sendBackwardSelected),
+              TextButton.icon(
+                icon: const Icon(Icons.copy_rounded, size: 13),
+                label: const Text('Duplicate', style: TextStyle(fontSize: 11)),
+                style: TextButton.styleFrom(foregroundColor: textPrimary),
+                onPressed: notifier.duplicateSelected,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.flip_to_front, size: 13),
+                label: const Text('Forward', style: TextStyle(fontSize: 11)),
+                style: TextButton.styleFrom(foregroundColor: textPrimary),
+                onPressed: notifier.bringForwardSelected,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.flip_to_back, size: 13),
+                label: const Text('Back', style: TextStyle(fontSize: 11)),
+                style: TextButton.styleFrom(foregroundColor: textPrimary),
+                onPressed: notifier.sendBackwardSelected,
+              ),
               TextButton.icon(
                 icon: const Icon(Icons.delete_outline, size: 13, color: Colors.red),
                 label: const Text('Delete', style: TextStyle(fontSize: 11, color: Colors.red)),
                 onPressed: notifier.deleteSelectedObjects,
               ),
             ] else ...[
-              const Text('Opacity:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              Text('Opacity:', style: TextStyle(fontSize: 11, color: textSecondary)),
               SizedBox(
                 width: 90,
                 child: Slider(
@@ -885,7 +929,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   onChanged: notifier.setOpacity,
                 ),
               ),
-              Text('${(s.opacity * 100).round()}%', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600)),
+              Text('${(s.opacity * 100).round()}%', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: textPrimary)),
               const SizedBox(width: 10),
               if (s.activeTool == WhiteboardTool.rectangle ||
                   s.activeTool == WhiteboardTool.circle ||
@@ -893,7 +937,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   s.activeTool == WhiteboardTool.triangle ||
                   s.activeTool == WhiteboardTool.star ||
                   s.activeTool == WhiteboardTool.polygon) ...[
-                const Text('Fill:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text('Fill:', style: TextStyle(fontSize: 11, color: textSecondary)),
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () => notifier.setFillColor(null),
@@ -901,11 +945,11 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                     width: 18,
                     height: 18,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF1E2235) : Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: s.fillColor == null ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1), width: 1.8),
+                      border: Border.all(color: s.fillColor == null ? const Color(0xFF2563EB) : borderColor, width: 1.8),
                     ),
-                    child: const Icon(Icons.close, size: 11, color: Color(0xFF94A3B8)),
+                    child: Icon(Icons.close, size: 11, color: textSecondary),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -919,7 +963,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                       decoration: BoxDecoration(
                         color: fc,
                         shape: BoxShape.circle,
-                        border: Border.all(color: s.fillColor == fc ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1), width: 1.6),
+                        border: Border.all(color: s.fillColor == fc ? const Color(0xFF2563EB) : borderColor, width: 1.6),
                       ),
                     ),
                   ),
@@ -937,9 +981,9 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
     return Container(
       width: 146,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(right: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: barBg,
+        border: Border(right: BorderSide(color: borderColor)),
       ),
       child: Column(
         children: [
@@ -951,13 +995,13 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 Expanded(
                   child: Text(
                     'Boards (${pages.length})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 InkWell(
                   onTap: () => setState(() => _boardsSidebarCollapsed = true),
-                  child: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSecondary),
                 ),
               ],
             ),
@@ -974,10 +1018,10 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: active ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                        color: active ? const Color(0xFF2563EB) : borderColor,
                         width: active ? 2 : 1,
                       ),
                     ),
@@ -994,7 +1038,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                           decoration: BoxDecoration(
-                            color: active ? const Color(0xFFEFF6FF) : Colors.white,
+                            color: active ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFEFF6FF)) : cardBg,
                             borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(6), bottomRight: Radius.circular(6)),
                           ),
                           child: Row(
@@ -1005,7 +1049,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: active ? FontWeight.bold : FontWeight.w500,
-                                    color: active ? const Color(0xFF1D4ED8) : const Color(0xFF334155),
+                                    color: active ? (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8)) : textPrimary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1014,7 +1058,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                                 const Icon(Icons.lock_outline, size: 11, color: Color(0xFFF59E0B)),
                               PopupMenuButton<String>(
                                 padding: EdgeInsets.zero,
-                                icon: const Icon(Icons.more_vert, size: 13, color: Color(0xFF94A3B8)),
+                                color: menuBg,
+                                icon: Icon(Icons.more_vert, size: 13, color: textSecondary),
                                 onSelected: (act) async {
                                   if (act == 'dup') {
                                     notifier.duplicateCurrentPage(p.id);
@@ -1024,10 +1069,10 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                                     notifier.deletePage(p.id);
                                   }
                                 },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(value: 'dup', child: Text('Duplicate Page', style: TextStyle(fontSize: 11))),
-                                  PopupMenuItem(value: 'lock', child: Text('Toggle Lock', style: TextStyle(fontSize: 11))),
-                                  PopupMenuItem(value: 'del', child: Text('Delete Page', style: TextStyle(fontSize: 11, color: Colors.red))),
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(value: 'dup', child: Text('Duplicate Page', style: TextStyle(fontSize: 11, color: textPrimary))),
+                                  PopupMenuItem(value: 'lock', child: Text('Toggle Lock', style: TextStyle(fontSize: 11, color: textPrimary))),
+                                  const PopupMenuItem(value: 'del', child: Text('Delete Page', style: TextStyle(fontSize: 11, color: Colors.red))),
                                 ],
                               ),
                             ],
@@ -1048,7 +1093,8 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               label: const Text('Add Board', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF2563EB),
-                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                side: BorderSide(color: isDark ? const Color(0xFF2563EB).withValues(alpha: 0.5) : const Color(0xFFBFDBFE)),
+                backgroundColor: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.2) : Colors.transparent,
                 minimumSize: const Size(double.infinity, 32),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1087,9 +1133,9 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
 
     return Container(
       width: 46,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(right: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: barBg,
+        border: Border(right: BorderSide(color: borderColor)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1120,20 +1166,24 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                     child: Icon(
                       item['icon'] as IconData,
                       size: 17,
-                      color: s.activeTool == item['tool'] ? Colors.white : const Color(0xFF475569),
+                      color: s.activeTool == item['tool'] ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                     ),
                   ),
                 ),
               ),
             ],
-            const Divider(height: 12),
+            Divider(height: 12, color: borderColor),
             Tooltip(
               message: 'Undo',
               child: InkWell(
                 onTap: s.undoStack.isNotEmpty ? notifier.undo : null,
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Icon(Icons.undo_rounded, size: 17, color: s.undoStack.isNotEmpty ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  child: Icon(
+                    Icons.undo_rounded,
+                    size: 17,
+                    color: s.undoStack.isNotEmpty ? textPrimary : textSecondary.withValues(alpha: 0.4),
+                  ),
                 ),
               ),
             ),
@@ -1143,7 +1193,11 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 onTap: s.redoStack.isNotEmpty ? notifier.redo : null,
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Icon(Icons.redo_rounded, size: 17, color: s.redoStack.isNotEmpty ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  child: Icon(
+                    Icons.redo_rounded,
+                    size: 17,
+                    color: s.redoStack.isNotEmpty ? textPrimary : textSecondary.withValues(alpha: 0.4),
+                  ),
                 ),
               ),
             ),
@@ -1152,11 +1206,10 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
       ),
     );
   }
-
   Widget _buildBottomFloatingCanvasBar(WhiteboardState s) {
     final notifier = ref.read(whiteboardProvider.notifier);
     final colors = [
-      const Color(0xFF0F172A),
+      isDark ? Colors.white : const Color(0xFF0F172A),
       const Color(0xFFDC2626),
       const Color(0xFF2563EB),
       const Color(0xFF16A34A),
@@ -1174,11 +1227,11 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: menuBg,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: borderColor),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08), blurRadius: 12, offset: const Offset(0, 4)),
                 ],
               ),
               child: Row(
@@ -1195,22 +1248,30 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                           color: c,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: s.strokeColor == c ? const Color(0xFF2563EB) : Colors.transparent,
+                            color: s.strokeColor == c ? const Color(0xFF2563EB) : (c == Colors.white || c == const Color(0xFF0F172A) ? borderColor : Colors.transparent),
                             width: 2.2,
                           ),
                         ),
                       ),
                     ),
                   const SizedBox(width: 8),
-                  Container(width: 1, height: 18, color: const Color(0xFFE2E8F0)),
+                  Container(width: 1, height: 18, color: borderColor),
                   const SizedBox(width: 8),
                   DropdownButtonHideUnderline(
                     child: DropdownButton<double>(
                       value: [2.0, 3.0, 5.0, 8.0].contains(s.strokeWidth) ? s.strokeWidth : 3.0,
                       isDense: true,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                      dropdownColor: menuBg,
+                      iconEnabledColor: textSecondary,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textPrimary),
                       items: [2.0, 3.0, 5.0, 8.0]
-                          .map((w) => DropdownMenuItem(value: w, child: Text('${w.toInt()}px')))
+                          .map((w) => DropdownMenuItem(
+                                value: w,
+                                child: Text(
+                                  '${w.toInt()}px',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: textPrimary),
+                                ),
+                              ))
                           .toList(),
                       onChanged: (v) {
                         if (v != null) notifier.setStrokeWidth(v);
@@ -1218,7 +1279,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(width: 1, height: 18, color: const Color(0xFFE2E8F0)),
+                  Container(width: 1, height: 18, color: borderColor),
                   const SizedBox(width: 8),
                   for (final w in [2.0, 4.0, 7.0])
                     InkWell(
@@ -1232,7 +1293,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                           width: 16,
                           height: w * 0.65,
                           decoration: BoxDecoration(
-                            color: s.strokeWidth == w ? const Color(0xFF2563EB) : const Color(0xFF475569),
+                            color: s.strokeWidth == w ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -1246,11 +1307,11 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: menuBg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: borderColor),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8),
+                  BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08), blurRadius: 8, offset: const Offset(0, 2)),
                 ],
               ),
               child: Row(
@@ -1258,12 +1319,12 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 children: [
                   InkWell(
                     onTap: () => notifier.setTool(WhiteboardTool.pen),
-                    child: const Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Icon(Icons.edit_outlined, size: 16, color: Color(0xFF334155)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: Icon(Icons.edit_outlined, size: 16, color: s.activeTool == WhiteboardTool.pen ? const Color(0xFF2563EB) : textSecondary),
                     ),
                   ),
-                  Container(width: 1, height: 16, color: const Color(0xFFE2E8F0)),
+                  Container(width: 1, height: 16, color: borderColor),
                   InkWell(
                     onTap: () async {
                       final ok = await showDialog<bool>(
@@ -1285,349 +1346,15 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                         await notifier.clearCurrentPage();
                       }
                     },
-                    child: const Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFF475569)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: Icon(Icons.delete_outline_rounded, size: 16, color: textSecondary),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomLiveSessionBar(
-    int totalParticipants,
-    InAppLiveRoomService roomService,
-    LiveClassState lcState,
-    WhiteboardState wbState,
-  ) {
-    final activeSess = lcState.conductSessionData?.activeSession ?? lcState.joinDashboard?.activeSession;
-    final selectedClass = lcState.selectedMyClass;
-    final sessionTitle = (activeSess != null && activeSess.classSection.isNotEmpty)
-        ? '${activeSess.classSection} : ${activeSess.subject} – ${activeSess.title}'
-        : (selectedClass != null
-            ? '${selectedClass.classSection} : ${selectedClass.subjectName} – ${selectedClass.topic}'
-            : (widget.sessionTitle ?? 'Class 12 - A – Chemistry'));
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 600;
-        final isNarrow = constraints.maxWidth < 850;
-        final isMedium = constraints.maxWidth < 1100;
-        final showTitle = constraints.maxWidth >= 680;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Left: Live badge + Session timer
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
-                    const SizedBox(width: 5),
-                    const Text('Live', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(_formatElapsed(_elapsedSeconds), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-              if (showTitle) ...[
-                const SizedBox(width: 8),
-                const Text('|', style: TextStyle(color: Color(0xFFCBD5E1))),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: constraints.maxWidth < 1100 ? 200 : 360),
-                  child: Text(
-                    sessionTitle,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
-
-              // Center: Scrollable Controls Bar (Adaptive & Never clips)
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _footerCtrlBtn(
-                          roomService.isMicMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                          roomService.isMicMuted ? 'Unmute' : 'Mute',
-                          isIconOnly: isMedium,
-                          iconColor: roomService.isMicMuted ? const Color(0xFFDC2626) : const Color(0xFF334155),
-                          onTap: roomService.toggleMic,
-                        ),
-                        _footerCtrlBtn(
-                          roomService.isCamOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
-                          roomService.isCamOff ? 'Start Video' : 'Stop Video',
-                          isIconOnly: isMedium,
-                          onTap: roomService.toggleCamera,
-                        ),
-                        _footerCtrlBtn(
-                          Icons.groups_rounded,
-                          'Participants ($totalParticipants)',
-                          isIconOnly: isMedium,
-                          onTap: () {
-                            if (!_showRightPanel) setState(() => _showRightPanel = true);
-                            _chatPanelKey.currentState?.selectTab(0);
-                          },
-                        ),
-                        _footerCtrlBtn(
-                          Icons.chat_bubble_outline_rounded,
-                          'Chat',
-                          isIconOnly: isMedium,
-                          onTap: () {
-                            if (!_showRightPanel) setState(() => _showRightPanel = true);
-                            _chatPanelKey.currentState?.selectTab(1);
-                          },
-                        ),
-                        _footerCtrlBtn(
-                          Icons.draw_rounded,
-                          'Whiteboard',
-                          isActive: true,
-                          isIconOnly: isMedium,
-                          onTap: widget.onBackToClassroom ?? () {},
-                        ),
-                        _footerCtrlBtn(
-                          Icons.screen_share_outlined,
-                          'Share Screen',
-                          isIconOnly: isMedium,
-                          onTap: roomService.toggleScreenShare,
-                        ),
-                        if (!isNarrow) ...[
-                          _footerCtrlBtn(
-                            Icons.poll_outlined,
-                            'Polls',
-                            isIconOnly: isMedium,
-                            onTap: () {
-                              if (!_showRightPanel) setState(() => _showRightPanel = true);
-                              _chatPanelKey.currentState?.selectTab(2);
-                              widget.onOpenPolls?.call();
-                            },
-                          ),
-                          _footerCtrlBtn(
-                            Icons.live_help_outlined,
-                            'Q&A',
-                            isIconOnly: isMedium,
-                            onTap: () {
-                              if (!_showRightPanel) setState(() => _showRightPanel = true);
-                              _chatPanelKey.currentState?.selectTab(2);
-                            },
-                          ),
-                        ] else ...[
-                          PopupMenuButton<String>(
-                            tooltip: 'More Classroom Tools',
-                            icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF475569)),
-                            onSelected: (v) {
-                              if (v == 'polls') {
-                                if (!_showRightPanel) setState(() => _showRightPanel = true);
-                                _chatPanelKey.currentState?.selectTab(2);
-                                widget.onOpenPolls?.call();
-                              } else if (v == 'qa') {
-                                if (!_showRightPanel) setState(() => _showRightPanel = true);
-                                _chatPanelKey.currentState?.selectTab(2);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'polls', child: Text('Live Polls', style: TextStyle(fontSize: 12))),
-                              PopupMenuItem(value: 'qa', child: Text('Q&A Panel', style: TextStyle(fontSize: 12))),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Right: PINNED End / Leave Class Button (Always fully visible, role-enforced)
-              Builder(
-                builder: (context) {
-                  final role = ref.watch(liveRoomServiceProvider).currentUserRole.toLowerCase();
-                  final isStudent = role != 'teacher' && role != 'host' && role != 'co-host' && role != 'super_admin' && role != 'admin';
-
-                  if (isStudent) {
-                    return ElevatedButton.icon(
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: const Color(0xFF1E222D),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: const Row(
-                              children: [
-                                Icon(Icons.logout_rounded, color: Color(0xFFF59E0B), size: 22),
-                                SizedBox(width: 8),
-                                Text('Leave Live Class?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
-                            ),
-                            content: const Text(
-                              'Are you sure you want to leave this session? The teacher and class will continue. You can rejoin anytime from your schedule while the class is live.',
-                              style: TextStyle(color: Colors.white70, fontSize: 13),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Stay in Class', style: TextStyle(color: Colors.white60)),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF59E0B),
-                                  foregroundColor: Colors.black87,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Leave Class', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await ref.read(whiteboardProvider.notifier).saveManual(versionName: 'Student Leave Notes');
-                          final roomService = ref.read(liveRoomServiceProvider);
-                          await roomService.leaveRoom();
-                          if (widget.onLeaveClass != null) {
-                            widget.onLeaveClass!.call();
-                          } else {
-                            widget.onEndClass?.call();
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.logout_rounded, size: 14),
-                      label: Text(
-                        isCompact ? 'Leave' : 'Leave Class',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF59E0B),
-                        foregroundColor: Colors.black87,
-                        padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12, vertical: 8),
-                        minimumSize: Size(isCompact ? 54 : 80, 34),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        elevation: 0,
-                      ),
-                    );
-                  }
-
-                  return ElevatedButton.icon(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: const Color(0xFF1E222D),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: const Row(
-                            children: [
-                              Icon(Icons.call_end_rounded, color: Colors.redAccent, size: 24),
-                              SizedBox(width: 8),
-                              Text('End Live Class for All?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
-                          ),
-                          content: const Text(
-                            'Ending this live class will save the current whiteboard session for all participants and trigger attendance calculations.',
-                            style: TextStyle(color: Colors.white70, fontSize: 13),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFDC2626),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('End Class for All'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        await ref.read(whiteboardProvider.notifier).saveManual(versionName: 'End Class Final Save');
-                        widget.onEndClass?.call();
-                      }
-                    },
-                    icon: const Icon(Icons.call_end_rounded, size: 14),
-                    label: Text(
-                      isCompact ? 'End' : 'End Class',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 12, vertical: 8),
-                      minimumSize: Size(isCompact ? 54 : 80, 34),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _footerCtrlBtn(IconData icon, String label, {bool isActive = false, bool isIconOnly = false, Color? iconColor, required VoidCallback onTap}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Tooltip(
-        message: label,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: isIconOnly ? 8 : 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 17, color: isActive ? Colors.white : (iconColor ?? const Color(0xFF334155))),
-                if (!isIconOnly) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: isActive ? Colors.white : const Color(0xFF334155),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -1641,7 +1368,13 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
         borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(5),
-          child: Icon(icon, size: 17, color: onTap != null ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+          child: Icon(
+            icon,
+            size: 17,
+            color: onTap != null
+                ? (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))
+                : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+          ),
         ),
       ),
     );
@@ -1653,8 +1386,9 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
       icon: Icon(icon, size: 14),
       label: Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF1E293B),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        foregroundColor: textPrimary,
+        side: BorderSide(color: borderColor),
+        backgroundColor: isDark ? const Color(0xFF1E2235) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         minimumSize: const Size(0, 32),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
@@ -1680,8 +1414,9 @@ class WhiteboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(10),

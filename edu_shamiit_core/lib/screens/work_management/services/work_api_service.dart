@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../services/api_service.dart';
 import '../models/work_models.dart';
 import '../utils/work_sprint_date_helper.dart';
@@ -103,7 +104,7 @@ class WorkApiService {
     String sortCol = 'created_at',
     String sortDir = 'DESC',
     int page = 1,
-    int pageSize = 12,
+    int pageSize = 100,
     bool forceRefresh = false,
   }) async {
     try {
@@ -142,9 +143,10 @@ class WorkApiService {
   }
 
   // 6. Item Detail
-  Future<WorkItemModel?> getItemDetail(String itemId) async {
+  Future<WorkItemModel?> getItemDetail(String itemId, {bool forceRefresh = true}) async {
     try {
-      final res = await _api.get('/v1/work/items/$itemId', useCache: true);
+      if (forceRefresh) invalidateCache();
+      final res = await _api.get('/v1/work/items/$itemId', useCache: !forceRefresh);
       if (res['item'] != null) {
         return WorkItemModel.fromJson(res['item']);
       }
@@ -239,8 +241,9 @@ class WorkApiService {
         epics = (res['epics'] as List).map((e) => BacklogEpicModel.fromJson(e)).toList();
       }
       List<WorkItemModel> items = [];
-      if (res['items'] is List) {
-        items = (res['items'] as List).map((i) => WorkItemModel.fromJson(i)).toList();
+      final rawItems = res['items'] ?? res['stories'];
+      if (rawItems is List) {
+        items = rawItems.map((i) => WorkItemModel.fromJson(i)).toList();
       }
 
       return {
@@ -251,6 +254,7 @@ class WorkApiService {
         'page': page,
         'pageSize': pageSize,
         'items': items,
+        'stories': items,
       };
     } catch (_) {
       return {'kpis': {}, 'epics': <BacklogEpicModel>[], 'selected_epic': {}, 'items': <WorkItemModel>[]};
@@ -285,6 +289,7 @@ class WorkApiService {
     String? status,
     String? priority,
     String? assigneeId,
+    List<String>? assigneeIds,
     String? sprintId,
     String? teamId,
     String? teamName,
@@ -294,6 +299,7 @@ class WorkApiService {
       if (status != null) payload['status'] = status;
       if (priority != null) payload['priority'] = priority;
       if (assigneeId != null) payload['assignee_id'] = assigneeId;
+      if (assigneeIds != null) payload['assignee_ids'] = assigneeIds;
       if (sprintId != null) payload['sprint_id'] = sprintId;
       if (teamId != null) payload['team_id'] = teamId;
       if (teamName != null) payload['team_name'] = teamName;
@@ -380,29 +386,49 @@ class WorkApiService {
         blockers = (res['blockers'] as List).map((b) => SprintBlockerModel.fromJson(b)).toList();
       }
 
+      final s = res['sprint'] is Map<String, dynamic> ? res['sprint'] as Map<String, dynamic> : null;
+      final rawStartFmt = s?['start_date_fmt'] ?? res['start_date_fmt'];
+      final rawEndFmt = s?['end_date_fmt'] ?? res['end_date_fmt'];
+
+      int durationDays = (s?['duration_days'] ?? res['duration_days'] as num?)?.toInt() ?? 0;
+      if (durationDays <= 0) {
+        final sStr = (s?['start_date'] ?? res['start_date'])?.toString();
+        final eStr = (s?['end_date'] ?? res['end_date'])?.toString();
+        if (sStr != null && eStr != null) {
+          final sDate = DateTime.tryParse(sStr);
+          final eDate = DateTime.tryParse(eStr);
+          if (sDate != null && eDate != null) {
+            final diff = eDate.difference(sDate).inDays + 1;
+            if (diff > 0) durationDays = diff;
+          }
+        }
+      }
+      if (durationDays <= 0) durationDays = 14;
+
       return {
-        'sprint_id': res['sprint_id'],
-        'sprint_name': res['sprint_name'] ?? 'Sprint 8',
-        'sprint_number': res['sprint_number'] ?? 8,
-        'status': res['status'] ?? 'ACTIVE',
-        'board_id': res['board_id'],
-        'board_name': res['board_name'] ?? 'Institute Work Board',
-        'team_name': res['team_name'] ?? 'Digital Campus Team',
-        'goal': res['goal'] ?? '',
-        'start_date_fmt': (res['start_date_fmt'] != null && !res['start_date_fmt'].toString().contains('2025'))
-            ? res['start_date_fmt']
+        'sprint': s,
+        'sprint_id': s?['id']?.toString() ?? res['sprint_id']?.toString() ?? sprintId,
+        'sprint_name': s?['name'] ?? res['sprint_name'] ?? 'Sprint 8',
+        'sprint_number': (s?['sprint_number'] ?? res['sprint_number'] as num?)?.toInt() ?? 8,
+        'status': s?['status'] ?? res['status'] ?? 'ACTIVE',
+        'board_id': s?['board_id']?.toString() ?? res['board_id']?.toString(),
+        'board_name': s?['board_name'] ?? res['board_name'] ?? 'Institute Work Board',
+        'team_name': s?['team_name'] ?? res['team_name'] ?? 'Digital Campus Team',
+        'goal': s?['goal'] ?? res['goal'] ?? '',
+        'start_date_fmt': rawStartFmt != null && rawStartFmt.toString().isNotEmpty
+            ? rawStartFmt
             : WorkSprintDateHelper.currentSprintStartFmt,
-        'end_date_fmt': (res['end_date_fmt'] != null && !res['end_date_fmt'].toString().contains('2025'))
-            ? res['end_date_fmt']
+        'end_date_fmt': rawEndFmt != null && rawEndFmt.toString().isNotEmpty
+            ? rawEndFmt
             : WorkSprintDateHelper.currentSprintEndFmt,
-        'duration_days': (res['duration_days'] as num?)?.toInt() ?? 14,
-        'capacity_hours': res['capacity_hours'] ?? 160.0,
-        'working_days': res['working_days'] ?? 10,
-        'working_hours_per_day': res['working_hours_per_day'] ?? 8.0,
-        'owner_name': res['owner_name'],
-        'capacity_unit': res['capacity_unit'] ?? 'HOURS',
-        'color': res['color'] ?? '#2563EB',
-        'kpis': res['kpis'] ?? {},
+        'duration_days': durationDays,
+        'capacity_hours': (s?['capacity_hours'] ?? res['capacity_hours'] as num?)?.toDouble() ?? 160.0,
+        'working_days': (s?['working_days'] ?? res['working_days'] as num?)?.toInt() ?? 10,
+        'working_hours_per_day': (s?['working_hours_per_day'] ?? res['working_hours_per_day'] as num?)?.toDouble() ?? 8.0,
+        'owner_name': s?['owner_name'] ?? res['owner_name'],
+        'capacity_unit': s?['capacity_unit'] ?? res['capacity_unit'] ?? 'HOURS',
+        'color': s?['color'] ?? res['color'] ?? '#2563EB',
+        'kpis': res['kpis'] ?? res['metrics'] ?? {},
         'burndown': burndown,
         'progress_by_type': res['progress_by_type'] ?? [],
         'upcoming_sprints': res['upcoming_sprints'] ?? [],
@@ -654,13 +680,15 @@ class WorkApiService {
   }) async {
     try {
       final query = <String, dynamic>{};
-      if (teamId != null && teamId.isNotEmpty) query['team_id'] = teamId;
+      if (teamId != null && teamId.isNotEmpty && teamId.toLowerCase() != 'all' && teamId.toLowerCase() != 'all teams') {
+        query['team_id'] = teamId;
+      }
       final res = await _api.get(
         '/v1/work/sprints/$sprintId/retrospective',
         query: query,
         useCache: false,
       );
-      if (res.containsKey('retrospective')) {
+      if (res.isNotEmpty && (res.containsKey('retrospective') || res.containsKey('went_well') || res.containsKey('session_title'))) {
         return SprintRetroWorkspaceModel.fromJson(res);
       }
     } catch (_) {}
@@ -705,12 +733,23 @@ class WorkApiService {
     }
   }
 
-  Future<bool> addRetroEntry(String sprintId, {required String category, required String content}) async {
+  Future<bool> startNewSprintRetroSession(
+    String sprintId, {
+    String? title,
+    int? durationMinutes,
+    String? sprintGoal,
+    String? summary,
+    String? notes,
+    String? facilitatorId,
+  }) async {
     try {
-      final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/entries', {
-        'category': category,
-        'content': content,
-        'action': 'ADD',
+      final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/start-new', {
+        if (title != null) 'title': title,
+        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+        if (sprintGoal != null) 'sprint_goal': sprintGoal,
+        if (summary != null) 'summary': summary,
+        if (notes != null) 'notes': notes,
+        if (facilitatorId != null) 'facilitator_id': facilitatorId,
       });
       return res['success'] == true;
     } catch (_) {
@@ -718,11 +757,62 @@ class WorkApiService {
     }
   }
 
-  Future<bool> updateRetroEntry(String sprintId, String entryId, {required String category, required String content}) async {
+  Future<bool> resetSprintRetroBoard(String sprintId) async {
+    try {
+      final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/reset', {});
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> addTeamMemberDirect(String teamId, String userId, {String role = 'Member'}) async {
+    try {
+      final res = await _api.post('/v1/work/teams/$teamId/members', {
+        'user_id': userId,
+        'role': role,
+      });
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> addRetroEntry(
+    String sprintId, {
+    required String category,
+    required String content,
+    String? teamId,
+    String? teamName,
+  }) async {
+    try {
+      final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/entries', {
+        'category': category,
+        'content': content,
+        'action': 'ADD',
+        if (teamId != null) 'team_id': teamId,
+        if (teamName != null) 'team_name': teamName,
+      });
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateRetroEntry(
+    String sprintId,
+    String entryId, {
+    required String category,
+    required String content,
+    String? teamId,
+    String? teamName,
+  }) async {
     try {
       final res = await _api.patch('/v1/work/sprints/$sprintId/retrospective/entries/$entryId', {
         'category': category,
         'content': content,
+        if (teamId != null) 'team_id': teamId,
+        if (teamName != null) 'team_name': teamName,
       });
       return res['success'] == true;
     } catch (_) {
@@ -739,9 +829,53 @@ class WorkApiService {
     }
   }
 
-  Future<bool> voteRetroEntry(String sprintId, String entryId) async {
+  Future<Map<String, dynamic>?> voteRetroEntry(String sprintId, String entryId) async {
     try {
       final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/entries/$entryId/vote', {});
+      if (res['success'] == true) {
+        return res;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<List<SprintRetroCommentModel>> getRetroEntryComments(String sprintId, String entryId) async {
+    try {
+      final res = await _api.get(
+        '/v1/work/sprints/$sprintId/retrospective/entries/$entryId/comments',
+        useCache: false,
+      );
+      if (res['success'] == true && res['comments'] is List) {
+        return (res['comments'] as List)
+            .map((c) => SprintRetroCommentModel.fromJson(c as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<SprintRetroCommentModel?> addRetroEntryComment(
+    String sprintId,
+    String entryId, {
+    required String content,
+  }) async {
+    try {
+      final res = await _api.post(
+        '/v1/work/sprints/$sprintId/retrospective/entries/$entryId/comments',
+        {'content': content},
+      );
+      if (res['success'] == true && res['comment'] != null) {
+        return SprintRetroCommentModel.fromJson(res['comment'] as Map<String, dynamic>);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<bool> deleteRetroEntryComment(String sprintId, String entryId, String commentId) async {
+    try {
+      final res = await _api.delete(
+        '/v1/work/sprints/$sprintId/retrospective/entries/$entryId/comments/$commentId',
+      );
       return res['success'] == true;
     } catch (_) {
       return false;
@@ -760,6 +894,8 @@ class WorkApiService {
     int progress = 0,
     String? linkedWorkItemId,
     String? sourceEntryId,
+    String? teamId,
+    String? teamName,
   }) async {
     try {
       final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/action-items', {
@@ -773,6 +909,8 @@ class WorkApiService {
         'progress': progress,
         'linked_work_item_id': linkedWorkItemId,
         'source_entry_id': sourceEntryId,
+        'team_id': teamId,
+        'team_name': teamName,
         'action': 'ADD',
       });
       return res['success'] == true;
@@ -819,8 +957,25 @@ class WorkApiService {
         if (priority != null) 'priority': priority,
       });
       return res['success'] == true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[convertActionItemToWorkItem Error]: $e');
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> linkActionItemToWorkItem(
+    String sprintId,
+    String actionItemId, {
+    String? workItemId,
+  }) async {
+    try {
+      final res = await _api.post('/v1/work/sprints/$sprintId/retrospective/action-items/$actionItemId/link-work-item', {
+        'work_item_id': workItemId,
+      });
+      return res;
+    } catch (e) {
+      debugPrint('[linkActionItemToWorkItem Error]: $e');
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -864,6 +1019,38 @@ class WorkApiService {
     }
   }
 
+  Future<bool> updateRetroFeedback(
+    String sprintId,
+    String feedbackId, {
+    required String category,
+    required int rating,
+    String? content,
+    String? suggestedImprovement,
+    bool isAnonymous = false,
+  }) async {
+    try {
+      final res = await _api.patch('/v1/work/sprints/$sprintId/retrospective/feedback/$feedbackId', {
+        'category': category,
+        'rating': rating,
+        'content': content,
+        'suggested_improvement': suggestedImprovement,
+        'is_anonymous': isAnonymous,
+      });
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteRetroFeedback(String sprintId, String feedbackId) async {
+    try {
+      final res = await _api.delete('/v1/work/sprints/$sprintId/retrospective/feedback/$feedbackId');
+      return res['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?> exportSprintRetroCsv(String sprintId) async {
     try {
       final res = await _api.get('/v1/work/sprints/$sprintId/retrospective/export', useCache: false);
@@ -880,7 +1067,11 @@ class WorkApiService {
       final res = await _api.post('/v1/work/items/$itemId/comments', {
         'comment_text': commentText,
       });
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -891,7 +1082,11 @@ class WorkApiService {
       final res = await _api.post('/v1/work/checklists/$entryId/toggle', {
         'is_completed': isCompleted,
       });
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -902,6 +1097,9 @@ class WorkApiService {
       final res = await _api.post('/v1/work/items/$itemId/checklists', {
         'title': title,
       });
+      if (res['success'] == true) {
+        invalidateCache();
+      }
       return res;
     } catch (e) {
       return {'success': false, 'error': e.toString()};
@@ -914,7 +1112,11 @@ class WorkApiService {
       if (title != null) body['title'] = title;
       if (isCompleted != null) body['is_completed'] = isCompleted;
       final res = await _api.patch('/v1/work/checklists/$entryId', body);
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -923,7 +1125,11 @@ class WorkApiService {
   Future<bool> deleteChecklistEntry(String entryId) async {
     try {
       final res = await _api.delete('/v1/work/checklists/$entryId');
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -1033,9 +1239,10 @@ class WorkApiService {
   }
 
   // Convenience Aliases for UI Components
-  Future<Map<String, dynamic>> getWorkItemDetail(String itemId) async {
+  Future<Map<String, dynamic>> getWorkItemDetail(String itemId, {bool forceRefresh = true}) async {
     try {
-      final res = await _api.get('/v1/work/items/$itemId', useCache: true);
+      if (forceRefresh) invalidateCache();
+      final res = await _api.get('/v1/work/items/$itemId', useCache: !forceRefresh);
       return res;
     } catch (_) {
       return {};
@@ -1084,6 +1291,9 @@ class WorkApiService {
         'target_id': targetRef,
         'link_type': linkType,
       });
+      if (res['success'] == true) {
+        invalidateCache();
+      }
       return res;
     } catch (e) {
       return {'success': false, 'error': e.toString()};
@@ -1093,7 +1303,11 @@ class WorkApiService {
   Future<bool> unlinkWorkItems(String sourceId, String targetId) async {
     try {
       final res = await _api.delete('/v1/work/items/$sourceId/links/$targetId');
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -1104,7 +1318,11 @@ class WorkApiService {
       final res = await _api.put('/v1/work/items/$sourceId/links/$targetId', {
         'link_type': newLinkType,
       });
-      return res['success'] == true;
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -1192,9 +1410,10 @@ class WorkApiService {
     return null;
   }
 
-  Future<List<SprintCapacityTeamModel>> getCapacityTeams() async {
+  Future<List<SprintCapacityTeamModel>> getCapacityTeams({bool forceRefresh = false}) async {
     try {
-      final res = await _api.get('/v1/work/capacity/teams', useCache: true);
+      if (forceRefresh) invalidateCache();
+      final res = await _api.get('/v1/work/capacity/teams', useCache: !forceRefresh);
       if (res['teams'] is List) {
         return (res['teams'] as List)
             .map((t) => SprintCapacityTeamModel.fromJson(t as Map<String, dynamic>))
@@ -1210,8 +1429,10 @@ class WorkApiService {
     required double capacityHours,
     double? dailyWorkingHours,
     int? workingDays,
+    double? daysOff,
     String? role,
     String? teamName,
+    String? teamId,
     double? overrideValue,
     String? overrideReason,
     String? notes,
@@ -1219,11 +1440,14 @@ class WorkApiService {
     try {
       final body = <String, dynamic>{
         'user_id': userId,
+        'available_hours': capacityHours,
         'capacity_hours': capacityHours,
-        if (dailyWorkingHours != null) 'daily_working_hours': dailyWorkingHours,
+        if (dailyWorkingHours != null) 'daily_hours': dailyWorkingHours,
         if (workingDays != null) 'working_days': workingDays,
+        if (daysOff != null) 'days_off': daysOff,
         if (role != null) 'role': role,
         if (teamName != null) 'team_name': teamName,
+        if (teamId != null) 'team_id': teamId,
         if (overrideValue != null) 'override_value': overrideValue,
         if (overrideReason != null) 'override_reason': overrideReason,
         if (notes != null) 'notes': notes,
@@ -1237,6 +1461,16 @@ class WorkApiService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getWorkRoles() async {
+    try {
+      final res = await _api.get('/v1/work/roles', useCache: true);
+      if (res['roles'] is List) {
+        return (res['roles'] as List).cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
+    return [];
   }
 
   Future<bool> removeCapacityMember(String sprintId, String userId) async {
@@ -1340,8 +1574,13 @@ class WorkApiService {
     String? sortBy,
     int page = 1,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
     try {
+      if (forceRefresh) {
+        invalidateCache();
+        WorkFilterHelper.clearCache();
+      }
       final query = <String, dynamic>{
         'page': page,
         'limit': limit,
@@ -1352,7 +1591,7 @@ class WorkApiService {
       if (search != null && search.isNotEmpty) query['search'] = search;
       if (sortBy != null && sortBy.isNotEmpty) query['sort_by'] = sortBy;
 
-      final res = await _api.get('/v1/work/teams', query: query, useCache: true);
+      final res = await _api.get('/v1/work/teams', query: query, useCache: !forceRefresh);
       if (res['success'] == true) {
         return TeamDirectoryResponseModel.fromJson(res);
       }
@@ -1360,11 +1599,12 @@ class WorkApiService {
     return null;
   }
 
-  Future<TeamDetailModel?> getTeamDetail(String teamId, {String? sprintId}) async {
+  Future<TeamDetailModel?> getTeamDetail(String teamId, {String? sprintId, bool forceRefresh = false}) async {
     try {
+      if (forceRefresh) invalidateCache();
       final query = <String, dynamic>{};
       if (sprintId != null && sprintId.isNotEmpty) query['sprint_id'] = sprintId;
-      final res = await _api.get('/v1/work/teams/$teamId', query: query, useCache: true);
+      final res = await _api.get('/v1/work/teams/$teamId', query: query, useCache: !forceRefresh);
       if (res['success'] == true && res['team'] != null) {
         return TeamDetailModel.fromJson(res['team'] as Map<String, dynamic>);
       }
@@ -1377,6 +1617,7 @@ class WorkApiService {
       final res = await _api.post('/v1/work/teams', data);
       if (res['success'] == true) {
         invalidateCache();
+        WorkFilterHelper.clearCache();
         return true;
       }
       return false;
@@ -1390,6 +1631,7 @@ class WorkApiService {
       final res = await _api.patch('/v1/work/teams/$teamId', data);
       if (res['success'] == true) {
         invalidateCache();
+        WorkFilterHelper.clearCache();
         return true;
       }
       return false;
@@ -1407,6 +1649,7 @@ class WorkApiService {
       final res = await _api.post('/v1/work/teams/$teamId/duplicate', body);
       if (res['success'] == true) {
         invalidateCache();
+        WorkFilterHelper.clearCache();
         return true;
       }
       return false;
@@ -1420,6 +1663,7 @@ class WorkApiService {
       final res = await _api.delete('/v1/work/teams/$teamId${hard ? "?hard=true" : ""}');
       if (res['success'] == true) {
         invalidateCache();
+        WorkFilterHelper.clearCache();
         return true;
       }
       return false;
@@ -1439,6 +1683,61 @@ class WorkApiService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> addTeamMembers(String teamId, List<String> userIds) async {
+    try {
+      final res = await _api.post('/v1/work/teams/$teamId/members', {
+        'user_ids': userIds,
+      });
+      if (res['success'] == true) {
+        invalidateCache();
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<String>> getDepartments({bool forceRefresh = false}) async {
+    try {
+      final res = await _api.get('/v1/departments', useCache: !forceRefresh);
+      if (res['departments'] is List) {
+        final list = (res['departments'] as List)
+            .map((d) {
+              if (d is Map) {
+                return (d['name'] ?? d['department_name'] ?? d['title'] ?? '').toString();
+              }
+              return d.toString();
+            })
+            .where((d) => d.trim().isNotEmpty)
+            .toList();
+        if (list.isNotEmpty) return list;
+      }
+    } catch (_) {}
+    return [
+      'Academic / Teaching',
+      'Administration',
+      'Mathematics',
+      'Science',
+      'English / Languages',
+      'Social Studies & Humanities',
+      'Computer Science & IT',
+      'Finance & Accounts',
+      'Human Resources',
+      'Library & Information',
+      'Physical Education & Sports',
+      'Arts & Performing Arts',
+      'Transport & Fleet',
+      'Hostel & Residential',
+      'Security & Safety',
+      'Medical & Health Clinic',
+      'Maintenance & Facilities',
+      'Examination & Assessment',
+      'Student Affairs & Admissions',
+      'General / Unassigned',
+    ];
   }
 
   Future<bool> removeTeamMember(String teamId, String userId) async {

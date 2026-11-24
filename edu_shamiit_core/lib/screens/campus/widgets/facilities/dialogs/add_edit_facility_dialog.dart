@@ -29,6 +29,8 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
   late TextEditingController _managerPhoneCtrl;
   late TextEditingController _descCtrl;
 
+  final FocusNode _managerFocusNode = FocusNode();
+
   String _category = 'Sports Complex / Ground';
   String _status = 'Operational';
   String? _selectedBuildingId;
@@ -38,6 +40,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
   List<String> _facilityStatuses = [];
   List<BuildingModel> _buildings = [];
   List<BuildingFloorModel> _floors = [];
+  List<Map<String, dynamic>> _staffUsers = [];
 
   bool _isLoadingLookups = true;
   bool _isSaving = false;
@@ -92,12 +95,14 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
     );
 
     final bldgs = await CampusLookupHelper.instance.getActiveBuildings();
+    final staff = await CampusLookupHelper.instance.getStaffUsers();
 
     if (mounted) {
       setState(() {
         _facilityTypes = types;
         _facilityStatuses = statuses;
         _buildings = bldgs;
+        _staffUsers = staff;
         if (!_facilityTypes.contains(_category) && _facilityTypes.isNotEmpty) {
           _category = _facilityTypes.first;
         }
@@ -130,6 +135,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
 
   @override
   void dispose() {
+    _managerFocusNode.dispose();
     _nameCtrl.dispose();
     _codeCtrl.dispose();
     _capacityCtrl.dispose();
@@ -414,26 +420,183 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Supervisor Name & Phone
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _managerNameCtrl,
-                                decoration: _buildInputDeco('Facility Supervisor / Custodian', borderColor, isDark),
+                        // Supervisor Name & Phone (with User Management Integration)
+                        if (dialogWidth < 500) ...[
+                          RawAutocomplete<Map<String, dynamic>>(
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              if (textEditingValue.text.isEmpty) return _staffUsers;
+                              final q = textEditingValue.text.toLowerCase();
+                              return _staffUsers.where((u) {
+                                final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                                final role = (u['role'] ?? '').toString().toLowerCase();
+                                final dept = (u['department'] ?? '').toString().toLowerCase();
+                                return name.contains(q) || role.contains(q) || dept.contains(q);
+                              });
+                            },
+                            displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                            focusNode: _managerFocusNode,
+                            textEditingController: _managerNameCtrl,
+                            onSelected: (u) {
+                              final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                              _managerNameCtrl.text = name;
+                              final phone = (u['phone'] ?? u['phone_number'] ?? u['mobile'] ?? '').toString();
+                              if (phone.isNotEmpty) {
+                                _managerPhoneCtrl.text = phone;
+                              }
+                            },
+                            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                              return TextFormField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                decoration: _buildInputDeco('Facility Supervisor / Custodian', borderColor, isDark).copyWith(
+                                  prefixIcon: const Icon(Icons.person_outline, size: 18),
+                                  suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                  hintText: 'Search user from User Management',
+                                ),
                                 style: TextStyle(fontSize: 13, color: textPrimary),
-                              ),
+                              );
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 4,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: dialogWidth - 40,
+                                    constraints: const BoxConstraints(maxHeight: 200),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      itemBuilder: (context, idx) {
+                                        final u = options.elementAt(idx);
+                                        final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                        final role = (u['role'] ?? '').toString();
+                                        final dept = (u['department'] ?? '').toString();
+                                        return ListTile(
+                                          dense: true,
+                                          title: Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: textPrimary)),
+                                          subtitle: Text(
+                                            [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                            style: TextStyle(fontSize: 11, color: textSecondary),
+                                          ),
+                                          onTap: () => onSelected(u),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _managerPhoneCtrl,
+                            decoration: _buildInputDeco('Contact Number', borderColor, isDark).copyWith(
+                              prefixIcon: const Icon(Icons.phone_outlined, size: 18),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _managerPhoneCtrl,
-                                decoration: _buildInputDeco('Contact Number', borderColor, isDark),
-                                style: TextStyle(fontSize: 13, color: textPrimary),
+                            style: TextStyle(fontSize: 13, color: textPrimary),
+                          ),
+                        ] else ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: RawAutocomplete<Map<String, dynamic>>(
+                                  optionsBuilder: (TextEditingValue textEditingValue) {
+                                    if (textEditingValue.text.isEmpty) return _staffUsers;
+                                    final q = textEditingValue.text.toLowerCase();
+                                    return _staffUsers.where((u) {
+                                      final name = (u['full_name'] ?? u['username'] ?? '').toString().toLowerCase();
+                                      final role = (u['role'] ?? '').toString().toLowerCase();
+                                      final dept = (u['department'] ?? '').toString().toLowerCase();
+                                      return name.contains(q) || role.contains(q) || dept.contains(q);
+                                    });
+                                  },
+                                  displayStringForOption: (u) => (u['full_name'] ?? u['username'] ?? '').toString(),
+                                  focusNode: _managerFocusNode,
+                                  textEditingController: _managerNameCtrl,
+                                  onSelected: (u) {
+                                    final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                    _managerNameCtrl.text = name;
+                                    final phone = (u['phone'] ?? u['phone_number'] ?? u['mobile'] ?? '').toString();
+                                    if (phone.isNotEmpty) {
+                                      _managerPhoneCtrl.text = phone;
+                                    }
+                                  },
+                                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                    return TextFormField(
+                                      controller: controller,
+                                      focusNode: focusNode,
+                                      decoration: _buildInputDeco('Facility Supervisor / Custodian', borderColor, isDark).copyWith(
+                                        prefixIcon: const Icon(Icons.person_outline, size: 18),
+                                        suffixIcon: _staffUsers.isNotEmpty ? const Icon(Icons.arrow_drop_down, size: 20) : null,
+                                        hintText: 'Search user from User Management',
+                                      ),
+                                      style: TextStyle(fontSize: 13, color: textPrimary),
+                                    );
+                                  },
+                                  optionsViewBuilder: (context, onSelected, options) {
+                                    return Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Material(
+                                        elevation: 4,
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          width: (dialogWidth - 52) * 0.6,
+                                          constraints: const BoxConstraints(maxHeight: 200),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                          ),
+                                          child: ListView.builder(
+                                            padding: EdgeInsets.zero,
+                                            shrinkWrap: true,
+                                            itemCount: options.length,
+                                            itemBuilder: (context, idx) {
+                                              final u = options.elementAt(idx);
+                                              final name = (u['full_name'] ?? u['username'] ?? '').toString();
+                                              final role = (u['role'] ?? '').toString();
+                                              final dept = (u['department'] ?? '').toString();
+                                              return ListTile(
+                                                dense: true,
+                                                title: Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: textPrimary)),
+                                                subtitle: Text(
+                                                  [if (role.isNotEmpty) role, if (dept.isNotEmpty) dept].join(' • '),
+                                                  style: TextStyle(fontSize: 11, color: textSecondary),
+                                                ),
+                                                onTap: () => onSelected(u),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _managerPhoneCtrl,
+                                  decoration: _buildInputDeco('Contact Number', borderColor, isDark).copyWith(
+                                    prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                                  ),
+                                  style: TextStyle(fontSize: 13, color: textPrimary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 12),
 
                         // Description

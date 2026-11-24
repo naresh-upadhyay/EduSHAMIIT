@@ -15,6 +15,7 @@ class WorkTabsBar extends StatelessWidget {
     'List',
     'Backlog',
     'Sprints',
+    'Team',
   ];
 
   @override

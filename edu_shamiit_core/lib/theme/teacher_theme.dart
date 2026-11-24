@@ -4,7 +4,9 @@ import '../constants/teacher_colors.dart';
 import 'responsive_dialog_padding.dart';
 
 ThemeData getTeacherTheme({Brightness brightness = Brightness.light}) {
-  final baseTheme = brightness == Brightness.dark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
+  final isDark = brightness == Brightness.dark;
+  const primaryColor = TeacherColors.primary;
+  final baseTheme = isDark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
   
   return baseTheme.copyWith(
     primaryColor: TeacherColors.primary,
@@ -141,6 +143,31 @@ ThemeData getTeacherTheme({Brightness brightness = Brightness.light}) {
         borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
       insetPadding: ResponsiveInsetPadding(),
+    ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbVisibility: WidgetStateProperty.all(true),
+      trackVisibility: WidgetStateProperty.all(true),
+      interactive: true,
+      thickness: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.hovered) || states.contains(WidgetState.dragged)) {
+          return 10.0;
+        }
+        return 8.0;
+      }),
+      radius: const Radius.circular(4),
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.dragged)) {
+          return primaryColor;
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return primaryColor.withValues(alpha: 0.85);
+        }
+        return isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.3);
+      }),
+      trackColor: WidgetStateProperty.all(
+        isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+      ),
+      trackBorderColor: WidgetStateProperty.all(Colors.transparent),
     ),
   );
 }

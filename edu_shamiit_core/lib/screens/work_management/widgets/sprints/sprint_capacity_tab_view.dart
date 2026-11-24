@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
+import '../../utils/work_filter_helper.dart';
+import '../work_searchable_dropdown.dart';
 
 class SprintCapacityTabView extends ConsumerStatefulWidget {
   final String sprintId;
@@ -28,6 +30,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
   Set<String> _selectedMemberIds = {};
   final TextEditingController _gridSearchController = TextEditingController();
   Timer? _searchDebounce;
+  int _selectedChartTab = 0; // 0: Sprint Burndown Trend, 1: Daily Capacity & Effort
 
   List<WorkAssigneeModel> _assignableUsers = const [
     WorkAssigneeModel(id: '1', userId: '55555555-0001-0000-0000-000000000001', fullName: 'Neha Sharma', role: 'Teacher'),
@@ -82,319 +85,366 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
   // DIALOGS & ACTIONS
   // ==========================================
 
-  void _openAddMemberDialog() {
+  void _openAdjustCapacityDialog(SprintCapacityMemberModel member) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final users = _assignableUsers;
+    final capState = ref.read(workSprintCapacityProvider);
+    final dash = capState.dashboard;
 
-    String? selectedUserId = users.isNotEmpty ? users.first.userId : null;
-    String selectedRole = 'Developer';
-    final hoursController = TextEditingController(text: '40');
+    final hoursController = TextEditingController(text: member.capacityHours.toStringAsFixed(0));
+    final dailyHoursController = TextEditingController(
+      text: member.dailyWorkingHours > 0 ? member.dailyWorkingHours.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '') : '8',
+    );
+    final daysController = TextEditingController(
+      text: (member.workingDays > 0 ? member.workingDays : (dash?.workingDays ?? 10)).toString(),
+    );
+    final daysOffController = TextEditingController(
+      text: member.daysOff > 0 ? member.daysOff.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '') : '0',
+    );
+    final overrideController = TextEditingController(
+      text: member.overrideValue != null ? member.overrideValue!.toStringAsFixed(0) : '',
+    );
+    final reasonController = TextEditingController(text: member.overrideReason ?? '');
+    final notesController = TextEditingController(text: member.notes ?? '');
+    String selectedRole = member.role.trim();
+    bool hasOverride = member.overrideValue != null;
+
+    // Load available roles strictly from database app_roles via dashboard
+    final dynamicRoles = <String>{};
+    if (dash != null && dash.availableRoles.isNotEmpty) {
+      for (final r in dash.availableRoles) {
+        final label = r['label']?.toString() ?? r['name']?.toString() ?? '';
+        if (label.trim().isNotEmpty) dynamicRoles.add(label.trim());
+      }
+    }
+    if (selectedRole.isNotEmpty) dynamicRoles.add(selectedRole);
+    if (dynamicRoles.isEmpty) {
+      dynamicRoles.addAll(['Developer', 'Team Lead', 'QA Engineer', 'UI/UX Designer', 'DevOps Engineer', 'Teacher', 'Staff', 'Member']);
+    }
+    final roleList = dynamicRoles.toList()..sort();
+    if (!roleList.contains(selectedRole)) {
+      selectedRole = roleList.isNotEmpty ? roleList.first : 'Member';
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Row(
-            children: [
-              Icon(Icons.person_add_alt_1_rounded, size: 20, color: Color(0xFF2563EB)),
-              SizedBox(width: 8),
-              Text('Add Member to Sprint Capacity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SizedBox(
-            width: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (context, setDialogState) {
+          void recalculateCapacity() {
+            final daily = double.tryParse(dailyHoursController.text.trim()) ?? 8.0;
+            final wDays = double.tryParse(daysController.text.trim()) ?? 10.0;
+            final dOff = double.tryParse(daysOffController.text.trim()) ?? 0.0;
+            final effHours = ((wDays - dOff).clamp(0.0, 365.0) * daily);
+            hoursController.text = effHours.toStringAsFixed(0);
+            setDialogState(() {});
+          }
+
+          final calcDaily = double.tryParse(dailyHoursController.text.trim()) ?? 8.0;
+          final calcDays = double.tryParse(daysController.text.trim()) ?? 10.0;
+          final calcOff = double.tryParse(daysOffController.text.trim()) ?? 0.0;
+          final calcTotal = ((calcDays - calcOff).clamp(0.0, 365.0) * calcDaily);
+
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            title: Row(
               children: [
-                const Text('Select Institute Member', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedUserId,
-                  isExpanded: true,
-                  dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                  items: users.map<DropdownMenuItem<String>>((u) {
-                    return DropdownMenuItem<String>(
-                      value: u.userId,
-                      child: Text('${u.fullName} (${u.role})', overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setDialogState(() => selectedUserId = v),
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFFEFF6FF),
+                  child: Text(
+                    member.fullName.isNotEmpty ? member.fullName.substring(0, 1).toUpperCase() : 'U',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                   ),
                 ),
-                const SizedBox(height: 14),
-                const Text('Role in Sprint', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedRole,
-                  dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                  items: [
-                    'Team Lead',
-                    'Senior Developer',
-                    'Backend Developer',
-                    'UI/UX Designer',
-                    'QA Engineer',
-                    'DevOps Engineer',
-                    'System Analyst',
-                    'Developer',
-                    'Member',
-                  ].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                  onChanged: (v) => setDialogState(() => selectedRole = v ?? 'Developer'),
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        member.fullName,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (member.email != null && member.email!.isNotEmpty)
+                        Text(
+                          member.email!,
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                const Text('Sprint Available Capacity (Hours)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: hoursController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    suffixText: 'hours',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    member.teamName ?? dash?.selectedTeam ?? 'Team',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
                   ),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedUserId != null) {
-                  final hours = double.tryParse(hoursController.text.trim()) ?? 40.0;
-                  final nav = Navigator.of(ctx);
-                  await ref.read(workSprintCapacityProvider.notifier).manageMemberCapacity(
-                        userId: selectedUserId!,
-                        capacityHours: hours,
-                        role: selectedRole,
-                      );
-                  nav.pop();
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-              child: const Text('Add Member', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openAdjustCapacityDialog(SprintCapacityMemberModel member) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hoursController = TextEditingController(text: member.capacityHours.toStringAsFixed(0));
-    final dailyHoursController = TextEditingController(text: member.dailyWorkingHours.toStringAsFixed(1));
-    final daysController = TextEditingController(text: member.workingDays.toString());
-    final overrideController = TextEditingController(text: member.overrideValue != null ? member.overrideValue!.toStringAsFixed(0) : '');
-    final reasonController = TextEditingController(text: member.overrideReason ?? '');
-    final notesController = TextEditingController(text: member.notes ?? '');
-    String selectedRole = member.role;
-    bool hasOverride = member.overrideValue != null;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Row(
-            children: [
-              const Icon(Icons.tune_rounded, size: 20, color: Color(0xFF2563EB)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Adjust Capacity: ${member.fullName}',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Daily Working Hours', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: dailyHoursController,
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) {
-                                final d = double.tryParse(v) ?? 8.0;
-                                final days = int.tryParse(daysController.text) ?? 5;
-                                hoursController.text = (d * days).toStringAsFixed(0);
-                                setDialogState(() {});
-                              },
-                              decoration: InputDecoration(
-                                suffixText: 'h/day',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sprint Context Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_month_outlined, size: 16, color: Color(0xFF2563EB)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Target Sprint: ${dash?.sprintName ?? "Sprint"} (${dash?.sprintDuration ?? ""})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Role in Sprint (Loaded directly from app_roles)
+                    const Text('Role in this Sprint (from System Roles)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: roleList.contains(selectedRole) ? selectedRole : (roleList.isNotEmpty ? roleList.first : 'Member'),
+                      isExpanded: true,
+                      dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+                      items: roleList.map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12.5)))).toList(),
+                      onChanged: (v) => setDialogState(() => selectedRole = v ?? selectedRole),
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 3 Parameters: Daily Hours, Sprint Working Days, Days Off / Vacation
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Daily Hours', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: dailyHoursController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (_) => recalculateCapacity(),
+                                decoration: InputDecoration(
+                                  suffixText: 'h/d',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Sprint Days', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: daysController,
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => recalculateCapacity(),
+                                decoration: InputDecoration(
+                                  suffixText: 'days',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Days Off / Leaves', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: daysOffController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (_) => recalculateCapacity(),
+                                decoration: InputDecoration(
+                                  suffixText: 'days',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Live Effective Formula Summary Card
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Calculated Sprint Capacity', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF))),
+                              const SizedBox(height: 2),
+                              Text(
+                                '(${calcDays.toInt()} days - ${calcOff.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')} off) × ${calcDaily.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')} h/day',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6)),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '${calcTotal.toStringAsFixed(0)} Hours',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Manual Override Checkbox
+                    CheckboxListTile(
+                      value: hasOverride,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Manual Capacity Override', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Explicitly set available hours regardless of working days', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      onChanged: (v) => setDialogState(() => hasOverride = v ?? false),
+                    ),
+                    if (hasOverride) ...[
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: overrideController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Override Hours',
+                          suffixText: 'hours',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Sprint Working Days', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: daysController,
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) {
-                                final days = int.tryParse(v) ?? 5;
-                                final d = double.tryParse(dailyHoursController.text) ?? 8.0;
-                                hoursController.text = (d * days).toStringAsFixed(0);
-                                setDialogState(() {});
-                              },
-                              decoration: InputDecoration(
-                                suffixText: 'days',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: reasonController,
+                        decoration: InputDecoration(
+                          labelText: 'Reason for Override',
+                          hintText: 'e.g. Dedicated to Exam module, Part-time support...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Total Available Capacity (Hours)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: hoursController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      suffixText: 'hours',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Member Role in Sprint', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedRole,
-                    dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                    items: [
-                      'Team Lead',
-                      'Senior Developer',
-                      'Backend Developer',
-                      'UI/UX Designer',
-                      'QA Engineer',
-                      'DevOps Engineer',
-                      'System Analyst',
-                      'Developer',
-                    ].map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: (v) => setDialogState(() => selectedRole = v ?? selectedRole),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  CheckboxListTile(
-                    value: hasOverride,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Manual Capacity Override', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Override standard calculated hours with custom value', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                    onChanged: (v) => setDialogState(() => hasOverride = v ?? false),
-                  ),
-                  if (hasOverride) ...[
+                    const SizedBox(height: 14),
+
+                    // Notes & Availability Comments
+                    const Text('Notes / Availability Comments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
                     TextField(
-                      controller: overrideController,
-                      keyboardType: TextInputType.number,
+                      controller: notesController,
+                      maxLines: 2,
                       decoration: InputDecoration(
-                        labelText: 'Override Hours',
-                        suffixText: 'hours',
+                        hintText: 'e.g. On approved medical leave Jan 05-07...',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: const EdgeInsets.all(10),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: reasonController,
-                      decoration: InputDecoration(
-                        labelText: 'Reason for Override',
-                        hintText: 'e.g. Dedicated to Exam module, Part-time support...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ],
-                  const SizedBox(height: 14),
-                  const Text('Notes / Remarks', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: notesController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      hintText: 'Optional notes for sprint planning...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.all(10),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final capHours = double.tryParse(hoursController.text.trim()) ?? member.capacityHours;
-                final dailyHours = double.tryParse(dailyHoursController.text.trim());
-                final days = int.tryParse(daysController.text.trim());
-                final overrideVal = hasOverride ? double.tryParse(overrideController.text.trim()) : null;
-                final overrideReason = hasOverride ? reasonController.text.trim() : null;
-                final notes = notesController.text.trim();
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final capHours = hasOverride && overrideController.text.trim().isNotEmpty
+                      ? (double.tryParse(overrideController.text.trim()) ?? member.capacityHours)
+                      : (double.tryParse(hoursController.text.trim()) ?? member.capacityHours);
+                  final dailyHours = double.tryParse(dailyHoursController.text.trim()) ?? 8.0;
+                  final days = int.tryParse(daysController.text.trim()) ?? 10;
+                  final daysOff = double.tryParse(daysOffController.text.trim()) ?? 0.0;
+                  final overrideVal = hasOverride ? double.tryParse(overrideController.text.trim()) : null;
+                  final overrideReason = hasOverride ? reasonController.text.trim() : null;
+                  final notes = notesController.text.trim();
 
-                final nav = Navigator.of(ctx);
-                await ref.read(workSprintCapacityProvider.notifier).manageMemberCapacity(
-                      userId: member.userId,
-                      capacityHours: capHours,
-                      dailyWorkingHours: dailyHours,
-                      workingDays: days,
-                      role: selectedRole,
-                      overrideValue: overrideVal,
-                      overrideReason: overrideReason,
-                      notes: notes.isNotEmpty ? notes : null,
+                  final nav = Navigator.of(ctx);
+                  final scaffold = ScaffoldMessenger.of(context);
+                  final ok = await ref.read(workSprintCapacityProvider.notifier).manageMemberCapacity(
+                        userId: member.userId,
+                        capacityHours: capHours,
+                        dailyWorkingHours: dailyHours,
+                        workingDays: days,
+                        daysOff: daysOff,
+                        role: selectedRole,
+                        teamName: member.teamName ?? dash?.selectedTeam,
+                        teamId: member.teamId,
+                        overrideValue: overrideVal,
+                        overrideReason: overrideReason,
+                        notes: notes.isNotEmpty ? notes : null,
+                      );
+                  nav.pop();
+                  if (ok) {
+                    scaffold.showSnackBar(
+                      SnackBar(
+                        content: Text('Sprint capacity saved for ${member.fullName} (${capHours.toStringAsFixed(0)} h)'),
+                        backgroundColor: const Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
                     );
-                nav.pop();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-              child: const Text('Save Capacity', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+                child: const Text('Save Sprint Capacity', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -719,12 +769,29 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final capState = ref.read(workSprintCapacityProvider);
     final allMembers = capState.dashboard?.members ?? [];
-    final eligibleDestinations = allMembers.where((m) => m.userId != fromMember.userId).toList();
+    
+    // Deduplicate eligible destination members by userId
+    final uniqueEligible = <String, SprintCapacityMemberModel>{};
+    for (final m in allMembers) {
+      if (m.userId.isNotEmpty && m.userId != fromMember.userId) {
+        uniqueEligible.putIfAbsent(m.userId, () => m);
+      }
+    }
+    final eligibleDestinations = uniqueEligible.values.toList();
 
     // Fetch sprint work items to pick which item to reassign
     final api = ref.read(workApiServiceProvider);
     final dash = await api.getSprintDashboard(widget.sprintId);
-    final items = (dash['items'] as List<WorkItemModel>?) ?? [];
+    final rawItems = (dash['items'] as List<WorkItemModel>?) ?? [];
+    
+    // Deduplicate items by id
+    final uniqueItems = <String, WorkItemModel>{};
+    for (final it in rawItems) {
+      if (it.id.isNotEmpty) {
+        uniqueItems.putIfAbsent(it.id, () => it);
+      }
+    }
+    final items = uniqueItems.values.toList();
 
     if (!mounted) return;
 
@@ -770,6 +837,9 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
 
           final projectedTargetHours = targetMember.plannedHours + itemHours;
           final projectedTargetUtil = targetMember.capacityHours > 0 ? ((projectedTargetHours / targetMember.capacityHours) * 100) : 0.0;
+
+          final effectiveItemId = items.any((it) => it.id == selectedItemId) ? selectedItemId : (items.isNotEmpty ? items.first.id : null);
+          final effectiveDestId = eligibleDestinations.any((m) => m.userId == selectedDestinationId) ? selectedDestinationId : eligibleDestinations.first.userId;
 
           return AlertDialog(
             backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -821,7 +891,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     const Text('Select Work Item to Transfer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedItemId,
+                      initialValue: effectiveItemId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                       items: items.map((it) {
@@ -844,7 +914,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     const Text('Reassign To (Destination Member)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedDestinationId,
+                      initialValue: effectiveDestId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                       items: eligibleDestinations.map((m) {
@@ -1143,19 +1213,27 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     }
 
     final teamItems = <String>['All Teams'];
+    final dynamicTeams = ref.watch(workTeamsListProvider);
     if (dash.teams.isNotEmpty) {
       for (final t in dash.teams) {
         if (!teamItems.contains(t.name)) {
           teamItems.add(t.name);
         }
       }
-    } else if (capState.availableTeams.isNotEmpty) {
+    }
+    if (capState.availableTeams.isNotEmpty) {
       for (final t in capState.availableTeams) {
         if (!teamItems.contains(t.name)) {
           teamItems.add(t.name);
         }
       }
-    } else {
+    }
+    for (final t in dynamicTeams) {
+      if (t != 'All' && t != 'All Teams' && !teamItems.contains(t)) {
+        teamItems.add(t);
+      }
+    }
+    if (teamItems.length == 1) {
       teamItems.addAll([
         'Digital Campus Team',
         'Academic Systems Team',
@@ -1219,91 +1297,45 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               // 1. Sprint Selector Dropdown
-              Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.directions_run_rounded, size: 16, color: Color(0xFF2563EB)),
-                    const SizedBox(width: 8),
-                    const Text('Sprint:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                    const SizedBox(width: 6),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: currentSprintId,
-                        dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),
-                        items: sprintItems.map((s) {
-                          return DropdownMenuItem<String>(
-                            value: s['id'],
-                            child: Text(s['label']!),
-                          );
-                        }).toList(),
-                        onChanged: (newSid) {
-                          if (newSid != null) {
-                            ref.read(workSprintCapacityProvider.notifier).selectSprint(newSid);
-                            widget.onSprintChanged?.call(newSid);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+              Builder(
+                builder: (context) {
+                  final sprintLabels = sprintItems.map((s) => s['label']!).toList();
+                  final currentLabel = sprintItems.firstWhere(
+                    (s) => s['id'] == currentSprintId,
+                    orElse: () => {'label': sprintLabels.isNotEmpty ? sprintLabels.first : 'Active Sprint'},
+                  )['label']!;
+                  return WorkSearchableDropdown(
+                    label: 'Sprint',
+                    value: currentLabel,
+                    items: sprintLabels,
+                    icon: Icons.directions_run_rounded,
+                    compact: false,
+                    onChanged: (selectedLabel) {
+                      final match = sprintItems.firstWhere(
+                        (s) => s['label'] == selectedLabel,
+                        orElse: () => {'id': currentSprintId},
+                      );
+                      final newSid = match['id'];
+                      if (newSid != null) {
+                        ref.read(workSprintCapacityProvider.notifier).selectSprint(newSid);
+                        widget.onSprintChanged?.call(newSid);
+                      }
+                    },
+                  );
+                },
               ),
 
               // 2. Team Selector Dropdown
-              Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.groups_rounded, size: 16, color: Color(0xFF10B981)),
-                    const SizedBox(width: 8),
-                    const Text('Team:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                    const SizedBox(width: 6),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: currentTeam,
-                        dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                        icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),
-                        items: teamItems.map((teamName) {
-                          return DropdownMenuItem<String>(
-                            value: teamName,
-                            child: Text(teamName),
-                          );
-                        }).toList(),
-                        onChanged: (newTeam) {
-                          if (newTeam != null) {
-                            ref.read(workSprintCapacityProvider.notifier).selectTeam(newTeam);
-                            widget.onTeamChanged?.call(newTeam);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+              WorkSearchableDropdown(
+                label: 'Team',
+                value: currentTeam,
+                items: teamItems,
+                icon: Icons.groups_rounded,
+                compact: false,
+                onChanged: (newTeam) {
+                  ref.read(workSprintCapacityProvider.notifier).selectTeam(newTeam);
+                  widget.onTeamChanged?.call(newTeam);
+                },
               ),
 
               // 3. Quick Refresh Button
@@ -1485,21 +1517,10 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
   }
 
   // ==========================================
-  // 2. DAILY GROUPED BAR CHART CARD
+  // 2. SPRINT BURNDOWN & WORKLOAD CHART CARD
   // ==========================================
 
   Widget _buildDailyGroupedBarChartCard(SprintCapacityDashboardModel dash, bool isDark) {
-    final daily = dash.dailyChart;
-
-    // Calculate dynamic upper bound for bar chart
-    double maxBarValue = 0.0;
-    for (final pt in daily) {
-      if (pt.capacityHours > maxBarValue) maxBarValue = pt.capacityHours;
-      if (pt.plannedHours > maxBarValue) maxBarValue = pt.plannedHours;
-      if (pt.actualHours > maxBarValue) maxBarValue = pt.actualHours;
-    }
-    final dynamicMaxY = maxBarValue > 0 ? (((maxBarValue * 1.25) / 6).ceil() * 6.0).clamp(42.0, 200.0) : 42.0;
-
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1512,7 +1533,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Info Icon & Legend
+          // Header with Dual Mode Toggle & Legend
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -1523,7 +1544,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Capacity vs Workload (Daily)',
+                    _selectedChartTab == 0 ? 'Sprint Burndown' : 'Capacity vs Workload (Daily)',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -1531,140 +1552,445 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Tooltip(
-                    message: 'Daily planned effort and actual recorded work compared to standard team capacity.',
-                    child: Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF94A3B8)),
+                  Tooltip(
+                    message: _selectedChartTab == 0
+                        ? 'Tracks sprint progress: Ideal burndown slope, remaining hours burn down, and actual completed work burnup.'
+                        : 'Daily planned effort and actual recorded work compared to standard team capacity.',
+                    child: const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF94A3B8)),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // View Toggle Pills
+                  Container(
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _selectedChartTab = 0),
+                          borderRadius: BorderRadius.circular(5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _selectedChartTab == 0
+                                  ? (isDark ? const Color(0xFF2563EB) : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(5),
+                              boxShadow: _selectedChartTab == 0
+                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 2)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.trending_down_rounded,
+                                  size: 13,
+                                  color: _selectedChartTab == 0
+                                      ? (_selectedChartTab == 0 && !isDark ? const Color(0xFF2563EB) : Colors.white)
+                                      : const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Burndown',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedChartTab == 0
+                                        ? (_selectedChartTab == 0 && !isDark ? const Color(0xFF2563EB) : Colors.white)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => setState(() => _selectedChartTab = 1),
+                          borderRadius: BorderRadius.circular(5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _selectedChartTab == 1
+                                  ? (isDark ? const Color(0xFF2563EB) : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(5),
+                              boxShadow: _selectedChartTab == 1
+                                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 2)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.bar_chart_rounded,
+                                  size: 13,
+                                  color: _selectedChartTab == 1
+                                      ? (_selectedChartTab == 1 && !isDark ? const Color(0xFF2563EB) : Colors.white)
+                                      : const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Daily Effort',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedChartTab == 1
+                                        ? (_selectedChartTab == 1 && !isDark ? const Color(0xFF2563EB) : Colors.white)
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              // Legend
+              // Legend based on active mode
               Wrap(
-                spacing: 14,
-                children: [
-                  _buildLegendIndicator('Capacity (h)', const Color(0xFF2563EB)),
-                  _buildLegendIndicator('Planned (h)', const Color(0xFF60A5FA)),
-                  _buildLegendIndicator('Actual (h)', const Color(0xFF10B981)),
-                ],
+                spacing: 12,
+                children: _selectedChartTab == 0
+                    ? [
+                        _buildLegendIndicator('Ideal Burndown', const Color(0xFFF59E0B)),
+                        _buildLegendIndicator('Remaining (h)', const Color(0xFF2563EB)),
+                        _buildLegendIndicator('Completed (h)', const Color(0xFF10B981)),
+                        _buildLegendIndicator('Daily Capacity', const Color(0xFF94A3B8)),
+                      ]
+                    : [
+                        _buildLegendIndicator('Capacity (h)', const Color(0xFF2563EB)),
+                        _buildLegendIndicator('Planned (h)', const Color(0xFF60A5FA)),
+                        _buildLegendIndicator('Actual (h)', const Color(0xFF10B981)),
+                      ],
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Grouped Bar Chart
+          // Chart Display
           SizedBox(
-            height: 220,
-            child: daily.isEmpty
-                ? const Center(child: Text('No daily tracking records found.', style: TextStyle(color: Color(0xFF64748B))))
-                : BarChart(
-                    BarChartData(
-                      maxY: dynamicMaxY,
-                      minY: 0,
-                      barTouchData: BarTouchData(
-                        enabled: true,
-                        touchTooltipData: BarTouchTooltipData(
-                          tooltipRoundedRadius: 8,
-                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                            if (groupIndex >= daily.length) return null;
-                            final pt = daily[groupIndex];
-                            return BarTooltipItem(
-                              '${pt.dateFmt}\n',
-                              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                              children: [
-                                TextSpan(
-                                  text: 'Capacity: ${pt.capacityHours.toStringAsFixed(0)}h\n',
-                                  style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 11),
-                                ),
-                                TextSpan(
-                                  text: 'Planned: ${pt.plannedHours.toStringAsFixed(0)}h\n',
-                                  style: const TextStyle(color: Color(0xFFBAE6FD), fontSize: 11),
-                                ),
-                                TextSpan(
-                                  text: 'Actual: ${pt.actualHours.toStringAsFixed(0)}h',
-                                  style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 28,
-                            interval: 6,
-                            getTitlesWidget: (val, meta) {
-                              if (val % 6 != 0 || val > dynamicMaxY) return const SizedBox.shrink();
-                              return Text(
-                                val.toInt().toString(),
-                                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-                              );
-                            },
-                          ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (val, meta) {
-                              final idx = val.toInt();
-                              if (idx >= 0 && idx < daily.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    daily[idx].dateFmt,
-                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 10.5),
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                        ),
-                      ),
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 6,
-                        getDrawingHorizontalLine: (val) => FlLine(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      barGroups: List.generate(daily.length, (idx) {
-                        final pt = daily[idx];
-                        return BarChartGroupData(
-                          x: idx,
-                          barsSpace: 3,
-                          barRods: [
-                            BarChartRodData(
-                              toY: pt.capacityHours,
-                              color: const Color(0xFF2563EB),
-                              width: 6,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-                            ),
-                            BarChartRodData(
-                              toY: pt.plannedHours,
-                              color: const Color(0xFF60A5FA),
-                              width: 6,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-                            ),
-                            BarChartRodData(
-                              toY: pt.actualHours,
-                              color: const Color(0xFF10B981),
-                              width: 6,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-                            ),
-                          ],
-                        );
-                      }),
-                    ),
-                  ),
+            height: 230,
+            child: _selectedChartTab == 0
+                ? _buildSprintBurndownLineChart(dash, isDark)
+                : _buildDailyGroupedBarChart(dash, isDark),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSprintBurndownLineChart(SprintCapacityDashboardModel dash, bool isDark) {
+    final burndown = dash.burndownChart;
+    if (burndown.isEmpty) {
+      return const Center(
+        child: Text('No sprint burndown data points available.', style: TextStyle(color: Color(0xFF64748B))),
+      );
+    }
+
+    double maxVal = 0.0;
+    for (final pt in burndown) {
+      if (pt.idealRemaining > maxVal) maxVal = pt.idealRemaining;
+      if (pt.remainingHours > maxVal) maxVal = pt.remainingHours;
+      if (pt.completedHours > maxVal) maxVal = pt.completedHours;
+      if (pt.capacityHours > maxVal) maxVal = pt.capacityHours;
+    }
+    if (maxVal <= 0) maxVal = 40.0;
+    final dynamicMaxY = ((maxVal * 1.25 / 10).ceil() * 10).toDouble().clamp(20.0, 100000.0);
+    final interval = (dynamicMaxY / 5).clamp(5.0, 10000.0);
+
+    final idealSpots = <FlSpot>[];
+    final remainSpots = <FlSpot>[];
+    final completedSpots = <FlSpot>[];
+    final capacitySpots = <FlSpot>[];
+
+    for (int i = 0; i < burndown.length; i++) {
+      final pt = burndown[i];
+      final x = i.toDouble();
+      idealSpots.add(FlSpot(x, pt.idealRemaining));
+      remainSpots.add(FlSpot(x, pt.remainingHours));
+      completedSpots.add(FlSpot(x, pt.completedHours));
+      capacitySpots.add(FlSpot(x, pt.capacityHours));
+    }
+
+    return ClipRect(
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (burndown.length - 1).toDouble().clamp(1.0, 365.0),
+          minY: 0,
+          maxY: dynamicMaxY,
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final idx = spot.spotIndex;
+                  final pt = (idx >= 0 && idx < burndown.length) ? burndown[idx] : null;
+                  final date = pt?.dateFmt ?? '';
+                  String label = '';
+                  Color col = Colors.white;
+                  if (spot.barIndex == 0) {
+                    label = 'Ideal: ${spot.y.toStringAsFixed(1)}h';
+                    col = const Color(0xFFF59E0B);
+                  } else if (spot.barIndex == 1) {
+                    label = 'Remaining: ${spot.y.toStringAsFixed(1)}h';
+                    col = const Color(0xFF60A5FA);
+                  } else if (spot.barIndex == 2) {
+                    label = 'Completed: ${spot.y.toStringAsFixed(1)}h';
+                    col = const Color(0xFF4ADE80);
+                  } else {
+                    label = 'Capacity: ${spot.y.toStringAsFixed(1)}h';
+                    col = const Color(0xFFCBD5E1);
+                  }
+                  return LineTooltipItem(
+                    '$date\n$label',
+                    TextStyle(color: col, fontWeight: FontWeight.bold, fontSize: 11.5),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: interval,
+            getDrawingHorizontalLine: (val) => FlLine(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              strokeWidth: 1,
+            ),
+          ),
+          titlesData: FlTitlesData(
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 38,
+                interval: interval,
+                getTitlesWidget: (val, meta) {
+                  if (val > dynamicMaxY || val < 0) return const SizedBox.shrink();
+                  return Text(
+                    '${val.toInt()}h',
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: (burndown.length > 10 ? 2 : 1).toDouble(),
+                getTitlesWidget: (val, meta) {
+                  final idx = val.toInt();
+                  if (idx >= 0 && idx < burndown.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        burndown[idx].dateFmt,
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            // 0: Ideal Burndown (amber dashed)
+            LineChartBarData(
+              spots: idealSpots,
+              isCurved: false,
+              color: const Color(0xFFF59E0B),
+              barWidth: 2,
+              dashArray: [5, 5],
+              dotData: const FlDotData(show: false),
+            ),
+            // 1: Remaining Work (blue solid with area)
+            LineChartBarData(
+              spots: remainSpots,
+              isCurved: true,
+              color: const Color(0xFF2563EB),
+              barWidth: 3,
+              dotData: const FlDotData(show: true),
+              belowBarData: BarAreaData(
+                show: true,
+                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+              ),
+            ),
+            // 2: Completed Work (emerald green)
+            LineChartBarData(
+              spots: completedSpots,
+              isCurved: true,
+              color: const Color(0xFF10B981),
+              barWidth: 2.5,
+              dotData: const FlDotData(show: false),
+            ),
+            // 3: Capacity Reference (slate dotted)
+            LineChartBarData(
+              spots: capacitySpots,
+              isCurved: false,
+              color: const Color(0xFF94A3B8),
+              barWidth: 1.5,
+              dashArray: [3, 4],
+              dotData: const FlDotData(show: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyGroupedBarChart(SprintCapacityDashboardModel dash, bool isDark) {
+    final daily = dash.dailyChart;
+    if (daily.isEmpty) {
+      return const Center(child: Text('No daily tracking records found.', style: TextStyle(color: Color(0xFF64748B))));
+    }
+
+    double maxBarValue = 0.0;
+    for (final pt in daily) {
+      if (pt.capacityHours > maxBarValue) maxBarValue = pt.capacityHours;
+      if (pt.plannedHours > maxBarValue) maxBarValue = pt.plannedHours;
+      if (pt.actualHours > maxBarValue) maxBarValue = pt.actualHours;
+    }
+    if (maxBarValue <= 0) maxBarValue = 40.0;
+
+    final rawMax = maxBarValue * 1.2;
+    double niceInterval = 10.0;
+    if (rawMax <= 30) {
+      niceInterval = 5.0;
+    } else if (rawMax <= 60) {
+      niceInterval = 10.0;
+    } else if (rawMax <= 150) {
+      niceInterval = 25.0;
+    } else if (rawMax <= 300) {
+      niceInterval = 50.0;
+    } else if (rawMax <= 600) {
+      niceInterval = 100.0;
+    } else if (rawMax <= 1200) {
+      niceInterval = 200.0;
+    } else {
+      niceInterval = 400.0;
+    }
+    final dynamicMaxY = ((rawMax / niceInterval).ceil() * niceInterval).toDouble().clamp(30.0, 100000.0);
+
+    return ClipRect(
+      child: BarChart(
+        BarChartData(
+          maxY: dynamicMaxY,
+          minY: 0,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                if (groupIndex >= daily.length) return null;
+                final pt = daily[groupIndex];
+                return BarTooltipItem(
+                  '${pt.dateFmt}\n',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  children: [
+                    TextSpan(
+                      text: 'Capacity: ${pt.capacityHours.toStringAsFixed(0)}h\n',
+                      style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 11),
+                    ),
+                    TextSpan(
+                      text: 'Planned: ${pt.plannedHours.toStringAsFixed(0)}h\n',
+                      style: const TextStyle(color: Color(0xFFBAE6FD), fontSize: 11),
+                    ),
+                    TextSpan(
+                      text: 'Actual: ${pt.actualHours.toStringAsFixed(0)}h',
+                      style: const TextStyle(color: Color(0xFF86EFAC), fontSize: 11),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            show: true,
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                interval: niceInterval,
+                getTitlesWidget: (val, meta) {
+                  if (val > dynamicMaxY || val < 0) return const SizedBox.shrink();
+                  return Text(
+                    val.toInt().toString(),
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (val, meta) {
+                  final idx = val.toInt();
+                  if (idx >= 0 && idx < daily.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        daily[idx].dateFmt,
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 10.5),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: niceInterval,
+            getDrawingHorizontalLine: (val) => FlLine(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              strokeWidth: 1,
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: List.generate(daily.length, (idx) {
+            final pt = daily[idx];
+            return BarChartGroupData(
+              x: idx,
+              barsSpace: 3,
+              barRods: [
+                BarChartRodData(
+                  toY: pt.capacityHours,
+                  color: const Color(0xFF2563EB),
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                ),
+                BarChartRodData(
+                  toY: pt.plannedHours,
+                  color: const Color(0xFF60A5FA),
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                ),
+                BarChartRodData(
+                  toY: pt.actualHours,
+                  color: const Color(0xFF10B981),
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                ),
+              ],
+            );
+          }),
+        ),
       ),
     );
   }
@@ -1700,7 +2026,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
 
   Widget _buildTeamMemberWorkloadTableCard(SprintCapacityDashboardModel dash, bool isDark) {
     final capState = ref.watch(workSprintCapacityProvider);
-    final rawMembers = dash.members.isNotEmpty ? dash.members : capState.allMembers;
+    final rawMembers = dash.members;
     final filteredMembers = _getFilteredAndSortedMembers(rawMembers, capState);
     final totalCount = dash.pagination.totalMembers > 0
         ? dash.pagination.totalMembers
@@ -1779,16 +2105,6 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _openAddMemberDialog,
-                    icon: const Icon(Icons.add_rounded, size: 14, color: Color(0xFF2563EB)),
-                    label: const Text('Add Team Member', style: TextStyle(fontSize: 11.5, color: Color(0xFF2563EB))),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      side: const BorderSide(color: Color(0xFF2563EB)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                  ),
                   OutlinedButton.icon(
                     onPressed: () {
                       if (_selectedMemberIds.isNotEmpty) {
@@ -1899,27 +2215,38 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     });
                   },
                   cells: [
-                    // Member Avatar & Name
+                    // Member Avatar & Name with Email
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircleAvatar(
-                            radius: 13,
+                            radius: 14,
                             backgroundColor: const Color(0xFFEFF6FF),
                             child: Text(
                               m.fullName.isNotEmpty ? m.fullName.substring(0, 1).toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            m.fullName,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                m.fullName,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              if (m.email != null && m.email!.isNotEmpty)
+                                Text(
+                                  m.email!,
+                                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -1973,33 +2300,43 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     DataCell(Text('${m.workItemsCount}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
                     // Status Badge
                     DataCell(_buildStatusBadge(m.status)),
-                    // Actions Menu
+                    // Actions Menu & Edit Button
                     DataCell(
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
-                        tooltip: 'Actions',
-                        onSelected: (val) {
-                          switch (val) {
-                            case 'adjust':
-                              _openAdjustCapacityDialog(m);
-                              break;
-                            case 'availability':
-                              _openManageAvailabilityDialog(m);
-                              break;
-                            case 'rebalance':
-                              _openRebalanceWorkloadDialog(m);
-                              break;
-                            case 'remove':
-                              ref.read(workSprintCapacityProvider.notifier).removeMember(m.userId);
-                              break;
-                          }
-                        },
-                        itemBuilder: (ctx) => [
-                          const PopupMenuItem(value: 'adjust', child: Text('Adjust Capacity', style: TextStyle(fontSize: 12.5))),
-                          const PopupMenuItem(value: 'availability', child: Text('Manage Availability', style: TextStyle(fontSize: 12.5))),
-                          const PopupMenuItem(value: 'rebalance', child: Text('Rebalance Workload', style: TextStyle(fontSize: 12.5))),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(value: 'remove', child: Text('Remove from Sprint', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444)))),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFF2563EB)),
+                            tooltip: 'Edit Sprint Capacity',
+                            onPressed: () => _openAdjustCapacityDialog(m),
+                          ),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
+                            tooltip: 'More Actions',
+                            onSelected: (val) {
+                              switch (val) {
+                                case 'adjust':
+                                  _openAdjustCapacityDialog(m);
+                                  break;
+                                case 'availability':
+                                  _openManageAvailabilityDialog(m);
+                                  break;
+                                case 'rebalance':
+                                  _openRebalanceWorkloadDialog(m);
+                                  break;
+                                case 'remove':
+                                  ref.read(workSprintCapacityProvider.notifier).removeMember(m.userId);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(value: 'adjust', child: Text('Adjust Capacity', style: TextStyle(fontSize: 12.5))),
+                              const PopupMenuItem(value: 'availability', child: Text('Manage Availability', style: TextStyle(fontSize: 12.5))),
+                              const PopupMenuItem(value: 'rebalance', child: Text('Rebalance Workload', style: TextStyle(fontSize: 12.5))),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(value: 'remove', child: Text('Remove from Sprint', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444)))),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -2057,12 +2394,10 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     for (final m in capState.allMembers) {
       if (m.role.isNotEmpty) availableRoles.add(m.role);
     }
-    final standardRoles = [
-      'Team Lead', 'Senior Developer', 'Backend Developer', 'UI/UX Designer',
-      'QA Engineer', 'DevOps Engineer', 'System Analyst', 'Developer',
-      'Scrum Master', 'Teacher', 'Staff'
-    ];
-    availableRoles.addAll(standardRoles);
+    for (final u in _assignableUsers) {
+      if (u.role.isNotEmpty) availableRoles.add(u.role);
+    }
+    availableRoles.addAll(WorkFilterHelper.roleOptions);
     final roleList = availableRoles.toList();
 
     final statusList = ['All', 'Overloaded', 'High', 'Balanced', 'Underallocated'];
@@ -2121,87 +2456,33 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
             ),
 
             // 2. Role Dropdown Filter
-            Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.badge_outlined, size: 15, color: Color(0xFF64748B)),
-                  const SizedBox(width: 6),
-                  const Text('Role:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(width: 6),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: roleList.contains(capState.selectedRole) ? capState.selectedRole : 'All',
-                      dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                      items: roleList.map((r) {
-                        return DropdownMenuItem<String>(
-                          value: r,
-                          child: Text(r == 'All' ? 'All Roles' : r),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          ref.read(workSprintCapacityProvider.notifier).setRoleFilter(val);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            WorkSearchableDropdown(
+              label: 'Role',
+              value: capState.selectedRole,
+              items: roleList,
+              icon: Icons.badge_outlined,
+              compact: true,
+              onChanged: (val) {
+                ref.read(workSprintCapacityProvider.notifier).setRoleFilter(val);
+              },
             ),
 
             // 3. Workload Status Dropdown Filter
-            Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.speed_rounded, size: 15, color: Color(0xFF64748B)),
-                  const SizedBox(width: 6),
-                  const Text('Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(width: 6),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: statusList.contains(capState.selectedStatus) ? capState.selectedStatus : 'All',
-                      dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                      items: statusList.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s,
-                          child: Text(s == 'All' ? 'All Statuses' : s),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          ref.read(workSprintCapacityProvider.notifier).setStatusFilter(val);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            WorkSearchableDropdown(
+              label: 'Status',
+              value: capState.selectedStatus,
+              items: statusList,
+              icon: Icons.speed_rounded,
+              compact: true,
+              itemColors: const {
+                'Overloaded': Color(0xFFEF4444),
+                'High': Color(0xFFF97316),
+                'Balanced': Color(0xFF10B981),
+                'Underallocated': Color(0xFF3B82F6),
+              },
+              onChanged: (val) {
+                ref.read(workSprintCapacityProvider.notifier).setStatusFilter(val);
+              },
             ),
 
             // 4. Reset Filters Button

@@ -142,3 +142,7 @@ void printCampusInstitutionalDossierHtml({
 }) {
   debugPrint('[Print Campus Institutional Dossier Stub]: $reportTitle - $period ($facilityScope)');
 }
+
+void setupMediaStreamInterception() {}
+
+void releaseHardwareMediaTracks({bool releaseVideo = true, bool releaseAudio = true}) {}

@@ -4,6 +4,7 @@ import 'package:edu_shamiit_academic/app_router.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_core/theme/student_theme.dart';
 import 'package:edu_shamiit_core/theme/teacher_theme.dart';
+import 'package:edu_shamiit_core/theme/app_scroll_behavior.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import 'package:edu_shamiit_core/providers/settings_provider.dart';
@@ -40,6 +41,7 @@ class EduShamiitApp extends ConsumerWidget {
     return MaterialApp.router(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const EduShamiitScrollBehavior(),
       theme: theme,
       darkTheme: darkTheme,
       themeMode: (settingsState.settings?.darkMode ?? false) ? ThemeMode.dark : ThemeMode.light,

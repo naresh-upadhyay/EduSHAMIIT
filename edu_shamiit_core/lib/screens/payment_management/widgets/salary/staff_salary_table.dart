@@ -8,7 +8,6 @@ import 'dialogs/request_salary_advance_dialog.dart';
 import 'dialogs/change_staff_payout_status_dialog.dart';
 import 'dialogs/staff_payslip_dialog.dart';
 import 'dialogs/settle_staff_advance_dialog.dart';
-import 'dialogs/automated_payroll_dialog.dart';
 
 class StaffSalaryTable extends ConsumerWidget {
   const StaffSalaryTable({super.key});
@@ -253,11 +252,13 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'da': s.da,
                                                       'ta': s.ta,
                                                       'special_allowance': s.specialAllowance,
+                                                      'medical_allowance': s.medicalAllowance,
                                                       'bonus': s.bonus,
                                                       'gross_earnings': s.grossSalary,
                                                       'pf_deduction': s.pfDeduction,
                                                       'tds': s.tds,
                                                       'professional_tax': s.professionalTax,
+                                                      'insurance_deduction': s.insuranceDeduction,
                                                       'advance_deduction': s.activeAdvanceDeduction,
                                                       'other_deductions': 0.0,
                                                       'total_deductions': s.totalDeductions,
@@ -330,11 +331,13 @@ class StaffSalaryTable extends ConsumerWidget {
                                                       'da': s.da,
                                                       'ta': s.ta,
                                                       'special_allowance': s.specialAllowance,
+                                                      'medical_allowance': s.medicalAllowance,
                                                       'bonus': s.bonus,
                                                       'gross_earnings': s.grossSalary,
                                                       'pf_deduction': s.pfDeduction,
                                                       'tds': s.tds,
                                                       'professional_tax': s.professionalTax,
+                                                      'insurance_deduction': s.insuranceDeduction,
                                                       'advance_deduction': s.activeAdvanceDeduction,
                                                       'other_deductions': 0.0,
                                                       'total_deductions': s.totalDeductions,
@@ -354,6 +357,7 @@ class StaffSalaryTable extends ConsumerWidget {
                                                 showDialog(
                                                   context: context,
                                                   builder: (ctx) => EditStaffSalaryStructureDialog(
+                                                    initialStructure: s.toStructureItem(),
                                                     staffId: s.staffId,
                                                     staffName: s.staffName,
                                                     currentBasic: s.basicPay,
@@ -851,23 +855,6 @@ class StaffSalaryTable extends ConsumerWidget {
                   ],
                 ),
                 const Spacer(),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B5CF6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('+ Add Structure', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (c) => const EditStaffSalaryStructureDialog(),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, size: 20),
                   tooltip: 'Refresh Structures',
@@ -1102,23 +1089,6 @@ class StaffSalaryTable extends ConsumerWidget {
                 const Spacer(),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.auto_mode_rounded, size: 18),
-                  label: const Text('Automate Payroll Run', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (c) => const AutomatedPayrollDialog(),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1268,11 +1238,13 @@ class StaffSalaryTable extends ConsumerWidget {
                                                 'da': p.da,
                                                 'ta': p.ta,
                                                 'special_allowance': p.specialAllowance,
+                                                'medical_allowance': p.medicalAllowance,
                                                 'bonus': p.bonus,
                                                 'gross_earnings': p.grossEarnings,
                                                 'pf_deduction': p.pfDeduction,
                                                 'tds': p.tds,
                                                 'professional_tax': p.professionalTax,
+                                                'insurance_deduction': p.insuranceDeduction,
                                                 'advance_deduction': p.advanceDeduction,
                                                 'other_deductions': p.otherDeductions,
                                                 'total_deductions': p.totalDeductions,
@@ -1384,23 +1356,6 @@ class StaffSalaryTable extends ConsumerWidget {
                   ],
                 ),
                 const Spacer(),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Request Advance', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (c) => const RequestSalaryAdvanceDialog(),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, size: 20),
                   tooltip: 'Refresh Advances',

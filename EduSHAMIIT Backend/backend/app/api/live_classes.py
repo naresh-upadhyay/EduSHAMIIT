@@ -478,7 +478,8 @@ async def start_live_class(
         UPDATE public.live_classes
         SET status = 'live', is_live = TRUE, actual_start_at = NOW(),
             meeting_link = COALESCE(meeting_link, %s),
-            recording_status = CASE WHEN recording_enabled = TRUE THEN 'ACTIVE' ELSE 'IDLE' END,
+            recording_status = 'IDLE',
+            recording_enabled = FALSE,
             updated_at = NOW()
         WHERE id = %s AND school_id = %s;
         """,
@@ -509,11 +510,7 @@ async def start_live_class(
     except Exception as e:
         print(f"[LiveKit] CreateRoom notice: {e}")
 
-    # 3. Check if recording is enabled and auto-trigger Egress
-    rows = await exec_sql("SELECT recording_enabled FROM public.live_classes WHERE id = %s;", (live_class_id,))
-    if rows and rows[0].get("recording_enabled"):
-        background_tasks.add_task(initiate_room_egress, live_class_id)
-
+    # 3. Recording starts strictly upon manual user trigger via /live-classes/sessions/{id}/recordings/toggle
     return {"success": True, "message": "Class started successfully", "session_id": live_class_id}
 
 

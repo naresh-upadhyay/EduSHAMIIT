@@ -262,7 +262,8 @@ class SpaceBookingApiService {
 
   /// 14. Real-time Slot Availability & Conflict Check
   Future<Map<String, dynamic>> checkSlotAvailability({
-    required String roomId,
+    String? roomId,
+    String? facilityId,
     required DateTime date,
     required String startTime,
     required String endTime,
@@ -272,7 +273,8 @@ class SpaceBookingApiService {
   }) async {
     try {
       final query = <String, dynamic>{
-        'room_id': roomId,
+        if (roomId != null && roomId.isNotEmpty) 'room_id': roomId,
+        if (facilityId != null && facilityId.isNotEmpty) 'facility_id': facilityId,
         'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
         'start_time': startTime,
         'end_time': endTime,

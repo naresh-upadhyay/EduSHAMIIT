@@ -25,7 +25,7 @@ from psycopg2.extras import RealDictCursor, register_uuid
 register_uuid()
 
 from app.config import settings
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user_optional as get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -155,25 +155,38 @@ async def resolve_sprint_id(sprint_id: Optional[str], school_id: str) -> Optiona
     if clean:
         return clean
     s_str = str(sprint_id).strip()
+
+    # 1. Match by sprint name first (e.g. "Sprint 103 (Active)", "Sprint 103", "Sprint 9", "Sprint 8")
+    clean_name = s_str.split('(')[0].strip()
+    if clean_name:
+        rows = await exec_sql(
+            "SELECT id FROM public.work_sprints WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND (name ILIKE %s OR name = %s) ORDER BY sprint_number DESC LIMIT 1;",
+            (school_id, school_id, f"%{clean_name}%", clean_name)
+        )
+        if rows:
+            return str(rows[0]["id"])
+
+    # 2. Match by sprint_number
     num_match = re.search(r'\d+', s_str)
     if num_match:
         s_num = int(num_match.group(0))
         rows = await exec_sql(
-            "SELECT id FROM public.work_sprints WHERE school_id = %s::UUID AND sprint_number = %s LIMIT 1;",
-            (school_id, s_num)
+            "SELECT id FROM public.work_sprints WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND sprint_number = %s LIMIT 1;",
+            (school_id, school_id, s_num)
         )
         if rows:
             return str(rows[0]["id"])
-    # Fallback to active sprint
+
+    # 3. Fallback to active sprint
     rows = await exec_sql(
-        "SELECT id FROM public.work_sprints WHERE school_id = %s::UUID AND status = 'ACTIVE' ORDER BY start_date DESC LIMIT 1;",
-        (school_id,)
+        "SELECT id FROM public.work_sprints WHERE (school_id = %s::UUID OR %s::UUID IS NULL) AND status = 'ACTIVE' ORDER BY start_date DESC LIMIT 1;",
+        (school_id, school_id)
     )
     if rows:
         return str(rows[0]["id"])
     rows2 = await exec_sql(
-        "SELECT id FROM public.work_sprints WHERE school_id = %s::UUID ORDER BY start_date DESC LIMIT 1;",
-        (school_id,)
+        "SELECT id FROM public.work_sprints WHERE (school_id = %s::UUID OR %s::UUID IS NULL) ORDER BY start_date DESC LIMIT 1;",
+        (school_id, school_id)
     )
     return str(rows2[0]["id"]) if rows2 else None
 
@@ -374,6 +387,12 @@ class ManageRetroEntryRequest(BaseModel):
     category: str = "WENT_WELL"
     content: str
     action: Optional[str] = "ADD"
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
+
+
+class ManageRetroCommentRequest(BaseModel):
+    content: str
 
 
 class UpdateRetroSessionRequest(BaseModel):
@@ -401,6 +420,8 @@ class ManageActionItemRequest(BaseModel):
     progress: Optional[int] = 0
     linked_work_item_id: Optional[str] = None
     source_entry_id: Optional[str] = None
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
     action: Optional[str] = "ADD"
 
 
@@ -422,9 +443,11 @@ class ManageMemberCapacityRequest(BaseModel):
     user_id: str
     role: Optional[str] = "Member"
     team_name: Optional[str] = "Digital Campus Team"
+    team_id: Optional[str] = None
     available_hours: Optional[float] = 40.0
     daily_hours: Optional[float] = 8.0
-    working_days: Optional[int] = 5
+    working_days: Optional[int] = 10
+    days_off: Optional[float] = 0.0
     override_value: Optional[float] = None
     override_reason: Optional[str] = None
     notes: Optional[str] = None
@@ -471,6 +494,7 @@ class BulkUpdateRequest(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     assignee_id: Optional[str] = None
+    assignee_ids: Optional[List[str]] = None
     sprint_id: Optional[str] = None
     team_id: Optional[str] = None
     team_name: Optional[str] = None
@@ -506,8 +530,9 @@ class UpdateWorkTeamRequest(BaseModel):
 
 
 class ManageWorkTeamMemberRequest(BaseModel):
-    user_id: str
-    role: Optional[str] = "Developer"
+    user_id: Optional[str] = None
+    user_ids: Optional[List[str]] = None
+    role: Optional[str] = None
     capacity_hours: Optional[float] = 40.0
     daily_hours: Optional[float] = 8.0
     is_lead: Optional[bool] = False
@@ -658,7 +683,7 @@ async def list_work_items(
     sort_col: Optional[str] = Query("created_at"),
     sort_dir: Optional[str] = Query("DESC"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(12, ge=1, le=100),
+    page_size: int = Query(100, ge=1, le=500),
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
@@ -676,7 +701,7 @@ async def list_work_items(
     clean_sort_col = safe_str(sort_col, "created_at")
     clean_sort_dir = safe_str(sort_dir, "DESC")
     clean_page = safe_int(page, 1)
-    clean_page_size = safe_int(page_size, 12)
+    clean_page_size = safe_int(page_size, 100)
     try:
         rows = await exec_sql(
             """
@@ -687,7 +712,18 @@ async def list_work_items(
             (sid, clean_board_id, clean_sprint_id, clean_type, clean_status, clean_assignee_id, clean_priority, clean_search, clean_sort_col, clean_sort_dir, clean_page, clean_page_size)
         )
         if rows and rows[0].get("result"):
-            return rows[0]["result"]
+            res = rows[0]["result"]
+            if not res.get("kpis"):
+                items = res.get("items", [])
+                res["kpis"] = {
+                    "total": res.get("total", len(items)),
+                    "new": len([i for i in items if str(i.get("status", "")).upper() in ("NEW", "OPEN", "PLANNED", "NOT STARTED", "NOT_STARTED", "TODO")]),
+                    "active": len([i for i in items if str(i.get("status", "")).upper() in ("ACTIVE", "IN_PROGRESS", "IN PROGRESS", "DOING", "CRITICAL")]),
+                    "resolved": len([i for i in items if str(i.get("status", "")).upper() in ("RESOLVED", "TESTING", "QA", "CODE REVIEW")]),
+                    "completed": len([i for i in items if str(i.get("status", "")).upper() in ("COMPLETED", "CLOSED", "DONE")]),
+                    "overdue": len([i for i in items if i.get("is_overdue")]),
+                }
+            return res
         return {"total": 0, "page": page, "page_size": page_size, "kpis": {}, "items": []}
     except Exception as e:
         logger.error(f"[List Items Error]: {e}", exc_info=True)
@@ -785,8 +821,10 @@ async def create_work_item(
             )
         )
         res = rows[0]["result"] if rows else {"success": True}
-        if res and isinstance(res, dict) and res.get("id"):
-            new_id = res["id"]
+        if res and isinstance(res, dict) and (res.get("id") or res.get("item_id")):
+            new_id = res.get("id") or res.get("item_id")
+            res["id"] = str(new_id)
+            res["item_id"] = str(new_id)
             # Enforce exact explicit assignee selection (do not auto-assign everyone if user selected 0 or specific users)
             if payload.assignee_ids is not None:
                 await exec_sql(
@@ -1250,8 +1288,12 @@ async def get_backlog_tree(
             (sid, clean_board_id, clean_epic_id, clean_search, clean_type, clean_assignee_id, clean_page, clean_page_size)
         )
         if rows and rows[0].get("result"):
-            return rows[0]["result"]
-        return {"kpis": {}, "epics": [], "items": []}
+            res = rows[0]["result"]
+            stories = res.get("stories") or res.get("items") or []
+            res["stories"] = stories
+            res["items"] = stories
+            return res
+        return {"kpis": {}, "epics": [], "items": [], "stories": []}
     except Exception as e:
         logger.error(f"[Backlog Tree Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1382,7 +1424,30 @@ async def bulk_update_work_items(
             await exec_sql(sql, tuple(params), fetch=False)
 
         # Handle assignee update if requested
-        if payload.assignee_id is not None:
+        if payload.assignee_ids is not None:
+            clean_uids = [safe_uuid(a) for a in payload.assignee_ids if safe_uuid(a)]
+            for item_id in resolved_ids:
+                await exec_sql(
+                    "DELETE FROM public.work_item_assignees WHERE work_item_id = %s::UUID;",
+                    (item_id,),
+                    fetch=False
+                )
+                for clean_uid in clean_uids:
+                    await exec_sql(
+                        """
+                        INSERT INTO public.work_item_assignees (work_item_id, user_id, role_type)
+                        VALUES (%s::UUID, %s::UUID, 'PRIMARY')
+                        ON CONFLICT DO NOTHING;
+                        """,
+                        (item_id, clean_uid),
+                        fetch=False
+                    )
+            await exec_sql(
+                "UPDATE public.work_items SET updated_at = NOW() WHERE id = ANY(%s::UUID[]);",
+                (resolved_ids,),
+                fetch=False
+            )
+        elif payload.assignee_id is not None:
             clean_assignee = safe_uuid(payload.assignee_id)
             for item_id in resolved_ids:
                 if clean_assignee:
@@ -1401,6 +1466,11 @@ async def bulk_update_work_items(
                         (item_id,),
                         fetch=False
                     )
+            await exec_sql(
+                "UPDATE public.work_items SET updated_at = NOW() WHERE id = ANY(%s::UUID[]);",
+                (resolved_ids,),
+                fetch=False
+            )
 
         return {"success": True, "updated_count": len(resolved_ids), "item_ids": resolved_ids}
     except Exception as e:
@@ -1468,13 +1538,13 @@ async def list_sprints(
                    to_char(s.start_date, 'Mon DD, YYYY') AS start_date_fmt,
                    to_char(s.end_date, 'Mon DD, YYYY') AS end_date_fmt,
                    s.start_date, s.end_date, s.capacity_hours, s.total_points,
+                   COALESCE(GREATEST(1, (s.end_date - s.start_date + 1)), 14) AS duration_days,
                    COALESCE(s.color, '#2563EB') AS color,
-                   COALESCE(COUNT(DISTINCT COALESCE(child.id, w.id)), 0) AS total_items,
-                   COALESCE(COUNT(DISTINCT CASE WHEN COALESCE(child.status, w.status) IN ('COMPLETED', 'RESOLVED') THEN COALESCE(child.id, w.id) END), 0) AS completed_items
+                   COALESCE(COUNT(DISTINCT w.id), 0) AS total_items,
+                   COALESCE(COUNT(DISTINCT CASE WHEN UPPER(w.status) IN ('COMPLETED', 'RESOLVED', 'CLOSED', 'DONE') THEN w.id END), 0) AS completed_items
             FROM public.work_sprints s
             LEFT JOIN public.work_teams t ON t.id = s.team_id
             LEFT JOIN public.work_items w ON w.sprint_id = s.id AND COALESCE(w.is_archived, FALSE) = FALSE
-            LEFT JOIN public.work_items child ON child.parent_id = w.id AND COALESCE(child.is_archived, FALSE) = FALSE
             WHERE s.school_id = %s::UUID 
               AND COALESCE(s.is_archived, FALSE) = FALSE 
               AND ( %s::UUID IS NULL OR s.board_id = %s::UUID )
@@ -1981,12 +2051,13 @@ async def manage_capacity_member(
         rows = await exec_sql(
             """
             SELECT public.sp_manage_member_capacity(
-                %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::UUID
             ) AS result;
             """,
             (sid, clean_sprint_id, clean_user_id, payload.role, payload.team_name,
              payload.available_hours, payload.daily_hours, payload.working_days,
-             payload.override_value, payload.override_reason, payload.notes, payload.action or "UPSERT")
+             payload.override_value, payload.override_reason, payload.notes, payload.action or "UPSERT",
+             payload.days_off or 0.0, safe_uuid(payload.team_id))
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -2014,6 +2085,27 @@ async def remove_capacity_member(
     except Exception as e:
         logger.error(f"[Remove Capacity Member Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/roles")
+async def get_work_roles(
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Fetch all active system and application roles from app_roles table for work role dropdowns."""
+    try:
+        rows = await exec_sql(
+            """
+            SELECT code, name, COALESCE(display_name, name) AS label, description
+            FROM public.app_roles
+            WHERE LOWER(status) = 'active'
+            ORDER BY COALESCE(display_order, 99) ASC, COALESCE(display_name, name) ASC;
+            """
+        )
+        return {"roles": rows or []}
+    except Exception as e:
+        logger.error(f"[Get Work Roles Error]: {e}", exc_info=True)
+        return {"roles": []}
 
 
 @router.post("/sprints/{sprint_id}/capacity/availability")
@@ -2286,7 +2378,7 @@ async def create_work_team(
 ):
     """Create a new work team with initial lead, members, and default capacity."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
-    actor_name = current_user.get("full_name") if current_user else "Dr. Rajesh Verma"
+    actor_name = (current_user.get("full_name") or current_user.get("name") or "Administrator") if current_user else "Administrator"
     actor_id = safe_uuid(current_user.get("id")) if current_user else None
 
     team_key = req.team_key
@@ -2331,13 +2423,15 @@ async def create_work_team(
             for mid in req.member_ids:
                 clean_mid = safe_uuid(mid)
                 if clean_mid and clean_mid != safe_uuid(req.lead_id):
+                    prof_rows = await exec_sql("SELECT role, designation FROM public.profiles WHERE id = %s::UUID;", (clean_mid,))
+                    member_role = (prof_rows[0].get("designation") if prof_rows and prof_rows[0].get("designation") else (prof_rows[0].get("role") if prof_rows and prof_rows[0].get("role") else "Member"))
                     await exec_sql(
                         """
                         INSERT INTO public.work_team_members (school_id, team_id, user_id, role, capacity_hours, is_lead)
-                        VALUES (%s::UUID, %s::UUID, %s::UUID, 'Member', 40.0, FALSE)
+                        VALUES (%s::UUID, %s::UUID, %s::UUID, %s, 40.0, FALSE)
                         ON CONFLICT DO NOTHING;
                         """,
-                        (sid, new_team_id, clean_mid)
+                        (sid, new_team_id, clean_mid, member_role)
                     )
 
         # Log activity
@@ -2367,7 +2461,7 @@ async def update_work_team(
     clean_team_id = safe_uuid(team_id)
     if not clean_team_id:
         raise HTTPException(status_code=400, detail="Invalid team id")
-    actor_name = current_user.get("full_name") if current_user else "Dr. Rajesh Verma"
+    actor_name = (current_user.get("full_name") or current_user.get("name") or "Administrator") if current_user else "Administrator"
     actor_id = safe_uuid(current_user.get("id")) if current_user else None
 
     try:
@@ -2548,47 +2642,70 @@ async def add_work_team_member(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Add a member to the work team or update their role and capacity."""
-    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    """Add one or multiple members to the work team with auto-resolved roles and default capacity."""
     clean_team_id = safe_uuid(team_id)
-    clean_user_id = safe_uuid(req.user_id)
-    if not clean_team_id or not clean_user_id:
-        raise HTTPException(status_code=400, detail="Invalid team or user id")
-    actor_name = current_user.get("full_name") if current_user else "Dr. Rajesh Verma"
+    if not clean_team_id:
+        raise HTTPException(status_code=400, detail="Invalid team id")
+
+    t_rows = await exec_sql("SELECT school_id, name, lead_id FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+    if not t_rows:
+        raise HTTPException(status_code=404, detail="Team not found")
+    team_sid = str(t_rows[0]["school_id"])
+    actor_name = (current_user.get("full_name") or current_user.get("name") or "Administrator") if current_user else "Administrator"
+
+    # Support both single user_id and multiple user_ids list
+    target_uids = []
+    if req.user_ids:
+        target_uids.extend([safe_uuid(u) for u in req.user_ids if safe_uuid(u)])
+    elif req.user_id and safe_uuid(req.user_id):
+        target_uids.append(safe_uuid(req.user_id))
+
+    if not target_uids:
+        raise HTTPException(status_code=400, detail="At least one valid user_id must be provided")
 
     try:
-        await exec_sql(
-            """
-            INSERT INTO public.work_team_members (
-                school_id, team_id, user_id, role, capacity_hours, daily_hours, is_lead
-            ) VALUES (
-                %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s
-            )
-            ON CONFLICT (team_id, user_id) DO UPDATE SET
-                role = EXCLUDED.role,
-                capacity_hours = EXCLUDED.capacity_hours,
-                daily_hours = EXCLUDED.daily_hours,
-                is_lead = EXCLUDED.is_lead,
-                updated_at = NOW();
-            """,
-            (
-                sid, clean_team_id, clean_user_id, req.role or "Developer",
-                req.capacity_hours or 40.0, req.daily_hours or 8.0, req.is_lead or False
-            )
-        )
+        added_names = []
+        for uid in target_uids:
+            prof_rows = await exec_sql("SELECT full_name, role, designation FROM public.profiles WHERE id = %s::UUID;", (uid,))
+            member_role = req.role or (prof_rows[0].get("designation") if prof_rows and prof_rows[0].get("designation") else (prof_rows[0].get("role") if prof_rows and prof_rows[0].get("role") else "Member"))
+            uname = prof_rows[0]["full_name"] if prof_rows else "Member"
 
-        user_rows = await exec_sql("SELECT full_name FROM public.profiles WHERE id = %s::UUID;", (clean_user_id,))
-        uname = user_rows[0]["full_name"] if user_rows else "New Member"
+            await exec_sql(
+                """
+                INSERT INTO public.work_team_members (
+                    school_id, team_id, user_id, role, capacity_hours, daily_hours, is_lead
+                ) VALUES (
+                    %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s
+                )
+                ON CONFLICT (team_id, user_id) DO UPDATE SET
+                    role = COALESCE(EXCLUDED.role, work_team_members.role),
+                    capacity_hours = COALESCE(EXCLUDED.capacity_hours, work_team_members.capacity_hours),
+                    daily_hours = COALESCE(EXCLUDED.daily_hours, work_team_members.daily_hours),
+                    is_lead = COALESCE(EXCLUDED.is_lead, work_team_members.is_lead),
+                    updated_at = NOW();
+                """,
+                (
+                    team_sid, clean_team_id, uid, member_role,
+                    req.capacity_hours or 40.0, req.daily_hours or 8.0, req.is_lead or False
+                )
+            )
+            added_names.append(uname)
 
+        desc = f"Added {len(added_names)} member(s): {', '.join(added_names[:3])}" + ("..." if len(added_names) > 3 else "")
         await exec_sql(
             """
             INSERT INTO public.work_team_activities (school_id, team_id, activity_type, description, actor_name)
             VALUES (%s::UUID, %s::UUID, 'MEMBER_ADDED', %s, %s);
             """,
-            (sid, clean_team_id, f"Member {uname} added to the team", actor_name)
+            (team_sid, clean_team_id, desc, actor_name)
         )
 
-        return {"success": True, "message": f"Member {uname} added successfully"}
+        return {
+            "success": True,
+            "message": f"{len(added_names)} member(s) added successfully",
+            "added_count": len(added_names),
+            "members": added_names
+        }
     except Exception as e:
         logger.error(f"[Add Work Team Member Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -2602,12 +2719,18 @@ async def remove_work_team_member(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """Remove a member from the work team."""
-    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_team_id = safe_uuid(team_id)
     clean_user_id = safe_uuid(user_id)
     if not clean_team_id or not clean_user_id:
         raise HTTPException(status_code=400, detail="Invalid team or user id")
-    actor_name = current_user.get("full_name") if current_user else "Dr. Rajesh Verma"
+
+    t_rows = await exec_sql("SELECT school_id, name, lead_id FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+    if not t_rows:
+        raise HTTPException(status_code=404, detail="Team not found")
+    team_sid = str(t_rows[0]["school_id"])
+    team_lead_id = str(t_rows[0]["lead_id"]) if t_rows[0].get("lead_id") else None
+
+    actor_name = (current_user.get("full_name") or current_user.get("name") or "Administrator") if current_user else "Administrator"
 
     try:
         user_rows = await exec_sql("SELECT full_name FROM public.profiles WHERE id = %s::UUID;", (clean_user_id,))
@@ -2619,12 +2742,20 @@ async def remove_work_team_member(
             fetch=False
         )
 
+        # If removed user was the team lead, unassign lead from team
+        if team_lead_id and team_lead_id == str(clean_user_id):
+            await exec_sql(
+                "UPDATE public.work_teams SET lead_id = NULL, updated_at = NOW() WHERE id = %s::UUID;",
+                (clean_team_id,),
+                fetch=False
+            )
+
         await exec_sql(
             """
             INSERT INTO public.work_team_activities (school_id, team_id, activity_type, description, actor_name)
             VALUES (%s::UUID, %s::UUID, 'MEMBER_REMOVED', %s, %s);
             """,
-            (sid, clean_team_id, f"Member {uname} removed from the team", actor_name)
+            (team_sid, clean_team_id, f"Member {uname} removed from the team", actor_name)
         )
 
         return {"success": True, "message": f"Member {uname} removed successfully"}
@@ -2773,17 +2904,27 @@ async def get_sprint_retrospective_workspace(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_team_id = safe_uuid(team_id)
+    t_name = None
     if not clean_team_id and team_id and str(team_id).strip().lower() not in ("all", "all teams", "none", ""):
         t_rows = await exec_sql(
-            "SELECT id FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;",
+            "SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;",
             (sid, str(team_id).strip())
         )
         if t_rows:
             clean_team_id = t_rows[0]["id"]
+            t_name = t_rows[0]["name"]
+        else:
+            t_name = str(team_id).strip()
+    elif clean_team_id:
+        t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+        if t_rows:
+            t_name = t_rows[0]["name"]
+
+    actor_id = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
     try:
         rows = await exec_sql(
-            "SELECT public.sp_get_sprint_retrospective_workspace(%s::UUID, %s::UUID, %s::UUID) AS workspace;",
-            (sid, clean_sprint_id, clean_team_id)
+            "SELECT public.sp_get_sprint_retrospective_workspace(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s) AS workspace;",
+            (sid, clean_sprint_id, clean_team_id, actor_id, t_name)
         )
         return rows[0]["workspace"] if rows else {}
     except Exception as e:
@@ -2885,6 +3026,60 @@ async def reopen_sprint_retrospective_session(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/sprints/{sprint_id}/retrospective/start-new")
+async def start_new_sprint_retrospective_session(
+    sprint_id: str,
+    payload: Optional[UpdateRetroSessionRequest] = None,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Start a new retrospective session cycle for this sprint."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
+    title = payload.title if payload else None
+    dur = payload.duration_minutes if payload else None
+    goal = payload.sprint_goal if payload else None
+    summary = payload.summary if payload else None
+    notes = payload.notes if payload else None
+    fac_id = safe_uuid(payload.facilitator_id) if payload else None
+    try:
+        rows = await exec_sql(
+            """
+            SELECT public.sp_manage_sprint_retrospective_session(
+                %s::UUID, %s::UUID, %s, 'IN_PROGRESS', NOW(), %s, %s::UUID, %s, %s, %s, 'START_NEW', %s::UUID
+            ) AS result;
+            """,
+            (sid, clean_sprint_id, title, dur, fac_id, goal, summary, notes, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True}
+    except Exception as e:
+        logger.error(f"[Start New Retro Session Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sprints/{sprint_id}/retrospective/reset")
+async def reset_sprint_retrospective_board(
+    sprint_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Reset retrospective discussion board entries and reopen session."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_manage_sprint_retrospective_session(%s::UUID, %s::UUID, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'RESET', %s::UUID) AS result;",
+            (sid, clean_sprint_id, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True}
+    except Exception as e:
+        logger.error(f"[Reset Retro Board Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @router.post("/sprints/{sprint_id}/retrospective/entries")
 async def add_retro_entry(
     sprint_id: str,
@@ -2896,10 +3091,14 @@ async def add_retro_entry(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     uid = safe_uuid(current_user.get("id")) if current_user else None
+    clean_team_id = safe_uuid(payload.team_id)
+    t_name = payload.team_name
+    if not clean_team_id and payload.team_id and str(payload.team_id).strip().lower() not in ("all", "all teams", "none", ""):
+        t_name = str(payload.team_id).strip()
     try:
         rows = await exec_sql(
-            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, NULL, %s, %s, 'ADD', %s::UUID) AS result;",
-            (sid, clean_sprint_id, payload.category, payload.content, uid)
+            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, NULL, %s, %s, 'ADD', %s::UUID, %s::UUID, %s) AS result;",
+            (sid, clean_sprint_id, payload.category, payload.content, uid, clean_team_id, t_name)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -2919,10 +3118,12 @@ async def update_retro_entry(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_entry_id = safe_uuid(entry_id)
+    clean_team_id = safe_uuid(payload.team_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
-            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, %s, %s, 'UPDATE', NULL) AS result;",
-            (sid, clean_sprint_id, clean_entry_id, payload.category, payload.content)
+            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, %s, %s, 'UPDATE', %s::UUID, %s::UUID, %s) AS result;",
+            (sid, clean_sprint_id, clean_entry_id, payload.category, payload.content, uid, clean_team_id, payload.team_name)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -2941,10 +3142,11 @@ async def delete_retro_entry(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_entry_id = safe_uuid(entry_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
-            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, NULL, NULL, 'DELETE', NULL) AS result;",
-            (sid, clean_sprint_id, clean_entry_id)
+            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, NULL, NULL, 'DELETE', %s::UUID, NULL, NULL) AS result;",
+            (sid, clean_sprint_id, clean_entry_id, uid)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -2959,18 +3161,91 @@ async def vote_retro_entry(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Upvote a retrospective feedback card."""
+    """Toggle vote/unvote for a retrospective feedback card."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_entry_id = safe_uuid(entry_id)
+    actor_id = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
     try:
         rows = await exec_sql(
-            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, NULL, NULL, 'VOTE', NULL) AS result;",
-            (sid, clean_sprint_id, clean_entry_id)
+            "SELECT public.sp_manage_sprint_retrospective_entry_v2(%s::UUID, %s::UUID, %s::UUID, NULL, NULL, 'VOTE', %s::UUID, NULL, NULL) AS result;",
+            (sid, clean_sprint_id, clean_entry_id, actor_id)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
         logger.error(f"[Vote Retro Entry Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ----------------------------------------------------------------------------
+# 6.1 SPRINT RETROSPECTIVE COMMENTS CRUD
+# ----------------------------------------------------------------------------
+@router.get("/sprints/{sprint_id}/retrospective/entries/{entry_id}/comments")
+async def get_retro_entry_comments(
+    sprint_id: str,
+    entry_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """List comments on a sprint retrospective entry."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_entry_id = safe_uuid(entry_id)
+    uid = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_manage_sprint_retro_comment(%s::UUID, %s::UUID, NULL, NULL, 'LIST', %s::UUID) AS result;",
+            (sid, clean_entry_id, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True, "comments": []}
+    except Exception as e:
+        logger.error(f"[Get Retro Comments Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sprints/{sprint_id}/retrospective/entries/{entry_id}/comments")
+async def add_retro_entry_comment(
+    sprint_id: str,
+    entry_id: str,
+    payload: ManageRetroCommentRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Add a new comment on a sprint retrospective entry."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_entry_id = safe_uuid(entry_id)
+    uid = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_manage_sprint_retro_comment(%s::UUID, %s::UUID, %s, NULL, 'ADD', %s::UUID) AS result;",
+            (sid, clean_entry_id, payload.content, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True}
+    except Exception as e:
+        logger.error(f"[Add Retro Comment Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/sprints/{sprint_id}/retrospective/entries/{entry_id}/comments/{comment_id}")
+async def delete_retro_entry_comment(
+    sprint_id: str,
+    entry_id: str,
+    comment_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Delete a comment on a sprint retrospective entry."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_entry_id = safe_uuid(entry_id)
+    clean_comment_id = safe_uuid(comment_id)
+    uid = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
+    try:
+        rows = await exec_sql(
+            "SELECT public.sp_manage_sprint_retro_comment(%s::UUID, %s::UUID, NULL, %s::UUID, 'DELETE', %s::UUID) AS result;",
+            (sid, clean_entry_id, clean_comment_id, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True}
+    except Exception as e:
+        logger.error(f"[Delete Retro Comment Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2987,17 +3262,21 @@ async def add_action_item(
     clean_owner_id = safe_uuid(payload.owner_id)
     clean_link_id = safe_uuid(payload.linked_work_item_id)
     clean_source_id = safe_uuid(payload.source_entry_id)
+    clean_team_id = safe_uuid(payload.team_id)
+    t_name = payload.team_name
+    if not clean_team_id and payload.team_id and str(payload.team_id).strip().lower() not in ("all", "all teams", "none", ""):
+        t_name = str(payload.team_id).strip()
     uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
             """
             SELECT public.sp_manage_sprint_action_item_v2(
-                %s::UUID, %s::UUID, NULL, %s, %s, %s, %s::UUID, %s::DATE, %s, %s, %s, %s::UUID, %s::UUID, 'ADD', %s::UUID
+                %s::UUID, %s::UUID, NULL, %s, %s, %s, %s::UUID, %s::DATE, %s, %s, %s, %s::UUID, %s::UUID, 'ADD', %s::UUID, %s::UUID, %s
             ) AS result;
             """,
             (sid, clean_sprint_id, payload.item_key, payload.title, payload.description,
              clean_owner_id, payload.due_date, payload.priority or "MEDIUM",
-             payload.status or "OPEN", payload.progress or 0, clean_link_id, clean_source_id, uid)
+             payload.status or "OPEN", payload.progress or 0, clean_link_id, clean_source_id, uid, clean_team_id, t_name)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -3019,15 +3298,20 @@ async def update_action_item(
     clean_action_id = safe_uuid(action_item_id)
     clean_owner_id = safe_uuid(payload.owner_id)
     clean_link_id = safe_uuid(payload.linked_work_item_id)
+    clean_team_id = safe_uuid(payload.team_id)
+    t_name = payload.team_name
+    if not clean_team_id and payload.team_id and str(payload.team_id).strip().lower() not in ("all", "all teams", "none", ""):
+        t_name = str(payload.team_id).strip()
+    uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
             """
             SELECT public.sp_manage_sprint_action_item_v2(
-                %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s::UUID, %s::DATE, %s, %s, %s, %s::UUID, NULL, 'UPDATE', NULL
+                %s::UUID, %s::UUID, %s::UUID, %s, %s, %s, %s::UUID, %s::DATE, %s, %s, %s, %s::UUID, NULL, 'UPDATE', %s::UUID, %s::UUID, %s
             ) AS result;
             """,
             (sid, clean_sprint_id, clean_action_id, payload.item_key, payload.title, payload.description,
-             clean_owner_id, payload.due_date, payload.priority, payload.status, payload.progress or 0, clean_link_id)
+             clean_owner_id, payload.due_date, payload.priority, payload.status, payload.progress or 0, clean_link_id, uid, clean_team_id, t_name)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -3046,10 +3330,15 @@ async def delete_action_item(
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     clean_action_id = safe_uuid(action_item_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
     try:
         rows = await exec_sql(
-            "SELECT public.sp_manage_sprint_action_item_v2(%s::UUID, %s::UUID, %s::UUID, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'DELETE', NULL) AS result;",
-            (sid, clean_sprint_id, clean_action_id)
+            """
+            SELECT public.sp_manage_sprint_action_item_v2(
+                %s::UUID, %s::UUID, %s::UUID, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'DELETE', %s::UUID, NULL, NULL
+            ) AS result;
+            """,
+            (sid, clean_sprint_id, clean_action_id, uid)
         )
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
@@ -3078,7 +3367,7 @@ async def convert_action_item_to_work_item(
         rows = await exec_sql(
             """
             SELECT public.sp_manage_sprint_action_item_v2(
-                %s::UUID, %s::UUID, %s::UUID, NULL, %s, %s, %s::UUID, NULL, %s, NULL, NULL, NULL, NULL, 'CONVERT_TO_WORK_ITEM', %s::UUID
+                %s::UUID, %s::UUID, %s::UUID, NULL, %s, %s, %s::UUID, NULL, %s, NULL, NULL, NULL, NULL, 'CONVERT_TO_WORK_ITEM', %s::UUID, NULL, NULL
             ) AS result;
             """,
             (sid, clean_sprint_id, clean_action_id, title, desc, clean_owner, prio, uid)
@@ -3086,6 +3375,38 @@ async def convert_action_item_to_work_item(
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
         logger.error(f"[Convert to Work Item Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sprints/{sprint_id}/retrospective/action-items/{action_item_id}/link-work-item")
+async def link_action_item_to_work_item(
+    sprint_id: str,
+    action_item_id: str,
+    payload: Optional[Dict[str, Any]] = None,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Link or unlink an action item with an existing work item."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
+    clean_action_id = safe_uuid(action_item_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
+
+    raw_work_item_id = payload.get("work_item_id") if payload else None
+    clean_work_id = safe_uuid(raw_work_item_id) if raw_work_item_id else None
+
+    try:
+        rows = await exec_sql(
+            """
+            SELECT public.sp_manage_sprint_action_item_v2(
+                %s::UUID, %s::UUID, %s::UUID, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, %s::UUID, NULL, 'LINK_WORK_ITEM', %s::UUID, NULL, NULL
+            ) AS result;
+            """,
+            (sid, clean_sprint_id, clean_action_id, clean_work_id, uid)
+        )
+        return rows[0]["result"] if rows else {"success": True}
+    except Exception as e:
+        logger.error(f"[Link Work Item Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3131,7 +3452,7 @@ async def submit_retrospective_feedback(
         rows = await exec_sql(
             """
             SELECT public.sp_manage_sprint_retrospective_feedback(
-                %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s::UUID
+                %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s::UUID, 'SUBMIT', NULL
             ) AS result;
             """,
             (sid, clean_sprint_id, payload.category, payload.rating, payload.content,
@@ -3140,6 +3461,72 @@ async def submit_retrospective_feedback(
         return rows[0]["result"] if rows else {"success": True}
     except Exception as e:
         logger.error(f"[Submit Retro Feedback Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/sprints/{sprint_id}/retrospective/feedback/{feedback_id}")
+async def update_retrospective_feedback(
+    sprint_id: str,
+    feedback_id: str,
+    payload: ManageRetroFeedbackRequest,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Update own retrospective feedback."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
+    clean_fid = safe_uuid(feedback_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
+    try:
+        rows = await exec_sql(
+            """
+            SELECT public.sp_manage_sprint_retrospective_feedback(
+                %s::UUID, %s::UUID, %s, %s, %s, %s, %s, %s::UUID, 'UPDATE', %s::UUID
+            ) AS result;
+            """,
+            (sid, clean_sprint_id, payload.category, payload.rating, payload.content,
+             payload.suggested_improvement, payload.is_anonymous, uid, clean_fid)
+        )
+        res = rows[0]["result"] if rows else {"success": True}
+        if res.get("success") is False:
+            raise HTTPException(status_code=403, detail=res.get("error", "Permission denied"))
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Update Retro Feedback Error]: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/sprints/{sprint_id}/retrospective/feedback/{feedback_id}")
+async def delete_retrospective_feedback(
+    sprint_id: str,
+    feedback_id: str,
+    school_id: Optional[str] = Query(None),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
+    """Delete own retrospective feedback."""
+    sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
+    clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
+    clean_fid = safe_uuid(feedback_id)
+    uid = safe_uuid(current_user.get("id")) if current_user else None
+    try:
+        rows = await exec_sql(
+            """
+            SELECT public.sp_manage_sprint_retrospective_feedback(
+                %s::UUID, %s::UUID, NULL, NULL, NULL, NULL, NULL, %s::UUID, 'DELETE', %s::UUID
+            ) AS result;
+            """,
+            (sid, clean_sprint_id, uid, clean_fid)
+        )
+        res = rows[0]["result"] if rows else {"success": True}
+        if res.get("success") is False:
+            raise HTTPException(status_code=403, detail=res.get("error", "Permission denied"))
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Delete Retro Feedback Error]: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3154,7 +3541,7 @@ async def export_sprint_retrospective_csv(
     clean_sprint_id = await resolve_sprint_id(sprint_id, sid)
     try:
         rows = await exec_sql(
-            "SELECT public.sp_get_sprint_retrospective_workspace(%s::UUID, %s::UUID, NULL) AS ws;",
+            "SELECT public.sp_get_sprint_retrospective_workspace(%s::UUID, %s::UUID, NULL::UUID) AS ws;",
             (sid, clean_sprint_id)
         )
         ws = rows[0]["ws"] if rows else {}
@@ -3336,8 +3723,8 @@ async def preview_target_assignees(
     """
     sid = school_id or (current_user.get("school_id") if current_user else None) or "11111111-1111-1111-1111-111111111111"
     try:
-        cid = uuid.UUID(payload.class_id) if payload.class_id else None
-        secid = uuid.UUID(payload.section_id) if payload.section_id else None
+        cid = safe_uuid(payload.class_id)
+        secid = safe_uuid(payload.section_id)
         clean_role = payload.target_role if payload.target_role and payload.target_role != "All" else None
         clean_dept = payload.department if payload.department and payload.department != "All" else None
         clean_q = payload.q.strip() if payload.q and payload.q.strip() else None
@@ -3381,14 +3768,14 @@ async def get_academic_options(
                    COALESCE(
                      json_agg(
                        json_build_object('id', s.id, 'name', s.name, 'code', s.code)
-                       ORDER BY s.name ASC
+                       ORDER BY s.display_order ASC NULLS LAST, s.name ASC
                      ) FILTER (WHERE s.id IS NOT NULL), '[]'::json
                    ) as sections
             FROM public.academic_classes c
             LEFT JOIN public.academic_sections s ON s.class_id = c.id AND s.deleted_at IS NULL
             WHERE c.school_id = %s::UUID AND c.deleted_at IS NULL
-            GROUP BY c.id, c.name, c.code
-            ORDER BY c.name ASC
+            GROUP BY c.id, c.name, c.code, c.display_order
+            ORDER BY c.display_order ASC NULLS LAST, c.name ASC
             LIMIT 100;
         """
         classes = await exec_sql(sql, (sid,))

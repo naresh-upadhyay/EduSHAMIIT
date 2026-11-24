@@ -558,6 +558,26 @@ class StudentFeeNotifier extends StateNotifier<StudentFeeState> {
     return res;
   }
 
+  Future<Map<String, dynamic>> createBatchCohortSchedules({
+    required String targetClass,
+    String targetSection = 'All Sections',
+    String academicYear = '2026 - 2027',
+    bool autoDeductAdvanceCredit = true,
+    bool sendParentEmail = true,
+  }) async {
+    final res = await _service.createBatchCohortSchedules(
+      targetClass: targetClass,
+      targetSection: targetSection,
+      academicYear: academicYear,
+      autoDeductAdvanceCredit: autoDeductAdvanceCredit,
+      sendParentEmail: sendParentEmail,
+    );
+    if (res['success'] == true) {
+      await loadScheduleRules();
+    }
+    return res;
+  }
+
   Future<Map<String, dynamic>> updateScheduleRule(String ruleId, Map<String, dynamic> payload) async {
     final res = await _service.updateFeeScheduleRule(ruleId, payload);
     if (res['success'] == true) {

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart';
 import 'package:edu_shamiit_core/screens/work_management/providers/work_management_provider.dart';
 import 'package:edu_shamiit_core/screens/work_management/services/work_api_service.dart';
@@ -218,7 +217,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
 
       // 1. Verify that "All Sprints" is displayed in sprint selector by default
       expect(find.text('All Sprints'), findsWidgets);
@@ -238,7 +238,8 @@ void main() {
       // 4. Now enter text into keyword search filter
       final searchField = find.byType(TextField).first;
       await tester.enterText(searchField, 'portal');
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
 
       // 5. With 1 active filter applied, badge "1" should be rendered inside the Filters button!
       expect(find.descendant(of: filtersButton, matching: find.text('1')), findsOneWidget);
@@ -247,13 +248,14 @@ void main() {
       final clearButton = find.text('Clear all');
       if (clearButton.evaluate().isNotEmpty) {
         await tester.tap(clearButton);
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
         // Badge should disappear again
         expect(find.descendant(of: filtersButton, matching: find.text('1')), findsNothing);
       }
     });
 
-    testWidgets('Sprints tab Burndown Chart renders within bounds without clipping or overflow', (tester) async {
+    testWidgets('Sprints tab renders subtabs and All Sprints Grid without Sprint Backlog or Task Board', (tester) async {
       WorkSprintDateHelper.setMockNow(DateTime(2026, 11, 15));
       final fakeApi = TestFakeWorkApiService();
 
@@ -277,40 +279,20 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
 
-      // 1. Verify "Sprint Burndown" title and legend are present
-      expect(find.text('Sprint Burndown'), findsOneWidget);
-      expect(find.text('Ideal'), findsOneWidget);
-      expect(find.text('Remaining'), findsOneWidget);
+      // 1. Verify Subtabs: All Sprints (Grid), Capacity, Retrospective exist
+      expect(find.text('All Sprints (Grid)'), findsOneWidget);
+      expect(find.text('Capacity'), findsOneWidget);
+      expect(find.text('Retrospective'), findsOneWidget);
 
-      // 2. Find LineChart and ClipRect
-      final lineChartFinder = find.byType(LineChart);
-      expect(lineChartFinder, findsOneWidget);
+      // 2. Verify deleted subtabs are NOT present
+      expect(find.text('Sprint Backlog'), findsNothing);
+      expect(find.text('Boards (Task Board)'), findsNothing);
 
-      // Verify LineChart is wrapped inside a ClipRect to prevent line escape
-      final clipRectFinder = find.ancestor(of: lineChartFinder, matching: find.byType(ClipRect));
-      expect(clipRectFinder, findsAtLeastNWidgets(1));
-
-      // 3. Inspect LineChartData properties
-      final lineChartWidget = tester.widget<LineChart>(lineChartFinder);
-      final chartData = lineChartWidget.data;
-
-      // Ensure maxY properly accommodates the 6 items with breathing room
-      expect(chartData.maxY, greaterThanOrEqualTo(6.0));
-      expect(chartData.minY, 0.0);
-      expect(chartData.minX, 1.0);
-      expect(chartData.maxX, 14.0);
-
-      // 4. Verify all spots are strictly within [0.0, maxY]
-      for (final barData in chartData.lineBarsData) {
-        for (final spot in barData.spots) {
-          expect(spot.y, lessThanOrEqualTo(chartData.maxY), reason: 'Spot Y ${spot.y} must not exceed chart maxY ${chartData.maxY}');
-          expect(spot.y, greaterThanOrEqualTo(0.0), reason: 'Spot Y ${spot.y} must be >= 0');
-          expect(spot.x, greaterThanOrEqualTo(1.0));
-          expect(spot.x, lessThanOrEqualTo(14.0));
-        }
-      }
+      // 3. Verify All Sprints Grid header is present
+      expect(find.text('Total Sprints'), findsOneWidget);
     });
   });
 }

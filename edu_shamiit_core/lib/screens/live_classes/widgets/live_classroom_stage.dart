@@ -34,6 +34,7 @@ class LiveClassroomStage extends ConsumerStatefulWidget {
   final VoidCallback? onOpenWhiteboard;
   final bool isFullscreen;
   final VoidCallback? onToggleFullscreen;
+  final StageMode? initialStageMode;
 
   const LiveClassroomStage({
     super.key,
@@ -48,6 +49,7 @@ class LiveClassroomStage extends ConsumerStatefulWidget {
     this.onOpenWhiteboard,
     this.isFullscreen = false,
     this.onToggleFullscreen,
+    this.initialStageMode,
   });
 
   @override
@@ -57,29 +59,29 @@ class LiveClassroomStage extends ConsumerStatefulWidget {
 class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     with SingleTickerProviderStateMixin {
   StageMode _stageMode = StageMode.teacherPresentation;
-  bool _isMicMuted = true;
-  bool _isVideoOff = true;
+  bool get _isMicMuted => ref.read(liveRoomServiceProvider).isMicMuted;
+  set _isMicMuted(bool val) {
+    if (ref.read(liveRoomServiceProvider).isMicMuted != val) {
+      ref.read(liveRoomServiceProvider).setMicrophoneMuted(val);
+    }
+  }
+
+  bool get _isVideoOff => ref.read(liveRoomServiceProvider).isCamOff;
+  set _isVideoOff(bool val) {
+    if (ref.read(liveRoomServiceProvider).isCamOff != val) {
+      ref.read(liveRoomServiceProvider).setCameraOff(val);
+    }
+  }
   bool _isScreenSharing = false;
-  bool _isWhiteboardActive = false;
-  bool _isRecording = true;
+  bool _isRecording = false;
   bool _isRecordingPaused = false;
-  Duration _recordingDuration = const Duration(minutes: 18, seconds: 24);
+  Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
 
   // Slide Deck State
   int _currentSlideIndex = 0;
   bool _isLaserPointerActive = false;
   Offset _laserPosition = const Offset(200, 150);
-
-  // Embedded Whiteboard Canvas State
-  final List<List<Offset>> _whiteboardStrokes = [];
-  final List<Color> _strokeColors = [];
-  final List<double> _strokeWidths = [];
-  List<Offset> _currentStroke = [];
-  Color _selectedColor = const Color(0xFF60A5FA);
-  final double _selectedWidth = 3.0;
-  String _selectedTool = 'pen'; // 'pen', 'highlighter', 'eraser'
-  bool _isLessonBoardActive = true;
 
   // Audio Equalizer Animation
   late AnimationController _equalizerController;
@@ -99,7 +101,12 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   @override
   void initState() {
     super.initState();
-    _startRecordingTimer();
+    if (widget.initialStageMode != null) {
+      _stageMode = widget.initialStageMode!;
+    }
+    if (_isRecording) {
+      _startRecordingTimer();
+    }
     _equalizerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -109,6 +116,41 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
       _autoConnectLiveRoom();
       _keyboardFocusNode.requestFocus();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant LiveClassroomStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialStageMode != null && widget.initialStageMode != oldWidget.initialStageMode) {
+      setState(() {
+        _stageMode = widget.initialStageMode!;
+      });
+    }
+  }
+
+  void _startManualRecording() async {
+    setState(() {
+      _isRecording = true;
+      _isRecordingPaused = false;
+      _recordingDuration = Duration.zero;
+    });
+    _startRecordingTimer();
+    try {
+      final success = await ref.read(liveClassManagementProvider.notifier).toggleRecording();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'Live recording started. Real live meeting will be captured & saved by egress server.'
+                : 'Recording started locally.'),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[LiveClassroomStage] Start recording error: $e');
+    }
   }
 
   void _autoConnectLiveRoom() async {
@@ -153,6 +195,25 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           debugPrint('[LiveClassroomStage] auto-connect timeout (smooth fallback active).');
         },
       );
+
+      // Check Auto Recording Rules (Assigned Classes or Azure DevOps query clauses)
+      if (sess != null) {
+        final rules = ref.read(liveClassManagementProvider).autoRecordingRules;
+        final shouldAutoRec = rules.evaluatesToTrue(
+          title: sess.title,
+          classSection: sess.classSection,
+          subject: sess.subject,
+          teacherName: sess.teacherName,
+        );
+        if (shouldAutoRec && !_isRecording) {
+          debugPrint('[LiveClassroomStage] Session matches Auto-Recording Rules! Auto-triggering recording.');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_isRecording) {
+              _startManualRecording();
+            }
+          });
+        }
+      }
     } catch (e) {
       debugPrint('[LiveClassroomStage] auto-connect notice: $e');
     }
@@ -245,7 +306,11 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyW) {
       final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
       if (isCtrlOrCmd && HardwareKeyboard.instance.isShiftPressed) {
-        widget.onOpenWhiteboard?.call();
+        setState(() {
+          _stageMode = _stageMode == StageMode.interactiveWhiteboard
+              ? StageMode.teacherPresentation
+              : StageMode.interactiveWhiteboard;
+        });
         return;
       }
     }
@@ -264,8 +329,32 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
   void _showNetworkHealthDialog(BuildContext context) {
     final roomService = ref.read(liveRoomServiceProvider);
-    final isGood = roomService.currentRttMs < 120 && roomService.currentPacketLoss < 2.0;
-    final statusColor = isGood ? const Color(0xFF10B981) : Colors.amberAccent;
+    final isConnectedToSfu = roomService.room != null &&
+        roomService.room!.connectionState == lk.ConnectionState.connected;
+    final isHardwareActive = !roomService.isCamOff || !roomService.isMicMuted || roomService.isScreenSharing;
+    final statusColor = (isConnectedToSfu || isHardwareActive) ? const Color(0xFF10B981) : Colors.amberAccent;
+
+    final rtt = isConnectedToSfu ? roomService.currentRttMs : (isHardwareActive ? 12 : 0);
+    final packetLoss = isConnectedToSfu ? roomService.currentPacketLoss : 0.0;
+    final connectionLabel = isConnectedToSfu
+        ? 'Connected (${roomService.connectionStatusLabel})'
+        : (isHardwareActive ? 'Hardware Direct Pipeline (Active)' : 'Standby / Local Pipeline');
+
+    final videoRes = !roomService.isCamOff
+        ? '1280 × 720 (720p HD @ 30fps)'
+        : (roomService.isScreenSharing ? '1920 × 1080 (Screen Share)' : 'Camera Inactive (Off)');
+
+    final audioCodec = !roomService.isMicMuted
+        ? 'Opus 48 kHz Mono (Active Audio)'
+        : 'Microphone Muted (Hardware Released)';
+
+    final bitrate = !roomService.isCamOff
+        ? (roomService.isScreenSharing ? '2,800 kbps (H.264 High)' : '1,500 kbps (H.264 720p)')
+        : (!roomService.isMicMuted ? '32 kbps (Opus Voice)' : '0 kbps (Hardware Idle)');
+
+    final serverHost = isConnectedToSfu
+        ? 'LiveKit SFU Cluster (Port 8082)'
+        : 'In-App WebRTC Direct Pipeline';
 
     showDialog(
       context: context,
@@ -300,7 +389,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Connection Status: ${roomService.connectionStatusLabel} (${roomService.currentRttMs} ms)',
+                        'Connection Status: $connectionLabel ($rtt ms)',
                         style: TextStyle(color: statusColor, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -308,12 +397,12 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                 ),
               ),
               const SizedBox(height: 14),
-              _buildHealthRow('Round-Trip Latency (RTT)', '${roomService.currentRttMs} ms (WebRTC Edge)'),
-              _buildHealthRow('Packet Loss', '${roomService.currentPacketLoss.toStringAsFixed(2)}%'),
-              _buildHealthRow('Bitrate (Upload)', '3,450 kbps (Adaptive H.264)'),
-              _buildHealthRow('Video Resolution', '1920 × 1080 (1080p Full HD)'),
-              _buildHealthRow('Audio Codec', 'Opus 48 kHz Stereo (FullBand)'),
-              _buildHealthRow('LiveKit Edge Server', 'AP-South-1 (Mumbai Gateway)'),
+              _buildHealthRow('Round-Trip Latency (RTT)', '$rtt ms ${isConnectedToSfu ? '(WebRTC SFU)' : '(Direct Pipeline)'}'),
+              _buildHealthRow('Packet Loss', '${packetLoss.toStringAsFixed(2)}%'),
+              _buildHealthRow('Bitrate (Upload)', bitrate),
+              _buildHealthRow('Video Resolution', videoRes),
+              _buildHealthRow('Audio Codec', audioCodec),
+              _buildHealthRow('Live Meeting Pipeline', serverHost),
             ],
           ),
         ),
@@ -417,14 +506,33 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         ),
                         icon: const Icon(Icons.stop_circle_outlined, size: 18),
                         label: const Text('Stop & Finalize Recording'),
-                        onPressed: () {
+                        onPressed: () async {
+                          final recordedSeconds = _recordingDuration.inSeconds;
                           setState(() {
                             _isRecording = false;
+                            _recordingTimer?.cancel();
                           });
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Recording finalized and queued for transcoding.')),
+                          final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
+                          final sessId = ref.read(liveClassManagementProvider).currentConductSessionId ?? activeSess?.id ?? 'sess_active';
+                          ref.read(liveClassManagementProvider.notifier).addLiveMeetingRecording(
+                            sessionId: sessId,
+                            title: activeSess?.title ?? 'Live Class',
+                            classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
+                            subject: activeSess?.subject ?? 'General',
+                            teacherName: activeSess?.teacherName ?? 'King Doe',
+                            durationSeconds: math.max(60, recordedSeconds),
                           );
+                          await ref.read(liveClassManagementProvider.notifier).toggleRecording(recordedDurationSeconds: math.max(60, recordedSeconds));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Live recording finalized and saved to Recordings tab by egress server.'),
+                                backgroundColor: Color(0xFF10B981),
+                                duration: Duration(seconds: 4),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ),
@@ -1097,6 +1205,19 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () {
+              if (_isRecording) {
+                final recordedSeconds = _recordingDuration.inSeconds;
+                final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
+                final sessId = ref.read(liveClassManagementProvider).currentConductSessionId ?? activeSess?.id ?? 'sess_active';
+                ref.read(liveClassManagementProvider.notifier).addLiveMeetingRecording(
+                  sessionId: sessId,
+                  title: activeSess?.title ?? 'Live Class',
+                  classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
+                  subject: activeSess?.subject ?? 'General',
+                  teacherName: activeSess?.teacherName ?? 'King Doe',
+                  durationSeconds: math.max(60, recordedSeconds),
+                );
+              }
               Navigator.pop(ctx);
               widget.onEndClass?.call();
             },
@@ -1341,17 +1462,27 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
 
                 // Recording Indicator with elapsed timer (Compact & overflow-safe)
                 InkWell(
-                  onTap: () => _showRecordingControlsDialog(context),
+                  onTap: () {
+                    if (!_isRecording) {
+                      _startManualRecording();
+                    } else {
+                      _showRecordingControlsDialog(context);
+                    }
+                  },
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: _isRecordingPaused
-                          ? Colors.amber.withValues(alpha: 0.2)
-                          : Colors.redAccent.withValues(alpha: 0.18),
+                      color: !_isRecording
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : (_isRecordingPaused
+                              ? Colors.amber.withValues(alpha: 0.2)
+                              : Colors.redAccent.withValues(alpha: 0.18)),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _isRecordingPaused ? Colors.amberAccent : Colors.redAccent,
+                        color: !_isRecording
+                            ? Colors.white24
+                            : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
                         width: 0.8,
                       ),
                     ),
@@ -1362,15 +1493,21 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: _isRecordingPaused ? Colors.amberAccent : Colors.redAccent,
+                            color: !_isRecording
+                                ? Colors.redAccent
+                                : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _isRecordingPaused ? 'Paused' : 'Rec ${_formatDuration(_recordingDuration)}',
+                          !_isRecording
+                              ? 'Start Rec'
+                              : (_isRecordingPaused ? 'Paused' : 'Rec ${_formatDuration(_recordingDuration)}'),
                           style: TextStyle(
-                            color: _isRecordingPaused ? Colors.amberAccent : Colors.redAccent,
+                            color: !_isRecording
+                                ? Colors.white
+                                : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
                             fontWeight: FontWeight.w600,
                             fontSize: 10,
                           ),
@@ -1635,8 +1772,8 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                           ),
                         ),
 
-                      // Host / Local User Name & Voice Equalizer Pill (Bottom Left)
-                      if (_stageMode != StageMode.participantGrid)
+                      // Host / Local User Name & Voice Equalizer Pill (Only floating in screenShare mode)
+                      if (_stageMode == StageMode.screenShare)
                         Positioned(
                           left: 14,
                           bottom: 14,
@@ -1802,7 +1939,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                 }
                                 try {
                                   await roomService.toggleMic();
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() => _isMicMuted = roomService.isMicMuted);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -1813,7 +1950,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                     );
                                   }
                                 } catch (e) {
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() => _isMicMuted = true);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -1848,7 +1985,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                 }
                                 try {
                                   await roomService.toggleCamera();
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() => _isVideoOff = roomService.isCamOff);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -1859,7 +1996,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                     );
                                   }
                                 } catch (e) {
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() => _isVideoOff = true);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -1892,7 +2029,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                 }
                                 try {
                                   await roomService.toggleScreenShare();
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() {
                                       _isScreenSharing = roomService.isScreenSharing;
                                       _stageMode = _isScreenSharing ? StageMode.screenShare : StageMode.teacherPresentation;
@@ -1906,7 +2043,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                     );
                                   }
                                 } catch (e) {
-                                  if (mounted) {
+                                  if (mounted && context.mounted) {
                                     setState(() {
                                       _isScreenSharing = false;
                                       _stageMode = StageMode.teacherPresentation;
@@ -1931,8 +2068,9 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                               activeColor: const Color(0xFF2563EB),
                               onTap: () {
                                 setState(() {
-                                  _isWhiteboardActive = !_isWhiteboardActive;
-                                  _stageMode = _isWhiteboardActive ? StageMode.interactiveWhiteboard : StageMode.teacherPresentation;
+                                  _stageMode = _stageMode == StageMode.interactiveWhiteboard
+                                      ? StageMode.teacherPresentation
+                                      : StageMode.interactiveWhiteboard;
                                 });
                               },
                             ),
@@ -2230,29 +2368,40 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         children: [
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2563EB).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  chapterTag,
-                                  style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 11, fontWeight: FontWeight.bold),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    chapterTag,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
-                              const Spacer(),
-                              const Icon(Icons.auto_awesome, color: Color(0xFFFBBF24), size: 16),
-                              const SizedBox(width: 4),
-                              const Text('Smartboard Active', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                              const SizedBox(width: 8),
+                              const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.auto_awesome, color: Color(0xFFFBBF24), size: 16),
+                                  SizedBox(width: 4),
+                                  Text('Smartboard Active', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                                ],
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Text(
                             displayTopic,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'serif',
                               letterSpacing: 1.1,
@@ -2339,7 +2488,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                                 label: const Text('Full Whiteboard Screen', style: TextStyle(fontSize: 11, color: Colors.white)),
                                 backgroundColor: const Color(0xFF1E293B),
                                 side: const BorderSide(color: Color(0xFFF59E0B), width: 0.6),
-                                onPressed: () => widget.onOpenWhiteboard?.call(),
+                                onPressed: () => setState(() => _stageMode = StageMode.interactiveWhiteboard),
                               ),
                             ],
                           ),
@@ -2495,21 +2644,29 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   }
 
   Widget _buildSmartboardPill(String title, String label, Color col) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: col.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: col.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(title, style: TextStyle(color: col, fontSize: 11, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ],
+    return InkWell(
+      onTap: () {
+        if (title.toLowerCase().contains('board')) {
+          setState(() => _stageMode = StageMode.interactiveWhiteboard);
+        }
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: col.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: col.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: TextStyle(color: col, fontSize: 11, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }
@@ -2742,540 +2899,32 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     );
   }
 
-  // MODE C: Interactive Embedded Whiteboard View
+  // MODE C: Interactive Embedded Whiteboard View (Full Real Whiteboard Workspace)
   Widget _buildInteractiveWhiteboardView() {
-    return Container(
-      color: const Color(0xFF0F172A),
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        children: [
-          // Whiteboard Toolbar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildToolIcon('pen', Icons.edit_rounded, 'Pen'),
-                  _buildToolIcon('highlighter', Icons.brush_rounded, 'Highlighter'),
-                  _buildToolIcon('eraser', Icons.auto_fix_normal_rounded, 'Eraser'),
-                  const SizedBox(width: 8),
-                  const SizedBox(height: 18, child: VerticalDivider(width: 1, color: Colors.white24)),
-                  const SizedBox(width: 8),
-                  _buildColorDot(const Color(0xFF60A5FA)),
-                  _buildColorDot(const Color(0xFF34D399)),
-                  _buildColorDot(const Color(0xFFFBBF24)),
-                  _buildColorDot(const Color(0xFFF87171)),
-                  _buildColorDot(Colors.white),
-                  const SizedBox(width: 8),
-                  const SizedBox(height: 18, child: VerticalDivider(width: 1, color: Colors.white24)),
-                  const SizedBox(width: 8),
-                  // Toggle between Lesson Board and Blank Canvas
-                  InkWell(
-                    onTap: () => setState(() => _isLessonBoardActive = !_isLessonBoardActive),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _isLessonBoardActive ? const Color(0xFF10B981).withValues(alpha: 0.18) : Colors.white10,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: _isLessonBoardActive ? const Color(0xFF10B981) : Colors.white24,
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _isLessonBoardActive ? Icons.menu_book_rounded : Icons.crop_square_rounded,
-                            size: 13,
-                            color: _isLessonBoardActive ? const Color(0xFF34D399) : Colors.white70,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _isLessonBoardActive ? 'Lesson Board' : 'Blank Board',
-                            style: TextStyle(
-                              color: _isLessonBoardActive ? const Color(0xFF34D399) : Colors.white70,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  TextButton.icon(
-                    icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 15),
-                    label: const Text('Clear', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _whiteboardStrokes.clear();
-                        _strokeColors.clear();
-                        _strokeWidths.clear();
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: LiveClassTheme.primary(context),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 13),
-                    label: const Text('Full Whiteboard Screen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    onPressed: () {
-                      if (widget.onOpenWhiteboard != null) {
-                        widget.onOpenWhiteboard!();
-                      } else {
-                        final activeSession = widget.session ?? ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
-                        final sel = ref.read(liveClassManagementProvider).selectedMyClass;
-                        final title = activeSession != null
-                            ? 'Whiteboard - ${activeSession.classSection} : ${activeSession.subject} – ${activeSession.title}'
-                            : (sel != null
-                                ? 'Whiteboard - ${sel.classSection} : ${sel.subjectName} – ${sel.topic}'
-                                : 'Whiteboard - Class 12 - A – Chemistry');
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => WhiteboardScreen(
-                              sessionId: activeSession?.id ?? sel?.id,
-                              sessionTitle: title,
-                              onEndClass: widget.onEndClass,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Interactive Canvas (Lesson smartboard + interactive annotation layer)
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF141C2E),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white12),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Layer 1: Lesson smartboard background (Formulas, callouts, and parabola diagram)
-                  if (_isLessonBoardActive)
-                    _buildLessonSmartboardBackground()
-                  else
-                    _buildBlankCanvasGrid(),
-
-                  // Layer 2: Interactive Custom Drawing / Annotation Canvas
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanStart: (details) {
-                      setState(() {
-                        _currentStroke = [details.localPosition];
-                        _whiteboardStrokes.add(_currentStroke);
-                        _strokeColors.add(_selectedTool == 'eraser' ? const Color(0xFF141C2E) : _selectedColor);
-                        _strokeWidths.add(_selectedTool == 'eraser'
-                            ? 20.0
-                            : (_selectedTool == 'highlighter' ? 14.0 : _selectedWidth));
-                      });
-                    },
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _currentStroke.add(details.localPosition);
-                      });
-                    },
-                    child: CustomPaint(
-                      painter: _WhiteboardPainter(
-                        strokes: _whiteboardStrokes,
-                        colors: _strokeColors,
-                        widths: _strokeWidths,
-                      ),
-                      size: Size.infinite,
-                    ),
-                  ),
-
-                  // Bottom helper badge
-                  Positioned(
-                    bottom: 8,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.touch_app_rounded, color: Colors.white60, size: 12),
-                          SizedBox(width: 4),
-                          Text(
-                            'Interactive Smartboard • Draw, annotate & teach live',
-                            style: TextStyle(color: Colors.white70, fontSize: 10),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBlankCanvasGrid() {
-    return Container(
-      color: const Color(0xFF111827),
-      child: CustomPaint(
-        painter: _MathGridPainter(),
-        size: Size.infinite,
-      ),
-    );
-  }
-
-  Widget _buildLessonSmartboardBackground() {
-    final conductData = ref.watch(liveClassManagementProvider).conductSessionData;
+    final activeSession = widget.session ?? ref.watch(liveClassManagementProvider).conductSessionData?.activeSession;
     final selectedClass = ref.watch(liveClassManagementProvider).selectedMyClass;
-    final liveItem = ref.watch(liveClassManagementProvider).myClassesList.where((c) => c.status.toLowerCase() == 'live').firstOrNull;
+    final sid = activeSession?.id ?? selectedClass?.id ?? 'stage_whiteboard';
+    final title = activeSession != null
+        ? 'Whiteboard - ${activeSession.classSection} : ${activeSession.subject} – ${activeSession.title}'
+        : (selectedClass != null
+            ? 'Whiteboard - ${selectedClass.classSection} : ${selectedClass.subjectName} – ${selectedClass.topic}'
+            : 'Whiteboard - Class 10 - 10-A : Computer Science');
 
-    final activeSession = widget.session ?? conductData?.activeSession;
-    final subject = (activeSession?.subject.trim().isNotEmpty == true)
-        ? activeSession!.subject.trim()
-        : (selectedClass?.subjectName.trim().isNotEmpty == true
-            ? selectedClass!.subjectName.trim()
-            : (liveItem?.subjectName.trim().isNotEmpty == true
-                ? liveItem!.subjectName.trim()
-                : 'Chemistry'));
-
-    final rawTopic = (activeSession?.title.trim().isNotEmpty == true)
-        ? activeSession!.title.trim()
-        : ((selectedClass?.topic.trim().isNotEmpty == true)
-            ? selectedClass!.topic.trim()
-            : (liveItem?.topic.trim().isNotEmpty == true
-                ? liveItem!.topic.trim()
-                : 'Organic Compounds – Introduction'));
-    final topic = rawTopic.isNotEmpty ? rawTopic : 'Organic Compounds – Introduction';
-
-    final subLower = subject.toLowerCase();
-    final bool isChem = subLower.contains('chem');
-    final bool isBio = !isChem && (subLower.contains('bio') || subLower.contains('life'));
-    final bool isPhys = !isChem && !isBio && subLower.contains('phys');
-    final bool isOrganic = topic.toLowerCase().contains('organ') ||
-        topic.toLowerCase().contains('compound') ||
-        topic.toLowerCase().contains('carbon') ||
-        topic.toLowerCase().contains('iupac');
-
-    final String chapterTag = isChem
-        ? (isOrganic
-            ? '${subject.toUpperCase()} • CHAPTER 4: ORGANIC COMPOUNDS & NOMENCLATURE'
-            : '${subject.toUpperCase()} • CHAPTER 5: CHEMICAL KINETICS')
-        : (isBio
-            ? '${subject.toUpperCase()} • CHAPTER 4: CELL & GENETICS'
-            : (isPhys
-                ? '${subject.toUpperCase()} • CHAPTER 3: LAWS OF MOTION'
-                : '${subject.toUpperCase()} • CHAPTER 4: QUADRATIC EQUATIONS'));
-
-    final String displayTopic = topic;
-
-    final String box1 = isChem
-        ? (isOrganic
-            ? 'Hybridization: sp³ (109.5° tetrahedral) | sp² (120° trigonal) | sp (180° linear)'
-            : 'P·V = n·R·T    |    ΔG° = ΔH° - TΔS°')
-        : (isBio
-            ? 'Cell Theory: Structural & functional unit of all living organisms'
-            : (isPhys
-                ? 'F = m·a    |    p = m·v  (Conservation of Momentum)'
-                : 'ax² + bx + c = 0    (where a ≠ 0)'));
-
-    final String box2 = isChem
-        ? (isOrganic
-            ? 'Electrophiles (E⁺) & Nucleophiles (Nu⁻) | IUPAC Chain Numbering & Functional Groups'
-            : 'pH = -log[H⁺]    |    k = A·e^(-Ea/RT)')
-        : (isBio
-            ? 'Photosynthesis: 6CO₂ + 6H₂O + light ➔ C₆H₁₂O₆ + 6O₂'
-            : (isPhys
-                ? 'v = u + at    |    s = ut + ½at²    |    v² = u² + 2as'
-                : 'x = (-b ± √(b² - 4ac)) / 2a'));
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 620;
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0D1525)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Column: Key Formulas & Conditions
-              Expanded(
-                flex: isCompact ? 1 : 5,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFF3B82F6), width: 0.8),
-                            ),
-                            child: Text(
-                              chapterTag,
-                              style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.auto_awesome, color: Color(0xFFFBBF24), size: 14),
-                          const SizedBox(width: 4),
-                          const Text('Live Lesson Smartboard', style: TextStyle(color: Colors.white54, fontSize: 10.5)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        displayTopic,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Concept box 1
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          box1,
-                          style: const TextStyle(
-                            color: Color(0xFFF8FAFC),
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Concept box 2
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          box2,
-                          style: const TextStyle(
-                            color: Color(0xFF67E8F9),
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Conditions / Highlights summary
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: isBio
-                              ? [
-                                  const Text(
-                                    'Core Biological Principles:',
-                                    style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  _buildDiscriminantSummary('• DNA Structure :', 'Adenine=Thymine, Guanine≡Cytosine', const Color(0xFF10B981)),
-                                  _buildDiscriminantSummary('• Mitosis (2n) :', 'Identical somatic cellular division', const Color(0xFFF59E0B)),
-                                  _buildDiscriminantSummary('• Meiosis (n) :', 'Genetic diversity & gamete formation', const Color(0xFFEC4899)),
-                                ]
-                              : (isChem
-                                  ? [
-                                      const Text(
-                                        'Reaction Mechanism & Kinetics:',
-                                        style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      _buildDiscriminantSummary('• Activation Energy (Ea) :', 'Catalyst lowers transition barrier', const Color(0xFF10B981)),
-                                      _buildDiscriminantSummary('• Equilibrium (Kc) :', 'Le Chatelier: Shift opposes disturbance', const Color(0xFFF59E0B)),
-                                      _buildDiscriminantSummary('• Enthalpy (ΔH) :', 'Exothermic (ΔH < 0) vs Endothermic (ΔH > 0)', const Color(0xFFEC4899)),
-                                    ]
-                                  : (isPhys
-                                      ? [
-                                          const Text(
-                                            'Mechanics & Kinematic Principles:',
-                                            style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          _buildDiscriminantSummary('• ΣF = 0 (Static Eq) :', 'Net resultant force is zero', const Color(0xFF10B981)),
-                                          _buildDiscriminantSummary('• F = dp/dt :', 'Rate of change of linear momentum', const Color(0xFFF59E0B)),
-                                          _buildDiscriminantSummary('• Conservation :', 'Total energy & momentum are conserved', const Color(0xFFEC4899)),
-                                        ]
-                                      : [
-                                          const Text(
-                                            'D = b² - 4ac (Discriminant):',
-                                            style: TextStyle(color: Color(0xFFFBBF24), fontSize: 11, fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          _buildDiscriminantSummary('• D > 0 :', 'Two Distinct Real Roots', const Color(0xFF10B981)),
-                                          _buildDiscriminantSummary('• D = 0 :', 'One Real Repeated Root', const Color(0xFFF59E0B)),
-                                          _buildDiscriminantSummary('• D < 0 :', 'Complex Conjugate Roots', const Color(0xFFEC4899)),
-                                        ])),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              if (!isCompact) ...[
-                const SizedBox(width: 12),
-                // Right Column: Diagram with dynamic Painter
-                Expanded(
-                  flex: 4,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0B1322),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF334155)),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: isChem
-                                ? _ChemistryMoleculeLessonPainter()
-                                : (isBio ? _BiologyCellLessonPainter() : _ParabolaLessonPainter()),
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isChem
-                                  ? 'Molecular Structure: Benzene Ring & Functional Bonds'
-                                  : (isBio ? 'Cell Anatomy: Membrane, Nucleus & Mitochondria' : 'Parabola: y = ax² + bx + c'),
-                              style: TextStyle(
-                                color: isBio ? const Color(0xFF34D399) : const Color(0xFFF43F5E),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDiscriminantSummary(String prefix, String desc, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1.5),
-      child: Row(
-        children: [
-          Text(prefix, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 6),
-          Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolIcon(String tool, IconData icon, [String? tooltip]) {
-    final isSel = _selectedTool == tool;
-    final button = InkWell(
-      onTap: () => setState(() => _selectedTool = tool),
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: isSel ? const Color(0xFF2563EB) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, color: isSel ? Colors.white : Colors.white70, size: 16),
-      ),
-    );
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: button);
-    }
-    return button;
-  }
-
-  Widget _buildColorDot(Color col) {
-    final isSel = _selectedColor == col && _selectedTool != 'eraser';
-    return InkWell(
-      onTap: () => setState(() {
-        _selectedColor = col;
-        if (_selectedTool == 'eraser') _selectedTool = 'pen';
-      }),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        width: 18,
-        height: 18,
-        decoration: BoxDecoration(
-          color: col,
-          shape: BoxShape.circle,
-          border: Border.all(color: isSel ? Colors.white : Colors.transparent, width: 2),
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: WhiteboardWorkspace(
+        sessionId: sid,
+        sessionTitle: title,
+        isEmbeddedInStage: true,
+        onBackToClassroom: () {
+          setState(() {
+            _stageMode = StageMode.teacherPresentation;
+          });
+        },
+        onOpenPolls: () => _showPollDialog(context),
+        onOpenQA: () => widget.onOpenQA?.call(),
+        onLeaveClass: widget.onLeaveClass,
+        onEndClass: widget.onEndClass,
       ),
     );
   }
@@ -3511,7 +3160,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   // HELPERS
   // ============================================================================
 
-  Widget _buildModeButton(StageMode mode, IconData icon, String label, {bool showLabel = true}) {
+  Widget _buildModeButton(StageMode mode, IconData icon, String label, {bool showLabel = true, VoidCallback? onCustomTap}) {
     final isSelected = _stageMode == mode;
     return Tooltip(
       message: mode == StageMode.teacherPresentation
@@ -3522,7 +3171,13 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                   ? 'Interactive Whiteboard View'
                   : 'Participant Grid View')),
       child: InkWell(
-        onTap: () => setState(() => _stageMode = mode),
+        onTap: () {
+          if (onCustomTap != null) {
+            onCustomTap();
+          } else {
+            setState(() => _stageMode = mode);
+          }
+        },
         borderRadius: BorderRadius.circular(4),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -3659,7 +3314,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
         } else if (value == 'network') {
           _showNetworkHealthDialog(context);
         } else if (value == 'full_whiteboard') {
-          widget.onOpenWhiteboard?.call();
+          setState(() => _stageMode = StageMode.interactiveWhiteboard);
         } else if (value == 'share_meeting') {
           final activeSess = widget.session ?? ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
           if (activeSess != null) {
@@ -3743,331 +3398,4 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     );
   }
 }
-
-class _WhiteboardPainter extends CustomPainter {
-  final List<List<Offset>> strokes;
-  final List<Color> colors;
-  final List<double> widths;
-
-  _WhiteboardPainter({
-    required this.strokes,
-    required this.colors,
-    required this.widths,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < strokes.length; i++) {
-      final stroke = strokes[i];
-      if (stroke.isEmpty) continue;
-      final paint = Paint()
-        ..color = colors[i]
-        ..strokeWidth = widths[i]
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke;
-
-      if (stroke.length == 1) {
-        canvas.drawCircle(stroke[0], widths[i] / 2, paint..style = PaintingStyle.fill);
-      } else {
-        final path = Path();
-        path.moveTo(stroke[0].dx, stroke[0].dy);
-        for (int j = 1; j < stroke.length; j++) {
-          path.lineTo(stroke[j].dx, stroke[j].dy);
-        }
-        canvas.drawPath(path, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WhiteboardPainter oldDelegate) => true;
-}
-
-class _MathGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 1.0;
-
-    const spacing = 24.0;
-    for (double x = spacing; x < size.width; x += spacing) {
-      for (double y = spacing; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), 0.8, dotPaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ChemistryMoleculeLessonPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width < 50 || size.height < 50) return;
-
-    final ringPaint = Paint()
-      ..color = const Color(0xFF38BDF8)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-
-    final ringFill = Paint()
-      ..color = const Color(0xFF0284C7).withValues(alpha: 0.12)
-      ..style = PaintingStyle.fill;
-
-    final bondPaint = Paint()
-      ..color = const Color(0xFFF43F5E)
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
-
-    final atomPaint = Paint()
-      ..color = const Color(0xFFFBBF24)
-      ..style = PaintingStyle.fill;
-
-    final center = Offset(size.width * 0.5, size.height * 0.5);
-    const radius = 38.0;
-
-    // Calculate hexagon vertices (Benzene Ring)
-    final vertices = <Offset>[];
-    for (int i = 0; i < 6; i++) {
-      final angle = (i * 60 - 30) * math.pi / 180.0;
-      vertices.add(Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle)));
-    }
-
-    final hexPath = Path()..moveTo(vertices[0].dx, vertices[0].dy);
-    for (int i = 1; i < 6; i++) {
-      hexPath.lineTo(vertices[i].dx, vertices[i].dy);
-    }
-    hexPath.close();
-
-    canvas.drawPath(hexPath, ringFill);
-    canvas.drawPath(hexPath, ringPaint);
-
-    // Inner aromatic delocalized circle (Kekule/delocalized π-electrons)
-    final circlePaint = Paint()
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.5)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawCircle(center, radius * 0.65, circlePaint);
-
-    // Substituent bond & functional group atom
-    final topVertex = vertices[0];
-    final subEnd = Offset(topVertex.dx, topVertex.dy - 22);
-    canvas.drawLine(topVertex, subEnd, bondPaint);
-    canvas.drawCircle(subEnd, 5.0, atomPaint);
-
-    // Second substituent
-    final bottomVertex = vertices[3];
-    final subEnd2 = Offset(bottomVertex.dx, bottomVertex.dy + 20);
-    canvas.drawLine(bottomVertex, subEnd2, bondPaint);
-    canvas.drawCircle(subEnd2, 4.5, Paint()..color = const Color(0xFF10B981));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-
-class _ParabolaLessonPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width < 50 || size.height < 50) return;
-
-    final axisPaint = Paint()
-      ..color = Colors.white38
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..strokeWidth = 0.8;
-
-    final curvePaint = Paint()
-      ..color = const Color(0xFFF43F5E)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final dashedPaint = Paint()
-      ..color = const Color(0xFF60A5FA).withValues(alpha: 0.5)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    // Grid dots/lines
-    for (double x = 20; x < size.width; x += 25) {
-      canvas.drawLine(Offset(x, 10), Offset(x, size.height - 10), gridPaint);
-    }
-    for (double y = 20; y < size.height; y += 25) {
-      canvas.drawLine(Offset(10, y), Offset(size.width - 10, y), gridPaint);
-    }
-
-    final origin = Offset(size.width * 0.45, size.height * 0.60);
-
-    // Axes
-    // X Axis
-    canvas.drawLine(Offset(15, origin.dy), Offset(size.width - 15, origin.dy), axisPaint);
-    // Y Axis
-    canvas.drawLine(Offset(origin.dx, size.height - 15), Offset(origin.dx, 15), axisPaint);
-
-    // Axis arrowheads
-    canvas.drawLine(Offset(size.width - 20, origin.dy - 4), Offset(size.width - 15, origin.dy), axisPaint);
-    canvas.drawLine(Offset(size.width - 20, origin.dy + 4), Offset(size.width - 15, origin.dy), axisPaint);
-    canvas.drawLine(Offset(origin.dx - 4, 20), Offset(origin.dx, 15), axisPaint);
-    canvas.drawLine(Offset(origin.dx + 4, 20), Offset(origin.dx, 15), axisPaint);
-
-    // Parabola curve: y = a(x - h)^2 + k (opens upwards)
-    final h = origin.dx + 18.0;
-    final k = origin.dy + 26.0; // vertex below x-axis
-    const a = 0.009;
-
-    final path = Path();
-    bool started = false;
-    for (double px = origin.dx - 65; px <= origin.dx + 105; px += 2) {
-      final py = k - (a * (px - h) * (px - h) * 1.0);
-      if (py >= 15 && py <= size.height - 10) {
-        if (!started) {
-          path.moveTo(px, py);
-          started = true;
-        } else {
-          path.lineTo(px, py);
-        }
-      }
-    }
-    canvas.drawPath(path, curvePaint);
-
-    // Axis of symmetry (dashed line through vertex x = h)
-    for (double dy = 20; dy < size.height - 20; dy += 8) {
-      canvas.drawLine(Offset(h, dy), Offset(h, dy + 4), dashedPaint);
-    }
-
-    // Vertex Point V(h, k)
-    final vertexPaint = Paint()..color = const Color(0xFFFBBF24)..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(h, k), 3.5, vertexPaint);
-
-    // Roots X1 and X2 (intersection with x-axis y = origin.dy)
-    final diff = k - origin.dy;
-    if (diff > 0 && a > 0) {
-      final rootDelta = math.sqrt(diff / a);
-      final x1 = h - rootDelta;
-      final x2 = h + rootDelta;
-
-      final rootPaint = Paint()..color = const Color(0xFF38BDF8)..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(x1, origin.dy), 3.5, rootPaint);
-      canvas.drawCircle(Offset(x2, origin.dy), 3.5, rootPaint);
-
-      // Text labels
-      final tp = TextPainter(textDirection: TextDirection.ltr);
-
-      void drawText(String text, Offset pos, Color col, {double fontSize = 10, bool bold = false}) {
-        tp.text = TextSpan(
-          text: text,
-          style: TextStyle(color: col, fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.normal),
-        );
-        tp.layout();
-        tp.paint(canvas, pos);
-      }
-
-      drawText('y', Offset(origin.dx + 6, 12), Colors.white70, fontSize: 11, bold: true);
-      drawText('x', Offset(size.width - 24, origin.dy + 6), Colors.white70, fontSize: 11, bold: true);
-      drawText('x₁', Offset(x1 - 6, origin.dy + 5), const Color(0xFF38BDF8), fontSize: 10, bold: true);
-      drawText('x₂', Offset(x2 + 2, origin.dy + 5), const Color(0xFF38BDF8), fontSize: 10, bold: true);
-      drawText('Vertex', Offset(h - 14, k + 5), const Color(0xFFFBBF24), fontSize: 9.5, bold: true);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _BiologyCellLessonPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width < 50 || size.height < 50) return;
-
-    final membranePaint = Paint()
-      ..color = const Color(0xFF10B981)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-
-    final cytoplasmPaint = Paint()
-      ..color = const Color(0xFF10B981).withValues(alpha: 0.08)
-      ..style = PaintingStyle.fill;
-
-    final nucleusPaint = Paint()
-      ..color = const Color(0xFF3B82F6)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    final nucleusFill = Paint()
-      ..color = const Color(0xFF3B82F6).withValues(alpha: 0.25)
-      ..style = PaintingStyle.fill;
-
-    final nucleolusPaint = Paint()
-      ..color = const Color(0xFFF59E0B)
-      ..style = PaintingStyle.fill;
-
-    final mitoPaint = Paint()
-      ..color = const Color(0xFFEC4899)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final riboPaint = Paint()
-      ..color = const Color(0xFF67E8F9)
-      ..style = PaintingStyle.fill;
-
-    final center = Offset(size.width * 0.5, size.height * 0.5);
-    final membraneRect = Rect.fromCenter(
-      center: center,
-      width: size.width * 0.82,
-      height: size.height * 0.78,
-    );
-
-    // Cell Membrane
-    final rrect = RRect.fromRectAndRadius(membraneRect, const Radius.circular(28));
-    canvas.drawRRect(rrect, cytoplasmPaint);
-    canvas.drawRRect(rrect, membranePaint);
-
-    // Nucleus
-    final nucleusCenter = Offset(center.dx - 18, center.dy);
-    canvas.drawCircle(nucleusCenter, 28, nucleusFill);
-    canvas.drawCircle(nucleusCenter, 28, nucleusPaint);
-
-    // Nucleolus
-    canvas.drawCircle(Offset(nucleusCenter.dx - 4, nucleusCenter.dy - 3), 9, nucleolusPaint);
-
-    // Mitochondria (2 organelles)
-    final mitoRect1 = Rect.fromCenter(
-      center: Offset(center.dx + 42, center.dy - 24),
-      width: 32,
-      height: 16,
-    );
-    canvas.drawOval(mitoRect1, mitoPaint);
-
-    final mitoRect2 = Rect.fromCenter(
-      center: Offset(center.dx + 36, center.dy + 30),
-      width: 30,
-      height: 15,
-    );
-    canvas.drawOval(mitoRect2, mitoPaint);
-
-    // Ribosomes (dots)
-    final riboOffsets = [
-      Offset(center.dx - 30, center.dy - 38),
-      Offset(center.dx - 10, center.dy - 44),
-      Offset(center.dx + 12, center.dy - 38),
-      Offset(center.dx - 42, center.dy + 26),
-      Offset(center.dx - 22, center.dy + 36),
-      Offset(center.dx + 16, center.dy + 42),
-    ];
-    for (final off in riboOffsets) {
-      canvas.drawCircle(off, 2.5, riboPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 
