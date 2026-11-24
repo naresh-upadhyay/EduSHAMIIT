@@ -44,6 +44,7 @@ class FakeWorkApiService extends WorkApiService {
     String? status,
     String? priority,
     String? assigneeId,
+    List<String>? assigneeIds,
     String? sprintId,
     String? teamId,
     String? teamName,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -1398,7 +1399,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                 children: [
                   Text('Type *', style: labelStyle),
                   const SizedBox(height: 3),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     key: ValueKey('type_dropdown_$currentVal'),
                     initialValue: currentVal,
                     isExpanded: true,
@@ -1471,7 +1472,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                 children: [
                   Text('Calendar', style: labelStyle),
                   const SizedBox(height: 3),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     key: ValueKey('cal_dropdown_${effectiveCalendarId ?? "none"}_${calendarMap.length}'),
                     initialValue: effectiveCalendarId,
                     isExpanded: true,
@@ -1589,7 +1590,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                 children: [
                   Text('Priority', style: labelStyle),
                   const SizedBox(height: 3),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     key: ValueKey('priority_dropdown_$effectivePriority'),
                     initialValue: effectivePriority,
                     isExpanded: true,
@@ -1924,7 +1925,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             final effectiveTimezone =
                 timezonesMap.containsKey(_timezone) ? _timezone : 'Asia/Kolkata';
 
-            return DropdownButtonFormField<String>(
+            return AppSearchableDropdownFormField<String>.fromMenuItems(
               key: ValueKey('tz_dropdown_$effectiveTimezone'),
               initialValue: effectiveTimezone,
               isExpanded: true,
@@ -2074,7 +2075,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             final effectiveFreq =
                 validFreqs.contains(normalizedFreq) ? normalizedFreq : 'none';
 
-            return DropdownButtonFormField<String>(
+            return AppSearchableDropdownFormField<String>.fromMenuItems(
               key: ValueKey('freq_dropdown_$effectiveFreq'),
               initialValue: effectiveFreq,
               isExpanded: true,
@@ -2795,7 +2796,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                           ? (_virtualProvider == 'livekit' ? 'edushamiit' : _virtualProvider)
                           : (widget.isLiveClass ? 'edushamiit' : 'google_meet');
 
-                  return DropdownButtonFormField<String>(
+                  return AppSearchableDropdownFormField<String>.fromMenuItems(
                     key: ValueKey('provider_dropdown_$effectiveProvider'),
                     initialValue: effectiveProvider,
                     isExpanded: true,
@@ -3394,7 +3395,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                           ? currentSubjectId
                           : null;
 
-                      return DropdownButtonFormField<String?>(
+                      return AppSearchableDropdownFormField<String?>.fromMenuItems(
                         key: ValueKey(
                             'sub_dropdown_${key}_${effectiveSubId ?? "none"}_${uniqueSubjects.length}'),
                         initialValue: effectiveSubId,
@@ -3965,7 +3966,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                                         : (rawRole == 'optional'
                                             ? 'optional'
                                             : (rawRole == 'fyi' ? 'fyi' : 'required'));
-                                    return DropdownButton<String>(
+                                    return AppSearchableDropdown<String>.fromMenuItems(
                                       key: ValueKey('user_role_${u['user_id'] ?? u['id']}_$effectiveRole'),
                                       value: effectiveRole,
                                       underline: const SizedBox(),
@@ -4019,7 +4020,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                                           ? const Color(0xFF334155)
                                           : const Color(0xFFCBD5E1)),
                                 ),
-                                child: DropdownButton<String>(
+                                child: AppSearchableDropdown<String>.fromMenuItems(
                                   value: (u['permission'] == 'read_write' ||
                                           u['permission'] == 'can_edit' ||
                                           u['permission'] == 'can_manage')
@@ -4189,7 +4190,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
               const SizedBox(height: 8),
 
               // Route Dropdown Selector
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String?>.fromMenuItems(
                 key: ValueKey(
                     'route_dropdown_${effectiveRouteId ?? "none"}_${_transportRoutes.length}'),
                 initialValue: effectiveRouteId,
@@ -4235,7 +4236,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                       '${r['start_time'] ?? ''} - ${r['end_time'] ?? ''}'
                           .trim();
 
-                  return DropdownMenuItem<String>(
+                  return DropdownMenuItem<String?>(
                     value: rId,
                     child: Row(
                       children: [
@@ -4431,7 +4432,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             final effectiveMinutes = validMinutes.contains(_reminderMinutes)
                 ? _reminderMinutes
                 : 15;
-            return DropdownButtonFormField<int>(
+            return AppSearchableDropdownFormField<int>.fromMenuItems(
               key: ValueKey('reminder_min_$effectiveMinutes'),
               initialValue: effectiveMinutes,
               isExpanded: true,
@@ -4515,7 +4516,7 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             final effectiveChannel = validChannels.contains(_reminderChannel)
                 ? _reminderChannel
                 : 'in_app';
-            return DropdownButtonFormField<String>(
+            return AppSearchableDropdownFormField<String>.fromMenuItems(
               key: ValueKey('reminder_channel_$effectiveChannel'),
               initialValue: effectiveChannel,
               isExpanded: true,
