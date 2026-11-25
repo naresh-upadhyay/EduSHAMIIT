@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../../models/device_management_models.dart';
 
@@ -293,7 +294,7 @@ class _CreateEditDeviceGroupDialogState extends State<CreateEditDeviceGroupDialo
                               children: [
                                 const Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 5),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   isExpanded: true,
                                   initialValue: _selectedStatus,
                                   decoration: InputDecoration(
@@ -338,7 +339,7 @@ class _CreateEditDeviceGroupDialogState extends State<CreateEditDeviceGroupDialo
                               children: [
                                 const Text('Group Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 5),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   isExpanded: true,
                                   initialValue: _groupTypes.contains(_selectedType) ? _selectedType : _groupTypes.first,
                                   decoration: InputDecoration(
@@ -360,7 +361,7 @@ class _CreateEditDeviceGroupDialogState extends State<CreateEditDeviceGroupDialo
                               children: [
                                 const Text('Control Profile', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 5),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   isExpanded: true,
                                   initialValue: _profiles.contains(_selectedProfile) ? _selectedProfile : _profiles.first,
                                   decoration: InputDecoration(

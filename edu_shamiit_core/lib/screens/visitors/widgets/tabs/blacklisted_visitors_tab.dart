@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,7 +101,7 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
                   iconBg: const Color(0xFFFFEDD5),
                   iconColor: const Color(0xFFEA580C),
                   isDark: isDark,
-                  onTap: () => notifier.setStatusFilter('Expired'),
+                  onTap: () => notifier.setStatusFilter('Ended'),
                 ),
                 _buildKpiCard(
                   context,
@@ -213,8 +214,8 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
 
                 // All Status Dropdown
                 _buildDropdown(
-                  value: const ['All Status', 'Active', 'Expired', 'Lifted'].contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
-                  items: const ['All Status', 'Active', 'Expired', 'Lifted'],
+                  value: const ['All Status', 'Active', 'Ended', 'Attempted', 'Expired', 'Lifted'].contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
+                  items: const ['All Status', 'Active', 'Ended', 'Attempted', 'Expired', 'Lifted'],
                   isDark: isDark,
                   onChanged: (val) {
                     if (val != null) {
@@ -398,16 +399,19 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: items.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(),
           onChanged: onChanged,
@@ -445,7 +449,7 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
               child: Row(
                 children: [
                   Text(
-                    'Blacklisted Visitors (${restrictions.length})',
+                    'Blacklisted Visitors (${state.restrictionPagination.totalRecords})',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -991,7 +995,7 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: [10, 25, 50, 100].contains(state.restrictionPagination.pageSize) ? state.restrictionPagination.pageSize : 10,
                         isDense: true,
                         style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

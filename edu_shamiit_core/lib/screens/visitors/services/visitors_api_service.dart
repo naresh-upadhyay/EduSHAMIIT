@@ -11,6 +11,7 @@ class VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async {
     final query = <String, dynamic>{};
     if (dateFrom != null && dateFrom.isNotEmpty) query['date_from'] = dateFrom;
@@ -21,6 +22,9 @@ class VisitorsApiService {
     }
     if (category != null && category.isNotEmpty && category != 'All' && category != 'All Visitor Types') {
       query['category'] = category;
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      query['search'] = search.trim();
     }
     try {
       final res = await _api.get('/visitors/kpis', query: query, useCache: false);
@@ -268,10 +272,23 @@ class VisitorsApiService {
     }
   }
 
-  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo}) async {
+  Future<ScheduledKPIs> getScheduledKPIs({
+    String? dateFrom,
+    String? dateTo,
+    String? search,
+    String? location,
+    String? category,
+  }) async {
     final query = <String, dynamic>{};
     if (dateFrom != null && dateFrom.isNotEmpty) query['date_from'] = dateFrom;
     if (dateTo != null && dateTo.isNotEmpty) query['date_to'] = dateTo;
+    if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
+    if (location != null && location.isNotEmpty && location != 'All' && location != 'All Locations') {
+      query['location'] = location;
+    }
+    if (category != null && category.isNotEmpty && category != 'All' && category != 'All Visitor Types') {
+      query['category'] = category;
+    }
     try {
       final res = await _api.get('/visitors/appointments/kpis', query: query, useCache: false);
       if (res['success'] == true && res['data'] != null) {
@@ -309,10 +326,25 @@ class VisitorsApiService {
     }
   }
 
-  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo}) async {
+  Future<BlacklistKPIs> getBlacklistKPIs({
+    String? dateFrom,
+    String? dateTo,
+    String? search,
+    String? location,
+    String? reason,
+  }) async {
     final query = <String, dynamic>{
       if (dateFrom != null && dateFrom.isNotEmpty) 'date_from': dateFrom,
       if (dateTo != null && dateTo.isNotEmpty) 'date_to': dateTo,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (location != null && location.isNotEmpty && location != 'All' && location != 'All Locations')
+        'location': location,
+      if (reason != null &&
+          reason.isNotEmpty &&
+          reason != 'All' &&
+          reason != 'All Block Reasons' &&
+          reason != 'All Visitor Types')
+        'reason': reason,
     };
     try {
       final res = await _api.get('/visitors/restrictions/kpis', query: query, useCache: false);

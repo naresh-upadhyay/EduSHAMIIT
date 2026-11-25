@@ -769,7 +769,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: safeValue,
           dropdownColor: theme.cardColor,
           style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.w600),
@@ -1075,7 +1075,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
+            child: AppSearchableDropdown<int>.fromMenuItems(
               value: _pageSize,
               dropdownColor: theme.cardColor,
               icon: const Icon(Icons.arrow_drop_down, size: 14),
@@ -1285,7 +1285,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                     final rawCat = _selectedTicket['category']?.toString() ?? 'Others';
                     final safeCat = _categories.contains(rawCat) ? rawCat : (_categories.contains('Others') ? 'Others' : _categories.first);
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: safeCat,
                         isDense: true,
                         dropdownColor: theme.cardColor,
@@ -1309,7 +1309,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                     final rawPri = _selectedTicket['priority']?.toString() ?? 'Low';
                     final safePri = _priorities.contains(rawPri) ? rawPri : (_priorities.contains('Low') ? 'Low' : _priorities.first);
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: safePri,
                         isDense: true,
                         dropdownColor: theme.cardColor,
@@ -1334,7 +1334,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                     final bool userExists = assignedId != null && _users.any((u) => u['id']?.toString() == assignedId);
                     final safeAssignedValue = userExists ? assignedId : 'unassigned';
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: safeAssignedValue,
                         isDense: true,
                         dropdownColor: theme.cardColor,
@@ -2043,7 +2043,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: safeValue,
               isExpanded: true,
               dropdownColor: theme.cardColor,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -2052,7 +2053,7 @@ class _DeviceImportExportSubviewState extends State<DeviceImportExportSubview> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),

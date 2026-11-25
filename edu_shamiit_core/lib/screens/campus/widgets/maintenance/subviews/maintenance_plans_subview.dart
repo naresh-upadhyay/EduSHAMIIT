@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -242,7 +243,7 @@ class _MaintenancePlansSubviewState extends ConsumerState<MaintenancePlansSubvie
                           border: Border.all(color: borderColor),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedCategory,
                             style: TextStyle(fontSize: 12, color: textPrimary),
                             items: const [
@@ -267,7 +268,7 @@ class _MaintenancePlansSubviewState extends ConsumerState<MaintenancePlansSubvie
                           border: Border.all(color: borderColor),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedFrequency,
                             style: TextStyle(fontSize: 12, color: textPrimary),
                             items: const [

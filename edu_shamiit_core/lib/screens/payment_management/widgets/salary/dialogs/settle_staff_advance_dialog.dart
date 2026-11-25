@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/staff_salary_provider.dart';
@@ -214,7 +215,7 @@ class _SettleStaffAdvanceDialogState
                           : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _paymentMode,
                     isExpanded: true,
                     dropdownColor:

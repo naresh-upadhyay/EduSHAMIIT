@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 // Enterprise Device Health & Diagnostics Subview
 // EduSHAMIIT School ERP - Campus Management -> Device Management & Control -> Device Health & Diagnostics
 // Fully functional implementation matching the canonical design in media_1794563822626_9c2e994d.jpg
@@ -1462,7 +1463,7 @@ class _DeviceHealthDiagnosticsSubviewState
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: priority,
                         decoration: const InputDecoration(
                             labelText: 'Priority',
@@ -1477,7 +1478,7 @@ class _DeviceHealthDiagnosticsSubviewState
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: reqType,
                         decoration: const InputDecoration(
                             labelText: 'Category',
@@ -1730,7 +1731,7 @@ class _DeviceHealthDiagnosticsSubviewState
             color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _selectedLocation,
           icon: const Icon(Icons.arrow_drop_down_rounded,
               color: Color(0xFF64748B)),
@@ -3166,7 +3167,7 @@ class _DeviceHealthDiagnosticsSubviewState
                     const Text('Rows:',
                         style:
                             TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: _rowsPerPage,
                       underline: const SizedBox(),
                       items: [5, 10, 25, 50, 100]
@@ -3248,7 +3249,7 @@ class _DeviceHealthDiagnosticsSubviewState
             color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: opts.contains(value) ? value : opts.first,
           isDense: true,
           isExpanded: true,

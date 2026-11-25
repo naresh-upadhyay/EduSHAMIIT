@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -289,7 +290,7 @@ class _EbookReaderDialogState extends ConsumerState<EbookReaderDialog> {
                                       .withValues(alpha: 0.3)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
+                              child: AppSearchableDropdown<int>.fromMenuItems(
                                 value: safeAssetIndex,
                                 isDense: true,
                                 dropdownColor: const Color(0xFF1E293B),

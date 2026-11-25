@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,8 @@ class WhiteboardWorkspace extends ConsumerStatefulWidget {
   final VoidCallback? onOpenQA;
   final bool isFullscreenRoute;
   final bool isEmbeddedInStage;
+  final bool isOfflineTab;
+  final bool isTabActive;
 
   const WhiteboardWorkspace({
     super.key,
@@ -36,6 +39,8 @@ class WhiteboardWorkspace extends ConsumerStatefulWidget {
     this.onOpenQA,
     this.isFullscreenRoute = false,
     this.isEmbeddedInStage = false,
+    this.isOfflineTab = false,
+    this.isTabActive = true,
   });
 
   @override
@@ -44,6 +49,10 @@ class WhiteboardWorkspace extends ConsumerStatefulWidget {
 
 class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
   bool _boardsSidebarCollapsed = false;
+  bool _historyDrawerOpen = false;
+  String _historySearchQuery = '';
+  String _historyFilter = 'All';
+  final TextEditingController _historySearchCtrl = TextEditingController();
   bool _showRightPanel = true;
   final GlobalKey<LiveClassChatPanelState> _chatPanelKey = GlobalKey<LiveClassChatPanelState>();
   final int _selectedChatTab = 0;
@@ -54,28 +63,58 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
   @override
   void initState() {
     super.initState();
-    if (widget.isEmbeddedInStage) {
+    if (widget.isEmbeddedInStage || widget.isOfflineTab) {
       _showRightPanel = false;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!widget.isFullscreenRoute) {
-        final currentDoc = ref.read(whiteboardProvider).document;
-        if (currentDoc == null || (widget.sessionId != null && currentDoc.sessionId != widget.sessionId)) {
-          ref.read(whiteboardProvider.notifier).initializeForSession(
-                widget.sessionId,
-                defaultTitle: widget.sessionTitle ?? 'Whiteboard - Class 12 - A – Chemistry',
-              );
-        }
-      }
+      if (!mounted) return;
+      _ensureInitializedForMode();
     });
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _elapsedSeconds++);
     });
   }
 
+  void _ensureInitializedForMode() {
+    if (widget.isFullscreenRoute || !widget.isTabActive) return;
+    final currentDoc = ref.read(whiteboardProvider).document;
+    if (widget.isOfflineTab) {
+      if (currentDoc == null || (currentDoc.sessionId != null && currentDoc.sessionId!.isNotEmpty)) {
+        ref.read(whiteboardProvider.notifier).initializeStandalone(
+              defaultTitle: widget.sessionTitle ?? 'Offline Class Whiteboard',
+              defaultTemplate: 'blank',
+            );
+      }
+      return;
+    }
+    if (currentDoc == null || (widget.sessionId != null && currentDoc.sessionId != widget.sessionId)) {
+      ref.read(whiteboardProvider.notifier).initializeForSession(
+            widget.sessionId,
+            defaultTitle: widget.sessionTitle ?? 'Whiteboard - Class 12 - A – Chemistry',
+          );
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WhiteboardWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((widget.isTabActive && !oldWidget.isTabActive) ||
+        widget.sessionId != oldWidget.sessionId ||
+        widget.isOfflineTab != oldWidget.isOfflineTab) {
+      if (widget.isOfflineTab || widget.isEmbeddedInStage) {
+        _showRightPanel = false;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _ensureInitializedForMode();
+      });
+    }
+  }
+
   @override
   void dispose() {
     _elapsedTimer?.cancel();
+    _historySearchCtrl.dispose();
     _keyboardFocus.dispose();
     super.dispose();
   }
@@ -223,29 +262,140 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           sessionId: widget.sessionId,
           sessionTitle: widget.sessionTitle,
           onEndClass: widget.onEndClass,
+          isOfflineTab: widget.isOfflineTab,
         ),
       ),
     );
   }
 
-  Future<void> _promptEditBoardTitle() async {
+  Future<void> _promptEditBoardTitle({
+    String? whiteboardId,
+    String? currentTitle,
+    String? currentDescription,
+  }) async {
     final doc = ref.read(whiteboardProvider).document;
-    if (doc == null || !doc.myPermission.canManagePages) return;
-    final ctrl = TextEditingController(text: doc.title);
-    final next = await showDialog<String>(
+    final targetId = whiteboardId ?? doc?.id;
+    if (targetId == null) return;
+    if (whiteboardId == null && doc != null && !doc.myPermission.canManagePages) return;
+
+    final titleCtrl = TextEditingController(text: currentTitle ?? doc?.title ?? '');
+    final descCtrl = TextEditingController(text: currentDescription ?? '');
+    final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename Whiteboard'),
-        content: TextField(controller: ctrl, autofocus: true),
+        title: const Text('Edit Board Details'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Session / Board Title',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              if (whiteboardId != null || currentDescription != null) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Topic / Class Notes (optional)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Save')),
+          ElevatedButton(
+            onPressed: () {
+              final t = titleCtrl.text.trim();
+              if (t.isEmpty) return;
+              Navigator.pop(ctx, {'title': t, 'description': descCtrl.text.trim()});
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
-    if (next != null && next.isNotEmpty) {
-      await ref.read(whiteboardProvider.notifier).updateBoardMeta(title: next);
+    if (result != null && result['title']!.isNotEmpty) {
+      final ok = await ref.read(whiteboardProvider.notifier).updateBoardMeta(
+            targetWhiteboardId: targetId,
+            title: result['title'],
+            description: (whiteboardId != null || currentDescription != null) ? result['description'] : null,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ok ? 'Updated "${result['title']}"' : 'Failed to update board')),
+        );
+      }
     }
+  }
+
+  Future<void> _confirmAndDeleteBoard(String whiteboardId, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Board Session?'),
+        content: Text('Are you sure you want to delete "$title"? This archives the whiteboard and all its pages.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final ok = await ref.read(whiteboardProvider.notifier).deleteBoard(whiteboardId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ok ? 'Deleted "$title"' : 'Unable to delete board')),
+        );
+      }
+    }
+  }
+
+  Future<void> _createFreshBlankSession() async {
+    final now = DateTime.now();
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    final title = 'Offline Session • $hh:$mm';
+    final ok = await ref.read(whiteboardProvider.notifier).createNewBoard(
+          title: title,
+          templateType: 'blank',
+          collaborationEnabled: !widget.isOfflineTab,
+          forceStandalone: widget.isOfflineTab,
+        );
+    if (mounted) {
+      if (MediaQuery.of(context).size.width < 950) {
+        setState(() => _historyDrawerOpen = false);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Started fresh session "$title"' : 'Could not create session'),
+          backgroundColor: ok ? const Color(0xFF16A34A) : Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _formatHistoryTimestamp(dynamic raw) {
+    if (raw == null) return 'Saved';
+    final dt = DateTime.tryParse(raw.toString())?.toLocal();
+    if (dt == null) return 'Saved';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} ${months[dt.month - 1]} • $hh:$mm';
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -405,34 +555,80 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                     _buildCardTopToolbar(wbState, doc),
                     _buildContextualToolPropertiesBar(wbState),
                     Expanded(
-                      child: Row(
+                      child: Stack(
                         children: [
-                          if (!_boardsSidebarCollapsed && !isCompact)
-                            _buildBoardsPageSidebar(wbState, doc),
-                          _buildLeftDrawingToolbar(wbState),
-                          Expanded(
-                            child: Stack(
+                          Positioned.fill(
+                            child: Row(
                               children: [
-                                Positioned.fill(
-                                  child: wbState.isLoading && doc == null
-                                      ? const Center(child: CircularProgressIndicator())
-                                      : WhiteboardCanvasEngine(
-                                          onEditText: _handleEditText,
-                                          onEditEquation: _handleEditEquation,
-                                          onEditEdge: _handleEditEdge,
-                                          onRequestImageUpload: _openAssetDialog,
-                                        ),
-                                ),
-                                // Bottom Canvas Floating Toolbar (Swatches + 3px + Clear)
-                                Positioned(
-                                  left: 16,
-                                  right: 16,
-                                  bottom: 12,
-                                  child: _buildBottomFloatingCanvasBar(wbState),
+                                if (screenW >= 950)
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOutCubic,
+                                    width: _historyDrawerOpen ? 292 : 0,
+                                    clipBehavior: Clip.hardEdge,
+                                    decoration: BoxDecoration(
+                                      color: barBg,
+                                      border: Border(
+                                        right: BorderSide(color: _historyDrawerOpen ? borderColor : Colors.transparent),
+                                      ),
+                                    ),
+                                    child: _historyDrawerOpen
+                                        ? OverflowBox(
+                                            minWidth: 292,
+                                            maxWidth: 292,
+                                            alignment: Alignment.topLeft,
+                                            child: _buildWorkHistoryDrawer(wbState, doc, isOverlay: false),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                if (!_boardsSidebarCollapsed && !isCompact && !(_historyDrawerOpen && screenW < 1200))
+                                  _buildBoardsPageSidebar(wbState, doc),
+                                _buildLeftDrawingToolbar(wbState),
+                                Expanded(
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: wbState.isLoading && doc == null
+                                            ? const Center(child: CircularProgressIndicator())
+                                            : WhiteboardCanvasEngine(
+                                                onEditText: _handleEditText,
+                                                onEditEquation: _handleEditEquation,
+                                                onEditEdge: _handleEditEdge,
+                                                onRequestImageUpload: _openAssetDialog,
+                                              ),
+                                      ),
+                                      // Bottom Canvas Floating Toolbar (Swatches + 3px + Clear)
+                                      Positioned(
+                                        left: 16,
+                                        right: 16,
+                                        bottom: 12,
+                                        child: _buildBottomFloatingCanvasBar(wbState),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+                          if (_historyDrawerOpen && screenW < 950) ...[
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _historyDrawerOpen = false),
+                                child: Container(color: Colors.black.withValues(alpha: 0.45)),
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              bottom: 0,
+                              left: 0,
+                              width: screenW < 340 ? screenW * 0.9 : 296,
+                              child: Material(
+                                elevation: 12,
+                                color: barBg,
+                                child: _buildWorkHistoryDrawer(wbState, doc, isOverlay: true),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -440,7 +636,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 ),
               ),
             ),
-            if (!widget.isEmbeddedInStage && _showRightPanel && !isCompact) ...[
+            if (!widget.isEmbeddedInStage && !widget.isOfflineTab && _showRightPanel && !isCompact) ...[
               const SizedBox(width: 12),
               // RIGHT: Matching meeting participants, chat, and Q&A (removes duplicate code!)
               SizedBox(
@@ -478,7 +674,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!widget.isFullscreenRoute) ...[
+              if (!widget.isFullscreenRoute && !widget.isOfflineTab) ...[
                 _buildTopHeader(),
                 const SizedBox(height: 10),
               ],
@@ -525,6 +721,51 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               ),
               const SizedBox(width: 8),
             ],
+            Tooltip(
+              message: _historyDrawerOpen ? 'Hide Work History Drawer' : 'Open Work History & Sessions Drawer',
+              child: InkWell(
+                onTap: () {
+                  final nextOpen = !_historyDrawerOpen;
+                  setState(() => _historyDrawerOpen = nextOpen);
+                  if (nextOpen) {
+                    ref.read(whiteboardProvider.notifier).refreshHistoryBoards();
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _historyDrawerOpen
+                        ? const Color(0xFF2563EB)
+                        : (isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _historyDrawerOpen ? const Color(0xFF2563EB) : borderColor,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _historyDrawerOpen ? Icons.menu_open_rounded : Icons.history_rounded,
+                        size: 15,
+                        color: _historyDrawerOpen ? Colors.white : const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'History (${wbState.sessionBoards.length})',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _historyDrawerOpen ? Colors.white : textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -540,7 +781,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               child: Row(
                 children: [
                   Text(
-                    widget.sessionTitle ?? doc?.title ?? 'Whiteboard - Class 12 - A – Chemistry',
+                    doc?.title ?? widget.sessionTitle ?? (widget.isOfflineTab ? 'Offline Class Whiteboard' : 'Whiteboard - Class 12 - A – Chemistry'),
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: textPrimary),
                   ),
                   if (doc?.myPermission.canManagePages == true)
@@ -552,77 +793,186 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               ),
             ),
             const SizedBox(width: 8),
-            // Live indicator pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.4) : const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF059669) : const Color(0xFF86EFAC),
-                  width: 0.8,
+            // Offline Class / Live indicator pill
+            if (widget.isOfflineTab) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.45) : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF93C5FD),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cast_for_education_rounded, size: 12, color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Offline Class',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8)),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
-                  const SizedBox(width: 4),
-                  Text('Live', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))),
-                ],
+              if (wbState.sessionBoards.length > 1) ...[
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  tooltip: 'Switch Saved Whiteboard',
+                  color: menuBg,
+                  onSelected: (wbId) => notifier.loadWhiteboard(wbId),
+                  itemBuilder: (_) => wbState.sessionBoards.map((b) {
+                    final bid = b['id']?.toString() ?? '';
+                    final bTitle = (b['title'] ?? 'Class Whiteboard').toString();
+                    final isCurrent = doc?.id == bid;
+                    return PopupMenuItem<String>(
+                      value: bid,
+                      child: Row(
+                        children: [
+                          Icon(
+                            isCurrent ? Icons.check_circle_rounded : Icons.dashboard_outlined,
+                            size: 14,
+                            color: isCurrent ? const Color(0xFF2563EB) : textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 220),
+                            child: Text(
+                              bTitle,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.folder_open_rounded, size: 13, color: textSecondary),
+                        const SizedBox(width: 4),
+                        Text('Boards (${wbState.sessionBoards.length})', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary)),
+                        Icon(Icons.arrow_drop_down_rounded, size: 15, color: textSecondary),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.4) : const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF059669) : const Color(0xFF86EFAC),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
+                    const SizedBox(width: 4),
+                    Text('Live', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))),
+                  ],
+                ),
               ),
-            ),
+            ],
             const SizedBox(width: 8),
             saveBadge,
-            const SizedBox(width: 8),
-
-            // Network Quality HUD Pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: (roomService.currentPacketLoss > 2.0)
-                    ? const Color(0xFFFEE2E2)
-                    : (roomService.currentRttMs > 120
-                        ? const Color(0xFFFEF3C7)
-                        : const Color(0xFFDCFCE7)),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
+            if (!widget.isOfflineTab) ...[
+              const SizedBox(width: 8),
+              // Network Quality HUD Pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
                   color: (roomService.currentPacketLoss > 2.0)
-                      ? const Color(0xFFF87171)
+                      ? const Color(0xFFFEE2E2)
                       : (roomService.currentRttMs > 120
-                          ? const Color(0xFFFBBF24)
-                          : const Color(0xFF86EFAC)),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.network_check_rounded,
-                    size: 11,
+                          ? const Color(0xFFFEF3C7)
+                          : const Color(0xFFDCFCE7)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
                     color: (roomService.currentPacketLoss > 2.0)
-                        ? const Color(0xFFB91C1C)
+                        ? const Color(0xFFF87171)
                         : (roomService.currentRttMs > 120
-                            ? const Color(0xFFB45309)
-                            : const Color(0xFF15803D)),
+                            ? const Color(0xFFFBBF24)
+                            : const Color(0xFF86EFAC)),
+                    width: 0.8,
                   ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${roomService.currentRttMs} ms',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.network_check_rounded,
+                      size: 11,
                       color: (roomService.currentPacketLoss > 2.0)
                           ? const Color(0xFFB91C1C)
                           : (roomService.currentRttMs > 120
                               ? const Color(0xFFB45309)
                               : const Color(0xFF15803D)),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 3),
+                    Text(
+                      '${roomService.currentRttMs} ms',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: (roomService.currentPacketLoss > 2.0)
+                            ? const Color(0xFFB91C1C)
+                            : (roomService.currentRttMs > 120
+                                ? const Color(0xFFB45309)
+                                : const Color(0xFF15803D)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
             const SizedBox(width: 14),
+            if (doc != null && doc.pages.isNotEmpty) ...[
+              () {
+                final curIdx = doc.pages.indexWhere((p) => p.id == wbState.activePageId);
+                final activeIdx = curIdx >= 0 ? curIdx : 0;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _iconBtn(
+                      Icons.chevron_left_rounded,
+                      'Previous Page',
+                      activeIdx > 0 ? () => notifier.selectPage(doc.pages[activeIdx - 1].id) : null,
+                    ),
+                    Text(
+                      '${activeIdx + 1}/${doc.pages.length}',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textSecondary),
+                    ),
+                    _iconBtn(
+                      Icons.chevron_right_rounded,
+                      'Next Page',
+                      activeIdx < doc.pages.length - 1 ? () => notifier.selectPage(doc.pages[activeIdx + 1].id) : null,
+                    ),
+                    if (doc.myPermission.canManagePages)
+                      _iconBtn(Icons.note_add_outlined, 'Add Board Page', () => notifier.addPage()),
+                    const SizedBox(width: 6),
+                  ],
+                );
+              }(),
+            ],
 
             // Undo/Redo & Zoom controls
             _iconBtn(Icons.undo_rounded, 'Undo (Ctrl+Z)', wbState.undoStack.isNotEmpty ? notifier.undo : null),
@@ -643,7 +993,10 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             ElevatedButton.icon(
               onPressed: doc?.myPermission.canManagePages == false
                   ? null
-                  : () => showDialog(context: context, builder: (_) => const WhiteboardTemplatesDialog()),
+                  : () => showDialog(
+                        context: context,
+                        builder: (_) => WhiteboardTemplatesDialog(forceStandalone: widget.isOfflineTab),
+                      ),
               icon: const Icon(Icons.add_rounded, size: 15),
               label: const Text('New Board', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
@@ -694,15 +1047,16 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                 PopupMenuItem(value: 'boards_collapse', child: Text('Toggle Boards Panel', style: TextStyle(fontSize: 12, color: textPrimary))),
               ],
             ),
-            IconButton(
-              tooltip: _showRightPanel ? 'Hide Meeting Panel' : 'Show Meeting Panel (Participants/Chat/Q&A)',
-              icon: Icon(
-                _showRightPanel ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
-                size: 17,
-                color: _showRightPanel ? const Color(0xFF2563EB) : textSecondary,
+            if (!widget.isOfflineTab && !widget.isEmbeddedInStage)
+              IconButton(
+                tooltip: _showRightPanel ? 'Hide Meeting Panel' : 'Show Meeting Panel (Participants/Chat/Q&A)',
+                icon: Icon(
+                  _showRightPanel ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
+                  size: 17,
+                  color: _showRightPanel ? const Color(0xFF2563EB) : textSecondary,
+                ),
+                onPressed: () => setState(() => _showRightPanel = !_showRightPanel),
               ),
-              onPressed: () => setState(() => _showRightPanel = !_showRightPanel),
-            ),
             IconButton(
               tooltip: widget.isFullscreenRoute ? 'Exit Fullscreen' : 'Fullscreen Whiteboard',
               icon: Icon(widget.isFullscreenRoute ? Icons.close_fullscreen_rounded : Icons.open_in_full_rounded, size: 17, color: textSecondary),
@@ -798,7 +1152,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
             Text('Canvas:', style: TextStyle(fontSize: 11, color: textSecondary)),
             const SizedBox(width: 4),
             DropdownButtonHideUnderline(
-              child: DropdownButton<WhiteboardBackgroundType>(
+              child: AppSearchableDropdown<WhiteboardBackgroundType>.fromMenuItems(
                 value: activeBg,
                 isDense: true,
                 dropdownColor: menuBg,
@@ -970,6 +1324,433 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
               ],
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkHistoryDrawer(WhiteboardState s, WhiteboardDocument? doc, {required bool isOverlay}) {
+    final notifier = ref.read(whiteboardProvider.notifier);
+    final rawBoards = s.sessionBoards;
+    final query = _historySearchQuery.trim().toLowerCase();
+
+    final filtered = rawBoards.where((b) {
+      final title = (b['title'] ?? '').toString().toLowerCase();
+      final desc = (b['description'] ?? '').toString().toLowerCase();
+      final template = (b['template_type'] ?? '').toString().toLowerCase();
+      final hasSession = b['session_id'] != null && b['session_id'].toString().isNotEmpty;
+
+      if (_historyFilter == 'Offline' && hasSession) return false;
+      if (_historyFilter == 'Live' && !hasSession) return false;
+      if (query.isNotEmpty && !title.contains(query) && !desc.contains(query) && !template.contains(query)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Drawer Header + Hide button
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E2235) : Colors.white,
+            border: Border(bottom: BorderSide(color: borderColor)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.history_rounded, size: 17, color: Color(0xFF2563EB)),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Work History & Sessions',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${filtered.length} of ${rawBoards.length} saved boards',
+                      style: TextStyle(fontSize: 10.5, color: textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh Sessions',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.refresh_rounded, size: 16, color: textSecondary),
+                onPressed: () => notifier.refreshHistoryBoards(),
+              ),
+              IconButton(
+                tooltip: 'Hide Drawer',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(isOverlay ? Icons.close_rounded : Icons.chevron_left_rounded, size: 18, color: textSecondary),
+                onPressed: () => setState(() => _historyDrawerOpen = false),
+              ),
+            ],
+          ),
+        ),
+
+        // Create New Fresh Session bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => WhiteboardTemplatesDialog(forceStandalone: widget.isOfflineTab),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 15),
+                  label: const Text('New Fresh Session', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Instant Fresh Blank Canvas',
+                child: OutlinedButton(
+                  onPressed: _createFreshBlankSession,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    side: BorderSide(color: borderColor),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                    minimumSize: const Size(38, 36),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Icon(Icons.note_add_outlined, size: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Search input + Filter pills
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: TextField(
+            controller: _historySearchCtrl,
+            onChanged: (v) => setState(() => _historySearchQuery = v),
+            style: TextStyle(fontSize: 12, color: textPrimary),
+            decoration: InputDecoration(
+              hintText: 'Search old sessions...',
+              hintStyle: TextStyle(fontSize: 11.5, color: textSecondary),
+              prefixIcon: Icon(Icons.search_rounded, size: 16, color: textSecondary),
+              suffixIcon: _historySearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear_rounded, size: 14, color: textSecondary),
+                      onPressed: () {
+                        _historySearchCtrl.clear();
+                        setState(() => _historySearchQuery = '');
+                      },
+                    )
+                  : null,
+              isDense: true,
+              filled: true,
+              fillColor: cardBg,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              for (final f in const ['All', 'Offline', 'Live']) ...[
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: f == 'Live' ? 0 : 4),
+                    child: InkWell(
+                      onTap: () => setState(() => _historyFilter = f),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _historyFilter == f
+                              ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.35 : 0.12)
+                              : cardBg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _historyFilter == f ? const Color(0xFF2563EB) : borderColor,
+                          ),
+                        ),
+                        child: Text(
+                          f,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: _historyFilter == f ? FontWeight.bold : FontWeight.w500,
+                            color: _historyFilter == f
+                                ? (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8))
+                                : textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Divider(height: 1, color: borderColor),
+
+        // Saved Boards / Sessions List
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.layers_clear_outlined, size: 32, color: textSecondary.withValues(alpha: 0.6)),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No matching board sessions',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: textPrimary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Start a new fresh session above to begin teaching.',
+                          style: TextStyle(fontSize: 11, color: textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(10),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, idx) {
+                    final item = filtered[idx];
+                    final wbId = (item['id'] ?? '').toString();
+                    final title = (item['title'] ?? 'Class Whiteboard').toString();
+                    final desc = (item['description'] ?? '').toString();
+                    final hasSession = item['session_id'] != null && item['session_id'].toString().isNotEmpty;
+                    final pageCount = (item['page_count'] as num?)?.toInt() ?? 1;
+                    final objCount = (item['object_count'] as num?)?.toInt() ?? 0;
+                    final updatedStr = _formatHistoryTimestamp(item['updated_at'] ?? item['created_at']);
+                    final isActive = doc?.id == wbId;
+
+                    return InkWell(
+                      onTap: () async {
+                        await notifier.loadWhiteboard(wbId);
+                        if (isOverlay && mounted) {
+                          setState(() => _historyDrawerOpen = false);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? (isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.28) : const Color(0xFFEFF6FF))
+                              : cardBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isActive ? const Color(0xFF2563EB) : borderColor,
+                            width: isActive ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isActive
+                                          ? (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8))
+                                          : textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                if (isActive)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text('Active', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  ),
+                              ],
+                            ),
+                            if (desc.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                desc,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 10.5, color: textSecondary),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: hasSession
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.14)
+                                        : const Color(0xFF2563EB).withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    hasSession ? 'Live Class' : 'Offline',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: hasSession ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '$pageCount pg • $objCount items',
+                                  style: TextStyle(fontSize: 10, color: textSecondary),
+                                ),
+                                Text(
+                                  updatedStr,
+                                  style: TextStyle(fontSize: 10, color: textSecondary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Divider(height: 1, color: borderColor.withValues(alpha: 0.6)),
+                            const SizedBox(height: 4),
+                            // Full CRUD + Rework + Share row
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      await notifier.loadWhiteboard(wbId);
+                                      if (isOverlay && mounted) {
+                                        setState(() => _historyDrawerOpen = false);
+                                      }
+                                    },
+                                    borderRadius: BorderRadius.circular(5),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.edit_note_rounded,
+                                            size: 14,
+                                            color: isActive ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Flexible(
+                                            child: Text(
+                                              isActive ? 'Editing' : 'Rework',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isActive ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                _drawerActionIcon(
+                                  Icons.drive_file_rename_outline_rounded,
+                                  'Rename / Edit',
+                                  () => _promptEditBoardTitle(
+                                    whiteboardId: wbId,
+                                    currentTitle: title,
+                                    currentDescription: desc,
+                                  ),
+                                ),
+                                _drawerActionIcon(
+                                  Icons.copy_rounded,
+                                  'Duplicate Copy',
+                                  () async {
+                                    final ok = await notifier.duplicateBoard(wbId, openAfter: true);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(ok ? 'Duplicated "$title" for rework!' : 'Failed to duplicate board')),
+                                      );
+                                    }
+                                  },
+                                ),
+                                _drawerActionIcon(
+                                  Icons.share_outlined,
+                                  'Share Board',
+                                  () => showDialog(
+                                    context: context,
+                                    builder: (_) => WhiteboardShareDialog(whiteboardId: wbId, boardTitle: title),
+                                  ),
+                                ),
+                                _drawerActionIcon(
+                                  Icons.download_outlined,
+                                  'Export Board',
+                                  () => showDialog(
+                                    context: context,
+                                    builder: (_) => WhiteboardExportDialog(whiteboardId: wbId, boardTitle: title),
+                                  ),
+                                ),
+                                _drawerActionIcon(
+                                  Icons.delete_outline_rounded,
+                                  'Delete Board',
+                                  () => _confirmAndDeleteBoard(wbId, title),
+                                  color: Colors.redAccent,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _drawerActionIcon(IconData icon, String tooltip, VoidCallback onTap, {Color? color}) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: 15, color: color ?? textSecondary),
         ),
       ),
     );
@@ -1258,7 +2039,7 @@ class _WhiteboardWorkspaceState extends ConsumerState<WhiteboardWorkspace> {
                   Container(width: 1, height: 18, color: borderColor),
                   const SizedBox(width: 8),
                   DropdownButtonHideUnderline(
-                    child: DropdownButton<double>(
+                    child: AppSearchableDropdown<double>.fromMenuItems(
                       value: [2.0, 3.0, 5.0, 8.0].contains(s.strokeWidth) ? s.strokeWidth : 3.0,
                       isDense: true,
                       dropdownColor: menuBg,
@@ -1403,6 +2184,7 @@ class WhiteboardScreen extends ConsumerWidget {
   final String? sessionTitle;
   final VoidCallback? onEndClass;
   final VoidCallback? onLeaveClass;
+  final bool isOfflineTab;
 
   const WhiteboardScreen({
     super.key,
@@ -1410,6 +2192,7 @@ class WhiteboardScreen extends ConsumerWidget {
     this.sessionTitle,
     this.onEndClass,
     this.onLeaveClass,
+    this.isOfflineTab = false,
   });
 
   @override
@@ -1424,6 +2207,7 @@ class WhiteboardScreen extends ConsumerWidget {
             sessionId: sessionId,
             sessionTitle: sessionTitle,
             isFullscreenRoute: true,
+            isOfflineTab: isOfflineTab,
             onBackToClassroom: () => Navigator.of(context).pop(),
             onLeaveClass: () {
               onLeaveClass?.call();

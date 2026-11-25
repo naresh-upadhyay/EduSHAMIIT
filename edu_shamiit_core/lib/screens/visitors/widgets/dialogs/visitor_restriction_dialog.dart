@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1260,7 +1261,7 @@ class _VisitorRestrictionDialogState extends ConsumerState<VisitorRestrictionDia
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1306,7 +1307,7 @@ class _VisitorRestrictionDialogState extends ConsumerState<VisitorRestrictionDia
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.any((it) => it['code'] == value) ? value : items.first['code'],
               isExpanded: true,
               style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1360,7 +1361,7 @@ class _VisitorRestrictionDialogState extends ConsumerState<VisitorRestrictionDia
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
+            child: AppSearchableDropdown<int>.fromMenuItems(
               value: options.any((it) => it['val'] == value) ? value : 30,
               isExpanded: true,
               style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),

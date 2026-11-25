@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -537,7 +538,7 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
                   }
                   final effectiveStudentId = studentMap.containsKey(_selectedStudentId) ? _selectedStudentId : studentMap.keys.firstOrNull;
                   return DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: AppSearchableDropdown<String>.fromMenuItems(
                       value: effectiveStudentId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -596,7 +597,7 @@ class _CollectStudentPaymentDialogState extends ConsumerState<CollectStudentPaym
               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _paymentMethod,
                 isExpanded: true,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

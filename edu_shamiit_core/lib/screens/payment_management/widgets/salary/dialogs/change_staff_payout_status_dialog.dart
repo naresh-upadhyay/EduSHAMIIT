@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/payment_management_api_service.dart';
@@ -131,7 +132,7 @@ class _ChangeStaffPayoutStatusDialogState extends ConsumerState<ChangeStaffPayou
                     final statusList = ['Paid', 'Approved', 'Pending', 'On Hold', 'Processing'];
                     final effectiveStatus = statusList.contains(_selectedStatus) ? _selectedStatus : 'Pending';
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         key: ValueKey('payout_status_$effectiveStatus'),
                         value: effectiveStatus,
                         isExpanded: true,
@@ -199,7 +200,7 @@ class _ChangeStaffPayoutStatusDialogState extends ConsumerState<ChangeStaffPayou
                       }
 
                       return DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           key: ValueKey('change_status_pay_mode_$effectiveMode'),
                           value: effectiveMode,
                           isExpanded: true,

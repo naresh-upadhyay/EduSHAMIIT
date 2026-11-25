@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/device_management_models.dart';
@@ -243,7 +244,7 @@ class _MoveDeviceLocationDialogState
                                   : const Color(0xFF334155)),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: _targetRoomId,
                           isExpanded: true,
                           hint: const Text('Select target space...'),

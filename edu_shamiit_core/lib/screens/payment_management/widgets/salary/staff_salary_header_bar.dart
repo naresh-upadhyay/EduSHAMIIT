@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/staff_salary_provider.dart';
@@ -108,7 +109,7 @@ class StaffSalaryHeaderBar extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     key: ValueKey('salary_month_$effectiveMonth'),
                     value: effectiveMonth,
                     isDense: true,

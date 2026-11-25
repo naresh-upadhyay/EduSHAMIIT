@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/campus_models.dart';
@@ -371,7 +372,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             // 1. Room Selection Card
                             Text('1. TARGET PHYSICAL SPACE', style: _sectionHeaderStyle(isDark)),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               value: _selectedRoomId,
                               decoration: _inputDecoration('Select Room / Hall', isDark, prefixIcon: Icons.meeting_room_outlined),
                               items: widget.rooms.map((r) {
@@ -399,7 +400,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                               children: [
                                 // Class Dropdown
                                 Expanded(
-                                  child: DropdownButtonFormField<Map<String, dynamic>>(
+                                  child: AppSearchableDropdownFormField<Map<String, dynamic>>.fromMenuItems(
                                     value: _selectedClass,
                                     decoration: _inputDecoration('Class / Grade', isDark, prefixIcon: Icons.class_outlined),
                                     items: _classes.map((c) {
@@ -422,7 +423,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                 const SizedBox(width: 12),
                                 // Section Dropdown
                                 Expanded(
-                                  child: DropdownButtonFormField<Map<String, dynamic>>(
+                                  child: AppSearchableDropdownFormField<Map<String, dynamic>>.fromMenuItems(
                                     value: _selectedSection,
                                     decoration: _inputDecoration('Section', isDark, prefixIcon: Icons.grid_view_rounded),
                                     items: sections.map((s) {
@@ -480,7 +481,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     value: _selectedSubject,
                                     decoration: _inputDecoration('Subject', isDark, prefixIcon: Icons.menu_book_rounded),
                                     items: _subjects.map((s) {
@@ -604,7 +605,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                     Row(
                                       children: [
                                         Expanded(
-                                          child: DropdownButtonFormField<String>(
+                                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                             value: _recurrenceFreq,
                                             decoration: _inputDecoration('Frequency', isDark),
                                             items: const [
@@ -617,7 +618,7 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: DropdownButtonFormField<int>(
+                                          child: AppSearchableDropdownFormField<int>.fromMenuItems(
                                             value: _recurrenceCount,
                                             decoration: _inputDecoration('Occurrences', isDark),
                                             items: const [

@@ -9,6 +9,101 @@ final liveClassApiServiceProvider = Provider<LiveClassApiService>((ref) {
   return LiveClassApiService();
 });
 
+/// Single Source of Truth for active live meeting participants across KPI cards,
+/// stage header, video tiles, and the right-hand Participants list.
+List<LiveKitParticipantTrack> resolveUnifiedParticipants({
+  required InAppLiveRoomService roomService,
+  required String localUserId,
+  required String localUserName,
+  required String localUserRole,
+  List<LiveParticipant>? dbParticipants,
+}) {
+  final tracks = roomService.participantTracks.where((t) => !t.isScreenShare).toList();
+  final localTrack = tracks.where((t) => t.isLocal).firstOrNull;
+  final assignedLocalRole = roomService.customRoles[localUserId];
+  final resolvedLocalRole = assignedLocalRole ?? (localUserRole.isNotEmpty ? localUserRole : 'Host');
+  final resolvedLocalName = localUserName.trim().isNotEmpty ? localUserName.trim() : 'Host';
+
+  final result = <LiveKitParticipantTrack>[
+    LiveKitParticipantTrack(
+      userId: localUserId.isNotEmpty ? localUserId : (localTrack?.userId ?? 'host'),
+      name: resolvedLocalName,
+      role: resolvedLocalRole,
+      videoTrack: !roomService.isCamOff ? localTrack?.videoTrack : null,
+      isLocal: true,
+      isMicMuted: roomService.isMicMuted,
+      isCamOff: roomService.isCamOff,
+      isHandRaised: localTrack?.isHandRaised ?? false,
+      isScreenShare: false,
+      isSpeaking: !roomService.isMicMuted,
+    ),
+  ];
+
+  bool alreadyPresent(String id, String name) {
+    final normId = id.trim().toLowerCase();
+    final normName = name.trim().toLowerCase();
+    return result.any((e) =>
+        (normId.isNotEmpty && e.userId.trim().toLowerCase() == normId) ||
+        (normName.isNotEmpty && e.name.trim().toLowerCase() == normName));
+  }
+
+  // Merge real-time remote WebRTC participants
+  for (final rt in tracks.where((t) => !t.isLocal)) {
+    if (!alreadyPresent(rt.userId, rt.name)) {
+      final assignedRole = roomService.customRoles[rt.userId];
+      result.add(LiveKitParticipantTrack(
+        userId: rt.userId,
+        name: rt.name,
+        role: assignedRole ?? rt.role,
+        videoTrack: rt.videoTrack,
+        isLocal: false,
+        isMicMuted: rt.isMicMuted,
+        isCamOff: rt.isCamOff,
+        isHandRaised: rt.isHandRaised,
+        isScreenShare: false,
+        isSpeaking: rt.isSpeaking,
+      ));
+    }
+  }
+
+  // Merge active DB participants not already present in LiveKit tracks
+  for (final p in dbParticipants ?? const <LiveParticipant>[]) {
+    final effectiveUserId = p.userId.trim().isNotEmpty ? p.userId.trim() : p.id;
+    if (!alreadyPresent(effectiveUserId, p.name) && !alreadyPresent(p.id, p.name)) {
+      final assignedRole = roomService.customRoles[effectiveUserId] ?? roomService.customRoles[p.id];
+      result.add(LiveKitParticipantTrack(
+        userId: effectiveUserId,
+        name: p.name,
+        role: assignedRole ?? p.role,
+        videoTrack: null,
+        isLocal: false,
+        isMicMuted: p.micMuted,
+        isCamOff: p.camOff,
+        isHandRaised: false,
+        isScreenShare: false,
+        isSpeaking: p.isSpeaking,
+      ));
+    }
+  }
+
+  return result;
+}
+
+/// Resolves targeted maximum capacity from DB session/schedule records.
+int resolveTargetedMaxCapacity({
+  ActiveLiveSession? activeSession,
+  MyClassItem? selectedClass,
+  MyClassDetails? selectedDetails,
+  int activeCount = 1,
+}) {
+  final cap = (activeSession?.maxParticipants != null && activeSession!.maxParticipants > 0)
+      ? activeSession.maxParticipants
+      : ((selectedDetails?.maxParticipants != null && selectedDetails!.maxParticipants > 0)
+          ? selectedDetails.maxParticipants
+          : (selectedClass?.maxParticipants ?? 0));
+  return cap > 0 ? math.max(cap, activeCount) : math.max(activeCount, 1);
+}
+
 class LiveClassState {
   final int selectedTabIndex; // 0 = Join & Conduct, 1 = Recordings, 2 = Attendance
   final bool isLoading;
@@ -22,6 +117,7 @@ class LiveClassState {
   // Recordings Tab state
   final List<RecordingItem> recordingsList;
   final int recordingsPage;
+  final int recordingsPageSize;
   final int recordingsTotalPages;
   final int recordingsTotalCount;
   final String? recordingClassFilter;
@@ -100,6 +196,7 @@ class LiveClassState {
     this.dropdownsData,
     this.recordingsList = const [],
     this.recordingsPage = 1,
+    this.recordingsPageSize = 8,
     this.recordingsTotalPages = 1,
     this.recordingsTotalCount = 0,
     this.recordingClassFilter,
@@ -178,6 +275,7 @@ class LiveClassState {
     MetaDropdownsData? dropdownsData,
     List<RecordingItem>? recordingsList,
     int? recordingsPage,
+    int? recordingsPageSize,
     int? recordingsTotalPages,
     int? recordingsTotalCount,
     String? recordingClassFilter,
@@ -186,6 +284,10 @@ class LiveClassState {
     String? recordingStatusFilter,
     String? recordingSearchQuery,
     RecordingItem? selectedRecordingForPreview,
+    bool clearRecordingClassFilter = false,
+    bool clearRecordingSubjectFilter = false,
+    bool clearRecordingTeacherFilter = false,
+    bool clearSelectedRecording = false,
     AutoRecordingRuleSet? autoRecordingRules,
     List<AttendanceItem>? attendanceList,
     int? attendancePage,
@@ -249,14 +351,15 @@ class LiveClassState {
       dropdownsData: dropdownsData ?? this.dropdownsData,
       recordingsList: recordingsList ?? this.recordingsList,
       recordingsPage: recordingsPage ?? this.recordingsPage,
+      recordingsPageSize: recordingsPageSize ?? this.recordingsPageSize,
       recordingsTotalPages: recordingsTotalPages ?? this.recordingsTotalPages,
       recordingsTotalCount: recordingsTotalCount ?? this.recordingsTotalCount,
-      recordingClassFilter: recordingClassFilter ?? this.recordingClassFilter,
-      recordingSubjectFilter: recordingSubjectFilter ?? this.recordingSubjectFilter,
-      recordingTeacherFilter: recordingTeacherFilter ?? this.recordingTeacherFilter,
+      recordingClassFilter: clearRecordingClassFilter ? null : (recordingClassFilter ?? this.recordingClassFilter),
+      recordingSubjectFilter: clearRecordingSubjectFilter ? null : (recordingSubjectFilter ?? this.recordingSubjectFilter),
+      recordingTeacherFilter: clearRecordingTeacherFilter ? null : (recordingTeacherFilter ?? this.recordingTeacherFilter),
       recordingStatusFilter: recordingStatusFilter ?? this.recordingStatusFilter,
       recordingSearchQuery: recordingSearchQuery ?? this.recordingSearchQuery,
-      selectedRecordingForPreview: selectedRecordingForPreview ?? this.selectedRecordingForPreview,
+      selectedRecordingForPreview: clearSelectedRecording ? null : (selectedRecordingForPreview ?? this.selectedRecordingForPreview),
       autoRecordingRules: autoRecordingRules ?? this.autoRecordingRules,
       attendanceList: attendanceList ?? this.attendanceList,
       attendancePage: attendancePage ?? this.attendancePage,
@@ -329,17 +432,14 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
 
       final joinConduct = await _api.fetchJoinConductDashboard();
       final recordingsDash = await _api.fetchRecordingsDashboard();
-      final attendanceDash = await _api.fetchAttendanceDashboard();
 
       final recsListRes = await _api.fetchRecordingsList(page: 1, pageSize: 8);
-      final attListRes = await _api.fetchAttendanceList(page: 1, pageSize: 10);
       final myClassesDash = await _api.fetchMyClassesDashboard('today');
       final myClassesRes = await _api.fetchMyClassesList(dateFilter: 'today', sessionName: currentFY, page: 1, pageSize: 5);
       final recentCodes = await _api.fetchRecentMeetingCodes();
       final upcomingGuestSessions = await _api.fetchUpcomingGuestSessions();
 
       final recs = (recsListRes['items'] as List<RecordingItem>?) ?? [];
-      final atts = (attListRes['items'] as List<AttendanceItem>?) ?? [];
       final myClasses = (myClassesRes['items'] as List<MyClassItem>?) ?? [];
       final firstMyClass = myClasses.isNotEmpty ? myClasses.first : null;
       MyClassDetails? initialDetails;
@@ -355,15 +455,10 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         myClassesSessionFilter: currentFY,
         joinConductData: joinConduct,
         recordingsData: recordingsDash,
-        attendanceData: attendanceDash,
         recordingsList: recs,
         recordingsTotalCount: recsListRes['total_count'] ?? recs.length,
         recordingsTotalPages: recsListRes['total_pages'] ?? 1,
         selectedRecordingForPreview: recs.isNotEmpty ? recs.first : null,
-        attendanceList: atts,
-        attendanceTotalCount: attListRes['total_count'] ?? atts.length,
-        attendanceTotalPages: attListRes['total_pages'] ?? 1,
-        attendanceCounts: attListRes['counts'] ?? {},
         myClassesDashboard: myClassesDash,
         myClassesList: myClasses,
         selectedMyClass: firstMyClass,
@@ -387,8 +482,6 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
       refreshJoinConduct();
     } else if (index == 1) {
       refreshRecordings();
-    } else if (index == 2) {
-      refreshAttendance();
     }
   }
 
@@ -399,7 +492,7 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     } catch (_) {}
   }
 
-  Future<void> refreshRecordings() async {
+  Future<void> refreshRecordings({String? selectRecordingId}) async {
     try {
       final dash = await _api.fetchRecordingsDashboard();
       final recsRes = await _api.fetchRecordingsList(
@@ -409,15 +502,25 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         status: state.recordingStatusFilter,
         search: state.recordingSearchQuery,
         page: state.recordingsPage,
-        pageSize: 8,
+        pageSize: state.recordingsPageSize,
       );
       final recs = (recsRes['items'] as List<RecordingItem>?) ?? [];
+      RecordingItem? nextSelected;
+      if (selectRecordingId != null && selectRecordingId.isNotEmpty) {
+        nextSelected = recs.where((r) => r.id == selectRecordingId).firstOrNull;
+      }
+      nextSelected ??= state.selectedRecordingForPreview != null
+          ? recs.where((r) => r.id == state.selectedRecordingForPreview!.id).firstOrNull
+          : null;
+      nextSelected ??= recs.isNotEmpty ? recs.first : null;
+
       state = state.copyWith(
         recordingsData: dash,
         recordingsList: recs,
         recordingsTotalCount: recsRes['total_count'] ?? recs.length,
         recordingsTotalPages: recsRes['total_pages'] ?? 1,
-        selectedRecordingForPreview: recs.isNotEmpty ? recs.first : state.selectedRecordingForPreview,
+        selectedRecordingForPreview: nextSelected,
+        clearSelectedRecording: nextSelected == null,
       );
     } catch (_) {}
   }
@@ -445,17 +548,29 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
 
   // Recordings filter & pagination setters
   void setRecordingsClassFilter(String? classId) {
-    state = state.copyWith(recordingClassFilter: classId, recordingsPage: 1);
+    state = state.copyWith(
+      recordingClassFilter: classId,
+      clearRecordingClassFilter: classId == null,
+      recordingsPage: 1,
+    );
     refreshRecordings();
   }
 
   void setRecordingsSubjectFilter(String? subjectId) {
-    state = state.copyWith(recordingSubjectFilter: subjectId, recordingsPage: 1);
+    state = state.copyWith(
+      recordingSubjectFilter: subjectId,
+      clearRecordingSubjectFilter: subjectId == null,
+      recordingsPage: 1,
+    );
     refreshRecordings();
   }
 
   void setRecordingsTeacherFilter(String? teacherId) {
-    state = state.copyWith(recordingTeacherFilter: teacherId, recordingsPage: 1);
+    state = state.copyWith(
+      recordingTeacherFilter: teacherId,
+      clearRecordingTeacherFilter: teacherId == null,
+      recordingsPage: 1,
+    );
     refreshRecordings();
   }
 
@@ -466,6 +581,11 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
 
   void setRecordingsPage(int page) {
     state = state.copyWith(recordingsPage: page);
+    refreshRecordings();
+  }
+
+  void setRecordingsPageSize(int pageSize) {
+    state = state.copyWith(recordingsPageSize: pageSize, recordingsPage: 1);
     refreshRecordings();
   }
 
@@ -506,21 +626,6 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   }
 
   Future<void> endClass(String sessionId) async {
-    final activeSess = state.conductSessionData?.activeSession;
-    final wasRec = InAppLiveRoomService.instance.isRecording ||
-        (activeSess?.recordingStatus.toUpperCase() == 'RECORDING');
-
-    if (wasRec) {
-      addLiveMeetingRecording(
-        sessionId: sessionId,
-        title: activeSess?.title ?? 'Live Class',
-        classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
-        subject: activeSess?.subject ?? 'General',
-        teacherName: activeSess?.teacherName ?? 'Teacher',
-        durationSeconds: 2700,
-      );
-    }
-
     InAppLiveRoomService.instance.setIsRecording(false);
     await _api.endLiveClass(sessionId);
     state = state.copyWith(clearConductSession: true, clearSelectedMyClass: true);
@@ -594,14 +699,94 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     await refreshAttendance();
   }
 
-  Future<void> shareRecording(String sessionId, String sharedToId) async {
-    await _api.shareRecording(sessionId, sharedToId);
-    await refreshRecordings();
+  Future<void> shareRecording(String recordingId, String sharedToId) async {
+    await _api.shareRecording(recordingId, sharedToId);
+    await refreshRecordings(selectRecordingId: recordingId);
   }
 
-  Future<void> deleteRecording(String recordingId) async {
-    await _api.deleteRecording(recordingId);
-    await refreshRecordings();
+  Future<bool> updateRecording(
+    String recordingId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await _api.updateRecording(recordingId, payload);
+      await refreshRecordings(selectRecordingId: recordingId);
+      return true;
+    } catch (e) {
+      debugPrint('[LiveClassProvider] updateRecording error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteRecording(String recordingId) async {
+    try {
+      await _api.deleteRecording(recordingId);
+      final remaining = state.recordingsList.where((r) => r.id != recordingId).toList();
+      final wasSelected = state.selectedRecordingForPreview?.id == recordingId;
+      state = state.copyWith(
+        recordingsList: remaining,
+        selectedRecordingForPreview: wasSelected ? (remaining.isNotEmpty ? remaining.first : null) : state.selectedRecordingForPreview,
+        clearSelectedRecording: wasSelected && remaining.isEmpty,
+      );
+      await refreshRecordings();
+      return true;
+    } catch (e) {
+      debugPrint('[LiveClassProvider] deleteRecording error: $e');
+      return false;
+    }
+  }
+
+  Future<int> bulkDeleteRecordings(List<String> recordingIds) async {
+    if (recordingIds.isEmpty) return 0;
+    try {
+      final res = await _api.bulkDeleteRecordings(recordingIds);
+      await refreshRecordings();
+      return (res['deleted_count'] as num?)?.toInt() ?? recordingIds.length;
+    } catch (e) {
+      debugPrint('[LiveClassProvider] bulkDeleteRecordings error: $e');
+      return 0;
+    }
+  }
+
+  Future<void> trackRecordingView(String recordingId) async {
+    final nextViews = await _api.recordRecordingView(recordingId);
+    if (nextViews != null) {
+      final updatedList = state.recordingsList.map((r) {
+        if (r.id == recordingId) {
+          return r.copyWith(views: nextViews);
+        }
+        return r;
+      }).toList();
+      final sel = state.selectedRecordingForPreview;
+      state = state.copyWith(
+        recordingsList: updatedList,
+        selectedRecordingForPreview: sel != null && sel.id == recordingId ? sel.copyWith(views: nextViews) : sel,
+      );
+    }
+    try {
+      final dash = await _api.fetchRecordingsDashboard();
+      state = state.copyWith(recordingsData: dash);
+    } catch (_) {}
+  }
+
+  Future<bool> saveRecordingSettings({
+    required bool autoRecording,
+    required bool cloudStorage,
+    required int defaultRetentionDays,
+    required String recordingQuality,
+    required bool allowStudentDownload,
+  }) async {
+    final ok = await _api.saveRecordingSettings({
+      'auto_recording': autoRecording,
+      'cloud_storage': cloudStorage,
+      'default_retention_days': defaultRetentionDays,
+      'recording_quality': recordingQuality,
+      'allow_student_download': allowStudentDownload,
+    });
+    if (ok) {
+      await refreshRecordings();
+    }
+    return ok;
   }
 
   void updateAutoRecordingRules(AutoRecordingRuleSet newRules) {
@@ -611,48 +796,41 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   Future<bool> uploadRecording({
     required String title,
     required String classId,
+    String? sectionId,
     required String classSection,
     required String subjectId,
     required String subjectName,
+    String? teacherId,
     required String teacherName,
     required int durationMinutes,
+    int? durationSeconds,
     required double fileSizeMb,
+    List<int>? fileBytes,
+    String? fileName,
     String? videoUrl,
     String? description,
     String visibility = 'CLASS',
   }) async {
     try {
-      final now = DateTime.now();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      final mName = (now.month >= 1 && now.month <= 12) ? months[now.month - 1] : 'Nov';
-      final hourStr = now.hour > 12 ? (now.hour - 12).toString().padLeft(2, '0') : (now.hour == 0 ? '12' : now.hour.toString().padLeft(2, '0'));
-      final amPm = now.hour >= 12 ? 'PM' : 'AM';
-      final dateStr = '${now.day} $mName ${now.year}, $hourStr:${now.minute.toString().padLeft(2, '0')} $amPm';
-
-      final newItem = RecordingItem(
-        id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
-        liveClassId: classId,
+      final res = await _api.uploadRecordingFile(
+        fileBytes: fileBytes,
+        fileName: fileName,
         title: title,
         description: description,
-        recordingUrl: videoUrl ?? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        classSection: classSection,
-        subjectName: subjectName,
-        teacherName: teacherName.isNotEmpty ? teacherName : 'Teacher (Manual Upload)',
-        dateTimeStr: dateStr,
-        durationStr: '$durationMinutes min',
-        durationSeconds: durationMinutes * 60,
-        views: 0,
-        sizeStr: '${fileSizeMb.toStringAsFixed(1)} MB',
-        status: 'Processed',
+        classId: classId,
+        sectionId: sectionId,
+        subjectId: subjectId,
+        teacherId: teacherId,
+        teacherName: teacherName,
+        durationMinutes: durationMinutes,
+        durationSeconds: durationSeconds,
         visibility: visibility,
+        externalUrl: videoUrl,
       );
-      final updatedList = [newItem, ...state.recordingsList];
-      state = state.copyWith(
-        recordingsList: updatedList,
-        selectedRecordingForPreview: newItem,
-        recordingsTotalCount: state.recordingsTotalCount + 1,
-      );
-      return true;
+      final data = res['data'];
+      final newId = data is Map ? data['id']?.toString() : null;
+      await refreshRecordings(selectRecordingId: newId);
+      return res['success'] == true || newId != null;
     } catch (e) {
       debugPrint('[LiveClassProvider] uploadRecording error: $e');
       return false;
@@ -833,7 +1011,7 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     final fallbackStats = JoinConductKPIs(
       liveNow: 1,
       todaysClasses: state.myClassesTotalCount > 0 ? state.myClassesTotalCount : (state.myClassesList.isNotEmpty ? state.myClassesList.length : 1),
-      totalParticipantsLive: item.viewerCount > 0 ? item.viewerCount : (item.maxParticipants > 0 ? item.maxParticipants : 43),
+      totalParticipantsLive: item.viewerCount > 0 ? item.viewerCount : 1,
       recordingInProgress: item.recordingEnabled ? 1 : 0,
       avgClassDurationMin: item.durationMinutes > 0 ? item.durationMinutes : 45,
       classQuality: 'Excellent (98%)',
@@ -1026,7 +1204,7 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
               stats: JoinConductKPIs(
                 liveNow: 1,
                 todaysClasses: state.myClassesTotalCount > 0 ? state.myClassesTotalCount : (state.myClassesList.isNotEmpty ? state.myClassesList.length : 1),
-                totalParticipantsLive: targetItem.viewerCount > 0 ? targetItem.viewerCount : (targetItem.maxParticipants > 0 ? targetItem.maxParticipants : 43),
+                totalParticipantsLive: targetItem.viewerCount > 0 ? targetItem.viewerCount : 1,
                 recordingInProgress: targetItem.recordingEnabled ? 1 : 0,
                 avgClassDurationMin: targetItem.durationMinutes > 0 ? targetItem.durationMinutes : 45,
                 classQuality: 'Excellent (98%)',

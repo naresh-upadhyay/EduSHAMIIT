@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
@@ -605,7 +606,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: _selectedInstitution,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
               style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
@@ -1543,7 +1544,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          DropdownButton<int>(
+                          AppSearchableDropdown<int>.fromMenuItems(
                             value: _pageSize,
                             dropdownColor: cardBg,
                             style: TextStyle(color: textPrimary, fontSize: 12),
@@ -1622,7 +1623,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               ),
                             ],
                           ),
-                          DropdownButton<int>(
+                          AppSearchableDropdown<int>.fromMenuItems(
                             value: _pageSize,
                             dropdownColor: cardBg,
                             style: TextStyle(color: textPrimary, fontSize: 12),
@@ -1878,7 +1879,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         border: Border.all(color: borderColor),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(currentValue) ? currentValue : 'All',
           dropdownColor: cardBg,
           style: TextStyle(color: textPrimary, fontSize: 12),
@@ -3174,7 +3175,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: selectedSchoolId,
                           decoration: const InputDecoration(
@@ -3315,7 +3316,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       isExpanded: true,
                       initialValue: selectedRole,
                       decoration: const InputDecoration(
@@ -3529,7 +3530,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: selectedRole,
                           decoration: const InputDecoration(
@@ -3561,7 +3562,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
@@ -4018,7 +4019,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: selectedRole,
                           decoration: const InputDecoration(
                             labelText: 'Role',
@@ -4048,7 +4049,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String?>(
+                        AppSearchableDropdownFormField<String?>.fromMenuItems(
                           isExpanded: true,
                           initialValue: selectedDepartment,
                           decoration: const InputDecoration(
@@ -4070,7 +4071,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
@@ -4101,7 +4102,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ],
                         if (showClassInput) ...[
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String?>(
+                          AppSearchableDropdownFormField<String?>.fromMenuItems(
                             isExpanded: true,
                             initialValue: selectedClassName,
                             decoration: const InputDecoration(
@@ -4349,7 +4350,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: selectedRole,
                           decoration: const InputDecoration(
                             labelText: 'Role',
@@ -4379,7 +4380,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status',
@@ -4406,7 +4407,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String?>(
+                        AppSearchableDropdownFormField<String?>.fromMenuItems(
                           isExpanded: true,
                           initialValue: selectedDepartment,
                           decoration: const InputDecoration(
@@ -4439,7 +4440,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                    .where((m) => m['id'].toString() != user['id'].toString())
                                   .toList();
                             }
-                            return DropdownButtonFormField<String?>(
+                            return AppSearchableDropdownFormField<String?>.fromMenuItems(
                               isExpanded: true,
                               initialValue: (selectedManagerId != null && eligibleMgrs.any((m) => m['id'].toString() == selectedManagerId))
                                   ? selectedManagerId
@@ -4478,7 +4479,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
@@ -4509,7 +4510,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ],
                         if (showClassInput) ...[
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String?>(
+                          AppSearchableDropdownFormField<String?>.fromMenuItems(
                             isExpanded: true,
                             initialValue: selectedClassName,
                             decoration: const InputDecoration(

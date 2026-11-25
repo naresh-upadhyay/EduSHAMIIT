@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -86,7 +87,7 @@ class CampusPaginationBar extends StatelessWidget {
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: pageSizes.contains(pageSize) ? pageSize : pageSizes.first,
                     isDense: true,
                     icon: Icon(Icons.arrow_drop_down, size: 18, color: textColor),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -210,7 +211,7 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
               SizedBox(
                 height: 32,
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: _selectedStatus,
                     hint: const Text('All Statuses', style: TextStyle(fontSize: 11.5)),
                     items: const [
@@ -231,7 +232,7 @@ class _MaintenanceSubtabViewState extends State<MaintenanceSubtabView> {
               SizedBox(
                 height: 32,
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: _selectedPriority,
                     hint: const Text('All Priorities', style: TextStyle(fontSize: 11.5)),
                     items: const [

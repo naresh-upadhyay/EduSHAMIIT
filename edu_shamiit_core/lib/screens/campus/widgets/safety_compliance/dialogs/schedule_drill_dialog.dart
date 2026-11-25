@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/safety_compliance_models.dart';
@@ -159,7 +160,7 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
                             children: [
                               Text('Drill Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _drillTypes.contains(_drillType) ? _drillType : (_drillTypes.isNotEmpty ? _drillTypes.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -176,7 +177,7 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
                             children: [
                               Text('Execution Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _status,
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -299,7 +300,7 @@ class _ScheduleDrillDialogState extends ConsumerState<ScheduleDrillDialog> {
                             children: [
                               Text('Performance Rating', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _performanceRating,
                                 decoration: _inputDeco('', borderColor, isDark),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -141,7 +142,7 @@ class _AddEditBuildingDialogState extends ConsumerState<AddEditBuildingDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: safeGender,
                         decoration: const InputDecoration(labelText: 'Gender Policy'),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -243,7 +244,7 @@ class _GenerateInvoiceDialogState extends ConsumerState<GenerateInvoiceDialog> {
                     ),
                   )
                 else
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: availableOptions.any((o) => o.studentId == _selectedStudentId) ? _selectedStudentId : null,
                     decoration: _inputDecoration(isDark, hint: 'Select Student'),

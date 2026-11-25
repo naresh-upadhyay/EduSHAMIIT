@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -796,7 +797,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                   children: [
                     const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF2563EB)),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _selectedDateRange,
                         isDense: true,
                         style: TextStyle(
@@ -834,7 +835,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                     const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF2563EB)),
                     const SizedBox(width: 6),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _selectedCampus,
                         isDense: true,
                         style: TextStyle(
@@ -2295,7 +2296,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           isDense: true,
           style: TextStyle(
@@ -2486,7 +2487,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
           children: [
             Text('Rows per page:', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
             DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
+              child: AppSearchableDropdown<int>.fromMenuItems(
                 value: _rowsPerPage,
                 isDense: true,
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -3956,7 +3957,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: templates.contains(_selectedReportTemplate) ? _selectedReportTemplate : templates[0],
                         isDense: true,
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -3977,7 +3978,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _selectedReportFormat,
                         isDense: true,
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -4319,7 +4320,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
                         items: ['online', 'offline', 'maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s.toUpperCase()))).toList(),
@@ -4811,7 +4812,7 @@ class _DeviceEnergyUsageSubviewState extends State<DeviceEnergyUsageSubview> {
                         decoration: const InputDecoration(labelText: 'Telemetry Meter Units (kWh)', border: OutlineInputBorder(), isDense: true),
                       ),
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), isDense: true),
                         items: ['reconciled', 'paid', 'pending', 'disputed'].map((s) => DropdownMenuItem(value: s, child: Text(s.toUpperCase()))).toList(),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -191,7 +192,7 @@ class _AddPenaltyDialogState extends ConsumerState<AddPenaltyDialog> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _penaltyType,
                   decoration: _inputDecoration(isDark),

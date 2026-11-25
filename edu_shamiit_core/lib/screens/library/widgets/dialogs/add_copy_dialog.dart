@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/book_models.dart';
@@ -321,7 +322,7 @@ class _AddCopyDialogState extends ConsumerState<AddCopyDialog> {
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: value,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

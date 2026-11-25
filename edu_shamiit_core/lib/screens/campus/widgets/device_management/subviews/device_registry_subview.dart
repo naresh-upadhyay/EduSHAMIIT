@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../models/device_management_models.dart';
@@ -990,7 +991,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: validValue,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down_rounded, size: 20),

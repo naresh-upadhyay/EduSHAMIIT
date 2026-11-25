@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -227,7 +228,7 @@ class _AddCandidateDialogState extends State<AddCandidateDialog> {
                             flex: 3,
                             child: _isLoadingJobs
                                 ? const Center(child: LinearProgressIndicator())
-                                : DropdownButtonFormField<String>(
+                                : AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _selectedJobId,
                                     decoration: const InputDecoration(
                                       labelText: 'Target Job Opening *',
@@ -251,7 +252,7 @@ class _AddCandidateDialogState extends State<AddCandidateDialog> {
                           const SizedBox(width: 14),
                           Expanded(
                             flex: 2,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _sources.contains(_source) ? _source : (_sources.isNotEmpty ? _sources.first : null),
                               decoration: const InputDecoration(

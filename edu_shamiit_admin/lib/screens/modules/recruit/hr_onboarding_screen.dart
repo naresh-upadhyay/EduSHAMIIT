@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -1325,7 +1326,7 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
                               border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 isExpanded: true,
                                 value: _departmentsList.contains(_selectedDepartment) ? _selectedDepartment : 'All',
                                 items: _departmentsList
@@ -1359,7 +1360,7 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
                               border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 isExpanded: true,
                                 value: ['All', 'Offer Accepted', 'Document Collection', 'Orientation', 'IT Setup', 'Training', 'Completed'].contains(_selectedStage)
                                     ? _selectedStage
@@ -1432,7 +1433,7 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _departmentsList.contains(_selectedDepartment) ? _selectedDepartment : 'All',
                         items: _departmentsList.map((d) => DropdownMenuItem(value: d, child: Text(d == 'All' ? 'All Departments' : d, style: const TextStyle(fontSize: 12)))).toList(),
                         onChanged: (val) {
@@ -1454,7 +1455,7 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: ['All', 'Offer Accepted', 'Document Collection', 'Orientation', 'IT Setup', 'Training', 'Completed'].contains(_selectedStage)
                             ? _selectedStage
                             : 'All',

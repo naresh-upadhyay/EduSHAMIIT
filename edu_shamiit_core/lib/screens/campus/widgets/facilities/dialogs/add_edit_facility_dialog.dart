@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../models/campus_models.dart';
@@ -312,7 +313,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _category,
                                 isExpanded: true,
                                 decoration: _buildInputDeco('Facility Category', borderColor, isDark),
@@ -328,7 +329,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _status,
                                 isExpanded: true,
                                 decoration: _buildInputDeco('Operational Status', borderColor, isDark),
@@ -350,7 +351,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String?>(
+                              child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                                 initialValue: _selectedBuildingId,
                                 isExpanded: true,
                                 decoration: _buildInputDeco('Campus Building', borderColor, isDark),
@@ -377,7 +378,7 @@ class _AddEditFacilityDialogState extends State<AddEditFacilityDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String?>(
+                              child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                                 initialValue: _selectedFloorId,
                                 isExpanded: true,
                                 decoration: _buildInputDeco('Floor Level', borderColor, isDark),

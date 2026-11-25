@@ -517,7 +517,11 @@ class CalendarNotifier extends StateNotifier<CalendarState> {
       final res = await _api.post('/schedules', payload);
       if (res['success'] == true) {
         await Future.wait([fetchSchedules(), fetchCalendars(), fetchSummary()]);
-        return {'success': true, 'message': 'Schedule created successfully'};
+        return {
+          'success': true,
+          'message': 'Schedule created successfully',
+          'data': res['data'],
+        };
       }
       return {'success': false, 'error': res['error'] ?? res['detail'] ?? 'Failed to create schedule'};
     } catch (e) {

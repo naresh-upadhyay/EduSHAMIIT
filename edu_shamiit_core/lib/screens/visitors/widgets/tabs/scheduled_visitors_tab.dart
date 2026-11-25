@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,7 +81,7 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
                   iconBg: const Color(0xFFF3E8FF),
                   iconColor: const Color(0xFF9333EA),
                   isDark: isDark,
-                  onTap: () => notifier.setStatusFilter('All'),
+                  onTap: () => notifier.setStatusFilter('All Status'),
                 ),
                 _buildKpiCard(
                   context,
@@ -204,8 +205,8 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
 
                 // All Status Dropdown
                 _buildDropdown(
-                  value: const ['All Status', 'Confirmed', 'Pending', 'Blocked', 'Rejected', 'Cancelled'].contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
-                  items: const ['All Status', 'Confirmed', 'Pending', 'Blocked', 'Rejected', 'Cancelled'],
+                  value: const ['All Status', 'Today', 'This Week', 'Expected', 'Confirmed', 'Pending', 'Completed', 'Blocked', 'Rejected', 'Cancelled'].contains(state.selectedStatus) ? state.selectedStatus : 'All Status',
+                  items: const ['All Status', 'Today', 'This Week', 'Expected', 'Confirmed', 'Pending', 'Completed', 'Blocked', 'Rejected', 'Cancelled'],
                   isDark: isDark,
                   onChanged: (val) {
                     if (val != null) {
@@ -389,16 +390,19 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           items: items.map((it) => DropdownMenuItem(value: it, child: Text(it))).toList(),
           onChanged: onChanged,
@@ -436,7 +440,7 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
               child: Row(
                 children: [
                   Text(
-                    'Scheduled Visitors (${appointments.length})',
+                    'Scheduled Visitors (${state.appointmentPagination.totalRecords})',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -1106,7 +1110,7 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: [10, 25, 50, 100].contains(state.appointmentPagination.pageSize) ? state.appointmentPagination.pageSize : 10,
                         isDense: true,
                         style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

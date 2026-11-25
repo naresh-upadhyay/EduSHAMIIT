@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
@@ -449,7 +450,7 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value.isEmpty && options.isNotEmpty ? options.first : value,
           style: GoogleFonts.dmSans(
             fontSize: 12,

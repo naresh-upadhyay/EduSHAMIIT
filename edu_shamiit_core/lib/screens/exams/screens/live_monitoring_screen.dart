@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -1986,7 +1987,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         border: Border.all(color: palette.borderColor),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: safeVal,
           dropdownColor: palette.cardBg,
           style: TextStyle(fontSize: 12.5, color: palette.primaryText, fontWeight: FontWeight.w500),
@@ -2384,7 +2385,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
             const SizedBox(width: 10),
             Text('Rows per page:', style: TextStyle(fontSize: 12, color: palette.secondaryText)),
             const SizedBox(width: 6),
-            DropdownButton<int>(
+            AppSearchableDropdown<int>.fromMenuItems(
               value: _pageSize,
               dropdownColor: palette.cardBg,
               style: TextStyle(fontSize: 12, color: palette.primaryText, fontWeight: FontWeight.w600),

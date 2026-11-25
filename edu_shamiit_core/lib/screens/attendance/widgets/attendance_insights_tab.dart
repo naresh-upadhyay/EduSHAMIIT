@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1484,7 +1485,7 @@ class _AttendanceInsightsTabState extends ConsumerState<AttendanceInsightsTab> {
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.any((it) => it.value == currentValue) ? currentValue : 'Overall',
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
@@ -1546,7 +1547,7 @@ class _AttendanceInsightsTabState extends ConsumerState<AttendanceInsightsTab> {
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.any((it) => it.value == _selectedDepartment) ? _selectedDepartment : 'All Departments',
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
@@ -1724,7 +1725,7 @@ class _AttendanceInsightsTabState extends ConsumerState<AttendanceInsightsTab> {
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
+        child: AppSearchableDropdown<String?>.fromMenuItems(
           value: classes.any((c) => c.id == _selectedClassId) ? _selectedClassId : null,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
@@ -1760,7 +1761,7 @@ class _AttendanceInsightsTabState extends ConsumerState<AttendanceInsightsTab> {
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
+        child: AppSearchableDropdown<String?>.fromMenuItems(
           value: sections.any((s) => s.id.toString() == _selectedSectionId) ? _selectedSectionId : null,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
@@ -2785,7 +2786,7 @@ class _AllClassesModalState extends State<_AllClassesModal> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                DropdownButton<String>(
+                AppSearchableDropdown<String>.fromMenuItems(
                   value: const ['ATT_DESC', 'ATT_ASC', 'STUDENTS_DESC', 'NAME_ASC'].contains(_sortBy) ? _sortBy : 'ATT_DESC',
                   underline: const SizedBox(),
                   items: const [
@@ -2850,7 +2851,7 @@ class _AllClassesModalState extends State<_AllClassesModal> {
                 Row(
                   children: [
                     const Text('Rows: ', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: const [10, 25, 50].contains(_pageSize) ? _pageSize : 10,
                       underline: const SizedBox(),
                       items: const [
@@ -2995,7 +2996,7 @@ class _AllAbsenteesModalState extends State<_AllAbsenteesModal> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                DropdownButton<String>(
+                AppSearchableDropdown<String>.fromMenuItems(
                   value: const ['ABSENT_DESC', 'ATT_ASC', 'CONSEC_DESC', 'NAME_ASC'].contains(_sortBy) ? _sortBy : 'ABSENT_DESC',
                   underline: const SizedBox(),
                   items: const [
@@ -3073,7 +3074,7 @@ class _AllAbsenteesModalState extends State<_AllAbsenteesModal> {
                 Row(
                   children: [
                     const Text('Rows: ', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: const [10, 25, 50].contains(_pageSize) ? _pageSize : 10,
                       underline: const SizedBox(),
                       items: const [

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
@@ -7,11 +8,13 @@ import '../work_searchable_dropdown.dart';
 class SprintTeamTabView extends ConsumerStatefulWidget {
   final String sprintId;
   final String? selectedTeam;
+  final void Function(String teamName, String? sprintId)? onNavigateToCapacity;
 
   const SprintTeamTabView({
     super.key,
     required this.sprintId,
     this.selectedTeam,
+    this.onNavigateToCapacity,
   });
 
   @override
@@ -1277,7 +1280,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
             style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           ),
           DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
+            child: AppSearchableDropdown<int>.fromMenuItems(
               value: state.rowsPerPage,
               items: const [
                 DropdownMenuItem(value: 5, child: Text('5')),
@@ -1579,8 +1582,10 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                     team.lead.avatarUrl,
                     isDark,
                     subtitle: team.lead.email,
+                    onTap: () => _openAssignLeadDialog(team, isDark),
+                    onAssign: () => _openAssignLeadDialog(team, isDark),
                     onUnassign: (team.lead.id != null && team.lead.name.toLowerCase() != 'unassigned')
-                        ? () => _confirmRemoveMember(team.id, team.lead.id!, team.lead.name, isDark)
+                        ? () => _unassignTeamLead(team)
                         : null,
                   ),
                 ],
@@ -1600,7 +1605,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
         ),
         const SizedBox(height: 20),
 
-        // 2. Team Capacity (Sprint 8) Card
+        // 2. Team Capacity Card (Shows Latest Sprint dynamically with View More button)
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1611,13 +1616,50 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Team Capacity (Sprint 8)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Team Capacity (${team.capacity.sprintName ?? 'Latest Sprint'})',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  if (widget.onNavigateToCapacity != null) ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => widget.onNavigateToCapacity!(team.name, team.capacity.sprintId),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'View More',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 13,
+                              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 6),
               Row(
@@ -1634,10 +1676,12 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   const Spacer(),
                   Text(
                     '${team.capacity.utilizationPct.toStringAsFixed(1)}%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF10B981),
+                      color: team.capacity.utilizationPct > 100
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF10B981),
                     ),
                   ),
                 ],
@@ -1649,7 +1693,11 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   value: (team.capacity.utilizationPct / 100.0).clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: const Color(0xFFE2E8F0),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    team.capacity.utilizationPct > 100
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF10B981),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -1812,9 +1860,9 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Team Goal (Sprint 8)',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                    Text(
+                      'Team Goal (${team.capacity.sprintName ?? 'Latest Sprint'})',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -1930,8 +1978,11 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     String? avatarUrl,
     bool isDark, {
     String? subtitle,
+    VoidCallback? onTap,
+    VoidCallback? onAssign,
     VoidCallback? onUnassign,
   }) {
+    final isUnassigned = value.toLowerCase() == 'unassigned';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1942,20 +1993,28 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
               label,
               style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             ),
-            if (onUnassign != null)
+            if (onAssign != null)
               InkWell(
-                onTap: onUnassign,
+                onTap: onAssign,
                 borderRadius: BorderRadius.circular(4),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.close, size: 12, color: Color(0xFFEF4444)),
-                      SizedBox(width: 2),
+                      Icon(
+                        isUnassigned ? Icons.add : Icons.swap_horiz,
+                        size: 12,
+                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(width: 2),
                       Text(
-                        'Unassign',
-                        style: TextStyle(fontSize: 10, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                        isUnassigned ? 'Assign' : 'Change',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -1964,37 +2023,56 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
           ],
         ),
         const SizedBox(height: 4),
-        Row(
-          children: [
-            _buildAvatar(avatarUrl, value, size: 22),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null && subtitle.isNotEmpty) ...[
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155).withValues(alpha: 0.7) : const Color(0xFFE2E8F0),
               ),
             ),
-          ],
+            child: Row(
+              children: [
+                _buildAvatar(avatarUrl, value, size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null && subtitle.isNotEmpty) ...[
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 13,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -2010,9 +2088,19 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Team Members (${team.members.length})',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Team Members (${team.members.length})',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Sprint: ${team.capacity.sprintName ?? 'Latest Sprint'}',
+                  style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+              ],
             ),
             ElevatedButton.icon(
               onPressed: () => _openAddMemberDialog(team.id, isDark),
@@ -2090,10 +2178,89 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                       ],
                     ),
                   ),
-                  Text('${m.capacityHours.toInt()} h', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                    onPressed: () => _confirmRemoveMember(team.id, m.userId, m.name, isDark),
+                  Tooltip(
+                    message: '${m.capacityHours.toInt()} h sprint capacity for ${team.capacity.sprintName ?? 'Latest Sprint'}',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${m.capacityHours.toInt()} h',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 18, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    padding: EdgeInsets.zero,
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    onSelected: (val) async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      if (val == 'make_lead') {
+                        final success = await ref.read(workSprintTeamProvider.notifier).updateTeam(team.id, {'lead_id': m.userId});
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(success ? 'Assigned ${m.name} as Team Lead.' : 'Failed to update team lead.'),
+                              backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            ),
+                          );
+                        }
+                      } else if (val == 'unassign_lead') {
+                        final success = await ref.read(workSprintTeamProvider.notifier).updateTeam(team.id, {'lead_id': null});
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(success ? 'Team lead unassigned.' : 'Failed to unassign team lead.'),
+                              backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            ),
+                          );
+                        }
+                      } else if (val == 'remove') {
+                        _confirmRemoveMember(team.id, m.userId, m.name, isDark);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      if (!m.isLead)
+                        const PopupMenuItem(
+                          value: 'make_lead',
+                          child: Row(
+                            children: [
+                              Icon(Icons.star_outline_rounded, size: 16, color: Color(0xFF2563EB)),
+                              SizedBox(width: 8),
+                              Text('Set as Team Lead', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        )
+                      else
+                        const PopupMenuItem(
+                          value: 'unassign_lead',
+                          child: Row(
+                            children: [
+                              Icon(Icons.star_border_rounded, size: 16, color: Color(0xFFF59E0B)),
+                              SizedBox(width: 8),
+                              Text('Unassign as Lead', style: TextStyle(fontSize: 12.5)),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'remove',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_remove_outlined, size: 16, color: Color(0xFFEF4444)),
+                            SizedBox(width: 8),
+                            Text('Remove from Team', style: TextStyle(fontSize: 12.5, color: Color(0xFFEF4444))),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2105,28 +2272,97 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
   }
 
   // ============================================================================
-  // CAPACITY SUB-TAB
+  // CAPACITY SUB-TAB (Single Source of Truth: Driven by Sprint Capacity Screen)
   // ============================================================================
   Widget _buildDrawerCapacityTab(TeamDetailModel team, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Team Capacity Configuration', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-        const SizedBox(height: 14),
-        _buildConfigRow('Sprint Capacity', '${team.capacity.totalCapacityHours.toInt()} Hours', isDark),
-        _buildConfigRow('Allocated Work', '${team.capacity.plannedHours.toInt()} Hours', isDark),
-        _buildConfigRow('Available Capacity', '${team.capacity.remainingHours.toInt()} Hours', isDark),
-        _buildConfigRow('Working Days / Sprint', '10 Days (2 Weeks)', isDark),
-        _buildConfigRow('Daily Working Hours', '8.0 Hours / Day', isDark),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: () => _openAdjustCapacityDialog(team, isDark),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2563EB),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          child: const Text('Adjust Team Capacity', style: TextStyle(color: Colors.white)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Sprint-Wise Capacity',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                team.capacity.sprintName ?? 'Latest Sprint',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981)),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            children: [
+              _buildConfigRow('Sprint', team.capacity.sprintName ?? 'Latest Sprint', isDark),
+              _buildConfigRow('Team Members', '${team.members.length} Members', isDark),
+              _buildConfigRow('Sprint Total Capacity', '${team.capacity.totalCapacityHours.toInt()} Hours', isDark),
+              _buildConfigRow('Allocated Work', '${team.capacity.plannedHours.toInt()} Hours', isDark),
+              _buildConfigRow('Available Capacity', '${team.capacity.remainingHours.toInt()} Hours', isDark),
+              _buildConfigRow('Capacity Utilization', '${team.capacity.utilizationPct.toStringAsFixed(1)}%', isDark),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF3B82F6)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Team capacity is dynamically calculated sprint-wise based on member daily hours, working days, and capacity exceptions on the Sprint Capacity screen.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (widget.onNavigateToCapacity != null)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => widget.onNavigateToCapacity!(team.name, team.capacity.sprintId),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+              label: const Text('Manage on Capacity Screen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12.5)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -2663,7 +2899,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                           children: [
                             const Text('Department', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                             const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _departments.contains(department) ? department : (_departments.isNotEmpty ? _departments.first : null),
                               isExpanded: true,
                               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2696,7 +2932,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                       final leadUserList = uniqueLeadUsers.values.toList();
                       final effectiveLeadId = leadUserList.any((u) => u.userId == selectedLeadId) ? selectedLeadId : null;
 
-                      return DropdownButtonFormField<String>(
+                      return AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: effectiveLeadId,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2829,7 +3065,7 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                           children: [
                             const Text('Department', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                             const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _departments.contains(department) ? department : (_departments.isNotEmpty ? _departments.first : null),
                               isExpanded: true,
                               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -3317,6 +3553,309 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
     );
   }
 
+  Future<void> _unassignTeamLead(TeamDetailModel team) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final success = await ref
+        .read(workSprintTeamProvider.notifier)
+        .updateTeam(team.id, {'lead_id': null});
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Team lead unassigned.' : 'Failed to unassign team lead.',
+          ),
+          backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  void _openAssignLeadDialog(TeamDetailModel team, bool isDark) {
+    String search = '';
+    String? selectedLeadId = team.lead.id;
+    final currentLeadId = team.lead.id;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final teamMembersList = team.members.toList();
+          final memberUserIds = team.members.map((m) => m.userId).toSet();
+          final otherUsers = _assignableUsers.where((u) => !memberUserIds.contains(u.userId)).toList();
+
+          final filteredTeamMembers = teamMembersList.where((m) {
+            if (search.isEmpty) return true;
+            final q = search.toLowerCase();
+            return m.name.toLowerCase().contains(q) ||
+                (m.email?.toLowerCase().contains(q) ?? false) ||
+                m.role.toLowerCase().contains(q);
+          }).toList();
+
+          final filteredOtherUsers = otherUsers.where((u) {
+            if (search.isEmpty) return true;
+            final q = search.toLowerCase();
+            return u.fullName.toLowerCase().contains(q) ||
+                (u.email?.toLowerCase().contains(q) ?? false) ||
+                u.role.toLowerCase().contains(q);
+          }).toList();
+
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Assign Team Lead',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Select a team member or staff to lead ${team.name}',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () => Navigator.pop(ctx),
+                  splashRadius: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 480,
+              height: 440,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search staff by name, email, or role...',
+                      hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      isDense: true,
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    onChanged: (v) => setDialogState(() => search = v.trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        if (currentLeadId != null) ...[
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            dense: true,
+                            leading: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.person_off_outlined, size: 16, color: Color(0xFFEF4444)),
+                            ),
+                            title: const Text(
+                              'Unassign Team Lead',
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFFEF4444)),
+                            ),
+                            subtitle: const Text('Leave team without an assigned lead', style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                            trailing: Radio<String?>(
+                              value: null,
+                              groupValue: selectedLeadId,
+                              onChanged: (v) => setDialogState(() => selectedLeadId = null),
+                              activeColor: const Color(0xFFEF4444),
+                            ),
+                            onTap: () => setDialogState(() => selectedLeadId = null),
+                          ),
+                          const Divider(height: 12),
+                        ],
+                        if (filteredTeamMembers.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Team Members (${filteredTeamMembers.length})',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('Recommended', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                                ),
+                              ],
+                            ),
+                          ),
+                          for (final m in filteredTeamMembers)
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              dense: true,
+                              leading: _buildAvatar(m.avatarUrl, m.name, size: 28),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      m.name,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (m.userId == currentLeadId) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text('Current Lead', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              subtitle: Text(
+                                '${m.role}${m.email != null && m.email!.isNotEmpty ? ' • ${m.email}' : ''}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Radio<String?>(
+                                value: m.userId,
+                                groupValue: selectedLeadId,
+                                onChanged: (v) => setDialogState(() => selectedLeadId = v),
+                                activeColor: const Color(0xFF2563EB),
+                              ),
+                              onTap: () => setDialogState(() => selectedLeadId = m.userId),
+                            ),
+                          const Divider(height: 12),
+                        ],
+                        if (filteredOtherUsers.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            child: Text(
+                              'Other Staff (${filteredOtherUsers.length})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                          for (final u in filteredOtherUsers)
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              dense: true,
+                              leading: _buildAvatar(u.avatarUrl, u.fullName, size: 28),
+                              title: Text(
+                                u.fullName,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                '${u.role}${u.email != null && u.email!.isNotEmpty ? ' • ${u.email}' : ''}',
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: Radio<String?>(
+                                value: u.userId,
+                                groupValue: selectedLeadId,
+                                onChanged: (v) => setDialogState(() => selectedLeadId = v),
+                                activeColor: const Color(0xFF2563EB),
+                              ),
+                              onTap: () => setDialogState(() => selectedLeadId = u.userId),
+                            ),
+                        ],
+                        if (filteredTeamMembers.isEmpty && filteredOtherUsers.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(
+                              child: Text('No users match search criteria.', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selectedLeadId == currentLeadId
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        Navigator.pop(ctx);
+                        final success = await ref
+                            .read(workSprintTeamProvider.notifier)
+                            .updateTeam(team.id, {'lead_id': selectedLeadId});
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? (selectedLeadId == null
+                                        ? 'Team lead unassigned.'
+                                        : 'Team lead updated successfully.')
+                                    : 'Failed to update team lead.',
+                              ),
+                              backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Save Team Lead', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _openAddTagDialog(TeamDetailModel team, bool isDark) {
     final tagCtrl = TextEditingController();
     showDialog(
@@ -3343,37 +3882,6 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
             child: const Text('Add Tag', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openAdjustCapacityDialog(TeamDetailModel team, bool isDark) {
-    double cap = team.capacity.totalCapacityHours;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF13182C) : Colors.white,
-        title: const Text('Adjust Team Capacity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: TextFormField(
-          initialValue: cap.toInt().toString(),
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Total Capacity Hours',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          onChanged: (v) => cap = double.tryParse(v) ?? cap,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(workSprintTeamProvider.notifier).updateTeam(team.id, {'capacity_hours': cap});
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
-            child: const Text('Save Capacity', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

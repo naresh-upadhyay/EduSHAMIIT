@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -242,7 +243,7 @@ class _VisitorUploadDocumentDialogState extends ConsumerState<VisitorUploadDocum
                             border: Border.all(color: borderColor),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: AppSearchableDropdown<String>.fromMenuItems(
                               value: _documentType,
                               isExpanded: true,
                               dropdownColor: dialogBg,
@@ -430,7 +431,7 @@ class _VisitorUploadDocumentDialogState extends ConsumerState<VisitorUploadDocum
                             border: Border.all(color: borderColor),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: AppSearchableDropdown<String>.fromMenuItems(
                               value: _verificationStatus,
                               isExpanded: true,
                               dropdownColor: dialogBg,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -325,30 +326,64 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
     }
     final sortedLeaveTypes = dynamicLeaveTypes.toList()..sort();
 
+    final bool hasActiveFilters = _searchCtrl.text.isNotEmpty ||
+        _userType != 'ALL' ||
+        _department != 'ALL' ||
+        _status != 'ALL' ||
+        _leaveType != 'ALL' ||
+        _fromDate != null ||
+        _toDate != null;
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           // Search Input
           SizedBox(
-            width: 220,
-            height: 38,
+            width: 200,
+            height: 36,
             child: TextField(
               controller: _searchCtrl,
+              onChanged: (val) {
+                if (val.isEmpty) {
+                  setState(() {});
+                  _applyFilters();
+                } else {
+                  setState(() {});
+                }
+              },
               onSubmitted: (_) => _applyFilters(),
-              style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+              style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
               decoration: InputDecoration(
                 hintText: 'Search by name, ID...',
                 hintStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF64748B)),
+                prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? InkWell(
+                        onTap: () {
+                          _searchCtrl.clear();
+                          setState(() {});
+                          _applyFilters();
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+                      )
+                    : null,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                 filled: true,
                 fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -364,6 +399,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _userType,
             hint: 'User Type',
             isDark: isDark,
+            width: 125,
             items: const [
               DropdownMenuItem(value: 'ALL', child: Text('All Users')),
               DropdownMenuItem(value: 'TEACHER', child: Text('Teachers')),
@@ -378,6 +414,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _department,
             hint: 'Department',
             isDark: isDark,
+            width: 145,
             items: [
               const DropdownMenuItem(value: 'ALL', child: Text('All Departments')),
               ...sortedDepts.map((d) => DropdownMenuItem(value: d, child: Text(d))),
@@ -390,6 +427,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _status,
             hint: 'Status',
             isDark: isDark,
+            width: 125,
             items: const [
               DropdownMenuItem(value: 'ALL', child: Text('All Status')),
               DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
@@ -405,6 +443,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
             value: _leaveType,
             hint: 'Leave Type',
             isDark: isDark,
+            width: 135,
             items: [
               const DropdownMenuItem(value: 'ALL', child: Text('All Types')),
               ...sortedLeaveTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))),
@@ -416,7 +455,8 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
           _buildDatePickerPill(
             label: _fromDate != null ? DateFormat('dd MMM yyyy').format(_fromDate!) : 'From Date',
             isDark: isDark,
-            icon: Icons.calendar_today,
+            icon: Icons.calendar_today_rounded,
+            isSelected: _fromDate != null,
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
@@ -426,48 +466,76 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
               );
               if (picked != null) setState(() => _fromDate = picked);
             },
+            onClear: _fromDate != null
+                ? () {
+                    setState(() => _fromDate = null);
+                  }
+                : null,
           ),
 
           // To Date Picker
           _buildDatePickerPill(
             label: _toDate != null ? DateFormat('dd MMM yyyy').format(_toDate!) : 'To Date',
             isDark: isDark,
-            icon: Icons.calendar_today,
+            icon: Icons.calendar_today_rounded,
+            isSelected: _toDate != null,
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _toDate ?? DateTime.now(),
+                initialDate: _toDate ?? (_fromDate ?? DateTime.now()),
                 firstDate: _fromDate ?? DateTime.now().subtract(const Duration(days: 365)),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
               if (picked != null) setState(() => _toDate = picked);
             },
+            onClear: _toDate != null
+                ? () {
+                    setState(() => _toDate = null);
+                  }
+                : null,
           ),
 
           // Reset Button
-          TextButton(
-            onPressed: _resetFilters,
-            child: Text(
-              'Reset',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          if (hasActiveFilters)
+            SizedBox(
+              height: 36,
+              child: TextButton.icon(
+                onPressed: _resetFilters,
+                icon: const Icon(Icons.refresh_rounded, size: 14, color: Color(0xFFEF4444)),
+                label: const Text(
+                  'Reset',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFEF4444),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ),
-          ),
 
           // Apply Filters Button
-          ElevatedButton(
-            onPressed: _applyFilters,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          SizedBox(
+            height: 36,
+            child: ElevatedButton.icon(
+              onPressed: _applyFilters,
+              icon: const Icon(Icons.filter_list_rounded, size: 15),
+              label: const Text(
+                'Apply Filters',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
             ),
-            child: const Text('Apply Filters', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -480,22 +548,71 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
     required bool isDark,
     required List<DropdownMenuItem<String>> items,
     required ValueChanged<String?> onChanged,
+    double width = 135,
   }) {
+    final uniqueItems = <DropdownMenuItem<String>>[];
+    final seen = <String>{};
+    for (final it in items) {
+      final val = it.value?.trim() ?? '';
+      if (val.isNotEmpty && !seen.contains(val)) {
+        seen.add(val);
+        uniqueItems.add(it);
+      }
+    }
+
+    final trimmedValue = value.trim();
+    final effectiveValue = seen.contains(trimmedValue)
+        ? trimmedValue
+        : (uniqueItems.isNotEmpty ? uniqueItems.first.value : null);
+
+    final isNonDefault = effectiveValue != null && effectiveValue != 'ALL';
+
     return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      width: width,
+      height: 36,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isNonDefault
+              ? const Color(0xFF4F46E5)
+              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          width: isNonDefault ? 1.2 : 1.0,
+        ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: items.any((it) => it.value == value) ? value : (items.isNotEmpty ? items.first.value : null),
+        child: AppSearchableDropdown<String>.fromMenuItems(
+          value: effectiveValue,
+          width: width,
+          isExpanded: false,
+          compact: true,
           isDense: true,
+          itemHeight: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-          items: items,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isNonDefault ? FontWeight.w600 : FontWeight.w500,
+            color: isDark
+                ? (isNonDefault ? Colors.white : const Color(0xFFCBD5E1))
+                : (isNonDefault ? const Color(0xFF0F172A) : const Color(0xFF334155)),
+          ),
+          items: uniqueItems.map((item) {
+            final text = item.child is Text
+                ? (item.child as Text).data ?? item.value ?? ''
+                : item.value ?? '';
+            return DropdownMenuItem<String>(
+              value: item.value,
+              child: Text(
+                text,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                ),
+              ),
+            );
+          }).toList(),
           onChanged: onChanged,
         ),
       ),
@@ -507,28 +624,64 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
     required bool isDark,
     required IconData icon,
     required VoidCallback onTap,
+    bool isSelected = false,
+    VoidCallback? onClear,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFF4F46E5)
+              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          width: isSelected ? 1.2 : 1.0,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: const Color(0xFF64748B)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-            ),
-          ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected
+                    ? const Color(0xFF4F46E5)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                      : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155)),
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: onClear,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 13,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -1085,7 +1238,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                   Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   const SizedBox(width: 6),
                   DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
+                    child: AppSearchableDropdown<int>.fromMenuItems(
                       value: const [10, 25, 50, 100].contains(state.leavePageSize) ? state.leavePageSize : 10,
                       isDense: true,
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1238,7 +1391,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                   Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                   const SizedBox(width: 6),
                   DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
+                    child: AppSearchableDropdown<int>.fromMenuItems(
                       value: const [10, 25, 50].contains(state.balancesPageSize) ? state.balancesPageSize : 10,
                       isDense: true,
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1976,7 +2129,7 @@ class _LeavePermissionsTabState extends ConsumerState<LeavePermissionsTab> {
                       Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                       const SizedBox(width: 6),
                       DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: const [10, 25, 50, 100].contains(_permsPageSize) ? _permsPageSize : 10,
                           isDense: true,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

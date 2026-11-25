@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/hostel_complaint_models.dart';
@@ -213,7 +214,7 @@ class _UpdateComplaintStatusDialogState extends ConsumerState<UpdateComplaintSta
                     // Status selector
                     Text('Select Target Status *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _targetStatus,
                       isExpanded: true,
                       dropdownColor: cardBg,
@@ -258,7 +259,7 @@ class _UpdateComplaintStatusDialogState extends ConsumerState<UpdateComplaintSta
                           children: [
                             Text('Resolution Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _resolutionType,
                               isExpanded: true,
                               dropdownColor: cardBg,
@@ -305,7 +306,7 @@ class _UpdateComplaintStatusDialogState extends ConsumerState<UpdateComplaintSta
                                 children: [
                                   Text('Resolution Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                                   const SizedBox(height: 4),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _resolutionType,
                                     isExpanded: true,
                                     dropdownColor: cardBg,

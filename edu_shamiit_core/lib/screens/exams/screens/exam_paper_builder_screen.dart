@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1087,7 +1088,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                   ),
                   const Spacer(),
                   if (_sections.isNotEmpty) ...[
-                    DropdownButton<String>(
+                    AppSearchableDropdown<String>.fromMenuItems(
                       value: _targetSectionId ?? _sections.first['id'],
                       dropdownColor: _cardBg,
                       underline: const SizedBox(),
@@ -1180,7 +1181,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
         border: Border.all(color: _cardBorder),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: sanitizedValue,
           dropdownColor: _cardBg,
           isExpanded: true,
@@ -1452,7 +1453,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                 border: Border.all(color: _cardBorder),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _qbPageSize,
                   dropdownColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
                   style: _font(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary),

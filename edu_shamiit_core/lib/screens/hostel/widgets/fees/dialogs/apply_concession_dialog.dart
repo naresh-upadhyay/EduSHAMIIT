@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -194,7 +195,7 @@ class _ApplyConcessionDialogState extends ConsumerState<ApplyConcessionDialog> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _concessionType,
                   decoration: _inputDecoration(isDark),
@@ -222,7 +223,7 @@ class _ApplyConcessionDialogState extends ConsumerState<ApplyConcessionDialog> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             isExpanded: true,
                             initialValue: _valueType,
                             decoration: _inputDecoration(isDark),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
@@ -25,7 +26,6 @@ class _CreateInstantClassDialogState
   String? _selectedSubjectId;
   String? _selectedTeacherId;
   int _durationMinutes = 45;
-  final int _maxParticipants = 50;
 
   bool _recordingEnabled = true;
   bool _waitingRoomEnabled = false;
@@ -115,7 +115,6 @@ class _CreateInstantClassDialogState
         'subject_id': _selectedSubjectId,
         'teacher_id': _selectedTeacherId,
         'duration_minutes': _durationMinutes,
-        'max_participants': _maxParticipants,
         'recording_enabled': _recordingEnabled,
         'waiting_room_enabled': _waitingRoomEnabled,
         'allow_student_share': _allowStudentShare,
@@ -285,7 +284,7 @@ class _CreateInstantClassDialogState
                                           fontWeight: FontWeight.w600,
                                           color: textSecondary)),
                                   const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     value: _selectedClassId,
                                     isExpanded: true,
                                     style: TextStyle(color: textPrimary, fontSize: 13),
@@ -337,7 +336,7 @@ class _CreateInstantClassDialogState
                                           fontWeight: FontWeight.w600,
                                           color: textSecondary)),
                                   const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     value: effectiveSectionId,
                                     isExpanded: true,
                                     style: TextStyle(color: textPrimary, fontSize: 13),
@@ -387,7 +386,7 @@ class _CreateInstantClassDialogState
                                           fontWeight: FontWeight.w600,
                                           color: textSecondary)),
                                   const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     value: effectiveSubjectId,
                                     isExpanded: true,
                                     style: TextStyle(color: textPrimary, fontSize: 13),
@@ -445,7 +444,7 @@ class _CreateInstantClassDialogState
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _selectedTeacherId,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -487,7 +486,7 @@ class _CreateInstantClassDialogState
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<int>(
+                                AppSearchableDropdownFormField<int>.fromMenuItems(
                                   initialValue: _durationMinutes,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
                                   dropdownColor: surfaceColor,

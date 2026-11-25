@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/services/hr_lookup_helper.dart';
@@ -267,7 +268,7 @@ class _SkillGapsDialogState extends State<SkillGapsDialog> {
                       children: [
                         Expanded(
                           flex: 2,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _departments.contains(_deptController.text) ? _deptController.text : (_departments.isNotEmpty ? _departments.first : null),
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Department', isDense: true, border: OutlineInputBorder()),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -485,7 +486,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               Expanded(
                 child: _buildFormField(
                   label: 'Membership Type *',
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: effectiveMembershipType,
                     dropdownColor:
                         isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -598,7 +599,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           // Status Dropdown
           _buildFormField(
             label: 'Initial Membership Status',
-            child: DropdownButtonFormField<String>(
+            child: AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _status,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               decoration: _inputDecoration(isDark),

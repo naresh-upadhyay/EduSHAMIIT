@@ -6,14 +6,28 @@ import '../providers/visitors_provider.dart';
 import '../utils/visitor_avatar_helper.dart';
 import '../../../../utils/js_helper.dart';
 
-class VisitorCategoriesCard extends StatelessWidget {
+class VisitorCategoriesCard extends ConsumerWidget {
   final VoidCallback? onManage;
 
   const VisitorCategoriesCard({super.key, this.onManage});
 
+  static const Map<String, List<Color>> _palette = {
+    'Parent': [Color(0xFFDBEAFE), Color(0xFF1D4ED8)],
+    'Official': [Color(0xFFF3E8FF), Color(0xFF7E22CE)],
+    'Vendor': [Color(0xFFFFEDD5), Color(0xFFC2410C)],
+    'Maintenance': [Color(0xFFDCFCE7), Color(0xFF15803D)],
+    'Alumni': [Color(0xFFFCE7F3), Color(0xFFBE185D)],
+    'Relative': [Color(0xFFCFFAFE), Color(0xFF0E7490)],
+    'Delivery': [Color(0xFFFEF9C3), Color(0xFFA16207)],
+  };
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final state = ref.watch(visitorsProvider);
+    final categories = state.analytics.categories
+        .where((c) => ((c['count'] as num?)?.toInt() ?? 0) > 0)
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -52,31 +66,60 @@ class VisitorCategoriesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildCategoryBadge('Parent', '42%', const Color(0xFFDBEAFE), const Color(0xFF1D4ED8)),
-              _buildCategoryBadge('Official', '18%', const Color(0xFFF3E8FF), const Color(0xFF7E22CE)),
-              _buildCategoryBadge('Vendor', '12%', const Color(0xFFFFEDD5), const Color(0xFFC2410C)),
-              _buildCategoryBadge('Maintenance', '10%', const Color(0xFFDCFCE7), const Color(0xFF15803D)),
-              _buildCategoryBadge('Alumni', '8%', const Color(0xFFFCE7F3), const Color(0xFFBE185D)),
-              _buildCategoryBadge('Relative', '6%', const Color(0xFFCFFAFE), const Color(0xFF0E7490)),
-              _buildCategoryBadge('Other', '4%', const Color(0xFFF1F5F9), const Color(0xFF475569)),
-            ],
-          ),
+          if (categories.isEmpty)
+            Text(
+              'No visitor category data available',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.map((item) {
+                final label = (item['category'] ?? 'Other').toString();
+                final pct = (item['percentage'] as num?)?.toInt() ?? 0;
+                final count = (item['count'] as num?)?.toInt() ?? 0;
+                final colors = _palette[label] ??
+                    const [Color(0xFFF1F5F9), Color(0xFF475569)];
+                return _buildCategoryBadge(
+                  label,
+                  '$pct%',
+                  count,
+                  colors[0],
+                  colors[1],
+                  () => ref.read(visitorsProvider.notifier).setCategoryFilter(label),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryBadge(String label, String pct, Color bg, Color text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-      child: Text(
-        '$label $pct',
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: text),
+  Widget _buildCategoryBadge(
+    String label,
+    String pct,
+    int count,
+    Color bg,
+    Color text,
+    VoidCallback onTap,
+  ) {
+    return Tooltip(
+      message: '$label: $count visits ($pct)',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+          child: Text(
+            '$label $pct',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: text),
+          ),
+        ),
       ),
     );
   }

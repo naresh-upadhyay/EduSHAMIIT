@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -1054,7 +1055,7 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
@@ -1599,7 +1600,7 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: _pageSize,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: _font(
@@ -2359,7 +2360,7 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
                             ? selectedExamId
                             : (examMap.isNotEmpty ? examMap.keys.first : null);
 
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: examValue,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -3367,7 +3368,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: classValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -3378,7 +3379,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: subjectValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -3416,7 +3417,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: typeValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -3453,7 +3454,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: diffValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -4477,7 +4478,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 100,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _matchPairs[i] ?? rightLetter,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -4899,7 +4900,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: statusValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -4912,7 +4913,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: langValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -4930,7 +4931,7 @@ class _QuestionEditorDialogState extends State<QuestionEditorDialog> {
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: sourceValue,
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
@@ -5127,7 +5128,7 @@ class _QuestionImportDialogState extends State<_QuestionImportDialog> {
                     ? _selectedSubject
                     : importSubjectList.first;
 
-                return DropdownButtonFormField<String>(
+                return AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: importSubjectValue,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),

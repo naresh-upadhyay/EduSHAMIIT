@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -589,7 +590,7 @@ class _HostelLeaveTabState extends ConsumerState<HostelLeaveTab> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
+                                      child: AppSearchableDropdown<int>.fromMenuItems(
                                         value: pageSize,
                                         isDense: true,
                                         style: TextStyle(

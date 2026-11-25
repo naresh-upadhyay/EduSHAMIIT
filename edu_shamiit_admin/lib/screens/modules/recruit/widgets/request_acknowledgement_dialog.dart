@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -345,7 +346,7 @@ class _RequestAcknowledgementDialogState extends State<RequestAcknowledgementDia
                         children: [
                           Expanded(
                             flex: 3,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _selectedPolicyId,
                               decoration: InputDecoration(
@@ -395,7 +396,7 @@ class _RequestAcknowledgementDialogState extends State<RequestAcknowledgementDia
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _audienceOptions.contains(_audienceType)
                                   ? _audienceType
@@ -419,7 +420,7 @@ class _RequestAcknowledgementDialogState extends State<RequestAcknowledgementDia
                           if (_audienceType == 'Department') ...[
                             const SizedBox(width: 16),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _departments.contains(_targetValueController.text)
                                     ? _targetValueController.text
@@ -439,7 +440,7 @@ class _RequestAcknowledgementDialogState extends State<RequestAcknowledgementDia
                           ] else if (_audienceType == 'Role') ...[
                             const SizedBox(width: 16),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _roles.any((r) => (r['display_name'] ?? r['name']) == _targetValueController.text)
                                     ? _targetValueController.text

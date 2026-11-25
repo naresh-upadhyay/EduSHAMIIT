@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -1008,7 +1009,7 @@ class HostelStudentFeeDrawer extends ConsumerWidget {
                       const SizedBox(height: 12),
 
                       // Frequency dropdown
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: frequency,
                         decoration: InputDecoration(
                           labelText: 'Billing Frequency',

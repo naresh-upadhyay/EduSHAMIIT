@@ -207,15 +207,24 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
 
   void setActiveTab(int tabIndex) {
     if (state.activeTab == tabIndex) return;
-    state = state.copyWith(activeTab: tabIndex);
+    final resetCategory = (tabIndex == 2 || state.activeTab == 2)
+        ? (tabIndex == 2 ? 'All Block Reasons' : 'All Visitor Types')
+        : state.selectedCategory;
+    state = state.copyWith(
+      activeTab: tabIndex,
+      selectedStatus: 'All Status',
+      selectedCategory: resetCategory,
+    );
     if (tabIndex == 0) {
-      fetchVisits();
+      fetchKPIs();
+      fetchVisits(page: 1);
+      fetchAnalytics();
     } else if (tabIndex == 1) {
       fetchScheduledKPIs();
-      fetchAppointments();
+      fetchAppointments(page: 1);
     } else if (tabIndex == 2) {
       fetchBlacklistKPIs();
-      fetchRestrictions();
+      fetchRestrictions(page: 1);
     }
   }
 
@@ -231,6 +240,7 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
       dateRangeLabel: state.selectedDateRange,
       location: state.selectedLocation,
       category: state.selectedCategory,
+      search: state.searchQuery,
     );
     state = state.copyWith(kpis: kpis);
   }
@@ -239,6 +249,9 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
     final kpis = await _api.getScheduledKPIs(
       dateFrom: _formatDateForApi(state.startDate),
       dateTo: _formatDateForApi(state.endDate),
+      search: state.searchQuery,
+      location: state.selectedLocation,
+      category: state.selectedCategory,
     );
     state = state.copyWith(scheduledKpis: kpis);
   }
@@ -247,6 +260,9 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
     final kpis = await _api.getBlacklistKPIs(
       dateFrom: _formatDateForApi(state.startDate),
       dateTo: _formatDateForApi(state.endDate),
+      search: state.searchQuery,
+      location: state.selectedLocation,
+      reason: state.selectedCategory,
     );
     state = state.copyWith(blacklistKpis: kpis);
   }
@@ -422,10 +438,13 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
     state = state.copyWith(searchQuery: query);
     if (state.activeTab == 0) {
       fetchVisits(page: 1);
+      fetchKPIs();
     } else if (state.activeTab == 1) {
       fetchAppointments(page: 1);
+      fetchScheduledKPIs();
     } else {
       fetchRestrictions(page: 1);
+      fetchBlacklistKPIs();
     }
   }
 
@@ -474,6 +493,7 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
       fetchScheduledKPIs();
     } else {
       fetchRestrictions(page: 1);
+      fetchBlacklistKPIs();
     }
   }
 
@@ -574,7 +594,7 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
     if (filterType == 'Checked In Today') {
       state = state.copyWith(
         activeTab: 0,
-        selectedStatus: 'All Status',
+        selectedStatus: 'Checked In',
         selectedDateRange: 'Today',
         startDate: todayStart,
         endDate: todayEnd,
@@ -599,6 +619,8 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
         selectedStatus: filterType,
         selectedLocation: 'All Locations',
         selectedCategory: 'All Visitor Types',
+        selectedDateRange: 'All Time',
+        clearDates: true,
         searchQuery: '',
       );
     }
@@ -740,7 +762,7 @@ class VisitorsNotifier extends StateNotifier<VisitorsState> {
     state = state.copyWith(isLoading: false);
     if (res['success'] == true) {
       state = state.copyWith(successMessage: 'Appointment scheduled successfully!');
-      await Future.wait([fetchKPIs(), fetchAppointments(page: 1)]);
+      await Future.wait([fetchKPIs(), fetchScheduledKPIs(), fetchAppointments(page: 1)]);
       return true;
     } else {
       state = state.copyWith(errorMessage: res['detail']?.toString() ?? 'Scheduling failed.');

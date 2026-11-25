@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -1086,7 +1087,7 @@ class _CampusManagementScreenState extends ConsumerState<CampusManagementScreen>
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: bld.id,
                                             isExpanded: true,
                                             items: state.buildings.map((b) => DropdownMenuItem(

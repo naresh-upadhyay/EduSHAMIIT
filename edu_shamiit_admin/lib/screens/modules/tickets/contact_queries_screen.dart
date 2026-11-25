@@ -243,7 +243,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                             border: Border.all(color: borderColor),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: AppSearchableDropdown<String>.fromMenuItems(
                               value: _selectedStatus,
                               dropdownColor: cardBg,
                               onChanged: (val) {

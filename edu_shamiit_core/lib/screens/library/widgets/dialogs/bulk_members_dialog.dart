@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/member_provider.dart';
@@ -103,7 +104,7 @@ class _BulkMembersDialogState extends ConsumerState<BulkMembersDialog> {
                         color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedAction,
                     dropdownColor:
                         isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -195,7 +196,7 @@ class _BulkMembersDialogState extends ConsumerState<BulkMembersDialog> {
                                 ? _targetMembershipType
                                 : availableTypes.first;
 
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: effectiveType,
                           dropdownColor:
                               isDark ? const Color(0xFF1E293B) : Colors.white,

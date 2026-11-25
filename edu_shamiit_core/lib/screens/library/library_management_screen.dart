@@ -21,6 +21,7 @@ import 'providers/request_provider.dart';
 import 'widgets/request_header_bar.dart';
 import 'widgets/request_tab_view.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
+import 'package:edu_shamiit_core/utils/tab_url_sync.dart';
 
 class LibraryManagementScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -37,6 +38,44 @@ class _LibraryManagementScreenState extends ConsumerState<LibraryManagementScree
     {'title': 'Issue / Return', 'tabIndex': 3, 'adminOnly': false},
     {'title': 'Requests', 'tabIndex': 4, 'adminOnly': false},
   ];
+
+  String _resolveBasePath() {
+    final path = Uri.base.path;
+    if (path == '/library' || path.startsWith('/library/')) {
+      return '/library';
+    }
+    return '/admin/library';
+  }
+
+  void _syncInitialTab() {
+    final targetTab = (widget.initialTab + 1).clamp(1, 4);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final bookNotifier = ref.read(bookProvider.notifier);
+      if (ref.read(bookProvider).activeTab != targetTab) {
+        bookNotifier.setActiveTab(targetTab);
+      }
+    });
+  }
+
+  void _switchTab(BookNotifier notifier, int targetIdx) {
+    notifier.setActiveTab(targetIdx);
+    updateTabUrl(_resolveBasePath(), targetIdx - 1);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncInitialTab();
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryManagementScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      _syncInitialTab();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +95,9 @@ class _LibraryManagementScreenState extends ConsumerState<LibraryManagementScree
     final validTabs = isNonAdminUser ? const [1, 3, 4] : const [1, 2, 3, 4];
     if (!validTabs.contains(bookState.activeTab)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        bookNotifier.setActiveTab(1);
+        if (mounted) {
+          _switchTab(bookNotifier, 1);
+        }
       });
     }
 
@@ -273,7 +314,7 @@ class _LibraryManagementScreenState extends ConsumerState<LibraryManagementScree
             final title = tab['title'] as String;
 
             return InkWell(
-              onTap: () => notifier.setActiveTab(targetIdx),
+              onTap: () => _switchTab(notifier, targetIdx),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(

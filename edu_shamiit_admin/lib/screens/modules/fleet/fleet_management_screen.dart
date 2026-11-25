@@ -599,7 +599,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _selectedVehicleFilter,
                 style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary),
                 items: [
@@ -1890,7 +1890,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             onPressed: _currentPage < maxPage ? () => setState(() => _currentPage++) : null,
           ),
           const SizedBox(width: 12),
-          DropdownButton<int>(
+          AppSearchableDropdown<int>.fromMenuItems(
             value: _pageSize,
             items: [5, 10, 20, 50].map((s) => DropdownMenuItem(value: s, child: Text('$s / page'))).toList(),
             onChanged: (val) {
@@ -2589,7 +2589,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Service Status'),
                         items: ['Completed', 'In Progress', 'Scheduled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -2812,7 +2812,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      DropdownButtonFormField<dynamic>(
+                      AppSearchableDropdownFormField<dynamic>.fromMenuItems(
                         decoration: const InputDecoration(labelText: 'Select Driver'),
                         initialValue: driversList.firstWhere(
                           (d) => (d['full_name'] ?? d['name']) == selectedDriverName,
@@ -2890,7 +2890,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      DropdownButtonFormField<dynamic>(
+                      AppSearchableDropdownFormField<dynamic>.fromMenuItems(
                         decoration: const InputDecoration(labelText: 'Select Route'),
                         initialValue: routesList.firstWhere(
                           (r) => (r['name'] ?? r['route_name']) == selectedRouteName,
@@ -2997,7 +2997,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Service Status'),
                         items: ['Completed', 'In Progress', 'Scheduled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -3405,7 +3405,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             onPressed: _categoryCurrentPage < maxPage ? () => setState(() => _categoryCurrentPage++) : null,
           ),
           const SizedBox(width: 12),
-          DropdownButton<int>(
+          AppSearchableDropdown<int>.fromMenuItems(
             value: _categoryPageSize,
             dropdownColor: _cardBg,
             style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
@@ -3846,7 +3846,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         border: Border.all(color: _border),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _selectedVehicleFilter,
           isExpanded: true,
           dropdownColor: _cardBg,
@@ -3962,7 +3962,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         border: Border.all(color: _border),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           isExpanded: true,
           dropdownColor: _cardBg,
@@ -4233,7 +4233,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: _docPageSize,
                     style: GoogleFonts.inter(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.bold),
                     items: [5, 10, 20, 50].map((size) {
@@ -4817,7 +4817,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: selectedVehicleId,
                           decoration: const InputDecoration(labelText: 'Select Vehicle'),
                           items: _vehicles.map((v) {
@@ -4828,7 +4828,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           validator: (val) => val == null ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: docType,
                           decoration: const InputDecoration(labelText: 'Document Type'),
                           items: ['Registration', 'Insurance', 'Pollution', 'Fitness', 'Permit', 'Other']
@@ -4873,7 +4873,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Valid', 'Expiring Soon', 'Expired']
@@ -5077,7 +5077,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: vehicleType,
                           decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
                           items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5124,7 +5124,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
                                 items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle', 'Arrived', 'On Route', 'Offline', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5133,7 +5133,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: status,
                                 decoration: const InputDecoration(labelText: 'Status'),
                                 items: ['Active', 'Inactive', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5245,7 +5245,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: speedGovernor,
                                 decoration: const InputDecoration(labelText: 'Speed Governor'),
                                 items: ['Fitted (Max 60 km/h)', 'Not Fitted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5254,7 +5254,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: cctvInstalled,
                                 decoration: const InputDecoration(labelText: 'CCTV Cameras'),
                                 items: ['4 HD Cameras (Active)', 'Installed', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5267,7 +5267,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: panicButton,
                                 decoration: const InputDecoration(labelText: 'Emergency SOS Button'),
                                 items: ['Installed & Working', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5276,7 +5276,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: ownershipType,
                                 decoration: const InputDecoration(labelText: 'Ownership Type'),
                                 items: ['School Owned', 'Leased', 'Contracted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5530,7 +5530,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: vehicleType,
                           decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
                           items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5577,7 +5577,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
                                 items: liveStatusList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5586,7 +5586,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: status,
                                 decoration: const InputDecoration(labelText: 'Status'),
                                 items: statusList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5698,7 +5698,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: speedGovernor,
                                 decoration: const InputDecoration(labelText: 'Speed Governor'),
                                 items: ['Fitted (Max 60 km/h)', 'Not Fitted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5707,7 +5707,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: cctvInstalled,
                                 decoration: const InputDecoration(labelText: 'CCTV Cameras'),
                                 items: ['4 HD Cameras (Active)', 'Installed', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5720,7 +5720,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: panicButton,
                                 decoration: const InputDecoration(labelText: 'Emergency SOS Button'),
                                 items: ['Installed & Working', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5729,7 +5729,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: ownershipType,
                                 decoration: const InputDecoration(labelText: 'Ownership Type'),
                                 items: ['School Owned', 'Leased', 'Contracted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5995,7 +5995,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['Bus', 'Mini Bus', 'Van', 'Coach'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6008,7 +6008,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6017,7 +6017,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: transmission,
                                 decoration: const InputDecoration(labelText: 'Transmission'),
                                 items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6047,7 +6047,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6145,7 +6145,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['Bus', 'Mini Bus', 'Van', 'Coach'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6158,7 +6158,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6167,7 +6167,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: transmission,
                                 decoration: const InputDecoration(labelText: 'Transmission'),
                                 items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6197,7 +6197,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6316,7 +6316,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           isExpanded: width != null,
           dropdownColor: _cardBg,
           iconEnabledColor: _textSecondary,

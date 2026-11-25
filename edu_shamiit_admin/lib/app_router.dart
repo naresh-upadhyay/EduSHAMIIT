@@ -685,6 +685,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 3)),
           ),
           GoRoute(
+            path: '/admin/work/team',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkManagementScreen(initialTabIndex: 4)),
+          ),
+          GoRoute(
             path: '/campus',
             pageBuilder: (_, state) {
               final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
@@ -972,11 +976,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/admin/live-classes/attendance',
+            path: '/admin/live-classes/white-board',
             pageBuilder: (_, __) => const NoTransitionPage(
-              key: ValueKey('live_classes_attendance'),
+              key: ValueKey('live_classes_whiteboard'),
               child: LiveClassManagementScreen(initialTabIndex: 2),
             ),
+          ),
+          GoRoute(
+            path: '/admin/live-classes/whiteboard',
+            pageBuilder: (_, __) => const NoTransitionPage(
+              key: ValueKey('live_classes_whiteboard_alias'),
+              child: LiveClassManagementScreen(initialTabIndex: 2),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/live-classes/attendance',
+            redirect: (_, __) => '/admin/attendance',
           ),
 
           GoRoute(

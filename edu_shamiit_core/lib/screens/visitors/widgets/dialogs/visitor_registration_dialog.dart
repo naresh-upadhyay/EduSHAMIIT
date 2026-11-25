@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -1083,7 +1084,7 @@ class _VisitorRegistrationDialogState extends ConsumerState<VisitorRegistrationD
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),

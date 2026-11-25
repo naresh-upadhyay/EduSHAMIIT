@@ -206,8 +206,8 @@ class ActiveLiveSession {
       recordingEnabled: json['recording_enabled'] ?? true,
       roomCode: json['room_code'] ?? '12A-CHEM',
       meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/c/12A-chem',
-      viewerCount: json['viewer_count'] ?? 43,
-      maxParticipants: json['max_participants'] ?? 45,
+      viewerCount: (json['viewer_count'] as num?)?.toInt() ?? 0,
+      maxParticipants: (json['max_participants'] as num?)?.toInt() ?? 1,
       allowStudentMic: json['allow_student_mic'] ?? true,
       allowStudentCam: json['allow_student_cam'] ?? true,
       allowStudentShare: json['allow_student_share'] ?? false,
@@ -243,8 +243,8 @@ class ActiveLiveSession {
       recordingEnabled: item.recordingEnabled,
       roomCode: item.roomCode.isNotEmpty ? item.roomCode : (details?.meetingCode ?? '12A-CHEM'),
       meetingLink: item.meetingLink.isNotEmpty ? item.meetingLink : (details?.meetingLink ?? 'https://meet.edushamiit.com/c/12A-chem'),
-      viewerCount: item.viewerCount > 0 ? item.viewerCount : (details?.viewerCount ?? 43),
-      maxParticipants: item.maxParticipants > 0 ? item.maxParticipants : (details?.maxParticipants ?? 45),
+      viewerCount: item.viewerCount > 0 ? item.viewerCount : (details?.viewerCount ?? 0),
+      maxParticipants: item.maxParticipants > 0 ? item.maxParticipants : (details?.maxParticipants ?? 1),
       allowStudentMic: true,
       allowStudentCam: true,
       allowStudentShare: false,
@@ -419,15 +419,15 @@ class RecordingsDashboardData {
         [];
 
     return RecordingsDashboardData(
-      totalRecordings: kpis['total_recordings'] ?? 486,
-      thisWeek: kpis['this_week'] ?? 28,
-      totalDurationDisplay: kpis['total_duration_display'] ?? '362 h 14 min',
-      storageUsedGb: (kpis['storage_used_gb'] ?? 728.4).toDouble(),
-      storageTotalTb: (kpis['storage_total_tb'] ?? 1.0).toDouble(),
-      storageUsedPercentage: kpis['storage_used_percentage'] ?? 71,
-      totalDownloads: kpis['total_downloads'] ?? 1842,
-      avgViews: kpis['avg_views'] ?? 38,
-      retentionRatePct: kpis['retention_rate_pct'] ?? 96,
+      totalRecordings: (kpis['total_recordings'] as num?)?.toInt() ?? 0,
+      thisWeek: (kpis['this_week'] as num?)?.toInt() ?? 0,
+      totalDurationDisplay: kpis['total_duration_display'] ?? '0 min',
+      storageUsedGb: (kpis['storage_used_gb'] as num?)?.toDouble() ?? 0.0,
+      storageTotalTb: (kpis['storage_total_tb'] as num?)?.toDouble() ?? 1.0,
+      storageUsedPercentage: (kpis['storage_used_percentage'] as num?)?.toInt() ?? 0,
+      totalDownloads: (kpis['total_downloads'] as num?)?.toInt() ?? 0,
+      avgViews: (kpis['avg_views'] as num?)?.toInt() ?? 0,
+      retentionRatePct: (kpis['retention_rate_pct'] as num?)?.toInt() ?? 100,
       storageBreakdown: StorageBreakdown.fromJson(sb),
       settings: RecordingSettings.fromJson(sets),
       analytics30Days: pts,
@@ -609,7 +609,7 @@ class AutoRecordingRuleSet {
       }
     }
 
-    // Evaluate Azure DevOps query builder clauses
+    // Evaluate SHAMIIT query builder clauses
     if (customQueryClauses.isEmpty) return false;
 
     bool currentResult = false;
@@ -719,6 +719,10 @@ class RecordingItem {
   final String title;
   final String? description;
   final String? recordingUrl;
+  final String? classId;
+  final String? sectionId;
+  final String? subjectId;
+  final String? teacherId;
   final String classSection;
   final String subjectName;
   final String teacherName;
@@ -726,6 +730,12 @@ class RecordingItem {
   final String durationStr;
   final int durationSeconds;
   final int views;
+  final int downloadsCount;
+  final int fileSizeBytes;
+  final int sharedCount;
+  final String? mimeType;
+  final String? storageKey;
+  final String? uploadedBy;
   final String sizeStr;
   final String status;
   final String visibility;
@@ -738,6 +748,10 @@ class RecordingItem {
     required this.title,
     this.description,
     this.recordingUrl,
+    this.classId,
+    this.sectionId,
+    this.subjectId,
+    this.teacherId,
     required this.classSection,
     required this.subjectName,
     required this.teacherName,
@@ -745,6 +759,12 @@ class RecordingItem {
     required this.durationStr,
     required this.durationSeconds,
     required this.views,
+    this.downloadsCount = 0,
+    this.fileSizeBytes = 0,
+    this.sharedCount = 0,
+    this.mimeType,
+    this.storageKey,
+    this.uploadedBy,
     required this.sizeStr,
     required this.status,
     required this.visibility,
@@ -752,24 +772,85 @@ class RecordingItem {
     this.tags = const [],
   });
 
+  RecordingItem copyWith({
+    String? title,
+    String? description,
+    String? recordingUrl,
+    String? classId,
+    String? sectionId,
+    String? subjectId,
+    String? teacherId,
+    String? classSection,
+    String? subjectName,
+    String? teacherName,
+    int? durationSeconds,
+    String? durationStr,
+    int? views,
+    int? downloadsCount,
+    int? sharedCount,
+    String? status,
+    String? visibility,
+    List<String>? tags,
+  }) {
+    return RecordingItem(
+      id: id,
+      liveClassId: liveClassId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      recordingUrl: recordingUrl ?? this.recordingUrl,
+      classId: classId ?? this.classId,
+      sectionId: sectionId ?? this.sectionId,
+      subjectId: subjectId ?? this.subjectId,
+      teacherId: teacherId ?? this.teacherId,
+      classSection: classSection ?? this.classSection,
+      subjectName: subjectName ?? this.subjectName,
+      teacherName: teacherName ?? this.teacherName,
+      dateTimeStr: dateTimeStr,
+      durationStr: durationStr ?? this.durationStr,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      views: views ?? this.views,
+      downloadsCount: downloadsCount ?? this.downloadsCount,
+      fileSizeBytes: fileSizeBytes,
+      sharedCount: sharedCount ?? this.sharedCount,
+      mimeType: mimeType,
+      storageKey: storageKey,
+      uploadedBy: uploadedBy,
+      sizeStr: sizeStr,
+      status: status ?? this.status,
+      visibility: visibility ?? this.visibility,
+      type: type,
+      tags: tags ?? this.tags,
+    );
+  }
+
   factory RecordingItem.fromJson(Map<String, dynamic> json) {
     return RecordingItem(
-      id: json['id'] ?? '',
-      liveClassId: json['live_class_id'] ?? '',
-      title: json['title'] ?? 'Lecture Recording',
-      description: json['description'],
-      recordingUrl: json['recording_url'],
-      classSection: json['class_section'] ?? 'Class 10 - A',
-      subjectName: json['subject_name'] ?? 'Mathematics',
-      teacherName: json['teacher_name'] ?? 'Teacher',
-      dateTimeStr: json['date_time_str'] ?? '21 Jan 2025, 08:00 AM',
-      durationStr: json['duration_str'] ?? '45 min',
-      durationSeconds: json['duration_seconds'] ?? 2700,
-      views: json['views'] ?? 112,
-      sizeStr: json['size_str'] ?? '282 MB',
-      status: json['status'] ?? 'Processed',
-      visibility: json['visibility'] ?? 'CLASS',
-      type: json['type'] ?? 'Live Class',
+      id: (json['id'] ?? '').toString(),
+      liveClassId: (json['live_class_id'] ?? '').toString(),
+      title: (json['title'] ?? 'Recorded Lecture').toString(),
+      description: json['description']?.toString(),
+      recordingUrl: json['recording_url']?.toString(),
+      classId: json['class_id']?.toString(),
+      sectionId: json['section_id']?.toString(),
+      subjectId: json['subject_id']?.toString(),
+      teacherId: json['teacher_id']?.toString(),
+      classSection: (json['class_section'] ?? 'Class').toString(),
+      subjectName: (json['subject_name'] ?? 'General').toString(),
+      teacherName: (json['teacher_name'] ?? 'Teacher').toString(),
+      dateTimeStr: (json['date_time_str'] ?? '').toString(),
+      durationStr: (json['duration_str'] ?? '1 min').toString(),
+      durationSeconds: (json['duration_seconds'] as num?)?.toInt() ?? 0,
+      views: (json['views'] as num?)?.toInt() ?? 0,
+      downloadsCount: (json['downloads_count'] as num?)?.toInt() ?? 0,
+      fileSizeBytes: (json['file_size'] as num?)?.toInt() ?? 0,
+      sharedCount: (json['shared_count'] as num?)?.toInt() ?? 0,
+      mimeType: json['mime_type']?.toString(),
+      storageKey: json['storage_key']?.toString(),
+      uploadedBy: json['uploaded_by']?.toString(),
+      sizeStr: (json['size_str'] ?? '0 B').toString(),
+      status: (json['status'] ?? 'Processed').toString(),
+      visibility: (json['visibility'] ?? 'CLASS').toString(),
+      type: (json['type'] ?? 'Live Class').toString(),
       tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
@@ -2107,9 +2188,9 @@ class MyClassItem {
       endTime: json['end_time'] ?? '08:45 AM',
       durationMinutes: json['duration_minutes'] ?? 45,
       status: json['status'] ?? 'Scheduled',
-      viewerCount: json['viewer_count'] ?? 42,
-      maxParticipants: json['max_participants'] ?? 45,
-      studentCountStr: json['student_count_str'] ?? '${json['viewer_count'] ?? 42} / ${json['max_participants'] ?? 45}',
+      viewerCount: (json['viewer_count'] as num?)?.toInt() ?? 0,
+      maxParticipants: (json['max_participants'] as num?)?.toInt() ?? 1,
+      studentCountStr: json['student_count_str'] ?? '${json['viewer_count'] ?? 0} / ${json['max_participants'] ?? 1}',
       attendancePercentage: json['attendance_percentage'] ?? 93,
       roomCode: json['room_code'] ?? '10A-MATH',
       meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/c/10A-math',
@@ -2181,9 +2262,9 @@ class MyClassDetails {
       dateStr: json['date_str'] ?? 'Tue, 21 Jan 2025',
       timeStr: json['time_str'] ?? '08:00 AM - 08:45 AM (45 min)',
       durationMinutes: json['duration_minutes'] ?? 45,
-      studentsCountStr: json['students_count_str'] ?? '42 / 45 (93%)',
-      viewerCount: json['viewer_count'] ?? 42,
-      maxParticipants: json['max_participants'] ?? 45,
+      studentsCountStr: json['students_count_str'] ?? '${json['viewer_count'] ?? 0} / ${json['max_participants'] ?? 1}',
+      viewerCount: (json['viewer_count'] as num?)?.toInt() ?? 0,
+      maxParticipants: (json['max_participants'] as num?)?.toInt() ?? 1,
       meetingCode: json['meeting_code'] ?? '10A-MATH',
       meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/c/10A-math',
       hostName: json['host_name'] ?? 'Instructor',

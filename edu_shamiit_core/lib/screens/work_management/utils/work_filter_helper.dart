@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../models/work_models.dart';
 import '../services/work_api_service.dart';
@@ -81,7 +82,7 @@ class WorkFilterHelper {
     }
   }
 
-  /// Canonical work boards matching Azure DevOps Boards.
+  /// Canonical work boards matching SHAMIIT Boards.
   static const List<String> boardOptions = [
     'All Boards',
     'Institute Work Board',
@@ -176,7 +177,7 @@ class WorkFilterHelper {
     'Library',
   ];
 
-  /// Canonical institute teams matching Azure DevOps Sprint Teams from DB.
+  /// Canonical institute teams matching SHAMIIT Sprint Teams from DB.
   static const List<String> defaultTeams = [
     'All',
     'Academic Systems Team',
@@ -195,7 +196,10 @@ class WorkFilterHelper {
     try {
       final resp = await api.getTeamsDirectory(limit: 100, forceRefresh: forceRefresh);
       if (resp != null && resp.teams.isNotEmpty) {
-        final names = resp.teams.map((t) => t.name).toList();
+        final names = resp.teams
+            .where((t) => t.status.toUpperCase() != 'ARCHIVED' && t.isActive)
+            .map((t) => t.name)
+            .toList();
         final combined = <String>{'All', ...names, ...defaultTeams}.toList();
         _cachedTeams = combined;
         return combined;
@@ -479,7 +483,7 @@ class WorkFilterHelper {
     return true;
   }
 
-  /// Builds a reusable modern searchable dropdown for the Azure DevOps filter bar.
+  /// Builds a reusable modern searchable dropdown for the SHAMIIT filter bar.
   static Widget buildFilterDropdown({
     required String label,
     required String value,
@@ -577,7 +581,7 @@ class WorkFilterHelper {
                         border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: isUnassign ? null : selectedTeam,
                           isExpanded: true,
                           hint: const Text('None (Unassigned)'),

@@ -881,7 +881,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: activeValue,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.bold),
@@ -1068,7 +1068,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.bold),
@@ -1756,7 +1756,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: activeValue,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

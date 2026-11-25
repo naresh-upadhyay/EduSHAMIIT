@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/payment_lookup_helper.dart';
@@ -132,7 +133,7 @@ class _ApplyStudentConcessionDialogState extends ConsumerState<ApplyStudentConce
                     }
 
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         key: ValueKey('concession_type_$effectiveType'),
                         value: effectiveType,
                         isExpanded: true,

@@ -520,7 +520,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _selectedSchoolId,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
@@ -575,7 +575,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _selectedAcademicYear,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -1368,6 +1369,7 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
 
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -1375,9 +1377,10 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: actualVal,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,

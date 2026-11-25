@@ -785,8 +785,6 @@ class HostelNotifier extends StateNotifier<HostelState> {
     } else if (index == 6) {
       loadComplaintsData();
     } else if (index == 7) {
-      // Tab 7: Integrated Visitors Management (managed via VisitorsProvider)
-    } else if (index == 8) {
       loadReportsData();
       fetchTurnoverForecast();
     }
@@ -811,7 +809,7 @@ class HostelNotifier extends StateNotifier<HostelState> {
       loadLeaveOutingData();
     } else if (state.activeTab == 6) {
       loadComplaintsData();
-    } else if (state.activeTab == 8) {
+    } else if (state.activeTab == 7) {
       loadReportsData();
       fetchTurnoverForecast();
     }

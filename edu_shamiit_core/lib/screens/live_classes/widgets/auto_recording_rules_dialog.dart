@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
@@ -234,7 +235,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.4)),
                               ),
-                              child: const Text('Azure DevOps Engine', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.bold)),
+                              child: const Text('SHAMIIT Rules Engine', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -306,7 +307,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
                     // TAB 1: Assigned Classes Quick Toggles
                     _buildAssignedClassesTab(isDark, cardBorder, textPrimary, textSecondary, inputFill),
 
-                    // TAB 2: Azure DevOps Style Query Builder
+                    // TAB 2: SHAMIIT Query Rules Builder
                     _buildConditionalQueryRulesTab(isDark, cardBorder, textPrimary, textSecondary, inputFill),
                   ],
                 ),
@@ -503,7 +504,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
   }
 
   // ============================================================================
-  // TAB 2: CONDITIONAL QUERY RULES (AZURE DEVOPS QUERY BUILDER STYLE)
+  // TAB 2: CONDITIONAL QUERY RULES (SHAMIIT QUERY RULES STYLE)
   // ============================================================================
   Widget _buildConditionalQueryRulesTab(bool isDark, Color cardBorder, Color textPrimary, Color textSecondary, Color inputFill) {
     return Column(
@@ -577,7 +578,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
                                 border: Border.all(color: cardBorder),
                               ),
                               child: DropdownButtonHideUnderline(
-                                child: DropdownButton<RuleLogicalOperator>(
+                                child: AppSearchableDropdown<RuleLogicalOperator>.fromMenuItems(
                                   value: clause.logicalOp,
                                   isExpanded: true,
                                   dropdownColor: isDark ? const Color(0xFF1E222D) : Colors.white,
@@ -613,7 +614,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
                           border: Border.all(color: cardBorder),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<RuleField>(
+                          child: AppSearchableDropdown<RuleField>.fromMenuItems(
                             value: clause.field,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E222D) : Colors.white,
@@ -645,7 +646,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
                           border: Border.all(color: cardBorder),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<RuleConditionOperator>(
+                          child: AppSearchableDropdown<RuleConditionOperator>.fromMenuItems(
                             value: clause.operator,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E222D) : Colors.white,
@@ -722,7 +723,7 @@ class _AutoRecordingRulesDialogState extends ConsumerState<AutoRecordingRulesDia
             ),
             const SizedBox(width: 10),
             Text(
-              'Supports complex multi-line criteria like Azure DevOps work item queries.',
+              'Supports complex multi-line criteria for intelligent automated recording triggers.',
               style: TextStyle(fontSize: 11, color: textSecondary),
             ),
           ],

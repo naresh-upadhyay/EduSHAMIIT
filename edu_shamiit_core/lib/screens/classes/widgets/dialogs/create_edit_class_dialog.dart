@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
 import '../../services/academic_lookup_helper.dart';
@@ -299,7 +300,7 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                         : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: _stages.any((s) =>
                                               s.label.toLowerCase() ==
                                               _stage.toLowerCase())
@@ -381,7 +382,7 @@ class _CreateEditClassDialogState extends State<CreateEditClassDialog> {
                                         : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: _statuses
                                               .any((s) => s.code == _status)
                                           ? _status

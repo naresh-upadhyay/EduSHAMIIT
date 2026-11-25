@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -220,8 +221,10 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _timeRange,
+                    isDense: true,
+                    isExpanded: false,
                     icon: Icon(
                       Icons.keyboard_arrow_down,
                       size: 16,
@@ -861,159 +864,166 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Search Box
-          Container(
-            width: 280,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-              ),
-            ),
-            child: TextField(
-              onChanged: (val) {
-                ref.read(inventoryProvider.notifier).setItemSearch(val);
-              },
-              decoration: InputDecoration(
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 18,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Search Box
+              Container(
+                width: isNarrow ? constraints.maxWidth : 260,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
                 ),
-                hintText: 'Search items by name, category...',
-                hintStyle: TextStyle(
-                  fontSize: 12.5,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                  fontFamily: 'Inter',
+                child: TextField(
+                  onChanged: (val) {
+                    ref.read(inventoryProvider.notifier).setItemSearch(val);
+                  },
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 18,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                    hintText: 'Search items by name, category...',
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      fontFamily: 'Inter',
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
+                  ),
                 ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 9),
               ),
-            ),
-          ),
 
-          // Categories Dropdown (Dynamic from Universal Lookups)
-          _buildDropdownFilter(
-            label: 'All Categories',
-            value: state.selectedCategory,
-            items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
-              ...?metadata?.itemCategories.map(
-                (c) {
-                  final text = c.lookupValue.isNotEmpty ? c.lookupValue : c.lookupCode;
-                  return DropdownMenuItem<String?>(
-                    value: text,
-                    child: Text(text),
-                  );
+              // Categories Dropdown (Dynamic from Universal Lookups)
+              _buildDropdownFilter(
+                label: 'All Categories',
+                value: state.selectedCategory,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
+                  ...?metadata?.itemCategories.map(
+                    (c) {
+                      final text = c.lookupValue.isNotEmpty ? c.lookupValue : c.lookupCode;
+                      return DropdownMenuItem<String?>(
+                        value: text,
+                        child: Text(text),
+                      );
+                    },
+                  ),
+                ],
+                onChanged: (val) => ref.read(inventoryProvider.notifier).setItemCategory(val),
+                isDark: isDark,
+              ),
+
+              // Stores Dropdown
+              _buildDropdownFilter(
+                label: 'All Stores',
+                value: state.selectedStoreId,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All Stores')),
+                  ...?metadata?.stores.map(
+                    (s) => DropdownMenuItem<String?>(
+                      value: s.storeId,
+                      child: Text(s.storeName),
+                    ),
+                  ),
+                ],
+                onChanged: (val) => ref.read(inventoryProvider.notifier).setItemStore(val),
+                isDark: isDark,
+              ),
+
+              // Status Dropdown
+              _buildDropdownFilter(
+                label: 'All Status',
+                value: state.selectedStatus,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All Status')),
+                  ...?metadata?.itemStatuses.map(
+                    (st) {
+                      final text = st.lookupValue.isNotEmpty ? st.lookupValue : st.lookupCode;
+                      return DropdownMenuItem<String?>(
+                        value: text,
+                        child: Text(text),
+                      );
+                    },
+                  ),
+                ],
+                onChanged: (val) => ref.read(inventoryProvider.notifier).setItemStatus(val),
+                isDark: isDark,
+              ),
+
+              // Filter Button (Blue Outline)
+              OutlinedButton.icon(
+                onPressed: () {
+                  ref.read(inventoryProvider.notifier).loadItems();
                 },
+                icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF2563EB)),
+                label: const Text(
+                  'Filter',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2563EB),
+                    fontFamily: 'Inter',
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF2563EB)),
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
-            ],
-            onChanged: (val) => ref.read(inventoryProvider.notifier).setItemCategory(val),
-            isDark: isDark,
-          ),
 
-          // Stores Dropdown
-          _buildDropdownFilter(
-            label: 'All Stores',
-            value: state.selectedStoreId,
-            items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('All Stores')),
-              ...?metadata?.stores.map(
-                (s) => DropdownMenuItem<String?>(
-                  value: s.storeId,
-                  child: Text(s.storeName),
+              // Grid / List View Toggle
+              Container(
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.grid_view_rounded, size: 18),
+                      color: _isGridView
+                          ? const Color(0xFF2563EB)
+                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      onPressed: () => setState(() => _isGridView = true),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Grid View',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.format_list_bulleted_rounded, size: 18),
+                      color: !_isGridView
+                          ? const Color(0xFF2563EB)
+                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      onPressed: () => setState(() => _isGridView = false),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      tooltip: 'List View',
+                    ),
+                  ],
                 ),
               ),
             ],
-            onChanged: (val) => ref.read(inventoryProvider.notifier).setItemStore(val),
-            isDark: isDark,
-          ),
-
-          // Status Dropdown
-          _buildDropdownFilter(
-            label: 'All Status',
-            value: state.selectedStatus,
-            items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('All Status')),
-              ...?metadata?.itemStatuses.map(
-                (st) {
-                  final text = st.lookupValue.isNotEmpty ? st.lookupValue : st.lookupCode;
-                  return DropdownMenuItem<String?>(
-                    value: text,
-                    child: Text(text),
-                  );
-                },
-              ),
-            ],
-            onChanged: (val) => ref.read(inventoryProvider.notifier).setItemStatus(val),
-            isDark: isDark,
-          ),
-
-          // Filter Button (Blue Outline)
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(inventoryProvider.notifier).loadItems();
-            },
-            icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF2563EB)),
-            label: const Text(
-              'Filter',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF2563EB),
-                fontFamily: 'Inter',
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF2563EB)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-
-          // Grid / List View Toggle
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.grid_view_rounded, size: 18),
-                  color: _isGridView
-                      ? const Color(0xFF2563EB)
-                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                  onPressed: () => setState(() => _isGridView = true),
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                  tooltip: 'Grid View',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.format_list_bulleted_rounded, size: 18),
-                  color: !_isGridView
-                      ? const Color(0xFF2563EB)
-                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                  onPressed: () => setState(() => _isGridView = false),
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                  tooltip: 'List View',
-                ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1038,6 +1048,7 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
 
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 195),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -1047,8 +1058,13 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<T?>(
+        child: AppSearchableDropdown<T?>.fromMenuItems(
           value: matchedValue,
+          label: label,
+          hint: label,
+          allowClear: true,
+          isDense: true,
+          isExpanded: false,
           icon: Icon(
             Icons.keyboard_arrow_down,
             size: 16,
@@ -1489,7 +1505,7 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: state.itemPageSize,
                     icon: Icon(
                       Icons.keyboard_arrow_down,

@@ -33,17 +33,23 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
     final perms = state.selectedBookPermissions;
     final analytics =
         state.selectedBookAnalytics ?? const DigitalAnalyticsModel();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: 480,
-      color: Colors.white,
+      color: isDark ? const Color(0xFF131B2E) : Colors.white,
       child: Column(
         children: [
           // Drawer Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            decoration: const BoxDecoration(
-              color: Color(0xFF0F172A),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              border: isDark
+                  ? const Border(
+                      bottom: BorderSide(color: Color(0xFF1E293B)),
+                    )
+                  : null,
             ),
             child: Row(
               children: [
@@ -89,24 +95,29 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
           // Digital Engagement Quick Stats
           Container(
             padding: const EdgeInsets.all(16),
-            color: const Color(0xFFF8FAFC),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             child: Row(
               children: [
                 _metricBox('Total Reads', '${analytics.totalReads}',
-                    Icons.visibility, Colors.indigo),
+                    Icons.visibility, Colors.indigo, isDark),
                 const SizedBox(width: 8),
                 _metricBox(
                     'Hours Spent',
                     '${analytics.totalReadingHours.toStringAsFixed(1)}h',
                     Icons.timer,
-                    Colors.teal),
+                    Colors.teal,
+                    isDark),
                 const SizedBox(width: 8),
                 _metricBox('Active Readers', '${analytics.uniqueReaders}',
-                    Icons.people, Colors.purple),
+                    Icons.people, Colors.purple, isDark),
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+          ),
 
           // Permissions List
           Expanded(
@@ -118,12 +129,17 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.lock_open,
-                                size: 48, color: Colors.grey[400]),
+                                size: 48,
+                                color: isDark
+                                    ? const Color(0xFF475569)
+                                    : Colors.grey[400]),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'No user permission requests found.',
                               style: TextStyle(
-                                  color: Color(0xFF64748B),
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF64748B),
                                   fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 4),
@@ -131,8 +147,11 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
                               widget.book.requiresPermission
                                   ? 'This book is RESTRICTED. Requests will appear here.'
                                   : 'This book has OPEN PUBLIC ACCESS.',
-                              style: const TextStyle(
-                                  color: Color(0xFF94A3B8), fontSize: 12),
+                              style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
+                                  fontSize: 12),
                             ),
                           ],
                         ),
@@ -143,7 +162,7 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, idx) {
                           final perm = perms[idx];
-                          return _buildPermissionCard(context, perm);
+                          return _buildPermissionCard(context, perm, isDark);
                         },
                       ),
           ),
@@ -152,14 +171,17 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
     );
   }
 
-  Widget _metricBox(String title, String val, IconData icon, Color color) {
+  Widget _metricBox(
+      String title, String val, IconData icon, Color color, bool isDark) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF131B2E) : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+              color:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,18 +191,20 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
                 Icon(icon, size: 14, color: color),
                 const SizedBox(width: 4),
                 Text(title,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B))),
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
               ],
             ),
             const SizedBox(height: 4),
             Text(val,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E293B))),
+                    color: isDark ? Colors.white : const Color(0xFF1E293B))),
           ],
         ),
       ),
@@ -188,7 +212,7 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
   }
 
   Widget _buildPermissionCard(
-      BuildContext context, DigitalAccessPermissionModel perm) {
+      BuildContext context, DigitalAccessPermissionModel perm, bool isDark) {
     final isPending = perm.status == 'PENDING';
     final isApproved = perm.status == 'APPROVED';
     final isExpired = perm.isExpired;
@@ -208,13 +232,17 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: isPending ? Colors.amber[300]! : const Color(0xFFE2E8F0)),
+            color: isPending
+                ? (isDark ? Colors.amber[700]! : Colors.amber[300]!)
+                : (isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFE2E8F0))),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2)),
         ],
@@ -246,15 +274,19 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
                   children: [
                     Text(
                       perm.userName ?? 'Library User',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
-                          color: Color(0xFF1E293B)),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF1E293B)),
                     ),
                     Text(
                       '${perm.userRole ?? 'Student'} • ${perm.userEmail ?? ''}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF64748B)),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -280,15 +312,18 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 'Reason: "${perm.reason}"',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
-                    color: Color(0xFF475569)),
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569)),
               ),
             ),
           ],
@@ -296,7 +331,11 @@ class _BookAccessDrawerState extends ConsumerState<BookAccessDrawer> {
             const SizedBox(height: 8),
             Text(
               'Expires: ${DateFormat('dd MMM yyyy').format(perm.expiresAt!)}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
           ],
           const SizedBox(height: 12),

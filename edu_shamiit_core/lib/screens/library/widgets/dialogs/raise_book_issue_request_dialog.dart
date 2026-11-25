@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -303,7 +304,7 @@ class _RaiseBookIssueRequestDialogState
                             fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _selectedPurpose,
                         decoration: _inputDecoration(isDark),
                         items: _purposes
@@ -405,7 +406,7 @@ class _RaiseBookIssueRequestDialogState
                                       fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _selectedFormat,
                                   decoration: _inputDecoration(isDark),
                                   items: _formats

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -1274,7 +1275,7 @@ class _GatePassDialogState extends ConsumerState<GatePassDialog>
                               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: _selectedGate,
                                 isExpanded: true,
                                 icon: const Icon(Icons.arrow_drop_down, size: 20),
@@ -1330,7 +1331,7 @@ class _GatePassDialogState extends ConsumerState<GatePassDialog>
                                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
+                                  child: AppSearchableDropdown<String>.fromMenuItems(
                                     value: _selectedGate,
                                     isExpanded: true,
                                     icon: const Icon(Icons.arrow_drop_down, size: 20),

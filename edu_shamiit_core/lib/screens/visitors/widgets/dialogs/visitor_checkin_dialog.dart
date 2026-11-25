@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/visitor_models.dart';
@@ -150,7 +151,7 @@ class _VisitorCheckInDialogState extends ConsumerState<VisitorCheckInDialog> {
             const SizedBox(height: 18),
 
             // Check-in Gate
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _selectedGate,
               decoration: const InputDecoration(
                 labelText: 'Entry Checkpoint / Gate *',

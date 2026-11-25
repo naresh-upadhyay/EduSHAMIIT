@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../../models/device_management_models.dart';
 
@@ -214,7 +215,7 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                       if (widget.availableDeviceTypes.isNotEmpty && widget.defaultDeviceTypeId == null) ...[
                         Text('Associated Device Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: _selectedDeviceTypeId,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -303,7 +304,7 @@ class _CreateEditDeviceProfileDialogState extends State<CreateEditDeviceProfileD
                               children: [
                                 Text('Profile Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _profileType,
                                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                                   style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),

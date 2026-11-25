@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -275,7 +276,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                           const SizedBox(height: 10),
 
                           if (isCompact) ...[
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _selectedFloorId.isNotEmpty ? _selectedFloorId : null,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Floor *'),
@@ -301,7 +302,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                               validator: (v) => v == null || v.trim().isEmpty ? 'Name required' : null,
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _roomType,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Room Type'),
@@ -309,7 +310,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                               onChanged: (v) => setState(() => _roomType = v ?? _roomType),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _operationalStatus,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Operational Status'),
@@ -317,7 +318,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                               onChanged: (v) => setState(() => _operationalStatus = v ?? _operationalStatus),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _assignmentStatus,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Assignment Status'),
@@ -328,7 +329,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _selectedFloorId.isNotEmpty ? _selectedFloorId : null,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Floor *'),
@@ -368,7 +369,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   flex: 4,
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _roomType,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Room Type'),
@@ -382,7 +383,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _operationalStatus,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Operational Status'),
@@ -392,7 +393,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _assignmentStatus,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Assignment Status'),
@@ -563,7 +564,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _liftProximity,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Lift Proximity'),
@@ -589,7 +590,7 @@ class _AddEditRoomDialogState extends State<AddEditRoomDialog> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _liftProximity,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Lift Proximity'),

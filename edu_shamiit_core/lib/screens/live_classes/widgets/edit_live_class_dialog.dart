@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
@@ -293,7 +294,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   value: _selectedClassId,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -345,7 +346,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   value: effectiveSectionId,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -395,7 +396,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   value: effectiveSubjectId,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -540,7 +541,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   value: _status,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -585,7 +586,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<int>(
+                                AppSearchableDropdownFormField<int>.fromMenuItems(
                                   value: _durationMinutes,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),
@@ -625,7 +626,7 @@ class _EditLiveClassDialogState extends ConsumerState<EditLiveClassDialog> {
                                         fontWeight: FontWeight.w600,
                                         color: textSecondary)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   value: _selectedTeacherId,
                                   isExpanded: true,
                                   style: TextStyle(color: textPrimary, fontSize: 13),

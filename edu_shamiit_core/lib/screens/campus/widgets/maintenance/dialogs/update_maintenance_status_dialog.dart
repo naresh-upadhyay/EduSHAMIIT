@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -99,7 +100,7 @@ class _UpdateMaintenanceStatusDialogState extends ConsumerState<UpdateMaintenanc
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _status,
                 isExpanded: true,
                 decoration: InputDecoration(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -1446,7 +1447,7 @@ class _CreateFeeStructureDialogState extends State<_CreateFeeStructureDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _roomType,
                         decoration: const InputDecoration(labelText: 'Room Type'),
                         items: ['Standard', 'Deluxe', 'Premium', 'Single', 'Sharing']
@@ -1457,7 +1458,7 @@ class _CreateFeeStructureDialogState extends State<_CreateFeeStructureDialog> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _category,
                         decoration: const InputDecoration(labelText: 'Category'),
                         items: ['Non-AC', 'AC']
@@ -1472,7 +1473,7 @@ class _CreateFeeStructureDialogState extends State<_CreateFeeStructureDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _billingCycle,
                         decoration: const InputDecoration(labelText: 'Billing Cycle'),
                         items: ['MONTHLY', 'QUARTERLY', 'ANNUALLY']

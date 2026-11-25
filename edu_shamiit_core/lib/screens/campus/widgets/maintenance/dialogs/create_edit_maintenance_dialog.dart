@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -298,7 +299,7 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _requestTypes.contains(_requestType) ? _requestType : (_requestTypes.isNotEmpty ? _requestTypes.first : null),
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -312,7 +313,7 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _priorities.contains(_priority) ? _priority : (_priorities.isNotEmpty ? _priorities.first : null),
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -380,7 +381,7 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _selectedVendorId,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -489,7 +490,7 @@ class _CreateEditMaintenanceDialogState extends ConsumerState<CreateEditMaintena
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _roles.contains(_role) ? _role : (_roles.isNotEmpty ? _roles.first : null),
                               isExpanded: true,
                               decoration: InputDecoration(

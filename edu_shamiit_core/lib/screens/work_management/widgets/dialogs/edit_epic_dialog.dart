@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
@@ -329,7 +330,7 @@ class _EditEpicDialogState extends ConsumerState<EditEpicDialog> {
                                       border: Border.all(color: borderColor),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
                                         value: _status,
                                         isExpanded: true,
                                         dropdownColor: bgColor,
@@ -368,7 +369,7 @@ class _EditEpicDialogState extends ConsumerState<EditEpicDialog> {
                                       border: Border.all(color: borderColor),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
                                         value: _priority,
                                         isExpanded: true,
                                         dropdownColor: bgColor,
@@ -413,7 +414,7 @@ class _EditEpicDialogState extends ConsumerState<EditEpicDialog> {
                                       border: Border.all(color: borderColor),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
                                         value: _category,
                                         isExpanded: true,
                                         dropdownColor: bgColor,
@@ -445,7 +446,7 @@ class _EditEpicDialogState extends ConsumerState<EditEpicDialog> {
                                       border: Border.all(color: borderColor),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String?>(
+                                      child: AppSearchableDropdown<String?>.fromMenuItems(
                                         value: teamOptions.any((t) => t['id'] == _selectedTeamName)
                                             ? _selectedTeamName
                                             : null,

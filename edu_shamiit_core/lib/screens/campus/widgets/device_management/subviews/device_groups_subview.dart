@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/device_management_models.dart';
@@ -685,7 +686,7 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: AppSearchableDropdown<String>.fromMenuItems(
                   value: locationOptions.contains(state.groupsFilterLocation) ? state.groupsFilterLocation : locationOptions.first,
                   isDense: true,
                   style: TextStyle(
@@ -708,7 +709,7 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: AppSearchableDropdown<String>.fromMenuItems(
                   value: typeOptions.contains(state.groupsFilterType) ? state.groupsFilterType : typeOptions.first,
                   isDense: true,
                   style: TextStyle(
@@ -731,7 +732,7 @@ class _DeviceGroupsSubviewState extends ConsumerState<DeviceGroupsSubview> {
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: AppSearchableDropdown<String>.fromMenuItems(
                   value: profileOptions.contains(state.groupsFilterProfile) ? state.groupsFilterProfile : profileOptions.first,
                   isDense: true,
                   style: TextStyle(

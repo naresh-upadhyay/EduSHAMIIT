@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -1301,7 +1302,7 @@ class _StudentFeeDrawerState extends ConsumerState<StudentFeeDrawer> with Single
                   const SizedBox(height: 16),
                   const Text('Select New Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedStatus,
                     decoration: InputDecoration(
                       isDense: true,

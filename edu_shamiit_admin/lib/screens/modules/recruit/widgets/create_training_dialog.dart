@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -330,7 +331,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _categoryOptions.contains(_categoryName) ? _categoryName : (_categoryOptions.isNotEmpty ? _categoryOptions.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -343,7 +344,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _trainingTypeOptions.contains(_trainingType) ? _trainingType : (_trainingTypeOptions.isNotEmpty ? _trainingTypeOptions.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -395,7 +396,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _audienceOptions.contains(_targetAudience) ? _targetAudience : (_audienceOptions.isNotEmpty ? _audienceOptions.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -414,7 +415,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _trainerType,
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -446,7 +447,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _modeOptions.contains(_mode) ? _mode : (_modeOptions.isNotEmpty ? _modeOptions.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -572,7 +573,7 @@ class _CreateTrainingDialogState extends State<CreateTrainingDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _assessmentOptions.contains(_assessmentType) ? _assessmentType : (_assessmentOptions.isNotEmpty ? _assessmentOptions.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(

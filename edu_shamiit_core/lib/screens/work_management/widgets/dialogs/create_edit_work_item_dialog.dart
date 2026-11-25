@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1652,7 +1653,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: _classesList.any((c) => c.id == _selectedClassId) ? _selectedClassId : (_classesList.isNotEmpty ? _classesList.first.id : null),
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1723,7 +1724,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: sections.any((s) => s.id == _selectedSectionId)
                   ? _selectedSectionId
                   : (sections.isNotEmpty ? sections.first.id : null),
@@ -1905,7 +1906,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: _statuses.contains(_status) ? _status : 'NEW',
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1965,7 +1966,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: _priorities.contains(_priority) ? _priority : 'MEDIUM',
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2025,7 +2026,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2065,7 +2066,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
+            child: AppSearchableDropdown<String?>.fromMenuItems(
               value: effectiveValue,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2143,7 +2144,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
+            child: AppSearchableDropdown<String?>.fromMenuItems(
               value: effectiveValue,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2187,7 +2188,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
         border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           isExpanded: true,
           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2267,7 +2268,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
+            child: AppSearchableDropdown<String?>.fromMenuItems(
               value: effectiveValue,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -2318,7 +2319,7 @@ class _CreateEditWorkItemDialogState extends ConsumerState<CreateEditWorkItemDia
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,

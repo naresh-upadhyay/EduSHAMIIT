@@ -67,7 +67,7 @@ class WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
   String _selectedSprint = WorkSprintDateHelper.currentSprintBoardDropdownLabel;
   String _selectedGroupBy = 'Status';
 
-  // Azure DevOps Filter Bar State
+  // SHAMIIT Filter Bar State
   bool _isFilterBarOpen = true;
   String _keywordFilter = '';
   String _typeFilter = 'All';
@@ -255,12 +255,12 @@ class WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Board Sub-filters Bar & Azure DevOps Filter Header
+          // 1. Board Sub-filters Bar & SHAMIIT Filter Header
           _buildFilterBar(context, isDark, allSprintsState),
 
-          // 2. Inline Collapsible Azure DevOps Filter Bar
+          // 2. Inline Collapsible SHAMIIT Filter Bar
           if (_isFilterBarOpen) ...[
-            _buildAzureDevOpsFilterBar(isDark),
+            _buildShamiitFilterBar(isDark),
             const SizedBox(height: 16),
           ] else ...[
             const SizedBox(height: 16),
@@ -475,7 +475,7 @@ class WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
               isDark: isDark,
             ),
 
-            // Azure DevOps Filters Toggle Button with Active Badge
+            // SHAMIIT Filters Toggle Button with Active Badge
             InkWell(
               onTap: () {
                 setState(() => _isFilterBarOpen = !_isFilterBarOpen);
@@ -567,7 +567,7 @@ class WorkBoardTabViewState extends ConsumerState<WorkBoardTabView> {
     );
   }
 
-  Widget _buildAzureDevOpsFilterBar(bool isDark) {
+  Widget _buildShamiitFilterBar(bool isDark) {
     final bgColor = isDark ? const Color(0xFF13182C) : Colors.white;
     final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0);
 

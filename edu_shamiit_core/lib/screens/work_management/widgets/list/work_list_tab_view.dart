@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -68,7 +69,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     }
   }
 
-  // Azure DevOps Filter Bar State
+  // SHAMIIT Filter Bar State
   bool _isFilterBarOpen = true;
   String _keywordFilter = '';
   String _typeFilter = 'All';
@@ -398,9 +399,9 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
           // 1. Sub-filters Bar
           _buildFilterBar(context, isDark),
 
-          // 2. Inline Collapsible Azure DevOps Filter Bar
+          // 2. Inline Collapsible SHAMIIT Filter Bar
           if (_isFilterBarOpen) ...[
-            _buildAzureDevOpsFilterBar(isDark),
+            _buildShamiitFilterBar(isDark),
             const SizedBox(height: 16),
           ] else ...[
             const SizedBox(height: 16),
@@ -655,7 +656,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
     );
   }
 
-  Widget _buildAzureDevOpsFilterBar(bool isDark) {
+  Widget _buildShamiitFilterBar(bool isDark) {
     final bgColor = isDark ? const Color(0xFF13182C) : Colors.white;
     final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0);
 
@@ -1652,7 +1653,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                   ),
                 ),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: _clientPageSize,
                     isDense: true,
                     style: TextStyle(
@@ -1886,7 +1887,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text('Change Status (${itemIds.length} Items)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          content: DropdownButtonFormField<String>(
+          content: AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: selectedStatus,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1937,7 +1938,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text('Change Priority (${itemIds.length} Items)', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          content: DropdownButtonFormField<String>(
+          content: AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: selectedPriority,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1991,7 +1992,7 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text('Move ${itemIds.length} Items to Sprint', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          content: DropdownButtonFormField<String>(
+          content: AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: selectedSprintId,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

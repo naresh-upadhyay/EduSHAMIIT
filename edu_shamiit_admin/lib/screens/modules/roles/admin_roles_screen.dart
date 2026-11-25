@@ -926,7 +926,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   border: Border.all(color: _borderColor),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _statusFilter,
                     dropdownColor: _cardBg,
                     style: TextStyle(color: _textPrimary, fontSize: 11.5),
@@ -956,7 +956,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   border: Border.all(color: _borderColor),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _roleTypeFilter,
                     dropdownColor: _cardBg,
                     style: TextStyle(color: _textPrimary, fontSize: 11.5),
@@ -1406,7 +1406,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       border: Border.all(color: _borderColor),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: pageSize,
                         dropdownColor: _dialogBg,
                         icon: Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: _textSecondary),
@@ -3541,7 +3541,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     border: Border.all(color: _borderColor),
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String?>(
+                                    child: AppSearchableDropdown<String?>.fromMenuItems(
                                       value: selectedParentId,
                                       isExpanded: true,
                                       dropdownColor: _dialogBg,
@@ -3592,7 +3592,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           border: Border.all(color: _borderColor),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: roleType,
                                             isExpanded: true,
                                             dropdownColor: _dialogBg,
@@ -3630,7 +3630,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           border: Border.all(color: _borderColor),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: status,
                                             isExpanded: true,
                                             dropdownColor: _dialogBg,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -488,15 +489,24 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
 
     // Dynamic teams from workspace (from db), falling back to teamsListProvider
     final List<String> availableTeamNames = ws.availableTeams.isNotEmpty
-        ? ws.availableTeams.map((t) => t.name).toList()
+        ? ws.availableTeams.where((t) => !t.isArchived).map((t) => t.name).toList()
         : teamsList;
     final allTeams = ['All Teams', ...availableTeamNames.where((t) => t != 'All Teams' && t != 'All')];
 
     // Determine current team selection label
     String currentTeamLabel = 'All Teams';
     if (retroState.teamId != null && retroState.teamId!.isNotEmpty && retroState.teamId != 'All Teams') {
-      final match = ws.availableTeams.where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId!.toLowerCase()).firstOrNull;
-      currentTeamLabel = match?.name ?? retroState.teamId!;
+      final match = ws.availableTeams
+          .where((t) => !t.isArchived)
+          .where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId!.toLowerCase())
+          .firstOrNull;
+      if (match != null) {
+        currentTeamLabel = match.name;
+      } else if (allTeams.contains(retroState.teamId)) {
+        currentTeamLabel = retroState.teamId!;
+      } else {
+        currentTeamLabel = 'All Teams';
+      }
     }
 
     // Sprint options combining allSprintsProvider and ws.availableSprints
@@ -3008,12 +3018,15 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
     final ws = ref.read(workSprintRetroProvider).workspace;
     final retroState = ref.read(workSprintRetroProvider);
     final List<String> availableTeamNames = (ws?.availableTeams.isNotEmpty == true)
-        ? ws!.availableTeams.map((t) => t.name).toList()
+        ? ws!.availableTeams.where((t) => !t.isArchived).map((t) => t.name).toList()
         : ref.read(workTeamsListProvider);
     final teamsList = availableTeamNames.where((t) => t != 'All Teams' && t != 'All').toList();
 
     String selectedTeam;
-    final matchingTeam = ws?.availableTeams.where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId?.toLowerCase()).firstOrNull;
+    final matchingTeam = ws?.availableTeams
+        .where((t) => !t.isArchived)
+        .where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId?.toLowerCase())
+        .firstOrNull;
     if (matchingTeam != null) {
       selectedTeam = matchingTeam.name;
     } else if (retroState.teamId != null && teamsList.contains(retroState.teamId)) {
@@ -3047,7 +3060,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: teamsList.contains(selectedTeam) ? selectedTeam : teamsList.first,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -3116,12 +3129,15 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
     final users = retroState.assignableUsers;
 
     final List<String> availableTeamNames = (ws?.availableTeams.isNotEmpty == true)
-        ? ws!.availableTeams.map((t) => t.name).toList()
+        ? ws!.availableTeams.where((t) => !t.isArchived).map((t) => t.name).toList()
         : ref.read(workTeamsListProvider);
     final teamsList = availableTeamNames.where((t) => t != 'All Teams' && t != 'All').toList();
 
     String selectedTeam;
-    final matchingTeam = ws?.availableTeams.where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId?.toLowerCase()).firstOrNull;
+    final matchingTeam = ws?.availableTeams
+        .where((t) => !t.isArchived)
+        .where((t) => t.id == retroState.teamId || t.name.toLowerCase() == retroState.teamId?.toLowerCase())
+        .firstOrNull;
     if (matchingTeam != null) {
       selectedTeam = matchingTeam.name;
     } else if (retroState.teamId != null && teamsList.contains(retroState.teamId)) {
@@ -3178,7 +3194,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: teamsList.contains(selectedTeam) ? selectedTeam : teamsList.first,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -3199,7 +3215,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                           children: [
                             const Text('Owner', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: ownerId,
                               isExpanded: true,
                               hint: const Text('Select Owner', style: TextStyle(fontSize: 12)),
@@ -3225,7 +3241,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                           children: [
                             const Text('Priority', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: priority,
                               items: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 12)))).toList(),
                               onChanged: (v) => setDialogState(() => priority = v ?? 'MEDIUM'),
@@ -3938,7 +3954,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
               ),
               if (updateStatus) ...[
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: status,
                   items: ['OPEN', 'PLANNED', 'IN_PROGRESS', 'COMPLETED'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                   onChanged: (v) => setDialogState(() => status = v ?? 'IN_PROGRESS'),
@@ -3958,7 +3974,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
               ),
               if (updatePriority) ...[
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: priority,
                   items: ['URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                   onChanged: (v) => setDialogState(() => priority = v ?? 'HIGH'),
@@ -4067,7 +4083,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                           children: [
                             const Text('Session Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: status,
                               items: ['IN_PROGRESS', 'COMPLETED', 'SCHEDULED', 'PAUSED']
                                   .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
@@ -4106,7 +4122,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                   if (participants.isNotEmpty) ...[
                     const Text('Facilitator', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 4),
-                    DropdownButtonFormField<String?>(
+                    AppSearchableDropdownFormField<String?>.fromMenuItems(
                       initialValue: selectedFacilitatorId,
                       items: [
                         DropdownMenuItem<String?>(
@@ -4499,9 +4515,10 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
     String? selectedUserId = availableUsers.isNotEmpty ? availableUsers.first.id : null;
     String selectedRole = 'Developer';
 
-    // Find the current team ID
-    final teamObj = ws.availableTeams.where((t) => t.id == retroState.teamId || t.name == ws.sprintOverview.teamName).firstOrNull;
-    final teamId = teamObj?.id ?? ws.availableTeams.firstOrNull?.id;
+    // Find the current team ID (excluding archived teams)
+    final activeTeams = ws.availableTeams.where((t) => !t.isArchived).toList();
+    final teamObj = activeTeams.where((t) => t.id == retroState.teamId || t.name == ws.sprintOverview.teamName).firstOrNull;
+    final teamId = teamObj?.id ?? activeTeams.firstOrNull?.id;
 
     if (teamId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4537,7 +4554,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                 const Text('Select User', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                 const SizedBox(height: 4),
                 if (availableUsers.isNotEmpty)
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedUserId,
                     items: availableUsers.map((u) {
                       return DropdownMenuItem(
@@ -4559,7 +4576,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
                 const SizedBox(height: 12),
                 const Text('Team Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: selectedRole,
                   items: ['Developer', 'Senior Developer', 'QA Engineer', 'UI/UX Designer', 'DevOps Engineer', 'System Analyst', 'Member']
                       .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12))))
@@ -4621,7 +4638,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
             children: [
               const Text('Category', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
               const SizedBox(height: 4),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: category,
                 items: ['Team Collaboration', 'Planning', 'Workload', 'Process', 'Tools'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setDialogState(() => category = v ?? 'Team Collaboration'),
@@ -4709,7 +4726,7 @@ class _SprintRetrospectiveTabViewState extends ConsumerState<SprintRetrospective
               children: [
                 const Text('Category', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                 const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: ['Team Collaboration', 'Planning', 'Workload', 'Process', 'Tools'].contains(category) ? category : 'Team Collaboration',
                   items: ['Team Collaboration', 'Planning', 'Workload', 'Process', 'Tools'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (v) => setDialogState(() => category = v ?? 'Team Collaboration'),
@@ -5371,7 +5388,7 @@ class _RetroActionItemDetailDrawerState extends ConsumerState<_RetroActionItemDe
                           children: [
                             const Text('Priority', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].contains(_priority) ? _priority : 'MEDIUM',
                               items: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                               onChanged: (v) {
@@ -5392,7 +5409,7 @@ class _RetroActionItemDetailDrawerState extends ConsumerState<_RetroActionItemDe
                           children: [
                             const Text('Status', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                             const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: ['OPEN', 'PLANNED', 'IN_PROGRESS', 'COMPLETED'].contains(_status) ? _status : 'OPEN',
                               items: ['OPEN', 'PLANNED', 'IN_PROGRESS', 'COMPLETED'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (v) {
@@ -6175,7 +6192,7 @@ class _LinkOrConvertWorkItemDialogState extends ConsumerState<_LinkOrConvertWork
                 children: [
                   const Text('Work Type', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _workType,
                     items: ['TASK', 'STORY', 'BUG', 'ISSUE'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                     onChanged: (v) {
@@ -6196,7 +6213,7 @@ class _LinkOrConvertWorkItemDialogState extends ConsumerState<_LinkOrConvertWork
                 children: [
                   const Text('Priority', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _priority,
                     items: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                     onChanged: (v) {
@@ -6216,7 +6233,7 @@ class _LinkOrConvertWorkItemDialogState extends ConsumerState<_LinkOrConvertWork
 
         const Text('Assignee / Owner', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
         const SizedBox(height: 4),
-        DropdownButtonFormField<String?>(
+        AppSearchableDropdownFormField<String?>.fromMenuItems(
           initialValue: validParticipants.any((p) => p.userId == _selectedOwnerId) ? _selectedOwnerId : null,
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),

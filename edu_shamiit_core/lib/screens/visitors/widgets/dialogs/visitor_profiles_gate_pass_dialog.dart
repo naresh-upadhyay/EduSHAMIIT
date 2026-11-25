@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/visitor_models.dart';
@@ -900,7 +901,7 @@ class _VisitorProfilesGatePassDialogState
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _newVisitorType,
                     style: TextStyle(
                       fontSize: 12,
@@ -1063,7 +1064,7 @@ class _VisitorProfilesGatePassDialogState
             ),
           ),
           const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: state.availableLocations.contains(_selectedLocation)
                 ? _selectedLocation
                 : state.availableLocations.first,
@@ -1161,7 +1162,7 @@ class _VisitorProfilesGatePassDialogState
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white : const Color(0xFF0F172A))),
           const SizedBox(height: 4),
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _purposeOptions.contains(_purpose) ? _purpose : _purposeOptions.first,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.flag_outlined, size: 18),

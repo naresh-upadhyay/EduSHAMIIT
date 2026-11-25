@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1030,7 +1031,7 @@ class _SpaceBookingCenterPanelState extends ConsumerState<SpaceBookingCenterPane
         border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.any((i) => i.value == value) ? value : (items.isNotEmpty ? items.first.value : null),
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           icon: Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),

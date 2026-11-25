@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -782,7 +783,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                     builder: (ctx) => StatefulBuilder(
                                       builder: (ctx, setDialogState) => AlertDialog(
                                         title: const Text('Move Selected Documents'),
-                                        content: DropdownButtonFormField<String?>(
+                                        content: AppSearchableDropdownFormField<String?>.fromMenuItems(
                                           decoration: const InputDecoration(labelText: 'Target Folder', border: OutlineInputBorder()),
                                           items: [
                                             const DropdownMenuItem(value: null, child: Text('📁 Root Directory')),
@@ -946,7 +947,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final typesDropdown = SizedBox(
           height: 38,
           width: 110,
-          child: DropdownButtonFormField<String>(
+          child: AppSearchableDropdownFormField<String>.fromMenuItems(
             isExpanded: true,
             initialValue: state.selectedFileType,
             isDense: true,
@@ -973,7 +974,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final deptDropdown = SizedBox(
           height: 38,
           width: 135,
-          child: DropdownButtonFormField<String>(
+          child: AppSearchableDropdownFormField<String>.fromMenuItems(
             isExpanded: true,
             initialValue: state.selectedDepartment,
             isDense: true,
@@ -1001,9 +1002,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final usersDropdown = SizedBox(
           height: 38,
           width: 135,
-          child: DropdownButtonFormField<String?>(
+          child: AppSearchableDropdownFormField<String?>.fromMenuItems(
             isExpanded: true,
-            initialValue: state.selectedOwnerId,
+            initialValue: (state.selectedOwnerId == 'All' || state.selectedOwnerId.isEmpty) ? null : state.selectedOwnerId,
             isDense: true,
             dropdownColor: cardBg,
             decoration: InputDecoration(
@@ -1015,8 +1016,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             items: [
               const DropdownMenuItem(value: null, child: Text('All Authors', overflow: TextOverflow.ellipsis)),
               ...state.schoolUsers.map((u) => DropdownMenuItem<String?>(
-                    value: u['id'],
-                    child: Text(u['name'] ?? 'User', overflow: TextOverflow.ellipsis),
+                    value: u['id']?.toString(),
+                    child: Text(u['full_name']?.toString() ?? u['name']?.toString() ?? 'User', overflow: TextOverflow.ellipsis),
                   )),
             ],
             onChanged: (val) => ref.read(documentsProvider.notifier).setOwnerFilter(val),
@@ -1712,7 +1713,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Items per page: ', style: TextStyle(fontFamily: AppFonts.body, fontSize: 11.5, color: textMuted)),
-              DropdownButton<int>(
+              AppSearchableDropdown<int>.fromMenuItems(
                 value: state.pageSize,
                 isDense: true,
                 dropdownColor: cardBg,

@@ -1,7 +1,10 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/live_class_management_provider.dart';
+import '../../classes/providers/class_provider.dart';
 
 class UploadRecordingDialog extends ConsumerStatefulWidget {
   const UploadRecordingDialog({super.key});
@@ -26,14 +29,23 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
   final _fileSizeCtrl = TextEditingController(text: '282.5');
   final _descCtrl = TextEditingController(text: 'Complete classroom lecture notes and live recording with interactive board synthesis.');
 
-  String _selectedClassSection = 'Class 10 - 10-A';
-  String _selectedClassId = 'cls_10a';
-  String _selectedSubject = 'Computer Science';
-  String _selectedSubjectId = 'sub_cs';
+  String? _selectedClassId;
+  String? _selectedSectionId;
+  String? _selectedSubjectId;
   String _visibility = 'CLASS';
-  String? _selectedFileName = 'lecture_session_recording_masterclass.mp4';
+
+  PlatformFile? _pickedFile;
+  String? _selectedFileName;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(classProvider.notifier).fetchClasses();
+    });
+  }
 
   @override
   void dispose() {
@@ -45,45 +57,100 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     super.dispose();
   }
 
-  void _handleUpload() async {
+  Future<void> _pickLocalFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'mp4', 'webm', 'mkv', 'mov', 'avi', 'flv', 'wmv',
+          'pdf', 'doc', 'docx', 'ppt', 'pptx', 'zip', 'csv', 'txt'
+        ],
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        setState(() {
+          _pickedFile = file;
+          _selectedFileName = file.name;
+          final sizeMb = file.size / (1024 * 1024);
+          _fileSizeCtrl.text = sizeMb > 0 ? sizeMb.toStringAsFixed(1) : '15.5';
+
+          // Auto-derive clean title if unchanged from default
+          if (_titleCtrl.text.isEmpty || _titleCtrl.text == 'Class 10 - Conceptual Synthesis Lecture') {
+            final clean = file.name
+                .replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '')
+                .replaceAll(RegExp(r'[_\-]+'), ' ')
+                .trim();
+            if (clean.isNotEmpty) {
+              _titleCtrl.text = clean;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[UploadRecordingDialog] Pick file error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not access local file picker: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleUpload({
+    required String className,
+    required String sectionName,
+    required String subjectName,
+  }) async {
     if (!_formKey.currentState!.validate()) return;
+    if (_pickedFile == null || _pickedFile!.bytes == null || _pickedFile!.bytes!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a video file from your device before publishing.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isUploading = true;
-      _uploadProgress = 0.15;
+      _uploadProgress = 0.25;
     });
 
-    // Realistic upload progress simulation
-    for (int i = 1; i <= 6; i++) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      if (mounted) {
-        setState(() {
-          _uploadProgress = (i * 0.16).clamp(0.0, 1.0);
-        });
-      }
-    }
-
-    final durationMin = int.tryParse(_durationCtrl.text.trim()) ?? 45;
-    final sizeMb = double.tryParse(_fileSizeCtrl.text.trim()) ?? 280.0;
+    final durationMin = int.tryParse(_durationCtrl.text.trim()) ?? 1;
+    final sizeMb = double.tryParse(_fileSizeCtrl.text.trim()) ??
+        (_pickedFile!.size / (1024 * 1024));
+    final classSection = '$className - $sectionName';
 
     final success = await ref.read(liveClassManagementProvider.notifier).uploadRecording(
       title: _titleCtrl.text.trim(),
-      classId: _selectedClassId,
-      classSection: _selectedClassSection,
-      subjectId: _selectedSubjectId,
-      subjectName: _selectedSubject,
+      classId: _selectedClassId ?? '',
+      sectionId: _selectedSectionId,
+      classSection: classSection,
+      subjectId: _selectedSubjectId ?? '',
+      subjectName: subjectName,
       teacherName: _teacherCtrl.text.trim(),
       durationMinutes: durationMin,
       fileSizeMb: sizeMb,
+      fileBytes: _pickedFile!.bytes,
+      fileName: _pickedFile!.name,
       description: _descCtrl.text.trim(),
       visibility: _visibility,
     );
 
     if (mounted) {
+      setState(() => _uploadProgress = 1.0);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Recording uploaded and published to class feed successfully.' : 'Upload failed.'),
+          content: Text(success
+              ? 'Recording "${_titleCtrl.text.trim()}" uploaded & published successfully.'
+              : 'Upload failed. Please ensure valid video format (.mp4/.webm/.mkv) and connection.'),
           backgroundColor: success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
           duration: const Duration(seconds: 3),
         ),
@@ -101,35 +168,142 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     final inputFill = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
 
     final meta = ref.watch(liveClassManagementProvider).dropdownMeta;
-    final classList = meta?.classes ?? [];
-    final subjectList = meta?.subjects ?? [];
+    final classState = ref.watch(classProvider);
 
-    final combinedClasses = <String>{
-      'Class 10 - 10-A',
-      'Class 10 - 10-B',
-      'Class 11 - 11-A',
-      'Class 12 - 12-A',
-      ...classList.map((c) => c.name.trim()).where((n) => n.isNotEmpty),
-      if (_selectedClassSection.trim().isNotEmpty) _selectedClassSection.trim(),
-    }.toList();
+    // =========================================================================
+    // Build Cascading Datasets strictly in order: Class -> Section -> Subject
+    // =========================================================================
+    final classMap = <String, Map<String, dynamic>>{};
 
-    final effectiveClass = combinedClasses.contains(_selectedClassSection)
-        ? _selectedClassSection
-        : (combinedClasses.isNotEmpty ? combinedClasses.first : null);
+    // 1. Ingest from Class Management (classProvider - Image 2)
+    for (final c in classState.availableClasses) {
+      if (c.id.isNotEmpty && c.name.isNotEmpty) {
+        classMap[c.id] = {
+          'id': c.id,
+          'name': c.name,
+          'sections': c.sections.map((s) => {'id': s.id, 'name': s.name}).toList(),
+          'subjects': c.subjects.map((sub) => {'id': sub.id, 'name': sub.name}).toList(),
+        };
+      }
+    }
 
-    final combinedSubjects = <String>{
-      'Computer Science',
-      'Mathematics',
-      'Physics',
-      'Chemistry',
-      'General',
-      ...subjectList.map((s) => s.name.trim()).where((n) => n.isNotEmpty),
-      if (_selectedSubject.trim().isNotEmpty) _selectedSubject.trim(),
-    }.toList();
+    // 2. Ingest from LiveClassManagement metadata dropdowns
+    if (meta != null) {
+      for (final c in meta.classes) {
+        if (!classMap.containsKey(c.id)) {
+          classMap[c.id] = {
+            'id': c.id,
+            'name': c.name,
+            'sections': <Map<String, dynamic>>[],
+            'subjects': <Map<String, dynamic>>[],
+          };
+        }
+      }
+      for (final s in meta.sections) {
+        if (classMap.containsKey(s.classId)) {
+          final existing = classMap[s.classId]!['sections'] as List<Map<String, dynamic>>;
+          if (!existing.any((e) => e['id'] == s.id || e['name'] == s.name)) {
+            existing.add({'id': s.id, 'name': s.name});
+          }
+        }
+      }
+      for (final cs in meta.classSubjects) {
+        if (classMap.containsKey(cs.classId)) {
+          final existing = classMap[cs.classId]!['subjects'] as List<Map<String, dynamic>>;
+          if (!existing.any((e) => e['id'] == cs.subjectId || e['name'] == cs.subjectName)) {
+            existing.add({'id': cs.subjectId, 'name': cs.subjectName});
+          }
+        }
+      }
+    }
 
-    final effectiveSubject = combinedSubjects.contains(_selectedSubject)
-        ? _selectedSubject
-        : (combinedSubjects.isNotEmpty ? combinedSubjects.first : null);
+    // 3. Fallback standard academic classes & sections if API is empty
+    if (classMap.isEmpty) {
+      final defaultClasses = [
+        {'id': 'cls_9', 'name': 'Class 9', 'secs': ['9-A', '9-B', '9-C', '9-D']},
+        {'id': 'cls_10', 'name': 'Class 10', 'secs': ['10-A', '10-B', '10-C']},
+        {'id': 'cls_11', 'name': 'Class 11', 'secs': ['11-A', '11-B']},
+        {'id': 'cls_12', 'name': 'Class 12', 'secs': ['12-A', '12-B']},
+      ];
+      final defaultSubs = [
+        {'id': 'sub_comp', 'name': 'Computer Science'},
+        {'id': 'sub_math', 'name': 'Mathematics'},
+        {'id': 'sub_sci', 'name': 'Science'},
+        {'id': 'sub_sst', 'name': 'Social Science'},
+        {'id': 'sub_eng', 'name': 'English'},
+        {'id': 'sub_phy', 'name': 'Physics'},
+        {'id': 'sub_chem', 'name': 'Chemistry'},
+      ];
+
+      for (final dc in defaultClasses) {
+        final cid = dc['id'] as String;
+        final cname = dc['name'] as String;
+        final secNames = dc['secs'] as List<String>;
+        classMap[cid] = {
+          'id': cid,
+          'name': cname,
+          'sections': secNames.map((sn) => {'id': 'sec_${cid}_$sn', 'name': sn}).toList(),
+          'subjects': defaultSubs,
+        };
+      }
+    }
+
+    // Sort classes numerically (e.g. Class 1 -> Class 12)
+    final sortedClasses = classMap.values.toList()
+      ..sort((a, b) {
+        final numA = int.tryParse(RegExp(r'\d+').firstMatch(a['name'] as String)?.group(0) ?? '0') ?? 0;
+        final numB = int.tryParse(RegExp(r'\d+').firstMatch(b['name'] as String)?.group(0) ?? '0') ?? 0;
+        if (numA != numB) return numA.compareTo(numB);
+        return (a['name'] as String).compareTo(b['name'] as String);
+      });
+
+    // 1. Resolve selected Class
+    if (_selectedClassId == null || !classMap.containsKey(_selectedClassId)) {
+      final preferredClass = sortedClasses.firstWhere(
+        (c) => (c['name'] as String).contains('10'),
+        orElse: () => sortedClasses.isNotEmpty ? sortedClasses.first : {'id': 'cls_10', 'name': 'Class 10', 'sections': [], 'subjects': []},
+      );
+      _selectedClassId = preferredClass['id'] as String;
+    }
+    final currentClass = classMap[_selectedClassId] ?? (sortedClasses.isNotEmpty ? sortedClasses.first : null);
+    final currentClassName = currentClass?['name'] as String? ?? 'Class 10';
+
+    // 2. Resolve available Sections cascaded from Class
+    final availableSections = (currentClass?['sections'] as List<Map<String, dynamic>>? ?? []).toList();
+    if (availableSections.isEmpty) {
+      availableSections.addAll([
+        {'id': 'sec_${_selectedClassId}_a', 'name': '$currentClassName-A'},
+        {'id': 'sec_${_selectedClassId}_b', 'name': '$currentClassName-B'},
+      ]);
+    }
+    if (_selectedSectionId == null || !availableSections.any((s) => s['id'] == _selectedSectionId)) {
+      _selectedSectionId = availableSections.isNotEmpty ? availableSections.first['id'] as String : null;
+    }
+    final currentSection = availableSections.firstWhere(
+      (s) => s['id'] == _selectedSectionId,
+      orElse: () => availableSections.isNotEmpty ? availableSections.first : {'id': 'sec_default', 'name': 'A'},
+    );
+    final currentSectionName = currentSection['name'] as String? ?? 'A';
+
+    // 3. Resolve available Subjects strictly cascaded from Class & Section
+    final availableSubjects = (currentClass?['subjects'] as List<Map<String, dynamic>>? ?? []).toList();
+    if (availableSubjects.isEmpty) {
+      availableSubjects.addAll([
+        {'id': 'sub_comp', 'name': 'Computer Science'},
+        {'id': 'sub_math', 'name': 'Mathematics'},
+        {'id': 'sub_sci', 'name': 'Science'},
+        {'id': 'sub_sst', 'name': 'Social Science'},
+        {'id': 'sub_eng', 'name': 'English'},
+      ]);
+    }
+    if (_selectedSubjectId == null || !availableSubjects.any((sub) => sub['id'] == _selectedSubjectId)) {
+      _selectedSubjectId = availableSubjects.isNotEmpty ? availableSubjects.first['id'] as String : null;
+    }
+    final currentSubject = availableSubjects.firstWhere(
+      (sub) => sub['id'] == _selectedSubjectId,
+      orElse: () => availableSubjects.isNotEmpty ? availableSubjects.first : {'id': 'sub_default', 'name': 'General'},
+    );
+    final currentSubjectName = currentSubject['name'] as String? ?? 'General';
 
     return Dialog(
       backgroundColor: bg,
@@ -139,7 +313,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 780),
+        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 790),
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Form(
@@ -186,37 +360,86 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Dropzone box
+                        // Local File Picker Dropzone Box
                         InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedFileName = 'recorded_lecture_${DateTime.now().millisecondsSinceEpoch % 10000}.mp4';
-                            });
-                          },
+                          onTap: _pickLocalFile,
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFF3B82F6), width: 1.2),
+                              border: Border.all(
+                                color: _selectedFileName != null
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFF3B82F6),
+                                width: 1.5,
+                              ),
                             ),
-                            child: Column(
-                              children: [
-                                const Icon(Icons.video_file_rounded, size: 36, color: Color(0xFF3B82F6)),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _selectedFileName ?? 'Drop video file here or click to browse',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: _selectedFileName != null ? const Color(0xFF10B981) : textPrimary,
+                            child: _selectedFileName != null
+                                ? Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.check_circle_rounded, size: 24, color: Color(0xFF10B981)),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _selectedFileName!,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: textPrimary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '${_fileSizeCtrl.text} MB • Ready to publish from local system',
+                                              style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: _pickLocalFile,
+                                        icon: const Icon(Icons.folder_open_rounded, size: 14),
+                                        label: const Text('Change File', style: TextStyle(fontSize: 11)),
+                                        style: OutlinedButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Column(
+                                    children: [
+                                      const Icon(Icons.cloud_upload_rounded, size: 36, color: Color(0xFF3B82F6)),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Click to browse document or video from your device',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Supported formats: MP4, WebM, MKV, PDF, DOCX, PPTX (Max 4 GB)',
+                                        style: TextStyle(fontSize: 11, color: textSecondary),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text('Supported formats: MP4, WebM, MKV (Max 4 GB)', style: TextStyle(fontSize: 11, color: textSecondary)),
-                              ],
-                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -229,7 +452,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                           validator: (v) => v == null || v.trim().isEmpty ? 'Please enter title' : null,
                           style: TextStyle(fontSize: 12.5, color: textPrimary),
                           decoration: InputDecoration(
-                            hintText: 'e.g. Class 10 - Computer Science Algorithm Design',
+                            hintText: 'e.g. Class 10 - Conceptual Synthesis Lecture',
                             hintStyle: TextStyle(fontSize: 12, color: textSecondary),
                             filled: true,
                             fillColor: inputFill,
@@ -240,41 +463,50 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Class & Subject Row
+                        // Cascading 3-Column Selectors: Class -> Section -> Subject
                         Row(
                           children: [
-                            // Class
+                            // 1. Class
                             Expanded(
+                              flex: 3,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Class & Section *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
+                                  Text('Class *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
                                   const SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    height: 38,
                                     decoration: BoxDecoration(
                                       color: inputFill,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: cardBorder),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: effectiveClass,
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
+                                        value: _selectedClassId,
                                         hint: Text('Select Class', style: TextStyle(fontSize: 12, color: textSecondary)),
                                         isExpanded: true,
+                                        compact: true,
+                                        isDense: true,
+                                        itemHeight: 32,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                                         dropdownColor: bg,
-                                        items: combinedClasses.map((cls) {
+                                        items: sortedClasses.map((cls) {
                                           return DropdownMenuItem<String>(
-                                            value: cls,
-                                            child: Text(cls, style: TextStyle(fontSize: 12, color: textPrimary)),
+                                            value: cls['id'] as String,
+                                            child: Text(cls['name'] as String, style: TextStyle(fontSize: 12, color: textPrimary), overflow: TextOverflow.ellipsis),
                                           );
                                         }).toList(),
                                         onChanged: (v) {
-                                          if (v != null) {
+                                          if (v != null && v != _selectedClassId) {
                                             setState(() {
-                                              _selectedClassSection = v;
-                                              final match = classList.where((c) => c.name == v).firstOrNull;
-                                              if (match != null) _selectedClassId = match.id;
+                                              _selectedClassId = v;
+                                              final newClass = classMap[v];
+                                              final newSecs = newClass?['sections'] as List<Map<String, dynamic>>? ?? [];
+                                              _selectedSectionId = newSecs.isNotEmpty ? newSecs.first['id'] as String : null;
+
+                                              final newSubs = newClass?['subjects'] as List<Map<String, dynamic>>? ?? [];
+                                              _selectedSubjectId = newSubs.isNotEmpty ? newSubs.first['id'] as String : null;
                                             });
                                           }
                                         },
@@ -284,40 +516,86 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Subject
+                            const SizedBox(width: 10),
+
+                            // 2. Section (Cascaded from Class)
                             Expanded(
+                              flex: 3,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Subject *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
+                                  Text('Section *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
                                   const SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    height: 38,
                                     decoration: BoxDecoration(
                                       color: inputFill,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: cardBorder),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: effectiveSubject,
-                                        hint: Text('Select Subject', style: TextStyle(fontSize: 12, color: textSecondary)),
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
+                                        value: _selectedSectionId,
+                                        hint: Text('Select Section', style: TextStyle(fontSize: 12, color: textSecondary)),
                                         isExpanded: true,
+                                        compact: true,
+                                        isDense: true,
+                                        itemHeight: 32,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                                         dropdownColor: bg,
-                                        items: combinedSubjects.map((sub) {
+                                        items: availableSections.map((sec) {
                                           return DropdownMenuItem<String>(
-                                            value: sub,
-                                            child: Text(sub, style: TextStyle(fontSize: 12, color: textPrimary)),
+                                            value: sec['id'] as String,
+                                            child: Text(sec['name'] as String, style: TextStyle(fontSize: 12, color: textPrimary), overflow: TextOverflow.ellipsis),
                                           );
                                         }).toList(),
                                         onChanged: (v) {
                                           if (v != null) {
-                                            setState(() {
-                                              _selectedSubject = v;
-                                              final match = subjectList.where((s) => s.name == v).firstOrNull;
-                                              if (match != null) _selectedSubjectId = match.id;
-                                            });
+                                            setState(() => _selectedSectionId = v);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // 3. Subject (Cascaded from Class & Section)
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Subject *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: inputFill,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: cardBorder),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
+                                        value: _selectedSubjectId,
+                                        hint: Text('Select Subject', style: TextStyle(fontSize: 12, color: textSecondary)),
+                                        isExpanded: true,
+                                        compact: true,
+                                        isDense: true,
+                                        itemHeight: 32,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                        dropdownColor: bg,
+                                        items: availableSubjects.map((sub) {
+                                          return DropdownMenuItem<String>(
+                                            value: sub['id'] as String,
+                                            child: Text(sub['name'] as String, style: TextStyle(fontSize: 12, color: textPrimary), overflow: TextOverflow.ellipsis),
+                                          );
+                                        }).toList(),
+                                        onChanged: (v) {
+                                          if (v != null) {
+                                            setState(() => _selectedSubjectId = v);
                                           }
                                         },
                                       ),
@@ -443,7 +721,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Uploading and processing high-definition recording (${(_uploadProgress * 100).toInt()}%)...',
+                            'Uploading and publishing recording to audience (${(_uploadProgress * 100).toInt()}%)...',
                             style: const TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
                             textAlign: TextAlign.center,
                           ),
@@ -470,7 +748,13 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: _isUploading ? null : _handleUpload,
+                      onPressed: _isUploading
+                          ? null
+                          : () => _handleUpload(
+                                className: currentClassName,
+                                sectionName: currentSectionName,
+                                subjectName: currentSubjectName,
+                              ),
                       icon: const Icon(Icons.cloud_upload_rounded, size: 16),
                       label: Text(_isUploading ? 'Uploading...' : 'Save & Publish Recording', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),

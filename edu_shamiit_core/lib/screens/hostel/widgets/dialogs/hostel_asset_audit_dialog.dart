@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -183,7 +184,7 @@ class _HostelAssetAuditDialogState extends ConsumerState<HostelAssetAuditDialog>
                         // Condition Dropdown
                         Expanded(
                           flex: 3,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: row['condition'] as String,
                             isDense: true,
                             decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6)),

@@ -17,6 +17,7 @@ class RequestSidePanels extends ConsumerWidget {
     final state = ref.watch(requestProvider);
     final notifier = ref.read(requestProvider.notifier);
     final kpis = state.kpis;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -25,57 +26,65 @@ class RequestSidePanels extends ConsumerWidget {
         children: [
           // Panel 1: Request Types Breakdown Card
           _buildRequestTypesCard(
-              context, kpis.typeCounts, state.selectedType, notifier),
+              context, kpis.typeCounts, state.selectedType, notifier, isDark),
           const SizedBox(height: 18),
 
           // Panel 2: Status Distribution Donut Chart Card
-          _buildStatusDistributionCard(context, kpis.statusDistribution),
+          _buildStatusDistributionCard(
+              context, kpis.statusDistribution, isDark),
           const SizedBox(height: 18),
 
           // Panel 3: Recent Requests Feed
-          _buildRecentRequestsCard(context, kpis.recentRequests, notifier),
+          _buildRecentRequestsCard(
+              context, kpis.recentRequests, notifier, isDark),
         ],
       ),
     );
   }
 
-  Map<String, dynamic> _getTypeStyling(String type) {
+  Map<String, dynamic> _getTypeStyling(String type, bool isDark) {
     final t = type.toLowerCase();
     if (t.contains('audio')) {
+      const color = Color(0xFFDB2777);
       return {
         'icon': Icons.headphones_rounded,
-        'color': const Color(0xFFDB2777),
-        'bg': const Color(0xFFFCE7F3)
+        'color': color,
+        'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFFCE7F3)
       };
     } else if (t.contains('e-book') || t.contains('ebook')) {
+      const color = Color(0xFF7C3AED);
       return {
         'icon': Icons.tablet_mac_rounded,
-        'color': const Color(0xFF7C3AED),
-        'bg': const Color(0xFFEDE9FE)
+        'color': color,
+        'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFEDE9FE)
       };
     } else if (t.contains('digital') || t.contains('resource')) {
+      const color = Color(0xFF0284C7);
       return {
         'icon': Icons.folder_zip_rounded,
-        'color': const Color(0xFF0284C7),
-        'bg': const Color(0xFFE0F2FE)
+        'color': color,
+        'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFE0F2FE)
       };
     } else if (t.contains('journal') || t.contains('magazine')) {
+      const color = Color(0xFFD97706);
       return {
         'icon': Icons.auto_stories_rounded,
-        'color': const Color(0xFFD97706),
-        'bg': const Color(0xFFFEF3C7)
+        'color': color,
+        'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFFEF3C7)
       };
     } else if (t.contains('book')) {
+      const color = Color(0xFF2563EB);
       return {
         'icon': Icons.menu_book_rounded,
-        'color': const Color(0xFF2563EB),
-        'bg': const Color(0xFFEFF6FF)
+        'color': color,
+        'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFEFF6FF)
       };
     }
+    const color = Color(0xFF64748B);
     return {
       'icon': Icons.more_horiz_rounded,
-      'color': const Color(0xFF64748B),
-      'bg': const Color(0xFFF1F5F9)
+      'color': color,
+      'bg': isDark ? color.withValues(alpha: 0.15) : const Color(0xFFF1F5F9)
     };
   }
 
@@ -84,6 +93,7 @@ class RequestSidePanels extends ConsumerWidget {
     List<RequestTypeCount> typeCounts,
     String selectedType,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     final itemsToDisplay = typeCounts.isNotEmpty
         ? typeCounts
@@ -98,12 +108,13 @@ class RequestSidePanels extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -117,40 +128,46 @@ class RequestSidePanels extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Request Types',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
                   ),
                 ),
                 if (selectedType != 'ALL')
                   GestureDetector(
                     onTap: () => notifier.setTypeFilter('ALL'),
-                    child: const Text(
+                    child: Text(
                       'Clear',
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF2563EB)),
+                          color: isDark
+                              ? const Color(0xFF60A5FA)
+                              : const Color(0xFF2563EB)),
                     ),
                   ),
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade100),
+          Divider(
+              height: 1,
+              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100),
 
           // Dynamic List of types directly from DB
           ...itemsToDisplay.map((item) {
             final tName = item.type;
             final isSelected =
                 selectedType.toLowerCase() == tName.toLowerCase();
-            final style = _getTypeStyling(tName);
+            final style = _getTypeStyling(tName, isDark);
             final count = item.count;
 
             return Material(
-              color: isSelected ? const Color(0xFFF8FAFC) : Colors.transparent,
+              color: isSelected
+                  ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC))
+                  : Colors.transparent,
               child: InkWell(
                 onTap: () {
                   if (isSelected) {
@@ -183,8 +200,12 @@ class RequestSidePanels extends ConsumerWidget {
                             fontWeight:
                                 isSelected ? FontWeight.w600 : FontWeight.w500,
                             color: isSelected
-                                ? const Color(0xFF0F172A)
-                                : const Color(0xFF334155),
+                                ? (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A))
+                                : (isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF334155)),
                           ),
                         ),
                       ),
@@ -194,8 +215,10 @@ class RequestSidePanels extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? (style['color'] as Color)
-                                  .withValues(alpha: 0.12)
-                              : const Color(0xFFF1F5F9),
+                                  .withValues(alpha: 0.15)
+                              : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -205,7 +228,9 @@ class RequestSidePanels extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                             color: isSelected
                                 ? (style['color'] as Color)
-                                : const Color(0xFF64748B),
+                                : (isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B)),
                           ),
                         ),
                       ),
@@ -223,6 +248,7 @@ class RequestSidePanels extends ConsumerWidget {
   Widget _buildStatusDistributionCard(
     BuildContext context,
     List<StatusDistributionItem> distribution,
+    bool isDark,
   ) {
     final displayItems = distribution;
     final totalCount = displayItems.fold<int>(0, (sum, e) => sum + e.count);
@@ -230,12 +256,13 @@ class RequestSidePanels extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -243,12 +270,12 @@ class RequestSidePanels extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Status Distribution',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1E293B),
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 16),
@@ -259,12 +286,18 @@ class RequestSidePanels extends ConsumerWidget {
                 child: Column(
                   children: [
                     Icon(Icons.pie_chart_outline_rounded,
-                        size: 36, color: Colors.grey.shade400),
+                        size: 36,
+                        color: isDark
+                            ? const Color(0xFF475569)
+                            : Colors.grey.shade400),
                     const SizedBox(height: 8),
                     Text(
                       'No status distribution data',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -288,18 +321,21 @@ class RequestSidePanels extends ConsumerWidget {
                       children: [
                         Text(
                           '$totalCount',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'Total',
                           style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                               fontWeight: FontWeight.w500),
                         ),
                       ],
@@ -328,18 +364,21 @@ class RequestSidePanels extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         item.status,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF475569),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF475569),
                             fontWeight: FontWeight.w500),
                       ),
                     ),
                     Text(
                       '${item.percentage.toStringAsFixed(1)}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B)),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF1E293B)),
                     ),
                   ],
                 ),
@@ -355,6 +394,7 @@ class RequestSidePanels extends ConsumerWidget {
     BuildContext context,
     List<RecentRequestItem> recentList,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     if (recentList.isEmpty) {
       return const SizedBox();
@@ -362,12 +402,13 @@ class RequestSidePanels extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -376,18 +417,20 @@ class RequestSidePanels extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Text(
               'Recent Requests',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
               ),
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade100),
+          Divider(
+              height: 1,
+              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100),
 
           // Items
           ...recentList.take(4).map((item) {
@@ -407,7 +450,9 @@ class RequestSidePanels extends ConsumerWidget {
                         width: 32,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: isDark
+                              ? const Color(0xFF2563EB).withValues(alpha: 0.15)
+                              : const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Icon(Icons.menu_book_rounded,
@@ -422,10 +467,12 @@ class RequestSidePanels extends ConsumerWidget {
                               item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E293B)),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1E293B)),
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -433,7 +480,10 @@ class RequestSidePanels extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade500),
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : Colors.grey.shade500),
                             ),
                           ],
                         ),

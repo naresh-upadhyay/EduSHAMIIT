@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/book_provider.dart';
@@ -438,7 +439,7 @@ class _BookFilterBarState extends ConsumerState<BookFilterBar> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: validValue,
           icon: Icon(
             Icons.keyboard_arrow_down_rounded,

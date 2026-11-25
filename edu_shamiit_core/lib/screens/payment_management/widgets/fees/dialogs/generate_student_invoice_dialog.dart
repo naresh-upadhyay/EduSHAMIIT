@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -160,7 +161,7 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                             : (studentMap.isNotEmpty ? studentMap.keys.first : null);
 
                         return DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             key: ValueKey('invoice_student_${effectiveStudentId ?? "none"}'),
                             value: effectiveStudentId,
                             isExpanded: true,
@@ -363,7 +364,7 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                                   }
 
                                   return DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       key: ValueKey('fee_type_$effectiveType'),
                                       value: effectiveType,
                                       isExpanded: true,
@@ -420,7 +421,7 @@ class _GenerateStudentInvoiceDialogState extends ConsumerState<GenerateStudentIn
                                   }
 
                                   return DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       key: ValueKey('fee_plan_$effectivePlan'),
                                       value: effectivePlan,
                                       isExpanded: true,

@@ -23,8 +23,10 @@ class StartNewClassDialog extends ConsumerWidget {
       isLiveClass: true,
       onSave: (payload, {recurrenceScope = 'entire_series', targetInstanceDate}) async {
         try {
-          // 1. Create calendar schedule
-          await calendarNotifier.createSchedule(payload);
+          // 1. Create calendar schedule & capture schedule_id
+          final schedRes = await calendarNotifier.createSchedule(payload);
+          final schedData = schedRes['data'];
+          final scheduleId = (schedData is Map) ? schedData['id']?.toString() : null;
 
           // 2. Extract curriculum cohort details from payload target_class_sections
           String? classId;
@@ -54,6 +56,7 @@ class StartNewClassDialog extends ConsumerWidget {
           final liveClassPayload = {
             'title': payload['title'],
             'description': payload['description'],
+            'schedule_id': scheduleId,
             'class_id': classId,
             'section_id': sectionId,
             'subject_id': subjectId,
@@ -73,7 +76,10 @@ class StartNewClassDialog extends ConsumerWidget {
             'allow_student_cam': true,
             'allow_chat': true,
             'allow_reactions': true,
-            'max_participants': 50,
+            'target_roles': payload['target_roles'],
+            'target_class_sections': payload['target_class_sections'],
+            'target_user_ids': payload['target_user_ids'],
+            'visibility': payload['visibility'],
           };
 
           await liveClassNotifier.createInstantClass(liveClassPayload);

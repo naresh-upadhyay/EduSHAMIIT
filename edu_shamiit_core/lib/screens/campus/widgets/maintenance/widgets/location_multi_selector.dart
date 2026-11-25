@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/campus_provider.dart';
@@ -353,7 +354,7 @@ class _LocationMultiSelectorState extends ConsumerState<LocationMultiSelector> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   key: ValueKey('bld_$_selectedBuildingId'),
                   initialValue: _selectedBuildingId,
                   isExpanded: true,
@@ -385,7 +386,7 @@ class _LocationMultiSelectorState extends ConsumerState<LocationMultiSelector> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   key: ValueKey('flr_${_selectedBuildingId}_$_selectedFloorId'),
                   initialValue: _selectedFloorId,
                   isExpanded: true,

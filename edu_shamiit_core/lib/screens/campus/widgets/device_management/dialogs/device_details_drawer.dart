@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -665,7 +666,7 @@ class _DeviceDetailsDrawerState extends State<DeviceDetailsDrawer> {
             borderRadius: BorderRadius.circular(6),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: inputs.contains(_projectorInput) ? _projectorInput : 'HDMI 1',
               isExpanded: true,
               items: inputs.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 12)))).toList(),

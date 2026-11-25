@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -274,7 +275,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     }
   }
 
-  // Azure DevOps Filter Bar State
+  // SHAMIIT Filter Bar State
   bool _isFilterBarOpen = true;
   String _keywordFilter = '';
   String _typeFilter = 'All';
@@ -544,10 +545,10 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
           // 1. Sub-filters Bar (Board, View, Work Type, Assigned To, Filters toggle)
           _buildFilterBar(context, isDark),
 
-          // 2. Inline Collapsible Azure DevOps Filter Bar
+          // 2. Inline Collapsible SHAMIIT Filter Bar
           if (_isFilterBarOpen) ...[
             const SizedBox(height: 12),
-            _buildAzureDevOpsFilterBar(isDark),
+            _buildShamiitFilterBar(isDark),
             const SizedBox(height: 16),
           ] else ...[
             const SizedBox(height: 16),
@@ -780,7 +781,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
     );
   }
 
-  Widget _buildAzureDevOpsFilterBar(bool isDark) {
+  Widget _buildShamiitFilterBar(bool isDark) {
     final bgColor = isDark ? const Color(0xFF13182C) : Colors.white;
     final borderColor = isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0);
 
@@ -2233,7 +2234,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                   ),
                 ),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: _pageSize,
                     isDense: true,
                     style: TextStyle(
@@ -3585,7 +3586,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 children: [
                   const Text('Select target destination:'),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedSprintId,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -3646,7 +3647,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 children: [
                   const Text('Select new status:'),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedStatus,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -3710,7 +3711,7 @@ class _WorkBacklogTabViewState extends ConsumerState<WorkBacklogTabView> {
                 children: [
                   const Text('Select new priority level:'),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedPriority,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

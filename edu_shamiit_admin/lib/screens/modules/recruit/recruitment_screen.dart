@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -1949,7 +1950,7 @@ class _RecruitmentScreenState extends State<RecruitmentScreen> {
                     border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
+                    child: AppSearchableDropdown<int>.fromMenuItems(
                       value: _jobPageSize,
                       isDense: true,
                       style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), fontWeight: FontWeight.w600),

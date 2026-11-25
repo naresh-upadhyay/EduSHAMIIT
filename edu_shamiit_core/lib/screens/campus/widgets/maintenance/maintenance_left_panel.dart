@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -441,7 +442,7 @@ class _MaintenanceLeftPanelState extends ConsumerState<MaintenanceLeftPanel> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
+        child: AppSearchableDropdown<T>.fromMenuItems(
           value: value,
           items: items,
           onChanged: onChanged,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../providers/broadcast_provider.dart';
 
@@ -116,7 +117,7 @@ class _AddDestinationDialogState extends State<AddDestinationDialog> {
 
                   const Text('Platform', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedPlatform,
                     items: const [
                       DropdownMenuItem(value: 'youtube', child: Text('YouTube Live')),

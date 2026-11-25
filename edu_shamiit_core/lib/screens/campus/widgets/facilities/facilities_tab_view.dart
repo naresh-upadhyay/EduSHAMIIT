@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
@@ -306,7 +307,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                       border: Border.all(color: borderColor),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: facState.categories.contains(selectedCategory) ? selectedCategory : (facState.categories.isNotEmpty ? facState.categories.first : 'All Categories'),
                         isDense: true,
                         dropdownColor: bgCard,
@@ -325,7 +326,7 @@ class _FacilitiesTabViewState extends ConsumerState<FacilitiesTabView> {
                       border: Border.all(color: borderColor),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: facState.statuses.contains(selectedStatus) ? selectedStatus : (facState.statuses.isNotEmpty ? facState.statuses.first : 'All Statuses'),
                         isDense: true,
                         dropdownColor: bgCard,

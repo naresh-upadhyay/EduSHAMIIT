@@ -1257,7 +1257,7 @@ class WorkApiService {
     return await toggleChecklist(entryId, isCompleted);
   }
 
-  // 20. Azure DevOps Enhancements
+  // 20. SHAMIIT Work Management Enhancements
   Future<Map<String, dynamic>> copyWorkItem(
     String itemId, {
     String? newTitle,

@@ -1417,7 +1417,7 @@ class _AdminSystemConfigScreenState
                     color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: AppSearchableDropdown<String>.fromMenuItems(
                   value: _selectedSchoolId,
                   dropdownColor:
                       isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2356,7 +2356,7 @@ class _AdminSystemConfigScreenState
                     style:
                         TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                DropdownButtonFormField<int>(
+                AppSearchableDropdownFormField<int>.fromMenuItems(
                   initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(
                               _securitySettings['session_limit']?.toString() ??
                                   '5') ??
@@ -2396,7 +2396,7 @@ class _AdminSystemConfigScreenState
                     style:
                         TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                DropdownButtonFormField<int>(
+                AppSearchableDropdownFormField<int>.fromMenuItems(
                   initialValue: [3, 5, 10, 15].contains(int.tryParse(
                               _securitySettings['failed_attempts_lockout']
                                       ?.toString() ??
@@ -2441,7 +2441,7 @@ class _AdminSystemConfigScreenState
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      DropdownButtonFormField<int>(
+                      AppSearchableDropdownFormField<int>.fromMenuItems(
                         initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(
                                     _securitySettings['session_limit']
                                             ?.toString() ??
@@ -2485,7 +2485,7 @@ class _AdminSystemConfigScreenState
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      DropdownButtonFormField<int>(
+                      AppSearchableDropdownFormField<int>.fromMenuItems(
                         initialValue: [3, 5, 10, 15].contains(int.tryParse(
                                     _securitySettings['failed_attempts_lockout']
                                             ?.toString() ??
@@ -2927,7 +2927,7 @@ class _AdminSystemConfigScreenState
               fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
         ),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: items.contains(value) ? value : items.first,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           isExpanded: true,

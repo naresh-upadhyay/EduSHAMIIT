@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
 import '../../services/academic_lookup_helper.dart';
@@ -360,7 +361,7 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                         : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: _subjectTypes.any((t) =>
                                               t.label.toLowerCase() ==
                                               _type.toLowerCase())
@@ -427,7 +428,7 @@ class _CreateEditSubjectDialogState extends State<CreateEditSubjectDialog> {
                                         : Colors.white,
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: _statuses.any((s) =>
                                               s.code.toUpperCase() ==
                                               _status.toUpperCase())

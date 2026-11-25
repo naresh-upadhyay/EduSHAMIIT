@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -499,16 +500,22 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
 
               // Department Dropdown
               Container(
+                width: 160,
                 height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: effectiveDept,
+                    width: 160,
+                    isExpanded: false,
+                    compact: true,
+                    isDense: true,
+                    itemHeight: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                     style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -526,16 +533,22 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
 
               // Status Filter Dropdown
               Container(
+                width: 140,
                 height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: effectiveStatus,
+                    width: 140,
+                    isExpanded: false,
+                    compact: true,
+                    isDense: true,
+                    itemHeight: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     icon: Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
                     style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1315,7 +1328,7 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: [10, 25, 50, 100].contains(pageSize) ? pageSize : 10,
                     onChanged: state.isStaffLoading
                         ? null

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 // ignore_for_file: deprecated_member_use
 import 'dart:convert';
 import 'dart:math' as math;
@@ -1449,7 +1450,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
                     // Rows per page
                     Text('Rows: ', style: TextStyle(fontSize: 10.5, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _pageSize,
                         isDense: true,
                         style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1534,7 +1535,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           isDense: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1790,7 +1791,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: ['Smart Rule', 'Schedule Rule', 'Threshold Rule'].contains(_ruleCategory)
                         ? _ruleCategory
                         : 'Smart Rule',
@@ -2252,7 +2253,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
                   border: Border.all(color: isDark ? const Color(0xFF3B82F6) : const Color(0xFFBFDBFE)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _conditionCombinator,
                     isDense: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2438,7 +2439,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
                       border: Border.all(color: isDark ? const Color(0xFF22C55E) : const Color(0xFFBBF7D0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _actionExecutionMode,
                         isDense: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2614,7 +2615,7 @@ class _DeviceAutomationsSubviewState extends State<DeviceAutomationsSubview> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isDense: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -1629,7 +1630,7 @@ class _ExamPrestartScreenState extends ConsumerState<ExamPrestartScreen> {
                   children: [
                     Text('Max Tab Switches: ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: palette.primaryText)),
                     const SizedBox(width: 8),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: [1, 2, 3, 5, 10, 99].contains(_maxTabSwitches) ? _maxTabSwitches : 3,
                       dropdownColor: palette.cardBg,
                       style: TextStyle(fontSize: 13, color: palette.primaryText, fontWeight: FontWeight.w600),
@@ -2018,7 +2019,7 @@ class _ExamPrestartScreenState extends ConsumerState<ExamPrestartScreen> {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: SizedBox(
                   height: 28,
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     isExpanded: true,
                     isDense: true,
                     dropdownColor: palette.cardBg,
@@ -2155,7 +2156,7 @@ class _ExamPrestartScreenState extends ConsumerState<ExamPrestartScreen> {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: SizedBox(
                   height: 28,
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     isExpanded: true,
                     isDense: true,
                     dropdownColor: palette.cardBg,

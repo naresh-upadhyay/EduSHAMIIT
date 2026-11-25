@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1148,7 +1149,7 @@ class HostelStudentDetailsDrawer extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: docType,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),

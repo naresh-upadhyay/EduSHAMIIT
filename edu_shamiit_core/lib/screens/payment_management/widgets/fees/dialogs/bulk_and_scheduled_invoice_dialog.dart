@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -744,7 +745,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                           border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: state.classesList.contains(_bulkSelectedClass)
                                 ? _bulkSelectedClass
                                 : (state.classesList.isNotEmpty ? state.classesList.first : 'All Classes'),
@@ -795,7 +796,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                           border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: availableSections.contains(_bulkSelectedSection)
                                 ? _bulkSelectedSection
                                 : 'All Sections',
@@ -1956,7 +1957,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _bulkBillingPeriod,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2001,7 +2002,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _feeTypes.any((t) => t.label == _bulkFeeType)
                             ? _bulkFeeType
                             : (_feeTypes.isNotEmpty ? _feeTypes.first.label : 'Tuition Fee'),
@@ -2041,7 +2042,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _billingCycles.any((b) => b.label == _bulkFeePlan)
                             ? _bulkFeePlan
                             : (_billingCycles.isNotEmpty ? _billingCycles.first.label : 'Monthly'),
@@ -3112,7 +3113,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: state.classesList.contains(_ruleSelectedClass)
                             ? _ruleSelectedClass
                             : (state.classesList.isNotEmpty ? state.classesList.first : 'Class 10'),
@@ -3148,7 +3149,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: availableSections.contains(_ruleSelectedSection)
                             ? _ruleSelectedSection
                             : 'All Sections',
@@ -3803,7 +3804,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: _ruleDayOfMonth,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -3834,7 +3835,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: _ruleDueOffset,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -3869,7 +3870,7 @@ class _BulkAndScheduledInvoiceDialogState extends ConsumerState<BulkAndScheduled
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _ruleBillingPeriod,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

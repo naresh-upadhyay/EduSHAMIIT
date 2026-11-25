@@ -5,16 +5,18 @@ Egress recordings, stored procedure execution, and real-time WebSockets.
 """
 import os
 import io
+import re
 import csv
 import json
 import time
 import uuid
+import mimetypes
 import httpx
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request, WebSocket, WebSocketDisconnect, status, Body
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request, WebSocket, WebSocketDisconnect, status, Body, File, Form, UploadFile
+from fastapi.responses import StreamingResponse, Response, RedirectResponse, FileResponse
 from jose import jwt
 import psycopg2
 from psycopg2.extras import RealDictCursor, register_uuid
@@ -23,6 +25,7 @@ register_uuid()
 
 from app.middleware.auth import get_current_user, require_school_id, require_teacher, require_student, require_any_role
 from app.services.supabase_client import get_supabase
+from app.services.minio_client import minio_client
 from app.config import settings
 
 # Live class host permissions: Teachers and authorized academic administrators
@@ -472,7 +475,18 @@ async def start_live_class(
     school_id=Depends(require_school_id),
 ):
     """Start an authorized live class session."""
-    # 1. Update session status via database
+    # 1. Clean up any stale unclosed participant rows from prior runs and start fresh
+    await exec_sql(
+        """
+        UPDATE public.live_class_participants
+        SET leave_time = NOW(), last_leave_at = NOW(), updated_at = NOW()
+        WHERE live_class_id = %s AND leave_time IS NULL;
+        """,
+        (live_class_id,),
+        fetch=False
+    )
+
+    # 2. Update session status via database
     await exec_sql(
         """
         UPDATE public.live_classes
@@ -480,6 +494,7 @@ async def start_live_class(
             meeting_link = COALESCE(meeting_link, %s),
             recording_status = 'IDLE',
             recording_enabled = FALSE,
+            viewer_count = 0,
             updated_at = NOW()
         WHERE id = %s AND school_id = %s;
         """,
@@ -522,15 +537,50 @@ async def end_live_class(
     school_id=Depends(require_school_id),
 ):
     """End a live class session, calculate attendance, and finalize egress."""
-    # 1. Update session status in DB
+    # Check recording state & start timestamp before finalizing status
+    session_meta = await exec_sql(
+        """
+        SELECT actual_start_at, scheduled_at, COALESCE(recording_enabled, FALSE) AS recording_enabled,
+               COALESCE(recording_status, 'IDLE') AS recording_status
+        FROM public.live_classes
+        WHERE id = %s AND school_id = %s;
+        """,
+        (live_class_id, school_id),
+    )
+    meta_row = session_meta[0] if session_meta else {}
+    was_recording = bool(meta_row.get("recording_enabled")) or str(meta_row.get("recording_status", "")).upper() in ("RECORDING", "ACTIVE", "COMPLETED")
+    start_ts = meta_row.get("actual_start_at") or meta_row.get("scheduled_at")
+    elapsed_sec = 0
+    if start_ts:
+        try:
+            now_utc = datetime.now(timezone.utc)
+            if start_ts.tzinfo is None:
+                start_ts = start_ts.replace(tzinfo=timezone.utc)
+            elapsed_sec = max(60, int((now_utc - start_ts).total_seconds()))
+        except Exception:
+            elapsed_sec = 60
+
+    # 1. Update session status in DB and reset active viewer_count
     await exec_sql(
         """
         UPDATE public.live_classes
         SET status = 'recorded', is_live = FALSE, actual_end_at = NOW(),
-            recording_status = 'COMPLETED', updated_at = NOW()
+            recording_status = CASE WHEN COALESCE(recording_enabled, FALSE) OR UPPER(COALESCE(recording_status, '')) IN ('RECORDING','ACTIVE') THEN 'COMPLETED' ELSE COALESCE(recording_status, 'IDLE') END,
+            viewer_count = 0, updated_at = NOW()
         WHERE id = %s AND school_id = %s;
         """,
         (live_class_id, school_id),
+        fetch=False
+    )
+
+    # 1b. Close all open live_class_participants rows for this session
+    await exec_sql(
+        """
+        UPDATE public.live_class_participants
+        SET leave_time = NOW(), last_leave_at = NOW(), updated_at = NOW()
+        WHERE live_class_id = %s AND leave_time IS NULL;
+        """,
+        (live_class_id,),
         fetch=False
     )
 
@@ -553,8 +603,11 @@ async def end_live_class(
         fetch=False
     )
 
-    # 4. Stop Egress and delete room in background
-    background_tasks.add_task(cleanup_room_egress_and_delete, live_class_id, 2700)
+    # 4. Finalize Egress recording synchronously/safely if recording was enabled or active
+    if was_recording:
+        await cleanup_room_egress_and_delete(live_class_id, elapsed_sec or 60)
+    else:
+        background_tasks.add_task(cleanup_room_egress_and_delete, live_class_id, elapsed_sec or 60, False)
 
     return {"success": True, "message": "Class ended and attendance calculated successfully"}
 
@@ -614,8 +667,93 @@ async def record_participant_event(
 
 
 # ============================================================================
-# 5. RECORDINGS MANAGEMENT APIS
+# 5. RECORDINGS MANAGEMENT APIS (UPLOAD, STREAM, DOWNLOAD, CRUD, SHARE, SETTINGS)
 # ============================================================================
+
+RECORDINGS_LOCAL_DIR = os.path.join(os.getcwd(), "assets", "recordings")
+os.makedirs(RECORDINGS_LOCAL_DIR, exist_ok=True)
+ALLOWED_RECORDING_EXTENSIONS = {"mp4", "webm", "mkv", "mov", "avi", "m4v", "ogv", "flv", "wmv", "mp3", "m4a"}
+MAX_RECORDING_UPLOAD_BYTES = 500 * 1024 * 1024  # 500 MB
+
+
+def _safe_uuid(val: Optional[str]) -> Optional[str]:
+    if not val:
+        return None
+    try:
+        return str(uuid.UUID(str(val).strip()))
+    except Exception:
+        return None
+
+
+def _resolve_local_recording_path(rec: Dict[str, Any]) -> Optional[str]:
+    """Find locally stored recording binary if present."""
+    storage_key = (rec.get("storage_key") or "").strip().lstrip("/")
+    if storage_key:
+        candidate = os.path.join(RECORDINGS_LOCAL_DIR, storage_key.replace("/", os.sep))
+        if os.path.isfile(candidate):
+            return candidate
+        # Also support basename in school folder
+        school_id = str(rec.get("school_id") or "")
+        if school_id:
+            candidate2 = os.path.join(RECORDINGS_LOCAL_DIR, school_id, os.path.basename(storage_key))
+            if os.path.isfile(candidate2):
+                return candidate2
+    rec_id = str(rec.get("id") or "")
+    school_id = str(rec.get("school_id") or "")
+    for ext in ALLOWED_RECORDING_EXTENSIONS:
+        p1 = os.path.join(RECORDINGS_LOCAL_DIR, school_id, f"{rec_id}.{ext}")
+        if os.path.isfile(p1):
+            return p1
+        p2 = os.path.join(RECORDINGS_LOCAL_DIR, f"{rec_id}.{ext}")
+        if os.path.isfile(p2):
+            return p2
+    return None
+
+
+def _resolve_storage_candidate_urls(rec: Dict[str, Any]) -> List[str]:
+    """Build internal/public URLs to attempt when streaming/downloading from Supabase Storage."""
+    urls: List[str] = []
+    storage_key = (rec.get("storage_key") or "").strip().lstrip("/")
+    raw_url = (rec.get("recording_url") or "").strip()
+    supabase_internal = os.environ.get("SUPABASE_URL", "http://kong:8000").rstrip("/")
+    storage_internal = "http://storage:5000"
+
+    if raw_url and "/storage/v1/object/" in raw_url:
+        suffix = raw_url.split("/storage/v1/object/", 1)[1].lstrip("/")
+        if suffix.startswith("public/"):
+            suffix_obj = suffix[len("public/"):]
+            urls.append(f"{storage_internal}/object/public/{suffix_obj}")
+            urls.append(f"{supabase_internal}/storage/v1/object/public/{suffix_obj}")
+        else:
+            urls.append(f"{storage_internal}/object/{suffix}")
+            urls.append(f"{supabase_internal}/storage/v1/object/{suffix}")
+
+    if storage_key:
+        bucket = minio_client.bucket_name or "live-classes"
+        urls.append(f"{storage_internal}/object/public/{bucket}/{storage_key}")
+        urls.append(f"{supabase_internal}/storage/v1/object/public/{bucket}/{storage_key}")
+
+    if raw_url.startswith("http://") or raw_url.startswith("https://"):
+        if "/api/live-classes/recordings/" not in raw_url:
+            urls.append(raw_url)
+    return urls
+
+
+async def _fetch_recording_for_school(recording_id: str, school_id: str) -> Dict[str, Any]:
+    rows = await exec_sql(
+        """
+        SELECT r.*, c.school_id AS live_class_school_id, c.title AS live_class_title
+        FROM public.live_class_recordings r
+        LEFT JOIN public.live_classes c ON c.id = r.live_class_id
+        WHERE r.id = %s::UUID AND r.deleted_at IS NULL
+          AND COALESCE(r.school_id, c.school_id) = %s::UUID;
+        """,
+        (recording_id, school_id),
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Recording not found")
+    return rows[0]
+
 
 @router.get("/live-classes/recordings")
 async def list_recordings(
@@ -629,14 +767,303 @@ async def list_recordings(
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    """Paginated recordings table matching Image 2."""
+    """Paginated recordings table."""
     rows = await exec_sql(
         "SELECT public.sp_get_live_class_recordings_list(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT) AS data;",
-        (school_id, class_id, subject_id, teacher_id, search, status_filter, page, page_size)
+        (school_id, _safe_uuid(class_id), _safe_uuid(subject_id), _safe_uuid(teacher_id), search, status_filter, page, page_size)
     )
     if not rows or not rows[0].get("data"):
         return {"success": True, "data": {"items": [], "total_count": 0, "page": page}}
     return {"success": True, "data": rows[0]["data"]}
+
+
+@router.get("/live-classes/recordings/settings")
+async def get_recording_settings(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Fetch persisted recording & auto-rules settings for the school."""
+    rows = await exec_sql(
+        """
+        SELECT auto_recording, cloud_storage, default_retention_days, recording_quality,
+               allow_student_download, COALESCE(auto_rules, '{}'::jsonb) AS auto_rules, updated_at
+        FROM public.live_class_recording_settings
+        WHERE school_id = %s::UUID;
+        """,
+        (school_id,),
+    )
+    if rows:
+        return {"success": True, "data": rows[0]}
+    return {
+        "success": True,
+        "data": {
+            "auto_recording": True,
+            "cloud_storage": True,
+            "default_retention_days": 180,
+            "recording_quality": "HD (720p)",
+            "allow_student_download": True,
+            "auto_rules": {},
+        },
+    }
+
+
+@router.post("/live-classes/recordings/settings")
+@router.put("/live-classes/recordings/settings")
+async def save_recording_settings(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Persist recording configuration and auto-recording rules for the school."""
+    auto_recording = bool(payload.get("auto_recording", True))
+    cloud_storage = bool(payload.get("cloud_storage", True))
+    default_retention_days = int(payload.get("default_retention_days", 180) or 180)
+    recording_quality = str(payload.get("recording_quality", "HD (720p)") or "HD (720p)")
+    allow_student_download = bool(payload.get("allow_student_download", True))
+    auto_rules = payload.get("auto_rules") if isinstance(payload.get("auto_rules"), dict) else {}
+
+    rows = await exec_sql(
+        """
+        INSERT INTO public.live_class_recording_settings (
+            school_id, auto_recording, cloud_storage, default_retention_days,
+            recording_quality, allow_student_download, auto_rules, updated_by, updated_at
+        ) VALUES (
+            %s::UUID, %s, %s, %s, %s, %s, %s::JSONB, %s::UUID, NOW()
+        )
+        ON CONFLICT (school_id) DO UPDATE SET
+            auto_recording = EXCLUDED.auto_recording,
+            cloud_storage = EXCLUDED.cloud_storage,
+            default_retention_days = EXCLUDED.default_retention_days,
+            recording_quality = EXCLUDED.recording_quality,
+            allow_student_download = EXCLUDED.allow_student_download,
+            auto_rules = CASE
+                WHEN EXCLUDED.auto_rules = '{}'::jsonb AND public.live_class_recording_settings.auto_rules IS NOT NULL
+                THEN public.live_class_recording_settings.auto_rules
+                ELSE EXCLUDED.auto_rules
+            END,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = NOW()
+        RETURNING auto_recording, cloud_storage, default_retention_days, recording_quality,
+                  allow_student_download, auto_rules, updated_at;
+        """,
+        (
+            school_id,
+            auto_recording,
+            cloud_storage,
+            default_retention_days,
+            recording_quality,
+            allow_student_download,
+            json.dumps(auto_rules),
+            user["id"],
+        ),
+    )
+    return {
+        "success": True,
+        "message": "Recording settings saved",
+        "data": rows[0] if rows else payload,
+    }
+
+
+@router.post("/live-classes/recordings/upload")
+async def upload_recording_file(
+    file: Optional[UploadFile] = File(None),
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    class_id: Optional[str] = Form(None),
+    section_id: Optional[str] = Form(None),
+    subject_id: Optional[str] = Form(None),
+    teacher_id: Optional[str] = Form(None),
+    teacher_name: Optional[str] = Form(None),
+    live_class_id: Optional[str] = Form(None),
+    duration_seconds: int = Form(0),
+    duration_minutes: int = Form(0),
+    visibility: str = Form("CLASS"),
+    recording_type: str = Form("Uploaded Recording"),
+    external_url: Optional[str] = Form(None),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Upload a real local video/media recording and persist metadata + storage."""
+    clean_title = (title or "").strip()
+    if not clean_title:
+        raise HTTPException(status_code=400, detail="Recording title is required")
+
+    rec_id = str(uuid.uuid4())
+    file_size = 0
+    mime_type = "video/mp4"
+    storage_key = None
+    storage_provider = "local"
+    saved_url = f"/api/live-classes/recordings/{rec_id}/stream"
+
+    if file is not None and file.filename:
+        safe_name = os.path.basename(file.filename)
+        ext = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else "mp4"
+        if ext not in ALLOWED_RECORDING_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"Unsupported media format '.{ext}'")
+
+        mime_type = file.content_type or mimetypes.guess_type(safe_name)[0] or "video/mp4"
+        rel_key = f"{school_id}/{rec_id}.{ext}"
+        school_dir = os.path.join(RECORDINGS_LOCAL_DIR, str(school_id))
+        os.makedirs(school_dir, exist_ok=True)
+        local_path = os.path.join(school_dir, f"{rec_id}.{ext}")
+
+        total_read = 0
+        try:
+            with open(local_path, "wb") as out_f:
+                while True:
+                    chunk = await file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total_read += len(chunk)
+                    if total_read > MAX_RECORDING_UPLOAD_BYTES:
+                        out_f.close()
+                        os.remove(local_path)
+                        raise HTTPException(status_code=413, detail="Recording exceeds maximum size of 500 MB")
+                    out_f.write(chunk)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to store video file: {e}")
+
+        if total_read == 0:
+            if os.path.exists(local_path):
+                os.remove(local_path)
+            raise HTTPException(status_code=400, detail="Uploaded video file is empty")
+
+        file_size = total_read
+        storage_key = rel_key
+
+        # Mirror to S3 / Supabase Storage best-effort when <= 100 MB
+        if total_read <= 100 * 1024 * 1024 and minio_client.s3:
+            try:
+                minio_client.ensure_bucket_and_public_policy()
+                with open(local_path, "rb") as f_in:
+                    minio_client.s3.put_object(
+                        Bucket=minio_client.bucket_name,
+                        Key=rel_key,
+                        Body=f_in,
+                        ContentType=mime_type,
+                    )
+                storage_provider = "hybrid"
+            except Exception as e:
+                print(f"[Recordings] S3 mirror skipped (local stream active): {e}")
+    elif external_url and external_url.strip():
+        saved_url = external_url.strip()
+        storage_provider = "external"
+    else:
+        raise HTTPException(status_code=400, detail="Please attach a video file or provide a valid video URL")
+
+    final_duration_sec = duration_seconds if duration_seconds > 0 else max(60, (duration_minutes or 1) * 60)
+    vis_upper = (visibility or "CLASS").strip().upper()
+    if vis_upper not in ("CLASS", "SCHOOL", "SHARED", "PRIVATE"):
+        vis_upper = "CLASS"
+
+    tags_list = ["upload"]
+    if vis_upper in ("SCHOOL", "SHARED"):
+        tags_list.append("shared")
+    elif vis_upper == "PRIVATE":
+        tags_list.append("private")
+    else:
+        tags_list.append("class_only")
+
+    resolved_teacher_id = _safe_uuid(teacher_id) or str(user["id"])
+    resolved_teacher_name = (teacher_name or user.get("full_name") or "Teacher").strip()
+
+    await exec_sql(
+        """
+        INSERT INTO public.live_class_recordings (
+            id, live_class_id, school_id, class_id, section_id, subject_id,
+            teacher_id, teacher_name, title, description, recording_url,
+            storage_provider, storage_key, mime_type, duration, file_size,
+            processing_status, visibility, recording_type, tags,
+            created_by, updated_by, uploaded_by
+        ) VALUES (
+            %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID,
+            %s::UUID, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            'Processed', %s, %s, %s::JSONB,
+            %s::UUID, %s::UUID, %s::UUID
+        );
+        """,
+        (
+            rec_id,
+            _safe_uuid(live_class_id),
+            school_id,
+            _safe_uuid(class_id),
+            _safe_uuid(section_id),
+            _safe_uuid(subject_id),
+            resolved_teacher_id,
+            resolved_teacher_name,
+            clean_title,
+            (description or "").strip() or None,
+            saved_url,
+            storage_provider,
+            storage_key,
+            mime_type,
+            final_duration_sec,
+            file_size,
+            vis_upper,
+            recording_type or "Uploaded Recording",
+            json.dumps(tags_list),
+            user["id"],
+            user["id"],
+            user["id"],
+        ),
+        fetch=False,
+    )
+
+    # Fetch rich formatted record back from SP
+    rows = await exec_sql(
+        "SELECT public.sp_get_live_class_recordings_list(%s::UUID, NULL, NULL, NULL, %s::TEXT, NULL, 1, 10) AS data;",
+        (school_id, clean_title),
+    )
+    items = (rows[0].get("data") or {}).get("items", []) if rows else []
+    created_item = next((i for i in items if str(i.get("id")) == rec_id), None)
+    return {
+        "success": True,
+        "message": "Recording uploaded and published successfully",
+        "data": created_item or {"id": rec_id, "title": clean_title, "recording_url": saved_url},
+    }
+
+
+@router.post("/live-classes/recordings/bulk-delete")
+async def bulk_delete_recordings(
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Bulk soft-delete recordings for this school."""
+    raw_ids = payload.get("recording_ids") or payload.get("ids") or []
+    valid_ids = [uid for uid in (_safe_uuid(x) for x in raw_ids) if uid]
+    if not valid_ids:
+        raise HTTPException(status_code=400, detail="No valid recording IDs supplied")
+
+    rows = await exec_sql(
+        """
+        SELECT r.id::TEXT AS id, r.storage_key, COALESCE(r.school_id, c.school_id)::TEXT AS school_id
+        FROM public.live_class_recordings r
+        LEFT JOIN public.live_classes c ON c.id = r.live_class_id
+        WHERE r.id = ANY(%s::UUID[]) AND COALESCE(r.school_id, c.school_id) = %s::UUID AND r.deleted_at IS NULL;
+        """,
+        (valid_ids, school_id),
+    )
+    await exec_sql(
+        """
+        UPDATE public.live_class_recordings
+        SET deleted_at = NOW(), updated_by = %s::UUID, updated_at = NOW()
+        WHERE id = ANY(%s::UUID[]) AND COALESCE(school_id, %s::UUID) = %s::UUID;
+        """,
+        (user["id"], valid_ids, school_id, school_id),
+        fetch=False,
+    )
+    for row in rows:
+        local_path = _resolve_local_recording_path(row)
+        if local_path and os.path.isfile(local_path):
+            try:
+                os.remove(local_path)
+            except Exception:
+                pass
+    return {"success": True, "deleted_count": len(rows), "message": f"Deleted {len(rows)} recording(s)"}
 
 
 @router.get("/live-classes/recordings/{recording_id}")
@@ -646,10 +1073,282 @@ async def get_recording(
     school_id=Depends(require_school_id),
 ):
     """Get single recording details."""
-    rows = await exec_sql("SELECT * FROM public.live_class_recordings WHERE id = %s;", (recording_id,))
-    if not rows:
-        raise HTTPException(status_code=404, detail="Recording not found")
-    return {"success": True, "data": rows[0]}
+    rec = await _fetch_recording_for_school(recording_id, school_id)
+    return {"success": True, "data": rec}
+
+
+@router.patch("/live-classes/recordings/{recording_id}")
+@router.put("/live-classes/recordings/{recording_id}")
+async def update_recording(
+    recording_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Update recording title, description, class/section/subject mapping, and audience visibility."""
+    rec = await _fetch_recording_for_school(recording_id, school_id)
+
+    new_title = (payload.get("title") if "title" in payload else rec.get("title") or "").strip()
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Recording title cannot be empty")
+
+    new_desc = payload.get("description") if "description" in payload else rec.get("description")
+    new_class_id = _safe_uuid(payload.get("class_id")) if "class_id" in payload else (str(rec["class_id"]) if rec.get("class_id") else None)
+    new_section_id = _safe_uuid(payload.get("section_id")) if "section_id" in payload else (str(rec["section_id"]) if rec.get("section_id") else None)
+    new_subject_id = _safe_uuid(payload.get("subject_id")) if "subject_id" in payload else (str(rec["subject_id"]) if rec.get("subject_id") else None)
+    new_teacher_name = (payload.get("teacher_name") if "teacher_name" in payload else rec.get("teacher_name"))
+    new_vis = str(payload.get("visibility") if "visibility" in payload else rec.get("visibility") or "CLASS").upper()
+    if new_vis not in ("CLASS", "SCHOOL", "SHARED", "PRIVATE"):
+        new_vis = "CLASS"
+
+    new_duration = rec.get("duration") or 0
+    if "duration_minutes" in payload and payload["duration_minutes"] is not None:
+        new_duration = max(60, int(payload["duration_minutes"]) * 60)
+    elif "duration_seconds" in payload and payload["duration_seconds"] is not None:
+        new_duration = max(1, int(payload["duration_seconds"]))
+
+    existing_tags = rec.get("tags") if isinstance(rec.get("tags"), list) else []
+    cleaned_tags = [t for t in existing_tags if t not in ("shared", "class_only", "private")]
+    if new_vis in ("SCHOOL", "SHARED"):
+        cleaned_tags.append("shared")
+    elif new_vis == "PRIVATE":
+        cleaned_tags.append("private")
+    else:
+        cleaned_tags.append("class_only")
+
+    await exec_sql(
+        """
+        UPDATE public.live_class_recordings
+        SET title = %s,
+            description = %s,
+            class_id = %s::UUID,
+            section_id = %s::UUID,
+            subject_id = %s::UUID,
+            teacher_name = %s,
+            visibility = %s,
+            duration = %s,
+            tags = %s::JSONB,
+            updated_by = %s::UUID,
+            updated_at = NOW()
+        WHERE id = %s::UUID;
+        """,
+        (
+            new_title,
+            new_desc,
+            new_class_id,
+            new_section_id,
+            new_subject_id,
+            new_teacher_name,
+            new_vis,
+            new_duration,
+            json.dumps(cleaned_tags),
+            user["id"],
+            recording_id,
+        ),
+        fetch=False,
+    )
+
+    updated = await _fetch_recording_for_school(recording_id, school_id)
+    return {"success": True, "message": "Recording updated successfully", "data": updated}
+
+
+@router.get("/live-classes/recordings/{recording_id}/stream")
+async def stream_recording(
+    recording_id: str,
+    request: Request,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Stream recording with HTTP 206 Partial Content Range support for HTML5 playback & seeking."""
+    rec = await _fetch_recording_for_school(recording_id, school_id)
+    mime = rec.get("mime_type") or "video/mp4"
+    local_path = _resolve_local_recording_path(rec)
+
+    if local_path and os.path.isfile(local_path):
+        file_size = os.path.getsize(local_path)
+        range_header = request.headers.get("range")
+        if range_header:
+            match = re.match(r"bytes=(\d+)-(\d*)", range_header.strip())
+            if match:
+                start = int(match.group(1))
+                end = int(match.group(2)) if match.group(2) else min(start + (2 * 1024 * 1024) - 1, file_size - 1)
+                end = min(end, file_size - 1)
+                if start >= file_size or start > end:
+                    return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+                chunk_len = end - start + 1
+
+                def _iter_range():
+                    with open(local_path, "rb") as f:
+                        f.seek(start)
+                        remaining = chunk_len
+                        while remaining > 0:
+                            data = f.read(min(262144, remaining))
+                            if not data:
+                                break
+                            remaining -= len(data)
+                            yield data
+
+                return StreamingResponse(
+                    _iter_range(),
+                    status_code=206,
+                    media_type=mime,
+                    headers={
+                        "Content-Range": f"bytes {start}-{end}/{file_size}",
+                        "Accept-Ranges": "bytes",
+                        "Content-Length": str(chunk_len),
+                        "Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length",
+                        "Cache-Control": "no-cache",
+                    },
+                )
+
+        def _iter_full():
+            with open(local_path, "rb") as f:
+                while True:
+                    data = f.read(524288)
+                    if not data:
+                        break
+                    yield data
+
+        return StreamingResponse(
+            _iter_full(),
+            status_code=200,
+            media_type=mime,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(file_size),
+                "Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length",
+            },
+        )
+
+    # Proxy from storage service or redirect if external URL
+    for target_url in _resolve_storage_candidate_urls(rec):
+        if target_url.startswith("http") and "storage" in target_url:
+            fwd_headers = {}
+            if request.headers.get("range"):
+                fwd_headers["Range"] = request.headers["range"]
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    upstream = await client.get(target_url, headers=fwd_headers)
+                    if upstream.status_code in (200, 206):
+                        resp_headers = {"Accept-Ranges": "bytes"}
+                        for h in ("Content-Range", "Content-Length", "Content-Type"):
+                            if h in upstream.headers:
+                                resp_headers[h] = upstream.headers[h]
+                        resp_headers["Access-Control-Expose-Headers"] = "Content-Range, Accept-Ranges, Content-Length"
+                        return Response(
+                            content=upstream.content,
+                            status_code=upstream.status_code,
+                            media_type=upstream.headers.get("content-type", mime),
+                            headers=resp_headers,
+                        )
+            except Exception:
+                continue
+        elif target_url.startswith("http://") or target_url.startswith("https://"):
+            return RedirectResponse(url=target_url, status_code=307)
+
+    raise HTTPException(status_code=404, detail="Video binary is not available for this recording")
+
+
+@router.get("/live-classes/recordings/{recording_id}/download")
+async def download_recording(
+    recording_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Download recording file, enforce student policy, increment downloads_count, and log event."""
+    rec = await _fetch_recording_for_school(recording_id, school_id)
+
+    if str(user.get("role", "")).lower() == "student":
+        cfg_rows = await exec_sql(
+            "SELECT allow_student_download FROM public.live_class_recording_settings WHERE school_id = %s::UUID;",
+            (school_id,),
+        )
+        if cfg_rows and cfg_rows[0].get("allow_student_download") is False:
+            raise HTTPException(status_code=403, detail="Downloads are currently disabled for students by administrator policy")
+
+    raw_title = (rec.get("title") or "recording").strip()
+    safe_base = re.sub(r'[^a-zA-Z0-9_\-\s\.]+', '', raw_title).strip().replace(" ", "_") or "recording"
+    mime = rec.get("mime_type") or "video/mp4"
+    storage_key = rec.get("storage_key") or ""
+    ext = storage_key.rsplit(".", 1)[-1].lower() if "." in storage_key else "mp4"
+    filename = f"{safe_base}.{ext}" if not safe_base.lower().endswith(f".{ext}") else safe_base
+
+    local_path = _resolve_local_recording_path(rec)
+    content_bytes: Optional[bytes] = None
+    if local_path and os.path.isfile(local_path):
+        await exec_sql(
+            "UPDATE public.live_class_recordings SET downloads_count = COALESCE(downloads_count, 0) + 1, updated_at = NOW() WHERE id = %s::UUID;",
+            (recording_id,),
+            fetch=False,
+        )
+        await exec_sql(
+            "INSERT INTO public.live_class_recording_events (recording_id, school_id, user_id, event_type) VALUES (%s::UUID, %s::UUID, %s::UUID, 'download');",
+            (recording_id, school_id, user["id"]),
+            fetch=False,
+        )
+        return FileResponse(
+            path=local_path,
+            media_type=mime,
+            filename=filename,
+            headers={"Access-Control-Expose-Headers": "Content-Disposition"},
+        )
+
+    for target_url in _resolve_storage_candidate_urls(rec):
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                upstream = await client.get(target_url)
+                if upstream.status_code == 200:
+                    content_bytes = upstream.content
+                    break
+        except Exception:
+            continue
+
+    if content_bytes is not None:
+        await exec_sql(
+            "UPDATE public.live_class_recordings SET downloads_count = COALESCE(downloads_count, 0) + 1, updated_at = NOW() WHERE id = %s::UUID;",
+            (recording_id,),
+            fetch=False,
+        )
+        await exec_sql(
+            "INSERT INTO public.live_class_recording_events (recording_id, school_id, user_id, event_type) VALUES (%s::UUID, %s::UUID, %s::UUID, 'download');",
+            (recording_id, school_id, user["id"]),
+            fetch=False,
+        )
+        return Response(
+            content=content_bytes,
+            media_type=mime,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
+        )
+
+    raise HTTPException(status_code=404, detail="No downloadable video file found for this recording")
+
+
+@router.post("/live-classes/recordings/{recording_id}/view")
+async def record_recording_view(
+    recording_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Increment views_count and log analytics event when a recording is played."""
+    await _fetch_recording_for_school(recording_id, school_id)
+    rows = await exec_sql(
+        """
+        UPDATE public.live_class_recordings
+        SET views_count = COALESCE(views_count, 0) + 1, updated_at = NOW()
+        WHERE id = %s::UUID
+        RETURNING views_count;
+        """,
+        (recording_id,),
+    )
+    await exec_sql(
+        "INSERT INTO public.live_class_recording_events (recording_id, school_id, user_id, event_type) VALUES (%s::UUID, %s::UUID, %s::UUID, 'view');",
+        (recording_id, school_id, user["id"]),
+        fetch=False,
+    )
+    return {"success": True, "views": rows[0]["views_count"] if rows else 1}
 
 
 @router.delete("/live-classes/recordings/{recording_id}")
@@ -658,13 +1357,245 @@ async def delete_recording(
     user=Depends(require_live_class_host),
     school_id=Depends(require_school_id),
 ):
-    """Soft delete or remove recording record."""
+    """Soft delete recording record and remove local binary if present."""
+    rec = await _fetch_recording_for_school(recording_id, school_id)
     await exec_sql(
-        "UPDATE public.live_class_recordings SET deleted_at = NOW() WHERE id = %s;",
-        (recording_id,),
-        fetch=False
+        "UPDATE public.live_class_recordings SET deleted_at = NOW(), updated_by = %s::UUID, updated_at = NOW() WHERE id = %s::UUID;",
+        (user["id"], recording_id),
+        fetch=False,
     )
+    local_path = _resolve_local_recording_path(rec)
+    if local_path and os.path.isfile(local_path):
+        try:
+            os.remove(local_path)
+        except Exception:
+            pass
+    if rec.get("storage_key") and minio_client.s3:
+        try:
+            minio_client.delete_file(rec["storage_key"])
+        except Exception:
+            pass
     return {"success": True, "message": "Recording deleted successfully"}
+
+
+@router.get("/live-classes/recordings/{recording_id}/shares")
+async def list_recording_shares(
+    recording_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """List all active Class/Section/Individual shares for a recording."""
+    await _fetch_recording_for_school(recording_id, school_id)
+    rows = await exec_sql(
+        """
+        SELECT id::TEXT AS id, recording_id::TEXT AS recording_id, target_type,
+               target_id::TEXT AS target_id, target_label, access_level,
+               capabilities, created_at, expires_at
+        FROM public.live_class_recording_shares
+        WHERE recording_id = %s::UUID AND school_id = %s::UUID
+        ORDER BY created_at DESC;
+        """,
+        (recording_id, school_id),
+    )
+    return {"success": True, "data": rows}
+
+
+@router.delete("/live-classes/recordings/{recording_id}/shares/{share_id}")
+async def revoke_recording_share(
+    recording_id: str,
+    share_id: str,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Revoke a specific recording share entry and refresh shared_count."""
+    await _fetch_recording_for_school(recording_id, school_id)
+    await exec_sql(
+        "DELETE FROM public.live_class_recording_shares WHERE id = %s::UUID AND recording_id = %s::UUID AND school_id = %s::UUID;",
+        (share_id, recording_id, school_id),
+        fetch=False,
+    )
+    cnt_rows = await exec_sql(
+        "SELECT COUNT(*)::INT AS cnt FROM public.live_class_recording_shares WHERE recording_id = %s::UUID;",
+        (recording_id,),
+    )
+    cnt = cnt_rows[0]["cnt"] if cnt_rows else 0
+    await exec_sql(
+        "UPDATE public.live_class_recordings SET shared_count = %s, updated_at = NOW() WHERE id = %s::UUID;",
+        (cnt, recording_id),
+        fetch=False,
+    )
+    return {"success": True, "shared_count": cnt, "message": "Share revoked"}
+
+
+@router.post("/live-classes/recordings/{recording_id}/share/batch")
+async def share_recording_batch(
+    recording_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """Share recording with Class/Multiple Sections (Students/Teachers) OR Multiple Searched Individuals."""
+    rec = await _fetch_recording_for_school(recording_id, school_id)
+
+    mode = str(payload.get("mode", "individual")).lower()
+    access_level = str(payload.get("access_level", "VIEW")).upper()
+    if access_level not in ("VIEW", "DOWNLOAD", "MANAGE"):
+        access_level = "VIEW"
+    capabilities = payload.get("capabilities") if isinstance(payload.get("capabilities"), dict) else {}
+    expires_at = payload.get("expires_at")
+
+    created_shares: List[Dict[str, Any]] = []
+    granted_user_ids: set = set()
+
+    async def _upsert_share(target_type: str, target_id: Optional[str], target_label: str):
+        rows = await exec_sql(
+            """
+            INSERT INTO public.live_class_recording_shares (
+                recording_id, school_id, shared_by, target_type, target_id,
+                target_label, access_level, capabilities, expires_at
+            ) VALUES (
+                %s::UUID, %s::UUID, %s::UUID, %s, %s::UUID, %s, %s, %s::JSONB, %s::TIMESTAMPTZ
+            )
+            ON CONFLICT (recording_id, target_type, COALESCE(target_id, '00000000-0000-0000-0000-000000000000'::uuid), target_label)
+            DO UPDATE SET
+                access_level = EXCLUDED.access_level,
+                capabilities = EXCLUDED.capabilities,
+                expires_at = EXCLUDED.expires_at,
+                shared_by = EXCLUDED.shared_by,
+                updated_at = NOW()
+            RETURNING id::TEXT AS id, recording_id::TEXT AS recording_id, target_type,
+                      target_id::TEXT AS target_id, target_label, access_level, capabilities, created_at;
+            """,
+            (
+                recording_id,
+                school_id,
+                user["id"],
+                target_type,
+                _safe_uuid(target_id),
+                target_label,
+                access_level,
+                json.dumps(capabilities),
+                expires_at,
+            ),
+        )
+        if rows:
+            created_shares.append(rows[0])
+
+    if mode == "class_sections":
+        class_id = _safe_uuid(payload.get("class_id"))
+        class_name = (payload.get("class_name") or "Class").strip()
+        sections = payload.get("sections") or []
+        include_students = bool(payload.get("include_students", True))
+        include_teachers = bool(payload.get("include_teachers", True))
+        explicit_users = payload.get("users") or []
+
+        audience_parts = []
+        if include_students:
+            audience_parts.append("Students")
+        if include_teachers:
+            audience_parts.append("Teachers")
+        audience_suffix = f" ({' & '.join(audience_parts)})" if audience_parts else ""
+
+        if sections:
+            for sec in sections:
+                sec_id = _safe_uuid(sec.get("id"))
+                sec_name = (sec.get("name") or "Section").strip()
+                label = f"{class_name} - {sec_name}{audience_suffix}"
+                await _upsert_share("section", sec_id, label)
+        elif class_id:
+            await _upsert_share("class", class_id, f"{class_name} (All Sections){audience_suffix}")
+        else:
+            raise HTTPException(status_code=400, detail="Select at least one Class or Section")
+
+        for u in explicit_users:
+            uid = _safe_uuid(u.get("id"))
+            if uid:
+                granted_user_ids.add(uid)
+                if payload.get("persist_individual_rows"):
+                    u_label = (u.get("full_name") or "User").strip()
+                    await _upsert_share("user", uid, u_label)
+
+        if not granted_user_ids and class_id:
+            sec_ids = [s for s in (_safe_uuid(sec.get("id")) for sec in sections) if s]
+            if include_students:
+                stu_sql = """
+                    SELECT DISTINCT student_id::TEXT AS uid
+                    FROM public.student_class_assignments
+                    WHERE school_id = %s::UUID AND class_id = %s::UUID AND UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE'
+                """
+                stu_params: List[Any] = [school_id, class_id]
+                if sec_ids:
+                    stu_sql += " AND section_id = ANY(%s::UUID[])"
+                    stu_params.append(sec_ids)
+                for r in await exec_sql(stu_sql + ";", tuple(stu_params)):
+                    if r.get("uid"):
+                        granted_user_ids.add(r["uid"])
+            if include_teachers:
+                no_sec = len(sec_ids) == 0
+                for r in await exec_sql(
+                    """
+                    SELECT DISTINCT tid::TEXT AS uid FROM (
+                        SELECT teacher_id AS tid FROM public.class_teacher_assignments
+                        WHERE school_id = %s::UUID AND class_id = %s::UUID AND (%s::BOOLEAN OR section_id IS NULL OR section_id = ANY(%s::UUID[]))
+                        UNION
+                        SELECT teacher_id AS tid FROM public.section_subject_teachers
+                        WHERE school_id = %s::UUID AND class_id = %s::UUID AND UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE'
+                          AND (%s::BOOLEAN OR section_id IS NULL OR section_id = ANY(%s::UUID[]))
+                    ) q;
+                    """,
+                    (school_id, class_id, no_sec, sec_ids, school_id, class_id, no_sec, sec_ids),
+                ):
+                    if r.get("uid"):
+                        granted_user_ids.add(r["uid"])
+    elif mode == "individual":
+        users_list = payload.get("users") or []
+        if not users_list:
+            raise HTTPException(status_code=400, detail="Select at least one student or teacher")
+        for u in users_list:
+            uid = _safe_uuid(u.get("id"))
+            u_name = (u.get("full_name") or "Member").strip()
+            u_role = (u.get("role") or "").strip()
+            label = f"{u_name} ({u_role})" if u_role else u_name
+            if uid:
+                granted_user_ids.add(uid)
+            await _upsert_share("user", uid, label)
+    else:
+        target_label = (payload.get("target_label") or "Shared Audience").strip()
+        await _upsert_share(mode, _safe_uuid(payload.get("target_id")), target_label)
+
+    # Mark recording shared & update count so 'Shared' scope immediately reflects it
+    cnt_rows = await exec_sql(
+        "SELECT COUNT(*)::INT AS cnt FROM public.live_class_recording_shares WHERE recording_id = %s::UUID;",
+        (recording_id,),
+    )
+    cnt = cnt_rows[0]["cnt"] if cnt_rows else len(created_shares)
+    existing_tags = rec.get("tags") if isinstance(rec.get("tags"), list) else []
+    if "shared" not in existing_tags:
+        existing_tags = [*existing_tags, "shared"]
+    new_vis = "SCHOOL" if (rec.get("visibility") == "PRIVATE") else (rec.get("visibility") or "SHARED")
+
+    await exec_sql(
+        """
+        UPDATE public.live_class_recordings
+        SET shared_count = %s,
+            tags = %s::JSONB,
+            visibility = %s,
+            updated_at = NOW()
+        WHERE id = %s::UUID;
+        """,
+        (cnt, json.dumps(existing_tags), new_vis, recording_id),
+        fetch=False,
+    )
+
+    return {
+        "success": True,
+        "message": f"Shared with {len(created_shares)} target(s) ({len(granted_user_ids)} member(s))",
+        "data": {
+            "shares": created_shares,
+            "shared_count": cnt,
+            "granted_member_count": len(granted_user_ids),
+        },
+    }
 
 
 @router.post("/live-classes/{live_class_id}/share")
@@ -676,25 +1607,29 @@ async def share_recording(
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    """Share recording with specified user or class."""
-    shared_to_id = payload.get("shared_to_id") if payload else None
-    doc_id = str(uuid.uuid4())
-    doc_title = payload.get("title", "Live Class Lecture Recording") if payload else "Live Class Lecture Recording"
-
-    await exec_sql(
-        """
-        INSERT INTO public.user_documents (
-            id, school_id, owner_id, shared_with_id, shared_by_id,
-            title, description, category, file_url, file_name, file_size, mime_type
-        ) VALUES (
-            %s, %s, %s, %s, %s,
-            %s, 'Shared live lecture recording', 'recording_shared',
-            %s, 'lecture.mp4', 0, 'video/mp4'
-        ) ON CONFLICT DO NOTHING;
-        """,
-        (doc_id, school_id, shared_to_id, shared_to_id, user["id"], doc_title, f"/student/live-classes/play/{live_class_id}"),
-        fetch=False
-    )
+    """Legacy compatible share endpoint routed cleanly into live_class_recording_shares."""
+    target_rec_id = _safe_uuid(recording_id)
+    if not target_rec_id and _safe_uuid(live_class_id):
+        r = await exec_sql(
+            "SELECT id::TEXT AS id FROM public.live_class_recordings WHERE live_class_id = %s::UUID AND deleted_at IS NULL LIMIT 1;",
+            (_safe_uuid(live_class_id),),
+        )
+        if r:
+            target_rec_id = r[0]["id"]
+    if target_rec_id:
+        shared_to = (payload or {}).get("shared_to_id") or "All Students"
+        access_level = str((payload or {}).get("access_level") or "VIEW").upper()
+        await share_recording_batch(
+            recording_id=target_rec_id,
+            payload={
+                "mode": "individual" if _safe_uuid(shared_to) else "role",
+                "target_label": shared_to,
+                "access_level": access_level,
+                "users": [{"id": shared_to, "full_name": shared_to}] if _safe_uuid(shared_to) else [],
+            },
+            user=user,
+            school_id=school_id,
+        )
     return {"success": True, "message": "Recording shared successfully"}
 
 
@@ -885,7 +1820,12 @@ async def initiate_room_egress(room_name: str):
         print(f"[Egress] Exception starting egress: {e}")
 
 
-async def cleanup_room_egress_and_delete(live_class_id: str, actual_duration_seconds: int):
+async def cleanup_room_egress_and_delete(
+    live_class_id: str,
+    actual_duration_seconds: int,
+    create_recording: bool = True,
+    delete_room: bool = True,
+):
     livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
     api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
@@ -919,30 +1859,149 @@ async def cleanup_room_egress_and_delete(live_class_id: str, actual_duration_sec
                             json={"egress_id": eg_id},
                             timeout=5.0
                         )
-            # Delete room
-            await client.post(
-                f"{livekit_url}/twirp/livekit.RoomService/DeleteRoom",
-                headers=headers,
-                json={"room": live_class_id},
-                timeout=5.0
-            )
+            # Delete room only when ending the live class
+            if delete_room:
+                await client.post(
+                    f"{livekit_url}/twirp/livekit.RoomService/DeleteRoom",
+                    headers=headers,
+                    json={"room": live_class_id},
+                    timeout=5.0
+                )
     except Exception as e:
         print(f"[LiveKit] Cleanup error: {e}")
 
-    # Upsert recording record
-    storage_base = os.environ.get("STORAGE_PUBLIC_URL", "http://localhost:8000/storage/v1/object/public").rstrip("/")
-    recording_url = f"{storage_base}/live-classes/{live_class_id}.mp4"
-    await exec_sql(
+    if not create_recording:
+        return
+
+    # Resolve rich live class metadata so the recording reflects the REAL Class / Subject / Session Title
+    class_rows = await exec_sql(
         """
-        INSERT INTO public.live_class_recordings (
-            live_class_id, recording_url, duration, file_size, title, processing_status
-        ) VALUES (
-            %s, %s, %s, %s, 'Live Class Recording', 'Processed'
-        ) ON CONFLICT DO NOTHING;
+        SELECT c.id::TEXT AS id,
+               c.school_id::TEXT AS school_id,
+               c.class_id::TEXT AS class_id,
+               c.section_id::TEXT AS section_id,
+               c.subject_id::TEXT AS subject_id,
+               c.teacher_id::TEXT AS teacher_id,
+               c.created_by::TEXT AS created_by,
+               c.title AS session_title,
+               c.description,
+               c.target_class,
+               c.actual_start_at,
+               c.actual_end_at,
+               c.scheduled_at,
+               ac.name AS class_name,
+               sec.name AS section_name,
+               s.name AS subject_name,
+               p.full_name AS teacher_name
+        FROM public.live_classes c
+        LEFT JOIN public.academic_classes ac ON ac.id = c.class_id
+        LEFT JOIN public.academic_sections sec ON sec.id = c.section_id
+        LEFT JOIN public.subjects s ON s.id = c.subject_id
+        LEFT JOIN public.profiles p ON p.id = c.teacher_id
+        WHERE c.id = %s::UUID;
         """,
-        (live_class_id, recording_url, actual_duration_seconds, 282 * 1024 * 1024),
-        fetch=False
+        (live_class_id,),
     )
+    meta = class_rows[0] if class_rows else {}
+    class_section = " - ".join([x for x in [meta.get("class_name"), meta.get("section_name")] if x]) or meta.get("target_class") or ""
+    subject_name = (meta.get("subject_name") or "").strip()
+    raw_session_title = (meta.get("session_title") or "").strip()
+
+    if raw_session_title and raw_session_title.lower() not in ("live class", "live class recording"):
+        if class_section and class_section.lower() not in raw_session_title.lower():
+            resolved_title = f"{raw_session_title} ({class_section})"
+        else:
+            resolved_title = raw_session_title
+    elif class_section and subject_name:
+        resolved_title = f"{class_section} • {subject_name} Lecture"
+    elif class_section:
+        resolved_title = f"{class_section} Lecture"
+    else:
+        resolved_title = "Recorded Class Session"
+
+    # Compute actual duration if start timestamp available
+    computed_dur = actual_duration_seconds
+    start_ts = meta.get("actual_start_at") or meta.get("scheduled_at")
+    end_ts = meta.get("actual_end_at") or datetime.now(timezone.utc)
+    if start_ts:
+        try:
+            if start_ts.tzinfo is None:
+                start_ts = start_ts.replace(tzinfo=timezone.utc)
+            if end_ts.tzinfo is None:
+                end_ts = end_ts.replace(tzinfo=timezone.utc)
+            diff_sec = int((end_ts - start_ts).total_seconds())
+            if diff_sec > 0:
+                computed_dur = max(60, diff_sec)
+        except Exception:
+            pass
+    if computed_dur <= 0:
+        computed_dur = 60
+
+    exists, real_size = minio_client.check_file_exists_and_get_size(live_class_id)
+    storage_base = os.environ.get("STORAGE_PUBLIC_URL", "http://localhost:8000/storage/v1/object/public").rstrip("/")
+    storage_key = f"{live_class_id}.mp4" if exists else None
+    file_size = real_size if (exists and real_size > 0) else 0
+
+    existing_rec = await exec_sql(
+        "SELECT id::TEXT AS id FROM public.live_class_recordings WHERE live_class_id = %s::UUID AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1;",
+        (live_class_id,),
+    )
+    if existing_rec:
+        rec_id = existing_rec[0]["id"]
+        recording_url = f"/api/live-classes/recordings/{rec_id}/stream" if exists else f"{storage_base}/live-classes/{live_class_id}.mp4"
+        await exec_sql(
+            """
+            UPDATE public.live_class_recordings
+            SET title = %s,
+                duration = %s,
+                file_size = CASE WHEN %s > 0 THEN %s ELSE file_size END,
+                storage_key = COALESCE(storage_key, %s),
+                recording_url = %s,
+                processing_status = 'Processed',
+                updated_at = NOW()
+            WHERE id = %s::UUID;
+            """,
+            (resolved_title, computed_dur, file_size, file_size, storage_key, recording_url, rec_id),
+            fetch=False,
+        )
+    else:
+        rec_id = str(uuid.uuid4())
+        recording_url = f"/api/live-classes/recordings/{rec_id}/stream" if exists else f"{storage_base}/live-classes/{live_class_id}.mp4"
+        await exec_sql(
+            """
+            INSERT INTO public.live_class_recordings (
+                id, live_class_id, school_id, class_id, section_id, subject_id,
+                teacher_id, teacher_name, recording_url, storage_key, duration, file_size,
+                title, description, processing_status, recording_type, visibility,
+                tags, created_by, updated_by, uploaded_by
+            ) VALUES (
+                %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::UUID,
+                %s::UUID, %s, %s, %s, %s, %s,
+                %s, %s, 'Processed', 'Live Class', 'CLASS',
+                '["class_only"]'::jsonb, %s::UUID, %s::UUID, %s::UUID
+            );
+            """,
+            (
+                rec_id,
+                live_class_id,
+                meta.get("school_id"),
+                meta.get("class_id"),
+                meta.get("section_id"),
+                meta.get("subject_id"),
+                meta.get("teacher_id"),
+                meta.get("teacher_name"),
+                recording_url,
+                storage_key,
+                computed_dur,
+                file_size,
+                resolved_title,
+                meta.get("description") or f"Recorded live class session for {class_section}".strip(),
+                meta.get("created_by") or meta.get("teacher_id"),
+                meta.get("created_by") or meta.get("teacher_id"),
+                meta.get("teacher_id"),
+            ),
+            fetch=False,
+        )
 
 
 # ============================================================================
@@ -1285,15 +2344,28 @@ async def toggle_recording(
     user=Depends(require_live_class_host),
 ):
     """Toggle Egress recording on or off during active class."""
-    rows = await exec_sql("SELECT recording_status FROM public.live_classes WHERE id = %s;", (session_id,))
+    rows = await exec_sql(
+        "SELECT recording_status, actual_start_at, updated_at FROM public.live_classes WHERE id = %s;",
+        (session_id,),
+    )
     if not rows:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     current_status = rows[0].get("recording_status", "IDLE")
     if current_status in ("RECORDING", "ACTIVE"):
-        new_status = "STOPPING"
+        new_status = "COMPLETED"
+        start_ts = rows[0].get("updated_at") or rows[0].get("actual_start_at")
+        elapsed_sec = 60
+        if start_ts:
+            try:
+                now_utc = datetime.now(timezone.utc)
+                if start_ts.tzinfo is None:
+                    start_ts = start_ts.replace(tzinfo=timezone.utc)
+                elapsed_sec = max(60, int((now_utc - start_ts).total_seconds()))
+            except Exception:
+                elapsed_sec = 60
         await exec_sql("UPDATE public.live_classes SET recording_status = 'COMPLETED', updated_at = NOW() WHERE id = %s;", (session_id,))
-        background_tasks.add_task(cleanup_room_egress_and_delete, session_id, 1800)
+        await cleanup_room_egress_and_delete(session_id, elapsed_sec, create_recording=True, delete_room=False)
     else:
         new_status = "RECORDING"
         await exec_sql("UPDATE public.live_classes SET recording_status = 'RECORDING', recording_enabled = TRUE, updated_at = NOW() WHERE id = %s;", (session_id,))

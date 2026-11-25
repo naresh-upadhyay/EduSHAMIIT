@@ -100,10 +100,13 @@ class _WorkSearchableDropdownState extends State<WorkSearchableDropdown> {
     final sortedItems = WorkSearchableDropdown.sortOptions(widget.items);
     final menuWidth = widget.dropdownWidth ?? (widget.width != null ? widget.width!.clamp(240.0, 360.0) : 260.0);
 
+    final estimatedNeededHeight =
+        (96.0 + sortedItems.length * 38.0).clamp(120.0, widget.maxDropdownHeight);
+
     // Calculate vertical position
     final spaceBelow = screenSize.height - (targetOffset.dy + targetSize.height);
     final spaceAbove = targetOffset.dy;
-    final openUpwards = spaceBelow < widget.maxDropdownHeight + 20 && spaceAbove > spaceBelow;
+    final openUpwards = spaceBelow < estimatedNeededHeight + 16 && spaceAbove > spaceBelow;
 
     // Calculate horizontal position
     double left = targetOffset.dx;
@@ -112,11 +115,12 @@ class _WorkSearchableDropdownState extends State<WorkSearchableDropdown> {
     }
     if (left < 12) left = 12;
 
-    double top;
+    double? top;
+    double? bottom;
     double maxHeight;
     if (openUpwards) {
       maxHeight = (spaceAbove - 16).clamp(120.0, widget.maxDropdownHeight);
-      top = targetOffset.dy - maxHeight - 4;
+      bottom = (screenSize.height - targetOffset.dy) + 4;
     } else {
       maxHeight = (spaceBelow - 16).clamp(120.0, widget.maxDropdownHeight);
       top = targetOffset.dy + targetSize.height + 4;
@@ -139,6 +143,7 @@ class _WorkSearchableDropdownState extends State<WorkSearchableDropdown> {
             Positioned(
               left: left,
               top: top,
+              bottom: bottom,
               width: menuWidth,
               child: _SearchableDropdownMenuContent(
                 label: widget.label ?? 'Option',

@@ -24,6 +24,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _navSearchQuery = "";
 
   // By default, nested navigation options are NOT expanded
+  bool _isWorkExpanded = false;
   bool _isFleetExpanded = false;
   bool _isDriverExpanded = false;
   bool _isRouteExpanded = false;
@@ -491,6 +492,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // Auto-collapse inactive expandable sections so left navigation NEVER stays stuck open across route changes
     final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isWorkRoute = location.startsWith('/admin/work') || currentUrl.contains('/admin/work') || location.startsWith('/work') || currentUrl.contains('/work');
     final isFleetRoute = location.startsWith('/admin/fleet') || currentUrl.contains('/admin/fleet');
     final isDriverRoute = location.startsWith('/admin/driver-management') || currentUrl.contains('/admin/driver-management');
     final isRouteRoute = location.startsWith('/admin/route-management') || currentUrl.contains('/admin/route-management');
@@ -513,7 +515,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final currentRoutePath = location.split('?').first;
     if (_lastNavPath != currentRoutePath) {
       _lastNavPath = currentRoutePath;
-      if (isFleetRoute) {
+      if (isWorkRoute) {
+        _expandOnlySection('work');
+      } else if (isFleetRoute) {
         _expandOnlySection('fleet');
       } else if (isDriverRoute) {
         _expandOnlySection('driver');
@@ -1059,6 +1063,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   return expandableTile;
                 }
 
+                if (item.label == 'Work Management') {
+                  final expandableTile = _buildExpandableWorkTile(isDark, showLabels, location, isDrawer);
+                  if (header != null) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [header, expandableTile],
+                    );
+                  }
+                  return expandableTile;
+                }
+
                 if (item.label == 'HR Suite') {
                   final expandableTile = _buildExpandableHrTile(isDark, showLabels, location, isDrawer);
                   if (header != null) {
@@ -1486,6 +1501,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   void _collapseAllSections() {
+    _isWorkExpanded = false;
     _isFleetExpanded = false;
     _isDriverExpanded = false;
     _isRouteExpanded = false;
@@ -1508,6 +1524,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   void _expandOnlySection(String sectionKey) {
     _collapseAllSections();
     switch (sectionKey) {
+      case 'work': _isWorkExpanded = true; break;
       case 'fleet': _isFleetExpanded = true; break;
       case 'driver': _isDriverExpanded = true; break;
       case 'route': _isRouteExpanded = true; break;
@@ -1532,6 +1549,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     setState(() {
       bool isCurrentlyOpen = false;
       switch (sectionKey) {
+        case 'work': isCurrentlyOpen = _isWorkExpanded; break;
         case 'fleet': isCurrentlyOpen = _isFleetExpanded; break;
         case 'driver': isCurrentlyOpen = _isDriverExpanded; break;
         case 'route': isCurrentlyOpen = _isRouteExpanded; break;
@@ -1993,6 +2011,57 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildExpandableWorkTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+    final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isWorkRoute = location.startsWith('/admin/work') || currentUrl.contains('/admin/work') || location.startsWith('/work') || currentUrl.contains('/work');
+    int activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    if (location.startsWith('/admin/work/list') || currentUrl.contains('/admin/work/list')) activeTab = 1;
+    if (location.startsWith('/admin/work/backlog') || currentUrl.contains('/admin/work/backlog')) activeTab = 2;
+    if (location.startsWith('/admin/work/sprints') || currentUrl.contains('/admin/work/sprints')) activeTab = 3;
+    if (location.startsWith('/admin/work/team') || currentUrl.contains('/admin/work/team')) activeTab = 4;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSidebarTile(
+          item: const _NavItem(
+            icon: Icons.layers_rounded,
+            label: 'Work Management',
+            route: '/admin/work',
+            section: NavSection.executive,
+          ),
+          isSelected: isWorkRoute && !_isWorkExpanded,
+          isDark: isDark,
+          showLabels: showLabels,
+          onTap: () {
+            if (isWorkRoute) {
+              _toggleSection('work');
+            } else {
+              if (isDrawer) Navigator.of(context).pop();
+              _expandOnlySection('work');
+              context.go('/admin/work');
+            }
+          },
+          trailing: showLabels
+              ? _buildChevronTrailing(
+                  isExpanded: _isWorkExpanded,
+                  isRouteActive: isWorkRoute,
+                  isDark: isDark,
+                  onToggle: () => _toggleSection('work'),
+                )
+              : null,
+        ),
+        if (_isWorkExpanded && showLabels) ...[
+          _buildSubTile('Board', '/admin/work', 0, isWorkRoute && activeTab == 0, isDark, isDrawer, 'work'),
+          _buildSubTile('List', '/admin/work', 1, isWorkRoute && activeTab == 1, isDark, isDrawer, 'work'),
+          _buildSubTile('Backlog', '/admin/work', 2, isWorkRoute && activeTab == 2, isDark, isDrawer, 'work'),
+          _buildSubTile('Sprints', '/admin/work', 3, isWorkRoute && activeTab == 3, isDark, isDrawer, 'work'),
+          _buildSubTile('Team', '/admin/work', 4, isWorkRoute && activeTab == 4, isDark, isDrawer, 'work'),
+        ],
+      ],
+    );
+  }
+
   Widget _buildExpandableLibraryTile(bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
     final isLibraryRoute = location.startsWith('/admin/library') || currentUrl.contains('/admin/library') || location.startsWith('/library') || currentUrl.contains('/library');
@@ -2262,7 +2331,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         }
       }
     } catch (_) {}
-    if (location.endsWith('/attendance') || currentUrl.endsWith('/attendance')) {
+    if (location.endsWith('/white-board') ||
+        currentUrl.endsWith('/white-board') ||
+        location.endsWith('/whiteboard') ||
+        currentUrl.endsWith('/whiteboard')) {
       activeTab = 2;
     } else if (location.endsWith('/recordings') || currentUrl.endsWith('/recordings')) {
       activeTab = 1;
@@ -2304,7 +2376,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         if (_isLiveClassExpanded && showLabels) ...[
           _buildSubTile('Join & Conduct', '/admin/live-classes', 0, isLiveClassRoute && activeTab == 0, isDark, isDrawer, 'live_classes'),
           _buildSubTile('Recordings', '/admin/live-classes', 1, isLiveClassRoute && activeTab == 1, isDark, isDrawer, 'live_classes'),
-          _buildSubTile('Attendance', '/admin/live-classes', 2, isLiveClassRoute && activeTab == 2, isDark, isDrawer, 'live_classes'),
+          _buildSubTile('White Board', '/admin/live-classes', 2, isLiveClassRoute && activeTab == 2, isDark, isDrawer, 'live_classes'),
         ],
       ],
     );

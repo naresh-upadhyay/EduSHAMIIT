@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -264,7 +265,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
 
                         // Dropdowns: Stacked on compact, Row on wide
                         if (isCompact) ...[
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _category,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Category'),
@@ -272,7 +273,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                             onChanged: (v) => setState(() => _category = v ?? _category),
                           ),
                           const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _condition,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Condition'),
@@ -280,7 +281,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                             onChanged: (v) => setState(() => _condition = v ?? _condition),
                           ),
                           const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _status,
                             isExpanded: true,
                             decoration: const InputDecoration(labelText: 'Status'),
@@ -291,7 +292,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                           Row(
                             children: [
                               Expanded(
-                                child: DropdownButtonFormField<String>(
+                                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _category,
                                   isExpanded: true,
                                   decoration: const InputDecoration(labelText: 'Category'),
@@ -301,7 +302,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: DropdownButtonFormField<String>(
+                                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _condition,
                                   isExpanded: true,
                                   decoration: const InputDecoration(labelText: 'Condition'),
@@ -311,7 +312,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: DropdownButtonFormField<String>(
+                                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _status,
                                   isExpanded: true,
                                   decoration: const InputDecoration(labelText: 'Status'),
@@ -400,7 +401,7 @@ class _RoomEquipmentDialogState extends State<RoomEquipmentDialog> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  DropdownButton<String>(
+                                  AppSearchableDropdown<String>.fromMenuItems(
                                     value: _statuses.contains(item.operationalStatus) ? item.operationalStatus : (_statuses.isNotEmpty ? _statuses.first : 'Operational'),
                                     underline: const SizedBox(),
                                     items: _statuses

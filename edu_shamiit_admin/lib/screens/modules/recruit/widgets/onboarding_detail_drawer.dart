@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/services/hr_lookup_helper.dart';
@@ -1081,7 +1082,7 @@ class _OnboardingDetailDrawerState extends State<OnboardingDetailDrawer> with Si
                               decoration: const InputDecoration(labelText: 'Task Title', hintText: 'e.g. Issue Campus ID Card'),
                             ),
                             const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: categories.contains(cat) ? cat : (categories.isNotEmpty ? categories.first : null),
                               items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                               onChanged: (val) {

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -195,7 +196,7 @@ class _AddEditFloorDialogState extends State<AddEditFloorDialog> {
                               decoration: const InputDecoration(labelText: 'Floor Area (sq ft)', hintText: '9000'),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _floorType,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Floor Type'),
@@ -203,7 +204,7 @@ class _AddEditFloorDialogState extends State<AddEditFloorDialog> {
                               onChanged: (v) => setState(() => _floorType = v ?? _floorType),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Status'),
@@ -256,7 +257,7 @@ class _AddEditFloorDialogState extends State<AddEditFloorDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _floorType,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Floor Type'),
@@ -266,7 +267,7 @@ class _AddEditFloorDialogState extends State<AddEditFloorDialog> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _status,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Status'),

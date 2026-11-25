@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -529,7 +530,7 @@ class _TrainingDetailDrawerState extends State<TrainingDetailDrawer> with Single
                     ),
                     const SizedBox(height: 14),
 
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: matType,
                       decoration: const InputDecoration(
                         labelText: 'Type *',
@@ -866,7 +867,7 @@ class _TrainingDetailDrawerState extends State<TrainingDetailDrawer> with Single
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: ['Quiz', 'Exam', 'Practical Evaluation', 'Project', 'Assignment', 'None'].contains(selectedType)
                     ? selectedType
                     : 'Quiz',
@@ -1209,7 +1210,7 @@ class _TrainingDetailDrawerState extends State<TrainingDetailDrawer> with Single
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_participants.isNotEmpty && !isCustomName) ...[
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: selectedParticipantName,
                       decoration: const InputDecoration(labelText: 'Reviewer (Enrolled Participant) *', border: OutlineInputBorder()),
                       items: _participants.map<DropdownMenuItem<String>>((p) {

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
 import '../../services/academic_lookup_helper.dart';
@@ -416,7 +417,7 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                                   : const Color(0xFFCBD5E1)),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: _roomTypes.any((t) =>
                                                     t.label.toLowerCase() ==
                                                     _selectedType.toLowerCase())
@@ -479,7 +480,7 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                                   : const Color(0xFFCBD5E1)),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: _roomStatuses.any((s) =>
                                                     s.code == _selectedStatus)
                                                 ? _selectedStatus
@@ -542,7 +543,7 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                                   : const Color(0xFFCBD5E1)),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: _buildings.any((b) =>
                                                     b.label ==
                                                     _selectedBuilding)
@@ -600,7 +601,7 @@ class _CreateEditRoomDialogState extends State<CreateEditRoomDialog> {
                                                   : const Color(0xFFCBD5E1)),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: _floors.any((f) =>
                                                     f.label == _selectedFloor)
                                                 ? _selectedFloor

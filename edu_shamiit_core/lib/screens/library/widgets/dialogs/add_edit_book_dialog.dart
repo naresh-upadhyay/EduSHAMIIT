@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -478,7 +479,7 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                         hintText: 'e.g. Weekly Live Problem Solving Stream'),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedType,
                     decoration:
                         const InputDecoration(labelText: 'Resource Type'),
@@ -2098,7 +2099,7 @@ class _AddEditBookDialogState extends ConsumerState<AddEditBookDialog>
                     isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: validValue,
               isExpanded: true,
               hint: Text(

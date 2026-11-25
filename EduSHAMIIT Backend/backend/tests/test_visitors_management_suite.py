@@ -564,3 +564,215 @@ async def test_smart_host_search_and_instant_blacklist():
         print("[OK] Executive management summary report endpoint verified.")
 
 
+@pytest.mark.asyncio
+async def test_single_source_of_truth_all_visitors_kpis_vs_grid():
+    """Verify Tab 0 (All Visitors) KPI cards match filtered/unfiltered grid totals."""
+    from datetime import datetime, timezone
+
+    school_id = "11111111-1111-1111-1111-111111111111"
+    token = create_test_token(school_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=headers, timeout=20.0) as client:
+        # 1. Unfiltered parity
+        kpi_res = await client.get("/api/visitors/kpis")
+        assert kpi_res.status_code == 200, kpi_res.text
+        kpis = kpi_res.json()["data"]
+
+        all_res = await client.get("/api/visitors/visits?page=1&page_size=10")
+        inside_res = await client.get("/api/visitors/visits?status=Inside&page=1&page_size=10")
+        overstay_res = await client.get("/api/visitors/visits?status=Overstay&page=1&page_size=10")
+        assert kpis["total_visitors"] == all_res.json()["pagination"]["total_records"]
+        assert kpis["currently_inside"] == inside_res.json()["pagination"]["total_records"]
+        assert kpis["overstay"] == overstay_res.json()["pagination"]["total_records"]
+
+        # Checked In Today & Checked Out Today date-filtered parity
+        now_utc = datetime.now(timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        today_end = now_utc.replace(hour=23, minute=59, second=59, microsecond=999000).isoformat()
+        in_today_res = await client.get(
+            "/api/visitors/visits",
+            params={"status": "Checked In", "date_from": today_start, "date_to": today_end, "page": 1, "page_size": 10},
+        )
+        out_today_res = await client.get(
+            "/api/visitors/visits",
+            params={"status": "Checked Out", "date_from": today_start, "date_to": today_end, "page": 1, "page_size": 10},
+        )
+        assert kpis["checked_in_today"] == in_today_res.json()["pagination"]["total_records"]
+        assert kpis["checked_out_today"] == out_today_res.json()["pagination"]["total_records"]
+
+        # Analytics category sum matches total_visitors
+        an_res = await client.get("/api/visitors/analytics")
+        assert an_res.status_code == 200
+        cat_sum = sum(int(c.get("count", 0)) for c in an_res.json()["data"]["categories"])
+        assert cat_sum == kpis["total_visitors"]
+
+        # 2. Filtered parity (location, category, search)
+        for params in [
+            {"location": "Main Gate"},
+            {"category": "Parent"},
+            {"search": "Sharma"},
+            {"location": "Main Gate", "category": "Parent"},
+        ]:
+            fk = (await client.get("/api/visitors/kpis", params=params)).json()["data"]
+            fl_all = (await client.get("/api/visitors/visits", params={**params, "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            fl_in = (await client.get("/api/visitors/visits", params={**params, "status": "Inside", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            fl_ov = (await client.get("/api/visitors/visits", params={**params, "status": "Overstay", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            assert fk["total_visitors"] == fl_all, f"Total mismatch for {params}"
+            assert fk["currently_inside"] == fl_in, f"Inside mismatch for {params}"
+            assert fk["overstay"] == fl_ov, f"Overstay mismatch for {params}"
+
+        # 3. Mutation SSOT: check-in then check-out updates KPI & grid identically
+        phone = f"+91 9700{uuid.uuid4().hex[:6]}"
+        reg = await client.post("/api/visitors/register", json={
+            "full_name": "SSOT Visit Tester",
+            "phone": phone,
+            "visitor_type": "Vendor",
+            "purpose": "SSOT Parity Check",
+            "host_name": "Admin",
+            "destination": "Main Gate",
+            "entry_location": "Main Gate",
+            "auto_check_in": True,
+        })
+        assert reg.status_code == 200, reg.text
+        visit_id = reg.json()["data"]["visit_id"]
+
+        after_in_kpis = (await client.get("/api/visitors/kpis")).json()["data"]
+        after_in_all = (await client.get("/api/visitors/visits?page=1&page_size=10")).json()["pagination"]["total_records"]
+        after_in_cur = (await client.get("/api/visitors/visits?status=Inside&page=1&page_size=10")).json()["pagination"]["total_records"]
+        assert after_in_kpis["total_visitors"] == kpis["total_visitors"] + 1 == after_in_all
+        assert after_in_kpis["currently_inside"] == kpis["currently_inside"] + 1 == after_in_cur
+
+        co = await client.post(f"/api/visitors/visits/{visit_id}/check-out")
+        assert co.status_code == 200, co.text
+        after_out_kpis = (await client.get("/api/visitors/kpis")).json()["data"]
+        after_out_cur = (await client.get("/api/visitors/visits?status=Inside&page=1&page_size=10")).json()["pagination"]["total_records"]
+        assert after_out_kpis["currently_inside"] == kpis["currently_inside"] == after_out_cur
+        assert after_out_kpis["checked_out_today"] >= kpis["checked_out_today"] + 1
+        print("[OK] Tab 0 All Visitors KPI <-> Grid SSOT verified across all filters and mutations.")
+
+
+@pytest.mark.asyncio
+async def test_single_source_of_truth_scheduled_kpis_vs_grid():
+    """Verify Tab 1 (Scheduled Visitors) KPI cards match grid totals across filters & mutations."""
+    from datetime import datetime, timezone
+
+    school_id = "11111111-1111-1111-1111-111111111111"
+    token = create_test_token(school_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=headers, timeout=20.0) as client:
+        async def assert_tab1_parity(params=None, tag="unfiltered"):
+            p = params or {}
+            k = (await client.get("/api/visitors/appointments/kpis", params=p)).json()["data"]
+            l_all = (await client.get("/api/visitors/appointments", params={**p, "status": "All Status", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_today = (await client.get("/api/visitors/appointments", params={**p, "status": "Today", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_week = (await client.get("/api/visitors/appointments", params={**p, "status": "This Week", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_exp = (await client.get("/api/visitors/appointments", params={**p, "status": "Expected", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_pend = (await client.get("/api/visitors/appointments", params={**p, "status": "Pending", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            assert k["total_scheduled"] == l_all, f"[{tag}] total_scheduled mismatch"
+            assert k["today"] == l_today, f"[{tag}] today mismatch"
+            assert k["this_week"] == l_week, f"[{tag}] this_week mismatch"
+            assert k["expected_visitors"] == l_exp, f"[{tag}] expected mismatch"
+            assert k["pending_approval"] == l_pend, f"[{tag}] pending mismatch"
+            return k
+
+        base = await assert_tab1_parity(tag="base")
+        for f in [{"location": "Main Gate"}, {"category": "Parent"}, {"search": "Test"}]:
+            await assert_tab1_parity(f, tag=str(f))
+
+        # Mutation: Schedule -> Approve -> Cancel for today (UTC to match DB CURRENT_DATE)
+        phone = f"+91 9600{uuid.uuid4().hex[:6]}"
+        sch = await client.post("/api/visitors/appointments", json={
+            "full_name": "SSOT Scheduled Visitor",
+            "phone": phone,
+            "visitor_type": "Parent",
+            "host_name": "Principal",
+            "purpose": "SSOT Schedule Check",
+            "destination": "Admin Office",
+            "scheduled_date": datetime.now(timezone.utc).date().isoformat(),
+        })
+        assert sch.status_code == 200, sch.text
+        appt_id = sch.json()["data"]["appointment_id"]
+
+        after_sch = await assert_tab1_parity(tag="after_schedule")
+        assert after_sch["total_scheduled"] == base["total_scheduled"] + 1
+        assert after_sch["today"] == base["today"] + 1
+        assert after_sch["this_week"] == base["this_week"] + 1
+        assert after_sch["expected_visitors"] == base["expected_visitors"] + 1
+        assert after_sch["pending_approval"] == base["pending_approval"] + 1
+
+        appr = await client.post(f"/api/visitors/appointments/{appt_id}/approve")
+        assert appr.status_code == 200, appr.text
+        after_appr = await assert_tab1_parity(tag="after_approve")
+        assert after_appr["total_scheduled"] == base["total_scheduled"] + 1
+        assert after_appr["pending_approval"] == base["pending_approval"]
+
+        canc = await client.post(f"/api/visitors/appointments/{appt_id}/cancel", json={"reason": "SSOT cleanup"})
+        assert canc.status_code == 200, canc.text
+        after_canc = await assert_tab1_parity(tag="after_cancel")
+        assert after_canc["total_scheduled"] == base["total_scheduled"] + 1
+        assert after_canc["today"] == base["today"]
+        assert after_canc["this_week"] == base["this_week"]
+        assert after_canc["expected_visitors"] == base["expected_visitors"]
+        print("[OK] Tab 1 Scheduled Visitors KPI <-> Grid SSOT verified across all filters and mutations.")
+
+
+@pytest.mark.asyncio
+async def test_single_source_of_truth_blacklisted_kpis_vs_grid():
+    """Verify Tab 2 (Blacklisted Visitors) KPI cards match grid totals across filters & mutations."""
+    school_id = "11111111-1111-1111-1111-111111111111"
+    token = create_test_token(school_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=headers, timeout=20.0) as client:
+        async def assert_tab2_parity(params=None, tag="unfiltered"):
+            p = params or {}
+            k = (await client.get("/api/visitors/restrictions/kpis", params=p)).json()["data"]
+            l_all = (await client.get("/api/visitors/restrictions", params={**p, "status": "All Status", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_act = (await client.get("/api/visitors/restrictions", params={**p, "status": "Active", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_ended = (await client.get("/api/visitors/restrictions", params={**p, "status": "Ended", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_exp = (await client.get("/api/visitors/restrictions", params={**p, "status": "Expired", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            l_lift = (await client.get("/api/visitors/restrictions", params={**p, "status": "Lifted", "page": 1, "page_size": 10})).json()["pagination"]["total_records"]
+            assert k["total_blacklisted"] == l_all, f"[{tag}] total_blacklisted mismatch"
+            assert k["active_blocks"] == l_act, f"[{tag}] active_blocks mismatch"
+            assert k["expired_blocks"] == l_ended == (l_exp + l_lift), f"[{tag}] expired_blocks vs Ended mismatch"
+            return k
+
+        base = await assert_tab2_parity(tag="base")
+        for f in [{"location": "Main Gate"}, {"reason": "Theft"}, {"search": "Rohit"}]:
+            await assert_tab2_parity(f, tag=str(f))
+
+        # Attempted Entries drill-down returns matching restricted visitors
+        att_res = await client.get("/api/visitors/restrictions?status=Attempted&page=1&page_size=10")
+        assert att_res.status_code == 200
+        assert att_res.json()["pagination"]["total_records"] >= 1
+
+        # Mutation: Blacklist new visitor -> verify active +1 -> lift -> verify active -1 & ended +1
+        phone = f"+91 9500{uuid.uuid4().hex[:6]}"
+        blk = await client.post("/api/visitors/restrictions", json={
+            "full_name": "SSOT Blacklist Subject",
+            "phone": phone,
+            "scope_type": "LOCATION",
+            "scope_name": "Main Gate",
+            "reason_category": "Policy Violation",
+            "confidential_notes": "SSOT block test",
+            "is_permanent": True,
+        })
+        assert blk.status_code == 200, blk.text
+        rest_id = blk.json()["data"]["restriction_id"]
+
+        after_blk = await assert_tab2_parity(tag="after_block")
+        assert after_blk["total_blacklisted"] == base["total_blacklisted"] + 1
+        assert after_blk["active_blocks"] == base["active_blocks"] + 1
+
+        lift = await client.post(f"/api/visitors/restrictions/{rest_id}/lift", json={"reason": "SSOT test lift"})
+        assert lift.status_code == 200, lift.text
+        after_lift = await assert_tab2_parity(tag="after_lift")
+        assert after_lift["total_blacklisted"] == base["total_blacklisted"] + 1
+        assert after_lift["active_blocks"] == base["active_blocks"]
+        assert after_lift["expired_blocks"] == base["expired_blocks"] + 1
+        print("[OK] Tab 2 Blacklisted Visitors KPI <-> Grid SSOT verified across all filters and mutations.")
+
+
+

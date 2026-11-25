@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -247,7 +248,7 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _requestType,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Type'),
@@ -257,7 +258,7 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _priority,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Priority'),
@@ -267,7 +268,7 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Status'),
@@ -283,7 +284,7 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String?>(
+                            child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                               initialValue: _selectedRoomId,
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -311,7 +312,7 @@ class _AddEditBuildingMaintenanceDialogState extends State<AddEditBuildingMainte
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String?>(
+                            child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                               initialValue: _selectedFloorId,
                               isExpanded: true,
                               decoration: const InputDecoration(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../utils/js_helper.dart';
+import 'package:edu_shamiit_core/utils/tab_url_sync.dart';
 import 'models/work_models.dart';
 import 'providers/work_management_provider.dart';
 import 'widgets/work_header_bar.dart';
@@ -33,16 +34,54 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
   final Set<int> _loadedTabs = {};
   WorkItemModel? _activeBoardDrawerItem;
   final GlobalKey<WorkBoardTabViewState> _boardKey = GlobalKey<WorkBoardTabViewState>();
+  final GlobalKey<WorkSprintsTabViewState> _sprintsKey = GlobalKey<WorkSprintsTabViewState>();
   String? _boardTargetSprint;
   String? _boardTargetSprintId;
+
+  String _resolveBasePath() {
+    final path = Uri.base.path;
+    if (path == '/work' || path.startsWith('/work/')) {
+      return '/work';
+    }
+    return '/admin/work';
+  }
 
   @override
   void initState() {
     super.initState();
-    _activeTabIndex = widget.initialTabIndex;
+    _activeTabIndex = widget.initialTabIndex.clamp(0, 4);
     _loadedTabs.add(_activeTabIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshTabOnSwitch(_activeTabIndex);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkManagementScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextIdx = widget.initialTabIndex.clamp(0, 4);
+    if (nextIdx != oldWidget.initialTabIndex.clamp(0, 4) &&
+        nextIdx != _activeTabIndex) {
+      setState(() {
+        _activeTabIndex = nextIdx;
+        _loadedTabs.add(nextIdx);
+        _activeBoardDrawerItem = null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _refreshTabOnSwitch(nextIdx);
+      });
+    }
+  }
+
+  void _navigateToCapacityTab(String teamName, String? sprintId) {
+    setState(() {
+      _activeTabIndex = 3; // Sprints Tab
+      _loadedTabs.add(3);
+      _activeBoardDrawerItem = null;
+    });
+    updateTabUrl(_resolveBasePath(), 3);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sprintsKey.currentState?.switchToCapacity(team: teamName, sprintId: sprintId);
     });
   }
 
@@ -59,6 +98,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
       _loadedTabs.add(0);
       _activeBoardDrawerItem = null;
     });
+    updateTabUrl(_resolveBasePath(), 0);
 
     WorkApiService.instance.invalidateCache();
     _boardKey.currentState?.selectSprint(sprintLabel, sprintId);
@@ -89,7 +129,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
       case 4: // Team
         final allSprints = ref.read(allSprintsProvider).sprints;
         final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
-        final sid = activeSprint?.id ?? ref.read(workSprintDashboardProvider).sprint?.id ?? 's8';
+        final sid = activeSprint?.id ?? ref.read(workSprintDashboardProvider).sprint?.id ?? (allSprints.isNotEmpty ? allSprints.first.id : '');
         ref.read(workSprintTeamProvider.notifier).init(sid);
         break;
     }
@@ -332,6 +372,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                     _loadedTabs.add(clampedIdx);
                     _activeBoardDrawerItem = null;
                   });
+                  updateTabUrl(_resolveBasePath(), clampedIdx);
                   _refreshTabOnSwitch(clampedIdx);
                 },
               ),
@@ -383,6 +424,7 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                     // Tab 3: Sprints
                     _loadedTabs.contains(3)
                         ? WorkSprintsTabView(
+                            key: _sprintsKey,
                             onOpenDetail: (item) {
                               setState(() => _activeBoardDrawerItem = item);
                             },
@@ -402,10 +444,11 @@ class _WorkManagementScreenState extends ConsumerState<WorkManagementScreen> {
                             builder: (context, ref, _) {
                               final allSprints = ref.watch(allSprintsProvider).sprints;
                               final activeSprint = allSprints.where((s) => s.status.toUpperCase() == 'ACTIVE').firstOrNull;
-                              final sprintId = activeSprint?.id ?? ref.watch(workSprintDashboardProvider).sprint?.id ?? 's8';
+                              final sprintId = activeSprint?.id ?? ref.watch(workSprintDashboardProvider).sprint?.id ?? (allSprints.isNotEmpty ? allSprints.first.id : '');
                               return SprintTeamTabView(
                                 sprintId: sprintId,
                                 selectedTeam: 'All Teams',
+                                onNavigateToCapacity: _navigateToCapacityTab,
                               );
                             },
                           )

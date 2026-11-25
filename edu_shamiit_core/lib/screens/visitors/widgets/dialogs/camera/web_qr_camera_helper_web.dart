@@ -21,7 +21,7 @@ class WebQrCameraHelper {
   static html.MediaStream? _mediaStream;
   static Timer? _scanTimer;
   static bool _isDetecting = false;
-  static bool _viewRegistered = false;
+  static final Set<String> _registeredViews = <String>{};
 
   static Future<CameraFeedState> startCamera({
     required String viewTypeId,
@@ -49,12 +49,12 @@ class WebQrCameraHelper {
         ..style.objectFit = 'cover';
 
       // 2. Register Platform View with Flutter Web
-      if (!_viewRegistered) {
+      if (!_registeredViews.contains(viewTypeId)) {
         ui_web.platformViewRegistry.registerViewFactory(
           viewTypeId,
           (int viewId) => _videoElement!,
         );
-        _viewRegistered = true;
+        _registeredViews.add(viewTypeId);
       }
 
       // 3. Request user camera access
@@ -128,7 +128,13 @@ class WebQrCameraHelper {
               }
               if (window.BarcodeDetector && !window._qrDetectorRunning) {
                 if (!window._qrDetectorInstance) {
-                  window._qrDetectorInstance = new BarcodeDetector({ formats: ['qr_code', 'code_128'] });
+                  try {
+                    window._qrDetectorInstance = new BarcodeDetector({
+                      formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar', 'itf']
+                    });
+                  } catch (e) {
+                    window._qrDetectorInstance = new BarcodeDetector();
+                  }
                 }
                 const v = document.getElementById('qr-webcam-video');
                 if (v && v.readyState >= 2) {
@@ -199,6 +205,12 @@ class WebQrCameraHelper {
         _videoElement!.srcObject = null;
       } catch (_) {}
     }
+
+    try {
+      js.context.callMethod('eval', [
+        'window._qrBarcodeResult = null; window._qrDetectorRunning = false;'
+      ]);
+    } catch (_) {}
   }
 
   static Widget buildCameraView(String viewTypeId) {

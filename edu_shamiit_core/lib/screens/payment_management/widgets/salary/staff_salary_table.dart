@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -566,7 +567,7 @@ class StaffSalaryTable extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              DropdownButton<int>(
+              AppSearchableDropdown<int>.fromMenuItems(
                 value: state.pageSize,
                 underline: const SizedBox.shrink(),
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1013,7 +1014,7 @@ class StaffSalaryTable extends ConsumerWidget {
                   children: [
                     Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     const SizedBox(width: 8),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: pageSize,
                       underline: const SizedBox(),
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1282,7 +1283,7 @@ class StaffSalaryTable extends ConsumerWidget {
                   children: [
                     Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     const SizedBox(width: 8),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: pageSize,
                       underline: const SizedBox(),
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1539,7 +1540,7 @@ class StaffSalaryTable extends ConsumerWidget {
                   children: [
                     Text('Rows per page:', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     const SizedBox(width: 8),
-                    DropdownButton<int>(
+                    AppSearchableDropdown<int>.fromMenuItems(
                       value: pageSize,
                       underline: const SizedBox(),
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

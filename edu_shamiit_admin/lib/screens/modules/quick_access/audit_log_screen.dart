@@ -426,45 +426,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     final isMobile = Responsive.isMobile(context);
     final finalWidth = width ?? (isMobile ? 140.0 : 160.0);
 
-    return SizedBox(
+    return AppSearchableDropdown<String>(
       width: finalWidth,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
-        decoration: BoxDecoration(
-          color: _cardBg,
-          border: Border.all(color: _borderColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            isExpanded: true,
-            isDense: isMobile,
-            value: value,
-            icon: Icon(Icons.keyboard_arrow_down_rounded, color: _textFaded, size: isMobile ? 14 : 18),
-            dropdownColor: _cardBg,
-            style: TextStyle(color: _textPrimary, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
-            items: items.map((String val) {
-              return DropdownMenuItem<String>(
-                value: val,
-                child: Row(
-                  children: [
-                    Icon(icon, color: _textSecondary, size: isMobile ? 12 : 14),
-                    SizedBox(width: isMobile ? 6 : 8),
-                    Expanded(
-                      child: Text(
-                        val,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: _textPrimary, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: onChanged,
-          ),
-        ),
-      ),
+      value: value,
+      icon: icon,
+      items: items,
+      pinAllOption: true,
+      onChanged: onChanged,
     );
   }
 
@@ -1146,7 +1114,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         const SizedBox(width: 12),
         Text('Rows per page: ', style: TextStyle(color: _textFaded, fontSize: 11, fontFamily: 'Outfit')),
         DropdownButtonHideUnderline(
-          child: DropdownButton<int>(
+          child: AppSearchableDropdown<int>.fromMenuItems(
             value: _pageSize,
             dropdownColor: _cardBg,
             style: TextStyle(color: _textPrimary, fontSize: 11, fontFamily: 'Outfit'),

@@ -2208,7 +2208,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _tier,
                         style: TextStyle(
                             color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -2260,7 +2260,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _status,
                         decoration: const InputDecoration(labelText: 'Status'),
                         items: () {
@@ -2336,7 +2336,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                 ),
                 if (_enableMailServer) ...[
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _mailPlanCode,
                     style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -2387,7 +2387,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _pricingModel,
                         decoration:
                             const InputDecoration(labelText: 'Pricing Model'),
@@ -2815,7 +2815,7 @@ class _MailConfigDialogState extends State<MailConfigDialog> {
                           fontSize: 11,
                           color: Color(0xFF4F46E5))),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedSchoolId,
                     style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -2860,7 +2860,7 @@ class _MailConfigDialogState extends State<MailConfigDialog> {
                         fontSize: 11,
                         color: Color(0xFF4F46E5))),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _mailPlanCode,
                   style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -2919,7 +2919,7 @@ class _MailConfigDialogState extends State<MailConfigDialog> {
                         fontSize: 11,
                         color: Color(0xFF4F46E5))),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _pricingModel,
                   decoration:
                       const InputDecoration(labelText: 'Mail Pricing Model'),
@@ -3256,7 +3256,7 @@ class _PlanFormDialogState extends State<PlanFormDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _planType,
                   decoration: const InputDecoration(
                       labelText: 'Plan Category / Type *'),

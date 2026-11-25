@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1220,7 +1221,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                   'Select the new status to apply to all $count selected examinations:',
                   style: TextStyle(fontSize: 13, color: _textSecondary)),
               const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: targetStatus,
                 dropdownColor: _cardBg,
                 style: TextStyle(color: _textPrimary, fontSize: 13),
@@ -1405,7 +1406,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
         border: Border.all(color: _cardBorder),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: validVal,
           dropdownColor: _cardBg,
           icon: Icon(Icons.keyboard_arrow_down_rounded,
@@ -1916,7 +1917,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
               const Text('Rows per page: ',
                   style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
               DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   items: const [
                     DropdownMenuItem(value: 10, child: Text('10')),
@@ -2984,7 +2985,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
+                                  child: AppSearchableDropdown<String>.fromMenuItems(
                                     isExpanded: true,
                                     dropdownColor: _cardBg,
                                     value:
@@ -3029,7 +3030,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
+                                  child: AppSearchableDropdown<String>.fromMenuItems(
                                     isExpanded: true,
                                     dropdownColor: _cardBg,
                                     value: categoryOptions
@@ -3074,7 +3075,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
+                                  child: AppSearchableDropdown<String>.fromMenuItems(
                                     isExpanded: true,
                                     dropdownColor: _cardBg,
                                     value: modeOptions.any((m) =>
@@ -3678,7 +3679,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
+                                  child: AppSearchableDropdown<String>.fromMenuItems(
                                     isExpanded: true,
                                     dropdownColor: _cardBg,
                                     value:
@@ -4368,7 +4369,7 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                                           fontWeight: FontWeight.w600,
                                           color: _textPrimary))),
                                   DataCell(
-                                    DropdownButton<String>(
+                                    AppSearchableDropdown<String>.fromMenuItems(
                                       value:
                                           st['attendance_status'] ?? 'present',
                                       dropdownColor: _cardBg,

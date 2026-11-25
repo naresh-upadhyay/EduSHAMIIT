@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1259,7 +1260,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
 
                   Text('Document Category *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedType,
                     items: const [
                       DropdownMenuItem(value: 'Parent Consent', child: Text('Parent Consent')),
@@ -1616,7 +1617,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: category,
                   items: const [
                     DropdownMenuItem(value: 'General', child: Text('General Note')),
@@ -1694,7 +1695,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: ['LEAVE', 'OUTING'].contains(reqType.toUpperCase()) ? reqType.toUpperCase() : 'LEAVE',
                           items: const [
                             DropdownMenuItem(value: 'LEAVE', child: Text('Leave (Extended)')),
@@ -1708,7 +1709,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: ['Personal', 'Home Leave', 'Medical Leave', 'Market Visit', 'Coaching', 'Emergency'].contains(reqSubtype)
                               ? reqSubtype
                               : 'Personal',
@@ -1765,7 +1766,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: ['WALK', 'CAB', 'AUTO', 'BUS', 'TRAIN', 'PERSONAL_CAR'].contains(transportMode)
                               ? transportMode
                               : 'WALK',
@@ -1907,7 +1908,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   key: ValueKey('exit_gate_$gate'),
                   initialValue: gate,
                   items: uniqueGates
@@ -1978,7 +1979,7 @@ class _HostelLeaveDetailDrawerState extends ConsumerState<HostelLeaveDetailDrawe
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   key: ValueKey('return_gate_$gate'),
                   initialValue: gate,
                   items: uniqueGates

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -2063,7 +2064,7 @@ class _DeviceAccessPermissionsSubviewState
                   children: [
                     const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _rolesPageSize,
                         isDense: true,
                         style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
@@ -2232,7 +2233,7 @@ class _DeviceAccessPermissionsSubviewState
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: filterRoleNames.contains(_selectedRoleFilter) ? _selectedRoleFilter : 'All Roles',
                           isDense: true,
                           style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
@@ -2260,7 +2261,7 @@ class _DeviceAccessPermissionsSubviewState
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _selectedStatusFilter,
                           isDense: true,
                           style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
@@ -2714,7 +2715,7 @@ class _DeviceAccessPermissionsSubviewState
                   children: [
                     const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _userPageSize,
                         isDense: true,
                         style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
@@ -3822,7 +3823,7 @@ class _CreateRoleDialogState extends State<_CreateRoleDialog> {
             const SizedBox(height: 10),
             const Text('Location Scope', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _location,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -4122,7 +4123,7 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               // Role Selection
               const Text('2. Assign Institutional Role (from Roles Management)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _selectedRoleId ?? (widget.dropdownRoles.isNotEmpty ? widget.dropdownRoles.first['id']?.toString() : null),
                 isDense: true,
                 decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
@@ -4155,7 +4156,7 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               // Location Scope Selection
               const Text('3. Location Scope (from Buildings)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _selectedScope,
                 isDense: true,
                 decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
@@ -4184,7 +4185,7 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               // Access Level
               const Text('4. Access Level', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _selectedAccessLevel,
                 isDense: true,
                 decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
@@ -4384,7 +4385,7 @@ class _DefinePolicyDialogState extends State<_DefinePolicyDialog> {
             const SizedBox(height: 10),
             const Text('Policy Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _category,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -4467,7 +4468,7 @@ class _AccessRequestDialogState extends State<_AccessRequestDialog> {
             const SizedBox(height: 10),
             const Text('Requested Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _role,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -4554,7 +4555,7 @@ class _CreateDelegationDialogState extends State<_CreateDelegationDialog> {
             const SizedBox(height: 10),
             const Text('Assigned Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _role,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),

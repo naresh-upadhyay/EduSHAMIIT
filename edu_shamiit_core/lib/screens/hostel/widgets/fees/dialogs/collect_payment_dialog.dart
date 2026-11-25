@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -248,7 +249,7 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
                     ),
                   )
                 else
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: _selectedStudentId,
                     decoration: _inputDecoration(isDark, hint: 'Select Student'),
@@ -345,7 +346,7 @@ class _CollectPaymentDialogState extends ConsumerState<CollectPaymentDialog> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             isExpanded: true,
                             initialValue: _paymentMode,
                             decoration: _inputDecoration(isDark),

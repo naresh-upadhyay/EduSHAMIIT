@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/student_fee_provider.dart';
@@ -354,7 +355,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           key: ValueKey('fee_filter_class_$effectiveClass'),
           value: effectiveClass,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -380,7 +381,7 @@ class StudentFeeFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           key: ValueKey('fee_filter_status_$effectiveStatus'),
           value: effectiveStatus,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

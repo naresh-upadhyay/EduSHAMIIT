@@ -1593,7 +1593,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     Text('Stop Details & Configuration', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: _textPrimary)),
                                     const SizedBox(height: 16),
 
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
                                       decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
                                       items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
@@ -1660,7 +1660,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     ),
                                     const SizedBox(height: 12),
 
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
                                       decoration: const InputDecoration(labelText: 'Stop Type *', border: OutlineInputBorder()),
                                       items: ['Pickup', 'Drop', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
@@ -1682,7 +1682,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     ),
                                     const SizedBox(height: 12),
 
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
                                       decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                                       items: ['Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -2170,7 +2170,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _overviewAreaFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: dynamicAreas.map((area) {
@@ -2197,7 +2197,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _overviewTypeFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((t) {
@@ -2224,7 +2224,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _overviewStatusFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: ['All', 'Active', 'Inactive', 'Draft'].map((s) {
@@ -3057,7 +3057,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _statusFilter,
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
@@ -3075,7 +3075,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _typeFilter,
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Pickup', 'Drop'].map((s) => DropdownMenuItem(value: s, child: Text('$s Types'))).toList(),
@@ -3093,7 +3093,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _areaFilter,
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Noida', 'Greater Noida', 'Dadri', 'Knowledge Park'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Areas' : s))).toList(),
@@ -3345,7 +3345,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
+                                        child: AppSearchableDropdown<int>.fromMenuItems(
                                           value: _pageSize,
                                           dropdownColor: _cardBg,
                                           style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
@@ -4278,7 +4278,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 ? selectedVehicleId
                 : null;
 
-            return DropdownButtonFormField<String?>(
+            return AppSearchableDropdownFormField<String?>.fromMenuItems(
               isExpanded: true,
               initialValue: validVehicleId,
               decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder(), isDense: true),
@@ -4321,7 +4321,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 ? selectedDriverId
                 : null;
 
-            return DropdownButtonFormField<String?>(
+            return AppSearchableDropdownFormField<String?>.fromMenuItems(
               isExpanded: true,
               initialValue: validDriverId,
               decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), isDense: true),
@@ -4334,7 +4334,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           },
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           isExpanded: true,
           initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
           decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder(), isDense: true),
@@ -4576,7 +4576,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         border: Border.all(color: _border),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           items: items.map((item) {
             final childWidget = item.child;
@@ -5481,7 +5481,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
+                                  child: AppSearchableDropdown<int>.fromMenuItems(
                                     value: _trackingPageSize,
                                     dropdownColor: _cardBg,
                                     style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
@@ -5725,7 +5725,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _reportsRouteFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: [
@@ -5752,7 +5752,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _reportsBusFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: [
@@ -5779,7 +5779,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _reportsStatusFilter,
                 style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                 items: const [
@@ -6605,7 +6605,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: _reportsTablePageSize,
                           dropdownColor: _cardBg,
                           isDense: true,
@@ -6975,7 +6975,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: (_stopsRouteFilter == 'All' || _routes.any((r) => r['id'].toString() == _stopsRouteFilter)) ? _stopsRouteFilter : 'All',
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: [
@@ -6996,7 +6996,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _stopsStatusFilter,
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
@@ -7014,7 +7014,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _stopsTypeFilter,
                         style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
                         items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Stop Types' : s))).toList(),
@@ -7223,7 +7223,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<int>(
+                                    child: AppSearchableDropdown<int>.fromMenuItems(
                                       value: _stopsPageSize,
                                       dropdownColor: _cardBg,
                                       style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
@@ -7299,7 +7299,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                 SizedBox(
                                   width: 140,
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: (_selectedPreviewRoute != null && _routes.any((r) => r['id'].toString() == _selectedPreviewRoute!['id'].toString())) ? _selectedPreviewRoute!['id'].toString() : null,
                                       isExpanded: true,
                                       style: GoogleFonts.inter(fontSize: 11, color: _textPrimary),
@@ -7679,7 +7679,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               border: Border.all(color: _border),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 isExpanded: true,
                 value: _saSelectedRoute?['id']?.toString(),
                 hint: Text('Select Route', style: GoogleFonts.inter(fontSize: 13)),
@@ -8198,7 +8198,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
+                            child: AppSearchableDropdown<int>.fromMenuItems(
                               value: _saPageSize,
                               dropdownColor: _cardBg,
                               style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.w600),
@@ -8588,7 +8588,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         border: Border.all(color: _border),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: validVal,
           style: GoogleFonts.inter(fontSize: 11, color: _textPrimary),
           items: options.map((opt) {

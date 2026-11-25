@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/services/hr_lookup_helper.dart';
@@ -579,7 +580,7 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _stages.contains(_selectedStage) ? _selectedStage : 'All',
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -615,7 +616,7 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -651,7 +652,7 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _sources.contains(_selectedSource) ? _selectedSource : 'All',
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -687,7 +688,7 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
                       border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _positions.contains(_selectedPosition) ? _selectedPosition : 'All',
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1336,7 +1337,7 @@ class _StageDetailsDialogState extends State<StageDetailsDialog> {
                             border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1)),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
+                            child: AppSearchableDropdown<int>.fromMenuItems(
                               value: _pageSize,
                               isDense: true,
                               dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,

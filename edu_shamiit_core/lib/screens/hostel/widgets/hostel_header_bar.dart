@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +16,6 @@ class HostelHeaderBar extends ConsumerWidget {
     {'title': 'Fees & Billing', 'icon': Icons.receipt_long_outlined},
     {'title': 'Leave & Outing', 'icon': Icons.exit_to_app_rounded},
     {'title': 'Complaints', 'icon': Icons.report_problem_outlined},
-    {'title': 'Visitors', 'icon': Icons.person_pin_circle_outlined},
     {'title': 'Reports', 'icon': Icons.assessment_outlined},
   ];
 
@@ -121,7 +121,7 @@ class HostelHeaderBar extends ConsumerWidget {
                         ),
                         const SizedBox(width: 6),
                         DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: selectedYear,
                             isDense: true,
                             style: TextStyle(
@@ -203,7 +203,7 @@ class HostelHeaderBar extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: AppSearchableDropdown<String>.fromMenuItems(
                               value: selectedYear,
                               isDense: true,
                               style: TextStyle(

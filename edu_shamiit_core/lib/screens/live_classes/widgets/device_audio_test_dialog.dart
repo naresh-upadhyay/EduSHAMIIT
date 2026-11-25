@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -734,7 +735,7 @@ class _DeviceAudioTestDialogState extends ConsumerState<DeviceAudioTestDialog> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<lk.MediaDevice>(
+        child: AppSearchableDropdown<lk.MediaDevice>.fromMenuItems(
           value: currentVal,
           isExpanded: true,
           dropdownColor: isDark ? const Color(0xFF1E222D) : Colors.white,

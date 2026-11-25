@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -416,6 +417,7 @@ class _HostelLeaveFilterBarState extends ConsumerState<HostelLeaveFilterBar> {
   }) {
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -425,9 +427,10 @@ class _HostelLeaveFilterBarState extends ConsumerState<HostelLeaveFilterBar> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,

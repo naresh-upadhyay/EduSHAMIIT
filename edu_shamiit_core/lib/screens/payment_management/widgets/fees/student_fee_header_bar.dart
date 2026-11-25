@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/student_fee_provider.dart';
@@ -99,7 +100,7 @@ class StudentFeeHeaderBar extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     key: ValueKey('fee_year_$effectiveYear'),
                     value: effectiveYear,
                     isDense: true,

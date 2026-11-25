@@ -148,14 +148,15 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     final state = ref.watch(requestProvider);
     final notifier = ref.read(requestProvider.notifier);
     final detail = state.selectedRequestDetail;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: 480,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
             blurRadius: 20,
             offset: const Offset(-4, 0),
           ),
@@ -179,7 +180,10 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                 child: Text(
                   state.detailErrorMessage ??
                       'Select a request to view details',
-                  style: TextStyle(color: Colors.grey.shade500),
+                  style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : Colors.grey.shade500),
                 ),
               ),
             )
@@ -187,19 +191,28 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
             // Tab Bar (Details, Timeline, Comments, Attachments)
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                border: Border(
+                    bottom: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : Colors.grey.shade200)),
               ),
               child: TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                labelColor: const Color(0xFF1E293B),
-                unselectedLabelColor: const Color(0xFF64748B),
+                labelColor: isDark ? Colors.white : const Color(0xFF1E293B),
+                unselectedLabelColor: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B),
                 labelStyle:
                     const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 unselectedLabelStyle:
                     const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                indicatorColor: const Color(0xFF2563EB),
+                indicatorColor: isDark
+                    ? const Color(0xFF6366F1)
+                    : const Color(0xFF2563EB),
                 indicatorWeight: 3,
                 tabs: [
                   const Tab(text: 'Overview'),
@@ -215,18 +228,18 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildOverviewTab(context, detail.request, notifier),
-                  _buildTimelineTab(detail.timeline),
-                  _buildCommentsTab(
-                      context, detail.request.id, detail.comments, notifier),
-                  _buildAttachmentsTab(
-                      context, detail.request.id, detail.attachments, notifier),
+                  _buildOverviewTab(context, detail.request, notifier, isDark),
+                  _buildTimelineTab(detail.timeline, isDark),
+                  _buildCommentsTab(context, detail.request.id, detail.comments,
+                      notifier, isDark),
+                  _buildAttachmentsTab(context, detail.request.id,
+                      detail.attachments, notifier, isDark),
                 ],
               ),
             ),
 
             // Bottom Context-aware Action Bar
-            _buildBottomActionBar(context, detail.request, notifier),
+            _buildBottomActionBar(context, detail.request, notifier, isDark),
           ],
         ],
       ),
@@ -343,6 +356,7 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     BuildContext context,
     LibraryRequestItem req,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
@@ -353,21 +367,28 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         _buildSectionCard(
           title: 'Resource Details',
           icon: Icons.menu_book_rounded,
+          isDark: isDark,
           children: [
-            _buildDetailRow('Title', req.title),
-            if (req.author != null) _buildDetailRow('Author', req.author!),
-            if (req.isbn != null) _buildDetailRow('ISBN', req.isbn!),
+            _buildDetailRow('Title', req.title, isDark: isDark),
+            if (req.author != null)
+              _buildDetailRow('Author', req.author!, isDark: isDark),
+            if (req.isbn != null)
+              _buildDetailRow('ISBN', req.isbn!, isDark: isDark),
             if (req.publisher != null)
-              _buildDetailRow('Publisher', req.publisher!),
-            if (req.edition != null) _buildDetailRow('Edition', req.edition!),
-            _buildDetailRow('Language', req.language),
-            _buildDetailRow('Request Type', req.requestType),
-            _buildDetailRow('Preferred Format', req.preferredFormat),
-            _buildDetailRow('Quantity Requested', req.quantity.toString()),
-            _buildDetailRow('Priority', req.priority),
+              _buildDetailRow('Publisher', req.publisher!, isDark: isDark),
+            if (req.edition != null)
+              _buildDetailRow('Edition', req.edition!, isDark: isDark),
+            _buildDetailRow('Language', req.language, isDark: isDark),
+            _buildDetailRow('Request Type', req.requestType, isDark: isDark),
+            _buildDetailRow('Preferred Format', req.preferredFormat,
+                isDark: isDark),
+            _buildDetailRow('Quantity Requested', req.quantity.toString(),
+                isDark: isDark),
+            _buildDetailRow('Priority', req.priority, isDark: isDark),
             if (req.requiredBy != null)
               _buildDetailRow('Required By',
-                  DateFormat('dd MMM yyyy').format(req.requiredBy!)),
+                  DateFormat('dd MMM yyyy').format(req.requiredBy!),
+                  isDark: isDark),
           ],
         ),
         const SizedBox(height: 16),
@@ -376,13 +397,17 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         _buildSectionCard(
           title: 'Requested By',
           icon: Icons.person_rounded,
+          isDark: isDark,
           children: [
-            _buildDetailRow('Name', req.requesterName),
-            _buildDetailRow('Role', req.requesterRole.toUpperCase()),
-            _buildDetailRow('Class / Department', req.requesterClass),
+            _buildDetailRow('Name', req.requesterName, isDark: isDark),
+            _buildDetailRow('Role', req.requesterRole.toUpperCase(),
+                isDark: isDark),
+            _buildDetailRow('Class / Department', req.requesterClass,
+                isDark: isDark),
             if (req.memberCode != null)
-              _buildDetailRow('Member Code', req.memberCode!),
-            _buildDetailRow('Request Date', dateFormat.format(req.createdAt)),
+              _buildDetailRow('Member Code', req.memberCode!, isDark: isDark),
+            _buildDetailRow('Request Date', dateFormat.format(req.createdAt),
+                isDark: isDark),
           ],
         ),
         const SizedBox(height: 16),
@@ -391,18 +416,19 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         _buildSectionCard(
           title: 'Purpose & Notes',
           icon: Icons.notes_rounded,
+          isDark: isDark,
           children: [
             if (req.reason != null && req.reason!.isNotEmpty)
-              _buildDetailRow('Reason', req.reason!),
+              _buildDetailRow('Reason', req.reason!, isDark: isDark),
             if (req.description != null && req.description!.isNotEmpty)
-              _buildDetailRow('Description', req.description!),
+              _buildDetailRow('Description', req.description!, isDark: isDark),
             if (req.rejectionReason != null && req.rejectionReason!.isNotEmpty)
               _buildDetailRow('Rejection Reason', req.rejectionReason!,
-                  isDanger: true),
+                  isDanger: true, isDark: isDark),
             if (req.cancellationReason != null &&
                 req.cancellationReason!.isNotEmpty)
               _buildDetailRow('Cancellation Reason', req.cancellationReason!,
-                  isDanger: true),
+                  isDanger: true, isDark: isDark),
           ],
         ),
         const SizedBox(height: 16),
@@ -411,31 +437,42 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         _buildSectionCard(
           title: 'Processing Status',
           icon: Icons.assignment_turned_in_rounded,
+          isDark: isDark,
           children: [
             _buildDetailRow(
-                'Assigned Librarian', req.assignedToName ?? 'Unassigned'),
+                'Assigned Librarian', req.assignedToName ?? 'Unassigned',
+                isDark: isDark),
             _buildDetailRow(
-                'Availability', req.availabilityStatus.replaceAll('_', ' ')),
+                'Availability', req.availabilityStatus.replaceAll('_', ' '),
+                isDark: isDark),
             if (req.availableCopies != null)
               _buildDetailRow('Catalog Copies',
-                  '${req.availableCopies} available / ${req.totalCopies ?? 0} total'),
+                  '${req.availableCopies} available / ${req.totalCopies ?? 0} total',
+                  isDark: isDark),
             if (req.rackLocation != null)
-              _buildDetailRow('Rack Location', req.rackLocation!),
+              _buildDetailRow('Rack Location', req.rackLocation!,
+                  isDark: isDark),
             if (req.shelfLocation != null)
-              _buildDetailRow('Shelf Location', req.shelfLocation!),
+              _buildDetailRow('Shelf Location', req.shelfLocation!,
+                  isDark: isDark),
             if (req.processedAt != null)
               _buildDetailRow(
-                  'Processed At', dateFormat.format(req.processedAt!)),
+                  'Processed At', dateFormat.format(req.processedAt!),
+                  isDark: isDark),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildTimelineTab(List<RequestTimelineEvent> timeline) {
+  Widget _buildTimelineTab(List<RequestTimelineEvent> timeline, bool isDark) {
     if (timeline.isEmpty) {
-      return const Center(
-          child: Text('No audit timeline events recorded yet.'));
+      return Center(
+          child: Text('No audit timeline events recorded yet.',
+              style: TextStyle(
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B))));
     }
 
     final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
@@ -459,7 +496,9 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                   decoration: BoxDecoration(
                     color: const Color(0xFF2563EB),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(
+                        color: isDark ? const Color(0xFF131B2E) : Colors.white,
+                        width: 2),
                     boxShadow: [
                       BoxShadow(
                           color: const Color(0xFF2563EB).withValues(alpha: 0.3),
@@ -471,7 +510,9 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                   Container(
                     width: 2,
                     height: 50,
-                    color: const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFE2E8F0),
                   ),
               ],
             ),
@@ -491,37 +532,53 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                           event.toStatus.isNotEmpty
                               ? 'Status: ${event.toStatus}'
                               : event.action,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E293B)),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B)),
                         ),
                         Text(
                           dateFormat.format(event.createdAt),
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade500),
+                              fontSize: 11,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : Colors.grey.shade500),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Updated by ${event.changedByName}',
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : Colors.grey.shade600),
                     ),
                     if (event.comment != null && event.comment!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                         child: Text(
                           event.comment!,
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF334155)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? const Color(0xFFCBD5E1)
+                                  : const Color(0xFF334155)),
                         ),
                       ),
                     ],
@@ -540,6 +597,7 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     String requestId,
     List<RequestComment> comments,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
@@ -551,7 +609,11 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
               ? Center(
                   child: Text(
                     'No comments yet. Write a note below.',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                    style: TextStyle(
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : Colors.grey.shade500,
+                        fontSize: 13),
                   ),
                 )
               : ListView.separated(
@@ -564,13 +626,22 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: c.isInternal
-                            ? const Color(0xFFFEF9C3)
-                            : const Color(0xFFF8FAFC),
+                            ? (isDark
+                                ? const Color(0xFFCA8A04).withValues(alpha: 0.14)
+                                : const Color(0xFFFEF9C3))
+                            : (isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: c.isInternal
-                              ? const Color(0xFFFDE047)
-                              : const Color(0xFFE2E8F0),
+                              ? (isDark
+                                  ? const Color(0xFFCA8A04)
+                                      .withValues(alpha: 0.4)
+                                  : const Color(0xFFFDE047))
+                              : (isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFE2E8F0)),
                         ),
                       ),
                       child: Column(
@@ -583,10 +654,12 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                                 children: [
                                   Text(
                                     c.authorName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF1E293B)),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF1E293B)),
                                   ),
                                   if (c.isInternal) ...[
                                     const SizedBox(width: 6),
@@ -609,13 +682,18 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                               Text(dateFormat.format(c.createdAt),
                                   style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.grey.shade500)),
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : Colors.grey.shade500)),
                             ],
                           ),
                           const SizedBox(height: 6),
                           Text(c.comment,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF334155))),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF334155))),
                         ],
                       ),
                     );
@@ -627,8 +705,12 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            border: Border(
+                top: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : Colors.grey.shade200)),
           ),
           child: Column(
             children: [
@@ -639,8 +721,12 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                     onChanged: (val) =>
                         setState(() => _isInternalComment = val ?? false),
                   ),
-                  const Text('Internal staff note only',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  Text('Internal staff note only',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B))),
                 ],
               ),
               Row(
@@ -648,11 +734,16 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                   Expanded(
                     child: TextField(
                       controller: _commentController,
-                      style: const TextStyle(fontSize: 13),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'Add a comment or internal note...',
                         hintStyle: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade400),
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF64748B)
+                                : Colors.grey.shade400),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 10),
                         border: OutlineInputBorder(
@@ -694,6 +785,7 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     String requestId,
     List<RequestAttachment> attachments,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     return Column(
       children: [
@@ -701,18 +793,24 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            border: Border(
+                bottom: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : Colors.grey.shade200)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${attachments.length} ${attachments.length == 1 ? 'Attachment' : 'Attachments'}',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF334155)),
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF334155)),
               ),
               ElevatedButton.icon(
                 onPressed: _isUploadingAttachment
@@ -754,27 +852,34 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                       children: [
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEFF6FF),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF2563EB).withValues(alpha: 0.15)
+                                : const Color(0xFFEFF6FF),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.cloud_upload_rounded,
                               size: 36, color: Color(0xFF2563EB)),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'No attachments linked yet',
                           style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: Color(0xFF1E293B)),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B)),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Upload PDFs, book references, requisition notes, or images directly from your system.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 12),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : Colors.grey.shade500,
+                              fontSize: 12),
                         ),
                         const SizedBox(height: 16),
                         OutlinedButton.icon(
@@ -786,8 +891,14 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                               style: TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF2563EB),
-                            side: const BorderSide(color: Color(0xFF93C5FD)),
+                            foregroundColor: isDark
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF2563EB),
+                            side: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF2563EB)
+                                        .withValues(alpha: 0.5)
+                                    : const Color(0xFF93C5FD)),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),
                             shape: RoundedRectangleBorder(
@@ -810,12 +921,16 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFE2E8F0)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
+                            color: Colors.black
+                                .withValues(alpha: isDark ? 0.15 : 0.02),
                             blurRadius: 4,
                             offset: const Offset(0, 1),
                           ),
@@ -840,10 +955,12 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                                   a.fileName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF0F172A)),
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A)),
                                 ),
                                 const SizedBox(height: 2),
                                 Row(
@@ -852,18 +969,24 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                                       _formatFileSize(a.fileSize),
                                       style: TextStyle(
                                           fontSize: 11,
-                                          color: Colors.grey.shade500),
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : Colors.grey.shade500),
                                     ),
                                     if (a.uploadedByName.isNotEmpty) ...[
                                       Text(' • ',
                                           style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.grey.shade400)),
+                                              color: isDark
+                                                  ? const Color(0xFF64748B)
+                                                  : Colors.grey.shade400)),
                                       Text(
                                         'By ${a.uploadedByName}',
                                         style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey.shade600),
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : Colors.grey.shade600),
                                       ),
                                     ],
                                   ],
@@ -900,6 +1023,7 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     BuildContext context,
     LibraryRequestItem req,
     RequestNotifier notifier,
+    bool isDark,
   ) {
     final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     if (!isLibraryAdmin) return const SizedBox.shrink();
@@ -907,8 +1031,12 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        border: Border(
+            top: BorderSide(
+                color: isDark
+                    ? const Color(0xFF1E293B)
+                    : Colors.grey.shade200)),
       ),
       child: Wrap(
         spacing: 8,
@@ -941,12 +1069,15 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     required String title,
     required IconData icon,
     required List<Widget> children,
+    required bool isDark,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color:
+                isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -955,19 +1086,26 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: const Color(0xFF2563EB)),
+                Icon(icon,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFF60A5FA)
+                        : const Color(0xFF2563EB)),
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E293B)),
+                      color: isDark ? Colors.white : const Color(0xFF1E293B)),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.grey.shade100),
+          Divider(
+              height: 1,
+              color:
+                  isDark ? const Color(0xFF1E293B) : Colors.grey.shade100),
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(children: children),
@@ -977,7 +1115,8 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isDanger = false}) {
+  Widget _buildDetailRow(String label, String value,
+      {bool isDanger = false, required bool isDark}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -989,7 +1128,9 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
               label,
               style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : Colors.grey.shade600,
                   fontWeight: FontWeight.w500),
             ),
           ),
@@ -1001,7 +1142,7 @@ class _RequestDetailsDrawerState extends ConsumerState<RequestDetailsDrawer>
                 fontWeight: FontWeight.w600,
                 color: isDanger
                     ? const Color(0xFFDC2626)
-                    : const Color(0xFF0F172A),
+                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
             ),
           ),

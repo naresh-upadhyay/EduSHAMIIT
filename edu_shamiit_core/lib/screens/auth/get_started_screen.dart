@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -969,7 +970,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _selectedBoard,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.assignment_ind_outlined,
@@ -1352,7 +1353,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _selectedBank,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.account_balance,

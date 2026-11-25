@@ -1157,6 +1157,8 @@ class SprintCapacityTeamModel {
   final String? leadName;
   final int membersCount;
   final bool isSelected;
+  final String status;
+  final bool isActive;
 
   const SprintCapacityTeamModel({
     required this.id,
@@ -1166,7 +1168,11 @@ class SprintCapacityTeamModel {
     this.leadName,
     this.membersCount = 0,
     this.isSelected = false,
+    this.status = 'ACTIVE',
+    this.isActive = true,
   });
+
+  bool get isArchived => status.toUpperCase() == 'ARCHIVED' || !isActive;
 
   factory SprintCapacityTeamModel.fromJson(Map<String, dynamic> json) {
     return SprintCapacityTeamModel(
@@ -1177,6 +1183,8 @@ class SprintCapacityTeamModel {
       leadName: json['lead_name']?.toString(),
       membersCount: (json['members_count'] as num?)?.toInt() ?? 0,
       isSelected: json['is_selected'] == true,
+      status: json['status']?.toString() ?? 'ACTIVE',
+      isActive: json['is_active'] == null ? true : (json['is_active'] == true || json['is_active'].toString() == 'true' || json['is_active'].toString() == 't'),
     );
   }
 }
@@ -1204,7 +1212,7 @@ class SprintCapacityKpisModel {
 
   factory SprintCapacityKpisModel.fromJson(Map<String, dynamic> json) {
     return SprintCapacityKpisModel(
-      teamMembers: (json['team_members'] as num?)?.toInt() ?? 0,
+      teamMembers: ((json['team_members'] ?? json['team_members_count']) as num?)?.toInt() ?? 0,
       totalCapacityHours: (json['total_capacity_hours'] as num?)?.toDouble() ?? 0.0,
       plannedWorkHours: (json['planned_work_hours'] as num?)?.toDouble() ?? 0.0,
       actualWorkHours: (json['actual_work_hours'] as num?)?.toDouble() ?? 0.0,
@@ -1879,24 +1887,30 @@ class TeamDirectoryResponseModel {
 }
 
 class TeamDetailCapacityModel {
+  final String? sprintId;
+  final String? sprintName;
   final double totalCapacityHours;
   final double plannedHours;
   final double remainingHours;
   final double utilizationPct;
 
   const TeamDetailCapacityModel({
-    this.totalCapacityHours = 280.0,
-    this.plannedHours = 257.0,
-    this.remainingHours = 23.0,
-    this.utilizationPct = 91.8,
+    this.sprintId,
+    this.sprintName,
+    this.totalCapacityHours = 0.0,
+    this.plannedHours = 0.0,
+    this.remainingHours = 0.0,
+    this.utilizationPct = 0.0,
   });
 
   factory TeamDetailCapacityModel.fromJson(Map<String, dynamic> json) {
     return TeamDetailCapacityModel(
-      totalCapacityHours: (json['total_capacity_hours'] as num?)?.toDouble() ?? 280.0,
-      plannedHours: (json['planned_hours'] as num?)?.toDouble() ?? 257.0,
-      remainingHours: (json['remaining_hours'] as num?)?.toDouble() ?? 23.0,
-      utilizationPct: (json['utilization_pct'] as num?)?.toDouble() ?? 91.8,
+      sprintId: json['sprint_id']?.toString(),
+      sprintName: json['sprint_name']?.toString() ?? 'Sprint 103',
+      totalCapacityHours: (json['total_capacity_hours'] as num?)?.toDouble() ?? 0.0,
+      plannedHours: (json['planned_hours'] as num?)?.toDouble() ?? 0.0,
+      remainingHours: (json['remaining_hours'] as num?)?.toDouble() ?? 0.0,
+      utilizationPct: (json['utilization_pct'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

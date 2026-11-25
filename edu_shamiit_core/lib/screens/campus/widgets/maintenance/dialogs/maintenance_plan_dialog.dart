@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -283,7 +284,7 @@ class _MaintenancePlanDialogState extends ConsumerState<MaintenancePlanDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _category,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -297,7 +298,7 @@ class _MaintenancePlanDialogState extends ConsumerState<MaintenancePlanDialog> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _frequency,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -387,7 +388,7 @@ class _MaintenancePlanDialogState extends ConsumerState<MaintenancePlanDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _selectedVendorId,
                               isExpanded: true,
                               decoration: InputDecoration(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -1060,7 +1061,7 @@ class _VisitorQrScannerDialogState extends ConsumerState<VisitorQrScannerDialog>
                                 ? const Color(0xFF94A3B8)
                                 : const Color(0xFF475569))),
                     const SizedBox(height: 4),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _checkpointLocation,
                       isDense: true,
                       style: TextStyle(

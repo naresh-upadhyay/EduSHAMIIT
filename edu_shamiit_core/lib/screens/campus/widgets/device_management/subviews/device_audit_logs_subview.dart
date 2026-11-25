@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -1581,7 +1582,7 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
         border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           isDense: true,
           isExpanded: true,

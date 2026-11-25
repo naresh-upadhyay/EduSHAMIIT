@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -1584,7 +1585,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _kBorder),
       ),
-      child: DropdownButton<String>(
+      child: AppSearchableDropdown<String>.fromMenuItems(
         value: effectiveValue,
         isExpanded: true,
         underline: const SizedBox(),

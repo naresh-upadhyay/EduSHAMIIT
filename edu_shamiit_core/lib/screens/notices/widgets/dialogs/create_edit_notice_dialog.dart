@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -288,7 +289,7 @@ class _CreateEditNoticeDialogState
 
                     // Category and Priority in Row
                     if (isMobile) ...[
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: categories.contains(_category)
                             ? _category
                             : (categories.isNotEmpty
@@ -306,7 +307,7 @@ class _CreateEditNoticeDialogState
                         }).toList(),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _priority,
                         onChanged: (val) {
                           if (val != null) setState(() => _priority = val);
@@ -325,7 +326,7 @@ class _CreateEditNoticeDialogState
                         children: [
                           Expanded(
                             flex: 3,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: categories.contains(_category)
                                   ? _category
                                   : (categories.isNotEmpty
@@ -349,7 +350,7 @@ class _CreateEditNoticeDialogState
                           const SizedBox(width: 16),
                           Expanded(
                             flex: 2,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _priority,
                               onChanged: (val) {
                                 if (val != null) {

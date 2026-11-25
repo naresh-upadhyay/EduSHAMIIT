@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -240,7 +241,7 @@ class _AddEquipmentDialogState extends ConsumerState<AddEquipmentDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: items.contains(_nameController.text)
                       ? _nameController.text
@@ -273,7 +274,7 @@ class _AddEquipmentDialogState extends ConsumerState<AddEquipmentDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: safeCondition,
                         decoration: const InputDecoration(labelText: 'Condition / Status *'),

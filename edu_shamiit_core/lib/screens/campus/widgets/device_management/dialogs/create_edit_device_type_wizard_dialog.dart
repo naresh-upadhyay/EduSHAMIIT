@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../../models/device_management_models.dart';
 
@@ -495,7 +496,7 @@ class _CreateEditDeviceTypeWizardDialogState extends State<CreateEditDeviceTypeW
                   children: [
                     Text('Category Badge *', style: labelStyle),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _selectedCategory,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),

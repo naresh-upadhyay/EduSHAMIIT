@@ -297,6 +297,16 @@ class InAppLiveRoomService extends ChangeNotifier {
     required String currentUserRole,
   }) {
     setupMediaStreamInterception();
+
+    // If already initialized for this exact live class and user, preserve active media states & tracks!
+    final isSameSession = this.liveClassId == liveClassId && this.currentUserId == currentUserId;
+    if (isSameSession && (_room != null || _localAudioTrack != null || _localCameraTrack != null || !_isMicMuted || !_isCamOff)) {
+      debugPrint('[InAppLiveRoomService] Already active for liveClassId: $liveClassId. Preserving microphone ($_isMicMuted) and camera ($_isCamOff).');
+      this.currentUserName = currentUserName;
+      this.currentUserRole = currentUserRole;
+      return;
+    }
+
     this.liveClassId = liveClassId;
     this.currentUserId = currentUserId;
     this.currentUserName = currentUserName;
@@ -330,8 +340,7 @@ class InAppLiveRoomService extends ChangeNotifier {
       final camPub = localPart.videoTrackPublications
           .where((p) => p.source == TrackSource.camera)
           .firstOrNull;
-      localVideo = camPub?.track as VideoTrack? ??
-          (localPart.videoTrackPublications.firstOrNull?.track as VideoTrack?);
+      localVideo = camPub?.track as VideoTrack?;
     }
     localVideo ??= _localCameraTrack;
 
@@ -389,7 +398,10 @@ class InAppLiveRoomService extends ChangeNotifier {
             .firstOrNull;
 
         final video = camPub?.track as VideoTrack? ??
-            (screenPub == null ? remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
+            remotePart.videoTrackPublications
+                .where((p) => p.source != TrackSource.screenShareVideo)
+                .firstOrNull
+                ?.track as VideoTrack?;
 
         final micMuted = !(remotePart.audioTrackPublications.firstOrNull?.subscribed ?? false) ||
             (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);

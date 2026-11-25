@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -202,7 +203,7 @@ class _HostelNightAttendanceDialogState extends ConsumerState<HostelNightAttenda
               child: Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
+                    child: AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _selectedBuildingId,
                       decoration: const InputDecoration(labelText: 'Building', isDense: true, border: InputBorder.none),
                       items: buildings.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
@@ -217,7 +218,7 @@ class _HostelNightAttendanceDialogState extends ConsumerState<HostelNightAttenda
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
+                    child: AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _selectedFloorId,
                       decoration: const InputDecoration(labelText: 'Floor', isDense: true, border: InputBorder.none),
                       items: [

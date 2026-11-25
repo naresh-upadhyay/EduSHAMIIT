@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/l10n.dart';
@@ -616,7 +617,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               ),
               const Spacer(),
               DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _selectedMonth,
                   style: const TextStyle(
                       fontFamily: AppFonts.body,
@@ -642,7 +643,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               ),
               const SizedBox(width: 12),
               DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _selectedYear,
                   style: const TextStyle(
                       fontFamily: AppFonts.body,
@@ -1079,7 +1080,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF64748B)),
                           ),
-                          DropdownButton<int>(
+                          AppSearchableDropdown<int>.fromMenuItems(
                             value: _advanceMonth,
                             isExpanded: true,
                             style: const TextStyle(
@@ -1117,7 +1118,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF64748B)),
                           ),
-                          DropdownButton<int>(
+                          AppSearchableDropdown<int>.fromMenuItems(
                             value: _advanceYear,
                             isExpanded: true,
                             style: const TextStyle(
@@ -1154,7 +1155,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF64748B)),
                 ),
-                DropdownButton<String>(
+                AppSearchableDropdown<String>.fromMenuItems(
                   value: _selectedPurpose,
                   isExpanded: true,
                   style: const TextStyle(

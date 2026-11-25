@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/device_management_models.dart';
@@ -471,7 +472,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: selectedCat,
           isExpanded: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -501,7 +502,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _statusFilter.contains(state.typesFilterStatus) ? state.typesFilterStatus : _statusFilter.first,
           isExpanded: true,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1422,7 +1423,7 @@ class _DeviceTypesProfilesSubviewState extends ConsumerState<DeviceTypesProfiles
                     ),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
+                    child: AppSearchableDropdown<int>.fromMenuItems(
                       value: [5, 10, 20, 50, 100].contains(pageSize) ? pageSize : 10,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       style: TextStyle(

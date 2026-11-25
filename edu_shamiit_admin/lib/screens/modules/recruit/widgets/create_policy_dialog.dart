@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -720,7 +721,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 620;
-              final catWidget = DropdownButtonFormField<String>(
+              final catWidget = AppSearchableDropdownFormField<String>.fromMenuItems(
                 isExpanded: true,
                 initialValue: _selectedCategory,
                 decoration: InputDecoration(
@@ -737,7 +738,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
                 onChanged: (val) => setState(() => _selectedCategory = val),
               );
 
-              final deptWidget = DropdownButtonFormField<String>(
+              final deptWidget = AppSearchableDropdownFormField<String>.fromMenuItems(
                 isExpanded: true,
                 initialValue: _departments.contains(_selectedDepartment)
                     ? _selectedDepartment
@@ -807,7 +808,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 620;
-              final audienceDropdown = DropdownButtonFormField<String>(
+              final audienceDropdown = AppSearchableDropdownFormField<String>.fromMenuItems(
                 isExpanded: true,
                 initialValue: _applicabilityOptions.contains(_applicabilityType)
                     ? _applicabilityType
@@ -837,7 +838,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
 
               Widget? secondaryDropdown;
               if (_applicabilityType == 'Department') {
-                secondaryDropdown = DropdownButtonFormField<String>(
+                secondaryDropdown = AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _departments.contains(_targetValueController.text)
                       ? _targetValueController.text
@@ -854,7 +855,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
                   },
                 );
               } else if (_applicabilityType == 'Role') {
-                secondaryDropdown = DropdownButtonFormField<String>(
+                secondaryDropdown = AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _roles.any((r) => (r['display_name'] ?? r['name']) == _targetValueController.text)
                       ? _targetValueController.text
@@ -1138,7 +1139,7 @@ class _CreatePolicyDialogState extends State<CreatePolicyDialog> with SingleTick
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _reviewFrequencies.contains(_reviewFrequency)
                       ? _reviewFrequency
                       : (_reviewFrequencies.isNotEmpty ? _reviewFrequencies.first : null),

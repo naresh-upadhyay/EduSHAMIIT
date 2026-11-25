@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 // ignore_for_file: deprecated_member_use
 import 'dart:convert';
 import 'dart:math' as math;
@@ -2018,7 +2019,7 @@ class _DeviceBulkOperationsSubviewState
             color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           isDense: true,
           isExpanded: true,
@@ -2310,7 +2311,7 @@ class _DeviceBulkOperationsSubviewState
             children: [
               Text('Target devices: ${_selectedDeviceIds.length}'),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: selectedProf,
                 decoration: const InputDecoration(
                   labelText: 'Select Profile',
@@ -2369,7 +2370,7 @@ class _DeviceBulkOperationsSubviewState
             children: [
               Text('Target devices: ${_selectedDeviceIds.length}'),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: selectedScn,
                 decoration: const InputDecoration(
                   labelText: 'Select Scene',
@@ -2740,7 +2741,7 @@ class _DeviceBulkOperationsSubviewState
                                         fontSize: 11,
                                         color: Color(0xFF64748B))),
                                 DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
+                                  child: AppSearchableDropdown<int>.fromMenuItems(
                                     value: _rowsPerPage,
                                     isDense: true,
                                     style: TextStyle(
@@ -5289,7 +5290,7 @@ class _CreateBulkOperationWizardDialogState
                   labelText: 'Operation Name', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _opType,
               decoration: const InputDecoration(
                   labelText: 'Operation Category',

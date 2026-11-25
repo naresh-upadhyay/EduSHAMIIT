@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -356,6 +357,23 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
 
   void _showEngagementDetailsDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final state = ref.read(liveClassManagementProvider);
+    final roomService = ref.read(liveRoomServiceProvider);
+    final authState = ref.read(authProvider);
+    final allParticipants = _resolveAllParticipants(
+      roomService: roomService,
+      authState: authState,
+      conductData: state.conductSessionData,
+    );
+    final activeCount = allParticipants.length;
+    final maxCap = resolveTargetedMaxCapacity(
+      activeSession: state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession,
+      selectedClass: state.selectedMyClass,
+      selectedDetails: state.selectedMyClassDetails,
+      activeCount: activeCount,
+    );
+    final pct = maxCap > 0 ? ((activeCount / maxCap) * 100).toStringAsFixed(1) : '100.0';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -380,9 +398,9 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
               ),
               const SizedBox(height: 14),
               _buildMetricDetailRow('Overall Engagement Index', '92% (High Retention)', const Color(0xFF10B981), isDark),
-              _buildMetricDetailRow('Active Video Viewers', '42 of 45 Students (93.3%)', const Color(0xFF3B82F6), isDark),
+              _buildMetricDetailRow('Active Video Viewers', '$activeCount of $maxCap Targeted ($pct%)', const Color(0xFF3B82F6), isDark),
               _buildMetricDetailRow('Live Q&A & Chat Participation', '88% Involved', const Color(0xFF06B6D4), isDark),
-              _buildMetricDetailRow('Concept Poll Response Rate', '95% (38 votes)', const Color(0xFFF59E0B), isDark),
+              _buildMetricDetailRow('Concept Poll Response Rate', '95%', const Color(0xFFF59E0B), isDark),
               _buildMetricDetailRow('Attention / Screen Focus', '93% In-App Duration', const Color(0xFF8B5CF6), isDark),
             ],
           ),
@@ -416,69 +434,50 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
     required AuthState authState,
     required ConductClassSessionData? conductData,
   }) {
-    if (roomService.isConnected && roomService.participantTracks.isNotEmpty) {
-      final activeTracks = roomService.participantTracks.where((t) => !t.isScreenShare).toList();
-      final currentUserName = (authState.userData?['full_name'] as String?)?.trim().isNotEmpty == true
-          ? (authState.userData!['full_name'] as String).trim()
-          : ((authState.userData?['name'] as String?)?.trim().isNotEmpty == true
-              ? (authState.userData!['name'] as String).trim()
-              : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Host'));
-
-      return activeTracks.map((t) {
-        final assignedRole = roomService.customRoles[t.userId];
-        final isHost = assignedRole != null
-            ? (assignedRole.toLowerCase().contains('host') || assignedRole.toLowerCase().contains('teacher') || assignedRole.toLowerCase().contains('admin'))
-            : (t.role.toLowerCase().contains('teacher') || t.role.toLowerCase().contains('host') || t.role.toLowerCase().contains('admin') || t.isLocal);
-        final displayName = t.isLocal ? currentUserName : t.name;
-        final initials = displayName.trim().isNotEmpty
-            ? displayName.trim().split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase()
-            : 'U';
-        final roleLabel = assignedRole ?? (t.isLocal
-            ? (authState.role == UserRole.superAdmin ? 'Host (Super Admin)' : 'Host')
-            : (isHost ? 'Host' : 'Student'));
-
-        return LiveParticipant(
-          id: t.userId,
-          name: displayName,
-          role: roleLabel,
-          initials: initials,
-          micMuted: t.isMicMuted,
-          camOff: t.isCamOff,
-          isSpeaking: !t.isMicMuted && t.isSpeaking,
-          color: isHost ? '#4F46E5' : '#0284C7',
-        );
-      }).toList();
-    }
-
     final user = authState.userData;
+    final hostId = (user?['id'] as String?)?.trim().isNotEmpty == true
+        ? (user!['id'] as String).trim()
+        : (roomService.currentUserId.isNotEmpty ? roomService.currentUserId : 'host');
     final hostName = (user?['full_name'] as String?)?.trim().isNotEmpty == true
         ? (user!['full_name'] as String).trim()
         : ((user?['name'] as String?)?.trim().isNotEmpty == true
             ? (user!['name'] as String).trim()
-            : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Teacher'));
-    final hostInitials = hostName.split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase();
-    final hostId = (user?['id'] as String?) ?? 'host';
+            : (roomService.currentUserName.isNotEmpty && roomService.currentUserName != 'User'
+                ? roomService.currentUserName
+                : (authState.role == UserRole.superAdmin ? 'Aarav Sharma' : 'Teacher')));
+    final hostRole = authState.role == UserRole.superAdmin ? 'Host (Super Admin)' : 'Host';
 
-    final result = <LiveParticipant>[
-      LiveParticipant(
-        id: hostId,
-        name: hostName,
-        role: authState.role == UserRole.superAdmin ? 'Host (Super Admin)' : 'Host',
-        initials: hostInitials.isNotEmpty ? hostInitials : 'H',
-        micMuted: roomService.isMicMuted,
-        camOff: roomService.isCamOff,
-        isSpeaking: !roomService.isMicMuted,
-        color: '#4F46E5',
-      ),
-    ];
+    final unified = resolveUnifiedParticipants(
+      roomService: roomService,
+      localUserId: hostId,
+      localUserName: hostName,
+      localUserRole: hostRole,
+      dbParticipants: widget.participants ?? conductData?.participants,
+    );
 
-    final remoteParts = widget.participants ?? conductData?.participants ?? [];
-    for (final p in remoteParts) {
-      if (!result.any((e) => e.id == p.id || e.name.trim().toLowerCase() == p.name.trim().toLowerCase())) {
-        result.add(p);
-      }
-    }
-    return result;
+    return unified.map((t) {
+      final assignedRole = roomService.customRoles[t.userId];
+      final isHost = assignedRole != null
+          ? (assignedRole.toLowerCase().contains('host') || assignedRole.toLowerCase().contains('teacher') || assignedRole.toLowerCase().contains('admin'))
+          : (t.role.toLowerCase().contains('teacher') || t.role.toLowerCase().contains('host') || t.role.toLowerCase().contains('admin') || t.isLocal);
+      final initials = t.name.trim().isNotEmpty
+          ? t.name.trim().split(' ').map((s) => s.isNotEmpty ? s[0] : '').take(2).join().toUpperCase()
+          : 'U';
+      final roleLabel = assignedRole ?? (t.isLocal
+          ? (authState.role == UserRole.superAdmin ? 'Host (Super Admin)' : 'Host')
+          : (isHost ? 'Host' : 'Student'));
+
+      return LiveParticipant(
+        id: t.userId,
+        name: t.name,
+        role: roleLabel,
+        initials: initials.isNotEmpty ? initials : 'U',
+        micMuted: t.isMicMuted,
+        camOff: t.isCamOff,
+        isSpeaking: !t.isMicMuted && t.isSpeaking,
+        color: isHost ? '#4F46E5' : '#0284C7',
+      );
+    }).toList();
   }
 
   // ============================================================================
@@ -664,7 +663,7 @@ class LiveClassChatPanelState extends ConsumerState<LiveClassChatPanel>
                   border: Border.all(color: borderColor),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: const ['All', 'Students', 'Teachers'].contains(_participantRoleFilter) ? _participantRoleFilter : 'All',
                     isDense: true,
                     dropdownColor: isDark ? const Color(0xFF1E2235) : Colors.white,

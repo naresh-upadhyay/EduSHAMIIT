@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -351,7 +352,7 @@ class _VendorContractsSubviewState extends ConsumerState<VendorContractsSubview>
                           border: Border.all(color: borderColor),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedCategory,
                             style: TextStyle(fontSize: 12, color: textPrimary),
                             items: const [
@@ -376,7 +377,7 @@ class _VendorContractsSubviewState extends ConsumerState<VendorContractsSubview>
                           border: Border.all(color: borderColor),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedStatus,
                             style: TextStyle(fontSize: 12, color: textPrimary),
                             items: const [

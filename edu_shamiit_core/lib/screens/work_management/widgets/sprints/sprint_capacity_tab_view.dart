@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -67,10 +68,14 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sprintId != widget.sprintId || oldWidget.selectedTeam != widget.selectedTeam) {
       final team = widget.selectedTeam ?? 'Digital Campus Team';
-      ref.read(workSprintCapacityProvider.notifier).init(
-            sprintId: widget.sprintId,
-            team: team,
-          );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(workSprintCapacityProvider.notifier).init(
+                sprintId: widget.sprintId,
+                team: team,
+              );
+        }
+      });
     }
   }
 
@@ -234,7 +239,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     // Role in Sprint (Loaded directly from app_roles)
                     const Text('Role in this Sprint (from System Roles)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: roleList.contains(selectedRole) ? selectedRole : (roleList.isNotEmpty ? roleList.first : 'Member'),
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -709,7 +714,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                         children: [
                           const Text('Exception Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: availabilityType,
                             dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                             items: ['LEAVE', 'TRAINING', 'EXAM_DUTY', 'OTHER'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
@@ -890,7 +895,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     const SizedBox(height: 14),
                     const Text('Select Work Item to Transfer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: effectiveItemId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -913,7 +918,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
                     const SizedBox(height: 14),
                     const Text('Reassign To (Destination Member)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: effectiveDestId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1215,14 +1220,14 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
     final teamItems = <String>['All Teams'];
     final dynamicTeams = ref.watch(workTeamsListProvider);
     if (dash.teams.isNotEmpty) {
-      for (final t in dash.teams) {
+      for (final t in dash.teams.where((t) => !t.isArchived)) {
         if (!teamItems.contains(t.name)) {
           teamItems.add(t.name);
         }
       }
     }
     if (capState.availableTeams.isNotEmpty) {
-      for (final t in capState.availableTeams) {
+      for (final t in capState.availableTeams.where((t) => !t.isArchived)) {
         if (!teamItems.contains(t.name)) {
           teamItems.add(t.name);
         }
@@ -2662,7 +2667,7 @@ class _SprintCapacityTabViewState extends ConsumerState<SprintCapacityTabView> {
               ),
               const SizedBox(width: 8),
               DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: rowsPerPage,
                   dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                   style: TextStyle(

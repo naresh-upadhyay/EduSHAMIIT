@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/device_management_models.dart';
 
@@ -225,7 +226,7 @@ class DeviceOverviewCard extends StatelessWidget {
                       border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: effectiveSelectedBuilding,
                         isDense: true,
                         style: TextStyle(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -223,7 +224,7 @@ class _AssignComplaintDialogState extends ConsumerState<AssignComplaintDialog> {
                     children: [
                       Text('Select Staff / Technician *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _selectedStaffId,
                         isExpanded: true,
                         dropdownColor: cardBg,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/download_helper.dart';
@@ -1374,7 +1375,7 @@ class HostelStaffDetailsDrawer extends ConsumerWidget {
                     // Document Type
                     Text('Document Category *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: docType,
                       isExpanded: true,
                       decoration: InputDecoration(
@@ -1404,7 +1405,7 @@ class HostelStaffDetailsDrawer extends ConsumerWidget {
                     // Verification Status
                     Text('Initial Verification Status *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: status,
                       decoration: InputDecoration(
                         isDense: true,
@@ -1555,7 +1556,7 @@ class HostelStaffDetailsDrawer extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text('Update Verification Status *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: status,
                     decoration: InputDecoration(
                       isDense: true,
@@ -1668,7 +1669,7 @@ class HostelStaffDetailsDrawer extends ConsumerWidget {
                     // Leave Type
                     Text('Leave Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: leaveType,
                       decoration: InputDecoration(
                         isDense: true,

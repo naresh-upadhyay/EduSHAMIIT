@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -575,7 +576,7 @@ class _OccupancySubtabViewState extends ConsumerState<OccupancySubtabView> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _selectedFloorId,
                     hint: Text('All Floors', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -599,7 +600,7 @@ class _OccupancySubtabViewState extends ConsumerState<OccupancySubtabView> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _selectedRoomType,
                     hint: Text('All Types', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

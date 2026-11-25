@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -187,7 +188,7 @@ class _AddEditBuildingOccupancyDialogState extends State<AddEditBuildingOccupanc
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Target Room Picker
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _selectedRoomId,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -210,7 +211,7 @@ class _AddEditBuildingOccupancyDialogState extends State<AddEditBuildingOccupanc
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _referenceModule,
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -225,7 +226,7 @@ class _AddEditBuildingOccupancyDialogState extends State<AddEditBuildingOccupanc
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(

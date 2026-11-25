@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -312,7 +313,7 @@ class _AddEditVendorContractDialogState extends ConsumerState<AddEditVendorContr
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _category,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -326,7 +327,7 @@ class _AddEditVendorContractDialogState extends ConsumerState<AddEditVendorContr
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _contractType,
                               isExpanded: true,
                               decoration: InputDecoration(

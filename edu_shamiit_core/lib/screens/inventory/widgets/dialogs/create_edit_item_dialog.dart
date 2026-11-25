@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/inventory_models.dart';
@@ -589,7 +590,7 @@ class _CreateEditItemDialogState extends ConsumerState<CreateEditItemDialog> {
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<T?>(
+            child: AppSearchableDropdown<T?>.fromMenuItems(
               value: effectiveValue,
               isExpanded: true,
               items: cleanItems,

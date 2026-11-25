@@ -591,124 +591,259 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   }
 
   Widget _buildFiltersSection() {
-    final tabs = ["All Alerts", "Unread", "Critical", "Warning", "Info", "Resolved"];
+    final tabs = [
+      {'label': 'All Alerts', 'icon': Icons.notifications_none_rounded, 'count': _stats['total_alerts']},
+      {'label': 'Unread', 'icon': Icons.mark_email_unread_outlined, 'count': _stats['unread_alerts']},
+      {'label': 'Critical', 'icon': Icons.error_outline_rounded, 'count': _stats['critical_alerts']},
+      {'label': 'Warning', 'icon': Icons.warning_amber_rounded, 'count': _stats['warning_alerts']},
+      {'label': 'Info', 'icon': Icons.info_outline_rounded, 'count': _stats['info_alerts']},
+      {'label': 'Resolved', 'icon': Icons.check_circle_outline_rounded, 'count': _stats['resolved_alerts']},
+    ];
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // Tabs with horizontal scroll support
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: tabs.map((tab) {
-              final isSelected = _selectedTab == tab;
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedTab = tab;
-                    _currentPage = 1;
-                  });
-                  _fetchAlertsData();
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    tab,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? const Color(0xFF4F46E5) : (_isDark ? Colors.white60 : Colors.black54),
+    final bool hasActiveFilters = _selectedTab != "All Alerts" ||
+        _selectedCategory != "All Categories" ||
+        _selectedStatus != "All Status" ||
+        _searchQuery.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  // Scope Segmented Pills
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: _isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: _borderColor),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: tabs.map((tab) {
+                          final label = tab['label'] as String;
+                          final icon = tab['icon'] as IconData;
+                          final count = tab['count'];
+                          final isSelected = _selectedTab == label;
+
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedTab = label;
+                                _currentPage = 1;
+                              });
+                              _fetchAlertsData();
+                            },
+                            borderRadius: BorderRadius.circular(7),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    icon,
+                                    size: 13,
+                                    color: isSelected ? Colors.white : _textSecondary,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    label,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: isSelected ? Colors.white : (_isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                                    ),
+                                  ),
+                                  if (count != null && count > 0) ...[
+                                    const SizedBox(width: 5),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Colors.white.withValues(alpha: 0.25)
+                                            : (_isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '$count',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected ? Colors.white : _textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
 
-        // Dropdowns & Search
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            // Category Dropdown
-            _buildDropdownFilter(
-              value: _selectedCategory,
-              items: ["All Categories", "Institutions", "Users", "System", "Examinations", "Payments"],
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _selectedCategory = val;
-                    _currentPage = 1;
-                  });
-                  _fetchAlertsData();
-                }
-              },
-            ),
-            // Status Dropdown
-            _buildDropdownFilter(
-              value: _selectedStatus,
-              items: ["All Status", "New", "In Progress", "Resolved"],
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _selectedStatus = val;
-                    _currentPage = 1;
-                  });
-                  _fetchAlertsData();
-                }
-              },
-            ),
-            // Search Input
-            SizedBox(
-              width: 180,
-              height: 36,
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(fontSize: 12),
-                decoration: InputDecoration(
-                  hintText: 'Search alerts...',
-                  prefixIcon: const Icon(Icons.search, size: 14),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  fillColor: _cardBg,
-                  filled: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _borderColor)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _borderColor)),
-                ),
-                onChanged: (val) {
-                  if (val.isEmpty && _searchQuery.isNotEmpty) {
-                    setState(() {
-                      _searchQuery = "";
-                      _currentPage = 1;
-                    });
-                    _fetchAlertsData();
-                  }
-                },
-                onSubmitted: (val) {
-                  setState(() {
-                    _searchQuery = val.trim();
-                    _currentPage = 1;
-                  });
-                  _fetchAlertsData();
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
+                  // Dropdowns & Search Toolbar
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Category Dropdown
+                      _buildDropdownFilter(
+                        value: _selectedCategory,
+                        width: 145,
+                        items: const ["All Categories", "Institutions", "Users", "System", "Examinations", "Payments"],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedCategory = val;
+                              _currentPage = 1;
+                            });
+                            _fetchAlertsData();
+                          }
+                        },
+                      ),
+
+                      // Status Dropdown
+                      _buildDropdownFilter(
+                        value: _selectedStatus,
+                        width: 130,
+                        items: const ["All Status", "New", "In Progress", "Resolved"],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedStatus = val;
+                              _currentPage = 1;
+                            });
+                            _fetchAlertsData();
+                          }
+                        },
+                      ),
+
+                      // Search Input
+                      SizedBox(
+                        width: 190,
+                        height: 36,
+                        child: TextField(
+                          controller: _searchController,
+                          style: TextStyle(fontSize: 12, color: _textPrimary),
+                          decoration: InputDecoration(
+                            hintText: 'Search alerts...',
+                            hintStyle: TextStyle(fontSize: 12, color: _textSecondary),
+                            prefixIcon: Icon(Icons.search, size: 14, color: _textSecondary),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _searchController.clear();
+                                        _searchQuery = "";
+                                        _currentPage = 1;
+                                      });
+                                      _fetchAlertsData();
+                                    },
+                                    child: Icon(Icons.close_rounded, size: 14, color: _textSecondary),
+                                  )
+                                : null,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            fillColor: _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            filled: true,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _borderColor)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: _borderColor)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.2)),
+                          ),
+                          onChanged: (val) {
+                            setState(() {});
+                            if (val.isEmpty && _searchQuery.isNotEmpty) {
+                              setState(() {
+                                _searchQuery = "";
+                                _currentPage = 1;
+                              });
+                              _fetchAlertsData();
+                            }
+                          },
+                          onSubmitted: (val) {
+                            setState(() {
+                              _searchQuery = val.trim();
+                              _currentPage = 1;
+                            });
+                            _fetchAlertsData();
+                          },
+                        ),
+                      ),
+
+                      // Reset Filters Button
+                      if (hasActiveFilters)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedTab = "All Alerts";
+                              _selectedCategory = "All Categories";
+                              _selectedStatus = "All Status";
+                              _searchQuery = "";
+                              _searchController.clear();
+                              _currentPage = 1;
+                            });
+                            _fetchAlertsData();
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.clear_rounded, size: 13, color: Colors.redAccent),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Reset',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -716,27 +851,56 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
     required String value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
+    double width = 145,
   }) {
+    final uniqueItems = <String>[];
+    for (final item in items) {
+      final trimmed = item.trim();
+      if (trimmed.isNotEmpty && !uniqueItems.contains(trimmed)) {
+        uniqueItems.add(trimmed);
+      }
+    }
+    final effectiveValue = uniqueItems.contains(value.trim())
+        ? value.trim()
+        : (uniqueItems.isNotEmpty ? uniqueItems.first : null);
+
     return Container(
+      width: width,
       height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: _isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _borderColor),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          style: TextStyle(fontSize: 12, color: _isDark ? Colors.white : Colors.black87),
+        child: AppSearchableDropdown<String>.fromMenuItems(
+          value: effectiveValue,
+          width: width,
+          isExpanded: false,
+          compact: true,
+          isDense: true,
+          itemHeight: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
           dropdownColor: _cardBg,
-          onChanged: onChanged,
-          items: items.map((item) {
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: _isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+            fontWeight: FontWeight.w500,
+          ),
+          items: uniqueItems.map((item) {
             return DropdownMenuItem<String>(
               value: item,
-              child: Text(item),
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: _isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                ),
+              ),
             );
           }).toList(),
+          onChanged: onChanged,
         ),
       ),
     );
@@ -1361,7 +1525,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                 borderRadius: BorderRadius.circular(4),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   style: TextStyle(fontSize: 10, color: _isDark ? Colors.white : Colors.black87),
                   dropdownColor: _cardBg,
@@ -2584,7 +2748,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
               const SizedBox(width: 10),
               Expanded(
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: value,
                     isExpanded: true,
                     style: GoogleFonts.inter(

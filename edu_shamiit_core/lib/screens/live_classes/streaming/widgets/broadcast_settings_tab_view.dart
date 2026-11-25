@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/broadcast_models.dart';
@@ -133,7 +134,7 @@ class _BroadcastSettingsTabViewState extends State<BroadcastSettingsTabView> {
                         children: [
                           const Text('Default Stream Quality', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _quality,
                             items: const [
                               DropdownMenuItem(value: '1080p (Full HD)', child: Text('1080p (Full HD)')),
@@ -153,7 +154,7 @@ class _BroadcastSettingsTabViewState extends State<BroadcastSettingsTabView> {
                         children: [
                           const Text('Bitrate Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _bitrate,
                             items: const [
                               DropdownMenuItem(value: 'Auto (Recommended)', child: Text('Auto (Recommended)')),
@@ -178,7 +179,7 @@ class _BroadcastSettingsTabViewState extends State<BroadcastSettingsTabView> {
                         children: [
                           const Text('Default Privacy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _privacy,
                             items: const [
                               DropdownMenuItem(value: 'Public', child: Text('Public')),
@@ -198,7 +199,7 @@ class _BroadcastSettingsTabViewState extends State<BroadcastSettingsTabView> {
                         children: [
                           const Text('Default Category', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _category,
                             items: const [
                               DropdownMenuItem(value: 'Education', child: Text('Education')),

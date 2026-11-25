@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/safety_compliance_models.dart';
@@ -227,7 +228,7 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                                 ],
                               ),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 value: _categories.contains(_category) ? _category : (_categories.isNotEmpty ? _categories.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -250,7 +251,7 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                                 ],
                               ),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 value: _statuses.contains(_status) ? _status : (_statuses.isNotEmpty ? _statuses.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -323,7 +324,7 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                       // 1. Inspector User Selection (From profiles table)
                       Text('Assigned Inspector (User from User Management / profiles) *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                       const SizedBox(height: 5),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         value: _isCustomInspector ? 'CUSTOM' : _selectedInspectorUserId,
                         decoration: _inputDeco('Select inspector profile', borderColor, isDark),
@@ -400,7 +401,7 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                       ),
                       const SizedBox(height: 5),
                       if (!_isCustomRole)
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           value: _getRoleDropdownValue(),
                           decoration: _inputDeco('Select role from app_roles', borderColor, isDark),

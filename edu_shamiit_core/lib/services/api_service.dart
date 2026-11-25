@@ -314,7 +314,8 @@ class ApiService {
 
   /// Multipart POST using bytes — safe for Web and cross-platform
   Future<Map<String, dynamic>> multipartPostBytes(
-      String endpoint, List<int> bytes, String filename, String fieldName, {Map<String, String>? fields}) async {
+      String endpoint, List<int> bytes, String filename, String fieldName,
+      {Map<String, String>? fields, Duration? timeout}) async {
     try {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
       final prefs = await SharedPreferences.getInstance();
@@ -349,6 +350,20 @@ class ApiService {
         mediaType = MediaType('application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       } else if (ext == 'csv') {
         mediaType = MediaType('text', 'csv');
+      } else if (ext == 'mp4' || ext == 'm4v') {
+        mediaType = MediaType('video', 'mp4');
+      } else if (ext == 'webm') {
+        mediaType = MediaType('video', 'webm');
+      } else if (ext == 'mov') {
+        mediaType = MediaType('video', 'quicktime');
+      } else if (ext == 'mkv') {
+        mediaType = MediaType('video', 'x-matroska');
+      } else if (ext == 'avi') {
+        mediaType = MediaType('video', 'x-msvideo');
+      } else if (ext == 'mp3') {
+        mediaType = MediaType('audio', 'mpeg');
+      } else if (ext == 'm4a') {
+        mediaType = MediaType('audio', 'mp4');
       }
       request.files.add(http.MultipartFile.fromBytes(
         fieldName,
@@ -357,7 +372,7 @@ class ApiService {
         contentType: mediaType,
       ));
 
-      final streamedResponse = await request.send().timeout(AppConfig.apiTimeout);
+      final streamedResponse = await request.send().timeout(timeout ?? AppConfig.apiTimeout);
       final response = await http.Response.fromStream(streamedResponse);
       final res = _handleResponse(response);
       clearCache();

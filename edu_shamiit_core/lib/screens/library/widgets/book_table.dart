@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
@@ -310,19 +311,27 @@ class _BookTableState extends ConsumerState<BookTable> {
           EdgeInsets.symmetric(horizontal: isDesktop ? 28 : 16, vertical: 6),
       child: Column(
         children: [
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: state.books.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isDesktop ? 4 : 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.72,
-            ),
-            itemBuilder: (context, idx) {
-              final book = state.books[idx];
-              return _buildBookCard(book, notifier, isDark);
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final crossAxisCount =
+                  w >= 1100 ? 4 : (w >= 760 ? 3 : (w >= 480 ? 2 : 1));
+              final aspectRatio = w < 480 ? 1.15 : 0.72;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: state.books.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: aspectRatio,
+                ),
+                itemBuilder: (context, idx) {
+                  final book = state.books[idx];
+                  return _buildBookCard(book, notifier, isDark);
+                },
+              );
             },
           ),
           const SizedBox(height: 16),
@@ -745,7 +754,7 @@ class _BookTableState extends ConsumerState<BookTable> {
           Expanded(flex: 10, child: _buildHeaderCell('Status', isDark)),
           const SizedBox(width: 12),
           SizedBox(
-              width: 175,
+              width: 195,
               child: _buildHeaderCell('Actions', isDark,
                   alignment: Alignment.centerRight)),
         ],
@@ -990,10 +999,26 @@ class _BookTableState extends ConsumerState<BookTable> {
 
                 // Actions
                 SizedBox(
-                  width: 175,
+                  width: 195,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      // View Book Details (Opens right-side drawer)
+                      IconButton(
+                        icon: const Icon(Icons.visibility_outlined, size: 18),
+                        tooltip: 'View Details',
+                        color: isDrawerActive
+                            ? const Color(0xFF6366F1)
+                            : (isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                        onPressed: () => notifier.selectBookForDrawer(book.id),
+                        splashRadius: 18,
+                        constraints:
+                            const BoxConstraints(minWidth: 30, minHeight: 30),
+                        padding: EdgeInsets.zero,
+                      ),
+
                       // Quick Stream Action Button if Digital (Direct access if unrestricted, or for librarians)
                       if (book.hasDigitalEdition &&
                           (book.isUnrestrictedDigital || isLibraryAdmin))
@@ -1277,7 +1302,7 @@ class _BookTableState extends ConsumerState<BookTable> {
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: state.pageSize,
                           isDense: true,
                           style: TextStyle(
@@ -1401,7 +1426,7 @@ class _BookTableState extends ConsumerState<BookTable> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
+                            child: AppSearchableDropdown<int>.fromMenuItems(
                               value: state.pageSize,
                               isDense: true,
                               style: TextStyle(

@@ -674,7 +674,7 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
                               ? deviceCtrl.text
                               : null,
@@ -911,7 +911,7 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
                               ? deviceCtrl.text
                               : null,
@@ -2130,7 +2130,7 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../../services/device_management_api_service.dart';
 
@@ -148,7 +149,7 @@ class _AddDeviceWizardDialogState extends State<AddDeviceWizardDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _selectedType,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Device Type *'),
@@ -167,7 +168,7 @@ class _AddDeviceWizardDialogState extends State<AddDeviceWizardDialog> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _selectedBuilding,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Building *'),

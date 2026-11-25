@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -81,7 +82,7 @@ class _CirculationFilterSearchCardState extends ConsumerState<CirculationFilterS
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: searchInFields.contains(state.searchIn) ? state.searchIn : searchInFields.first,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -141,7 +142,7 @@ class _CirculationFilterSearchCardState extends ConsumerState<CirculationFilterS
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: transactionTypes.contains(state.selectedTransactionType) ? state.selectedTransactionType : transactionTypes.first,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -169,7 +170,7 @@ class _CirculationFilterSearchCardState extends ConsumerState<CirculationFilterS
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: statuses.contains(state.selectedStatus) ? state.selectedStatus : statuses.first,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

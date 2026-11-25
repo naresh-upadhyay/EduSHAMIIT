@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -955,7 +956,7 @@ class _HostelStaffTableState extends ConsumerState<HostelStaffTable> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: pagination.pageSize,
                     isDense: true,
                     iconSize: 16,
@@ -1179,7 +1180,7 @@ class _HostelStaffTableState extends ConsumerState<HostelStaffTable> {
                   children: [
                     const Text('Select Destination Hostel *', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: selectedHostelId,
                       items: buildings.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
                       onChanged: (val) => setModalState(() => selectedHostelId = val),

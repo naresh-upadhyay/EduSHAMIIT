@@ -301,7 +301,7 @@ void main() {
       expect(find.byType(DragTarget<WorkItemModel>), findsWidgets);
     });
 
-    testWidgets('WorkItemDetailDrawer renders Azure DevOps effort and audit history tabs', (tester) async {
+    testWidgets('WorkItemDetailDrawer renders SHAMIIT effort and audit history tabs', (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());

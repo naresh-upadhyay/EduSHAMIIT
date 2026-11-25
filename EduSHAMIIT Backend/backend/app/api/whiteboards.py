@@ -170,6 +170,228 @@ async def list_whiteboard_templates(user=Depends(get_current_user)):
 
 
 # ============================================================================
+# 1B. ACADEMIC DIRECTORY FOR SHARING (CLASSES -> SECTIONS -> MEMBERS & SEARCH)
+# ============================================================================
+
+@router.get("/whiteboards/directory/classes")
+async def get_share_directory_classes(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Return active classes with nested active sections, student counts & teacher counts."""
+    rows = await exec_sql(
+        """
+        SELECT
+            c.id::TEXT AS id,
+            c.name,
+            c.code,
+            c.stage,
+            c.academic_year,
+            COALESCE((
+                SELECT COUNT(DISTINCT sca.student_id)
+                FROM public.student_class_assignments sca
+                WHERE sca.class_id = c.id AND sca.school_id = %s::UUID AND UPPER(COALESCE(sca.status, 'ACTIVE')) = 'ACTIVE'
+            ), 0) AS students_count,
+            COALESCE((
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'id', s.id::TEXT,
+                        'name', s.name,
+                        'code', s.code,
+                        'students_count', COALESCE((
+                            SELECT COUNT(DISTINCT sca2.student_id)
+                            FROM public.student_class_assignments sca2
+                            WHERE sca2.section_id = s.id AND sca2.school_id = %s::UUID AND UPPER(COALESCE(sca2.status, 'ACTIVE')) = 'ACTIVE'
+                        ), 0),
+                        'teachers_count', COALESCE((
+                            SELECT COUNT(DISTINCT tid) FROM (
+                                SELECT cta.teacher_id AS tid
+                                FROM public.class_teacher_assignments cta
+                                WHERE cta.class_id = c.id AND cta.section_id = s.id AND cta.school_id = %s::UUID
+                                UNION
+                                SELECT sst.teacher_id AS tid
+                                FROM public.section_subject_teachers sst
+                                WHERE sst.class_id = c.id AND sst.section_id = s.id AND sst.school_id = %s::UUID
+                                  AND UPPER(COALESCE(sst.status, 'ACTIVE')) = 'ACTIVE'
+                            ) t_cnt
+                        ), 0)
+                    )
+                    ORDER BY s.display_order ASC, s.name ASC
+                )
+                FROM public.academic_sections s
+                WHERE s.class_id = c.id
+                  AND s.school_id = %s::UUID
+                  AND s.deleted_at IS NULL
+                  AND UPPER(COALESCE(s.status, 'ACTIVE')) = 'ACTIVE'
+            ), '[]'::JSONB) AS sections
+        FROM public.academic_classes c
+        WHERE c.school_id = %s::UUID
+          AND c.deleted_at IS NULL
+          AND UPPER(COALESCE(c.status, 'ACTIVE')) = 'ACTIVE'
+        ORDER BY c.display_order ASC, c.name ASC;
+        """,
+        (school_id, school_id, school_id, school_id, school_id, school_id),
+    )
+    return {"success": True, "data": rows}
+
+
+@router.get("/whiteboards/directory/class-members")
+async def get_share_class_members(
+    class_id: str = Query(...),
+    section_ids: Optional[str] = Query(None, description="Comma-separated section UUIDs"),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Return students & teachers belonging to the selected class and optional multiple sections."""
+    parsed_sections = [s.strip() for s in (section_ids or "").split(",") if s.strip()]
+
+    student_sql = """
+        SELECT DISTINCT ON (p.id)
+            p.id::TEXT AS id,
+            COALESCE(p.full_name, p.email, 'Student') AS full_name,
+            p.email,
+            'student'::TEXT AS role,
+            COALESCE(sca.roll_number, p.roll_number::TEXT, '') AS roll_number,
+            COALESCE(p.admission_number, '') AS admission_number,
+            sca.section_id::TEXT AS section_id,
+            COALESCE(sec.name, '') AS section_name,
+            COALESCE(c.name, '') AS class_name
+        FROM public.student_class_assignments sca
+        JOIN public.profiles p ON p.id = sca.student_id
+        JOIN public.academic_classes c ON c.id = sca.class_id
+        LEFT JOIN public.academic_sections sec ON sec.id = sca.section_id
+        WHERE sca.school_id = %s::UUID
+          AND sca.class_id = %s::UUID
+          AND UPPER(COALESCE(sca.status, 'ACTIVE')) = 'ACTIVE'
+    """
+    student_params: List[Any] = [school_id, class_id]
+    if parsed_sections:
+        student_sql += " AND sca.section_id = ANY(%s::UUID[])"
+        student_params.append(parsed_sections)
+    student_sql += " ORDER BY p.id, sec.name ASC, sca.roll_number ASC;"
+
+    students = await exec_sql(student_sql, tuple(student_params))
+    students.sort(key=lambda r: (r.get("section_name") or "", r.get("full_name") or ""))
+
+    teacher_sql = """
+        WITH scoped_teachers AS (
+            SELECT
+                cta.teacher_id,
+                cta.section_id,
+                CASE WHEN cta.section_id IS NULL THEN 'Class Teacher' ELSE 'Section Teacher' END AS assignment_label
+            FROM public.class_teacher_assignments cta
+            WHERE cta.school_id = %s::UUID
+              AND cta.class_id = %s::UUID
+              AND (%s::BOOLEAN OR cta.section_id IS NULL OR cta.section_id = ANY(%s::UUID[]))
+            UNION ALL
+            SELECT
+                sst.teacher_id,
+                sst.section_id,
+                COALESCE(sub.name, 'Subject Teacher') AS assignment_label
+            FROM public.section_subject_teachers sst
+            LEFT JOIN public.academic_subjects sub ON sub.id = sst.subject_id
+            WHERE sst.school_id = %s::UUID
+              AND sst.class_id = %s::UUID
+              AND UPPER(COALESCE(sst.status, 'ACTIVE')) = 'ACTIVE'
+              AND (%s::BOOLEAN OR sst.section_id IS NULL OR sst.section_id = ANY(%s::UUID[]))
+        )
+        SELECT DISTINCT ON (p.id)
+            p.id::TEXT AS id,
+            COALESCE(p.full_name, p.email, 'Teacher') AS full_name,
+            p.email,
+            COALESCE(NULLIF(LOWER(p.role), ''), 'teacher') AS role,
+            COALESCE(p.employee_id, '') AS employee_id,
+            COALESCE(p.department, '') AS department,
+            st.section_id::TEXT AS section_id,
+            COALESCE(sec.name, 'All Sections') AS section_name,
+            st.assignment_label
+        FROM scoped_teachers st
+        JOIN public.profiles p ON p.id = st.teacher_id
+        LEFT JOIN public.academic_sections sec ON sec.id = st.section_id
+        ORDER BY p.id, st.assignment_label ASC;
+    """
+    no_sec_filter = len(parsed_sections) == 0
+    sec_array = parsed_sections if parsed_sections else []
+    teachers = await exec_sql(
+        teacher_sql,
+        (school_id, class_id, no_sec_filter, sec_array, school_id, class_id, no_sec_filter, sec_array),
+    )
+    teachers.sort(key=lambda r: (r.get("full_name") or ""))
+
+    return {
+        "success": True,
+        "data": {
+            "students": students,
+            "teachers": teachers,
+        },
+    }
+
+
+@router.get("/whiteboards/directory/search-users")
+async def search_share_users(
+    q: str = Query(""),
+    role_filter: str = Query("all"),
+    limit: int = Query(60, ge=1, le=200),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Search individual students, teachers, and staff across the institution."""
+    rf = (role_filter or "all").strip().lower()
+    search_term = (q or "").strip()
+
+    sql = """
+        SELECT DISTINCT ON (p.id)
+            p.id::TEXT AS id,
+            COALESCE(p.full_name, p.email, 'User') AS full_name,
+            p.email,
+            LOWER(COALESCE(p.role, 'student')) AS role,
+            COALESCE(p.employee_id, '') AS employee_id,
+            COALESCE(p.admission_number, '') AS admission_number,
+            COALESCE(sca.roll_number, p.roll_number::TEXT, '') AS roll_number,
+            COALESCE(p.department, '') AS department,
+            COALESCE(c.name, '') AS class_name,
+            COALESCE(sec.name, '') AS section_name
+        FROM public.profiles p
+        LEFT JOIN public.student_class_assignments sca
+               ON sca.student_id = p.id
+              AND sca.school_id = %s::UUID
+              AND UPPER(COALESCE(sca.status, 'ACTIVE')) = 'ACTIVE'
+        LEFT JOIN public.academic_classes c ON c.id = sca.class_id
+        LEFT JOIN public.academic_sections sec ON sec.id = sca.section_id
+        WHERE p.school_id = %s::UUID
+          AND UPPER(COALESCE(p.status, 'ACTIVE')) NOT IN ('DELETED', 'INACTIVE', 'ARCHIVED')
+    """
+    params: List[Any] = [school_id, school_id]
+
+    if rf == "student":
+        sql += " AND LOWER(COALESCE(p.role, 'student')) = 'student'"
+    elif rf == "teacher":
+        sql += " AND LOWER(COALESCE(p.role, '')) IN ('teacher', 'faculty', 'instructor', 'staff', 'admin', 'principal', 'headmaster', 'coordinator', 'superadmin', 'super_admin')"
+
+    if search_term:
+        like = f"%{search_term}%"
+        sql += """
+          AND (
+              p.full_name ILIKE %s
+              OR COALESCE(p.email, '') ILIKE %s
+              OR COALESCE(p.employee_id, '') ILIKE %s
+              OR COALESCE(p.admission_number, '') ILIKE %s
+              OR COALESCE(p.department, '') ILIKE %s
+              OR COALESCE(c.name, '') ILIKE %s
+              OR COALESCE(sec.name, '') ILIKE %s
+          )
+        """
+        params.extend([like, like, like, like, like, like, like])
+
+    sql += " ORDER BY p.id, p.full_name ASC LIMIT %s;"
+    params.append(limit)
+
+    rows = await exec_sql(sql, tuple(params))
+    rows.sort(key=lambda r: (r.get("full_name") or ""))
+    return {"success": True, "data": rows}
+
+
+# ============================================================================
 # 2. WHITEBOARD CRUD
 # ============================================================================
 
@@ -240,6 +462,13 @@ async def update_whiteboard(
     if not perm.get("can_manage_permissions") and not perm.get("can_manage_pages"):
         raise HTTPException(status_code=403, detail="Only host/owner can update whiteboard settings")
 
+    if payload.get("description") is not None:
+        await exec_sql(
+            "UPDATE public.live_class_whiteboards SET description = %s::TEXT, updated_at = NOW() WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL;",
+            (str(payload.get("description")), whiteboard_id, school_id),
+            fetch=False,
+        )
+
     rows = await exec_sql(
         "SELECT public.sp_update_whiteboard_meta(%s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::BOOLEAN, %s::BOOLEAN, %s::BOOLEAN, %s::JSONB, %s::TEXT) AS data;",
         (
@@ -296,6 +525,187 @@ async def delete_whiteboard(
         fetch=False,
     )
     return {"success": True, "message": "Whiteboard archived"}
+
+
+@router.post("/whiteboards/{whiteboard_id}/duplicate")
+async def duplicate_whiteboard(
+    whiteboard_id: str,
+    payload: Dict[str, Any] = Body(default={}),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    await _check_permission(whiteboard_id, school_id, user)
+    role = str(user.get("role", "")).lower()
+    if role == "student":
+        raise HTTPException(status_code=403, detail="Only teachers or admins can duplicate whiteboards")
+
+    src_rows = await exec_sql(
+        """
+        SELECT id, session_id, title, description, template_type, collaboration_enabled,
+               presentation_mode, teacher_only_mode, default_permissions
+        FROM public.live_class_whiteboards
+        WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+        LIMIT 1;
+        """,
+        (whiteboard_id, school_id),
+    )
+    if not src_rows:
+        raise HTTPException(status_code=404, detail="Whiteboard not found")
+    src = src_rows[0]
+
+    new_wb_id = str(uuid.uuid4())
+    new_title = (payload.get("title") or "").strip() or f"{src.get('title') or 'Class Whiteboard'} (Copy)"
+    target_session_id = payload.get("session_id")
+    if target_session_id is None and payload.get("preserve_session") is True:
+        target_session_id = str(src["session_id"]) if src.get("session_id") else None
+
+    def _clone_tx():
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO public.live_class_whiteboards (
+                        id, session_id, school_id, title, description,
+                        created_by, owner_user_id, last_saved_by,
+                        current_revision, teacher_only_mode, collaboration_enabled,
+                        presentation_mode, template_type, default_permissions, status
+                    ) VALUES (
+                        %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT,
+                        %s::UUID, %s::UUID, %s::UUID,
+                        1, %s::BOOLEAN, %s::BOOLEAN,
+                        %s::BOOLEAN, %s::TEXT, %s::JSONB, 'ACTIVE'
+                    );
+                    """,
+                    (
+                        new_wb_id,
+                        target_session_id,
+                        school_id,
+                        new_title,
+                        src.get("description") or "",
+                        user["id"],
+                        user["id"],
+                        user["id"],
+                        bool(src.get("teacher_only_mode", False)),
+                        bool(src.get("collaboration_enabled", True)),
+                        bool(src.get("presentation_mode", False)),
+                        src.get("template_type") or "blank",
+                        json.dumps(src.get("default_permissions") or {}),
+                    ),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO public.whiteboard_permissions (whiteboard_id, school_id, user_id, permission_type, granted_by)
+                    VALUES (%s::UUID, %s::UUID, %s::UUID, 'OWNER', %s::UUID)
+                    ON CONFLICT DO NOTHING;
+                    """,
+                    (new_wb_id, school_id, user["id"], user["id"]),
+                )
+
+                cur.execute(
+                    """
+                    SELECT id, title, page_order, background_type, background_config, canvas_config, is_locked
+                    FROM public.whiteboard_pages
+                    WHERE whiteboard_id = %s::UUID AND deleted_at IS NULL
+                    ORDER BY page_order ASC;
+                    """,
+                    (whiteboard_id,),
+                )
+                pages = cur.fetchall()
+                page_map: Dict[str, str] = {}
+                if not pages:
+                    cur.execute(
+                        """
+                        INSERT INTO public.whiteboard_pages (id, whiteboard_id, school_id, title, page_order, background_type, created_by)
+                        VALUES (%s::UUID, %s::UUID, %s::UUID, '1. Drawing Canvas', 1, 'plain', %s::UUID);
+                        """,
+                        (str(uuid.uuid4()), new_wb_id, school_id, user["id"]),
+                    )
+                else:
+                    for p in pages:
+                        new_page_id = str(uuid.uuid4())
+                        page_map[str(p["id"])] = new_page_id
+                        cur.execute(
+                            """
+                            INSERT INTO public.whiteboard_pages (
+                                id, whiteboard_id, school_id, title, page_order,
+                                background_type, background_config, canvas_config, is_locked, created_by
+                            ) VALUES (
+                                %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::INTEGER,
+                                %s::TEXT, %s::JSONB, %s::JSONB, %s::BOOLEAN, %s::UUID
+                            );
+                            """,
+                            (
+                                new_page_id,
+                                new_wb_id,
+                                school_id,
+                                p.get("title") or "Page 1",
+                                int(p.get("page_order") or 1),
+                                p.get("background_type") or "plain",
+                                json.dumps(p.get("background_config") or {}),
+                                json.dumps(p.get("canvas_config") or {"width": 2400, "height": 1600}),
+                                bool(p.get("is_locked", False)),
+                                user["id"],
+                            ),
+                        )
+
+                    cur.execute(
+                        """
+                        SELECT page_id, object_id, object_type, object_data, z_index, is_locked
+                        FROM public.whiteboard_objects
+                        WHERE whiteboard_id = %s::UUID AND deleted_at IS NULL
+                        ORDER BY z_index ASC;
+                        """,
+                        (whiteboard_id,),
+                    )
+                    for obj in cur.fetchall():
+                        mapped_page_id = page_map.get(str(obj["page_id"]))
+                        if not mapped_page_id:
+                            continue
+                        cur.execute(
+                            """
+                            INSERT INTO public.whiteboard_objects (
+                                whiteboard_id, page_id, school_id, object_id,
+                                object_type, object_data, z_index, is_locked, created_by
+                            ) VALUES (
+                                %s::UUID, %s::UUID, %s::UUID, %s::TEXT,
+                                %s::TEXT, %s::JSONB, %s::INTEGER, %s::BOOLEAN, %s::UUID
+                            );
+                            """,
+                            (
+                                new_wb_id,
+                                mapped_page_id,
+                                school_id,
+                                obj.get("object_id"),
+                                obj.get("object_type"),
+                                json.dumps(obj.get("object_data") or {}),
+                                int(obj.get("z_index") or 0),
+                                bool(obj.get("is_locked", False)),
+                                user["id"],
+                            ),
+                        )
+
+                cur.execute(
+                    "SELECT public.sp_log_whiteboard_audit(%s::UUID, %s::UUID, %s::UUID, 'whiteboard.duplicated', %s::jsonb);",
+                    (new_wb_id, school_id, user["id"], json.dumps({"source_whiteboard_id": whiteboard_id})),
+                )
+                cur.execute(
+                    "SELECT public.sp_get_whiteboard_full(%s::UUID, %s::UUID, %s::UUID) AS data;",
+                    (new_wb_id, school_id, user["id"]),
+                )
+                row = cur.fetchone()
+                conn.commit()
+                return row["data"] if row else None
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    duplicated = await asyncio.to_thread(_clone_tx)
+    if not duplicated:
+        raise HTTPException(status_code=500, detail="Failed to duplicate whiteboard")
+    return {"success": True, "data": duplicated}
 
 
 # ============================================================================
@@ -931,20 +1341,218 @@ async def share_whiteboard(
     if not perm.get("can_manage_permissions"):
         raise HTTPException(status_code=403, detail="Only owner/teacher can share whiteboard")
 
+    target_id = payload.get("target_id")
+    share_type = payload.get("share_type", "class")
+    access_level = str(payload.get("access_level", "VIEW")).upper()
+    capabilities = payload.get("capabilities")
+
     rows = await exec_sql(
         "SELECT public.sp_share_whiteboard(%s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::UUID, %s::TEXT, %s::TEXT, %s::TIMESTAMPTZ) AS share;",
         (
             whiteboard_id,
             school_id,
             user["id"],
-            payload.get("share_type", "class"),
-            payload.get("target_id"),
+            share_type,
+            target_id,
             payload.get("target_label", "Class 10 - A"),
-            payload.get("access_level", "VIEW"),
+            access_level,
             payload.get("expires_at"),
         ),
     )
+    if target_id and str(share_type).lower() in ("student", "teacher", "user"):
+        await _upsert_shared_user_permission(
+            whiteboard_id=whiteboard_id,
+            school_id=school_id,
+            granter_id=user["id"],
+            target_user_id=target_id,
+            access_level=access_level,
+            capabilities=capabilities,
+        )
     return {"success": True, "data": rows[0]["share"]}
+
+
+async def _upsert_shared_user_permission(
+    whiteboard_id: str,
+    school_id: str,
+    granter_id: str,
+    target_user_id: str,
+    access_level: str,
+    capabilities: Optional[Dict[str, Any]] = None,
+) -> None:
+    lvl = str(access_level or "VIEW").upper()
+    if lvl not in ("VIEW", "ANNOTATE", "EDIT", "OWNER"):
+        lvl = "VIEW"
+    assigned_area = json.dumps({"capabilities": capabilities}) if capabilities else None
+    await exec_sql(
+        """
+        INSERT INTO public.whiteboard_permissions (
+            whiteboard_id, school_id, user_id, permission_type, assigned_area, granted_by
+        ) VALUES (
+            %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::JSONB, %s::UUID
+        )
+        ON CONFLICT (whiteboard_id, user_id) WHERE user_id IS NOT NULL
+        DO UPDATE SET
+            permission_type = EXCLUDED.permission_type,
+            assigned_area = COALESCE(EXCLUDED.assigned_area, public.whiteboard_permissions.assigned_area),
+            granted_by = EXCLUDED.granted_by,
+            updated_at = NOW();
+        """,
+        (whiteboard_id, school_id, target_user_id, lvl, assigned_area, granter_id),
+        fetch=False,
+    )
+
+
+@router.post("/whiteboards/{whiteboard_id}/share/batch")
+async def share_whiteboard_batch(
+    whiteboard_id: str,
+    payload: Dict[str, Any] = Body(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Share whiteboard with cascading Class/Multiple Sections + Members OR Multiple Searched Individuals."""
+    perm = await _check_permission(whiteboard_id, school_id, user)
+    if not perm.get("can_manage_permissions"):
+        raise HTTPException(status_code=403, detail="Only owner/teacher can share whiteboard")
+
+    mode = str(payload.get("mode", "individual")).lower()
+    access_level = str(payload.get("access_level", "VIEW")).upper()
+    if access_level not in ("VIEW", "ANNOTATE", "EDIT", "OWNER"):
+        access_level = "VIEW"
+    capabilities = payload.get("capabilities") if isinstance(payload.get("capabilities"), dict) else {}
+    expires_at = payload.get("expires_at")
+
+    created_shares: List[Dict[str, Any]] = []
+    granted_user_ids: set = set()
+
+    if mode == "class_sections":
+        class_id = payload.get("class_id")
+        class_name = (payload.get("class_name") or "Class").strip()
+        sections = payload.get("sections") or []  # [{id, name}]
+        include_students = bool(payload.get("include_students", True))
+        include_teachers = bool(payload.get("include_teachers", True))
+        explicit_users = payload.get("users") or []
+
+        audience_parts = []
+        if include_students:
+            audience_parts.append("Students")
+        if include_teachers:
+            audience_parts.append("Teachers")
+        audience_suffix = f" ({' & '.join(audience_parts)})" if audience_parts else ""
+
+        if sections:
+            for sec in sections:
+                sec_id = sec.get("id")
+                sec_name = (sec.get("name") or "Section").strip()
+                label = f"{class_name} - {sec_name}{audience_suffix}"
+                rows = await exec_sql(
+                    "SELECT public.sp_share_whiteboard(%s::UUID, %s::UUID, %s::UUID, 'section', %s::UUID, %s::TEXT, %s::TEXT, %s::TIMESTAMPTZ) AS share;",
+                    (whiteboard_id, school_id, user["id"], sec_id, label, access_level, expires_at),
+                )
+                if rows and rows[0].get("share"):
+                    created_shares.append(rows[0]["share"])
+        elif class_id:
+            label = f"{class_name} (All Sections){audience_suffix}"
+            rows = await exec_sql(
+                "SELECT public.sp_share_whiteboard(%s::UUID, %s::UUID, %s::UUID, 'class', %s::UUID, %s::TEXT, %s::TEXT, %s::TIMESTAMPTZ) AS share;",
+                (whiteboard_id, school_id, user["id"], class_id, label, access_level, expires_at),
+            )
+            if rows and rows[0].get("share"):
+                created_shares.append(rows[0]["share"])
+
+        # Resolve user IDs to grant real board permissions (explicitly checked OR DB lookup)
+        if explicit_users:
+            for u in explicit_users:
+                uid = (u.get("id") or "").strip()
+                if uid:
+                    granted_user_ids.add(uid)
+        elif class_id:
+            sec_id_list = [str(s.get("id")) for s in sections if s.get("id")]
+            if include_students:
+                stu_q = """
+                    SELECT DISTINCT student_id::TEXT AS uid
+                    FROM public.student_class_assignments
+                    WHERE school_id = %s::UUID AND class_id = %s::UUID AND UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE'
+                """
+                stu_p: List[Any] = [school_id, class_id]
+                if sec_id_list:
+                    stu_q += " AND section_id = ANY(%s::UUID[])"
+                    stu_p.append(sec_id_list)
+                for r in await exec_sql(stu_q + ";", tuple(stu_p)):
+                    if r.get("uid"):
+                        granted_user_ids.add(r["uid"])
+            if include_teachers:
+                no_sec = len(sec_id_list) == 0
+                t_rows = await exec_sql(
+                    """
+                    SELECT DISTINCT tid::TEXT AS uid FROM (
+                        SELECT teacher_id AS tid FROM public.class_teacher_assignments
+                        WHERE school_id = %s::UUID AND class_id = %s::UUID AND (%s::BOOLEAN OR section_id IS NULL OR section_id = ANY(%s::UUID[]))
+                        UNION
+                        SELECT teacher_id AS tid FROM public.section_subject_teachers
+                        WHERE school_id = %s::UUID AND class_id = %s::UUID AND UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE'
+                          AND (%s::BOOLEAN OR section_id IS NULL OR section_id = ANY(%s::UUID[]))
+                    ) q;
+                    """,
+                    (school_id, class_id, no_sec, sec_id_list, school_id, class_id, no_sec, sec_id_list),
+                )
+                for r in t_rows:
+                    if r.get("uid"):
+                        granted_user_ids.add(r["uid"])
+    elif mode == "individual":
+        users_list = payload.get("users") or []
+        if not users_list:
+            raise HTTPException(status_code=400, detail="Select at least one student or teacher to share with")
+        for u in users_list:
+            uid = (u.get("id") or "").strip()
+            name = (u.get("name") or u.get("full_name") or "User").strip()
+            urole = str(u.get("role") or "student").lower()
+            stype = "teacher" if urole in ("teacher", "faculty", "staff", "admin", "super_admin", "principal") else "student"
+            subtitle = (u.get("label") or "").strip()
+            target_label = f"{name} ({subtitle})" if subtitle else name
+            rows = await exec_sql(
+                "SELECT public.sp_share_whiteboard(%s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::UUID, %s::TEXT, %s::TEXT, %s::TIMESTAMPTZ) AS share;",
+                (whiteboard_id, school_id, user["id"], stype, uid or None, target_label, access_level, expires_at),
+            )
+            if rows and rows[0].get("share"):
+                created_shares.append(rows[0]["share"])
+            if uid:
+                granted_user_ids.add(uid)
+    else:
+        target_label = (payload.get("target_label") or "Authorized Institutional Link").strip()
+        rows = await exec_sql(
+            "SELECT public.sp_share_whiteboard(%s::UUID, %s::UUID, %s::UUID, 'link', NULL, %s::TEXT, %s::TEXT, %s::TIMESTAMPTZ) AS share;",
+            (whiteboard_id, school_id, user["id"], target_label, access_level, expires_at),
+        )
+        if rows and rows[0].get("share"):
+            created_shares.append(rows[0]["share"])
+
+    for uid in granted_user_ids:
+        await _upsert_shared_user_permission(
+            whiteboard_id=whiteboard_id,
+            school_id=school_id,
+            granter_id=user["id"],
+            target_user_id=uid,
+            access_level=access_level,
+            capabilities=capabilities,
+        )
+
+    if granted_user_ids:
+        await whiteboard_ws_manager.broadcast_event(
+            whiteboard_id=whiteboard_id,
+            institution_id=school_id,
+            session_id=None,
+            user_id=user["id"],
+            event_type="permission.changed",
+            payload={"shared_user_count": len(granted_user_ids), "access_level": access_level},
+        )
+
+    return {
+        "success": True,
+        "data": {
+            "shares": created_shares,
+            "granted_users_count": len(granted_user_ids),
+        },
+    }
 
 
 @router.get("/whiteboards/{whiteboard_id}/shares")
@@ -971,11 +1579,29 @@ async def revoke_share(
     perm = await _check_permission(whiteboard_id, school_id, user)
     if not perm.get("can_manage_permissions"):
         raise HTTPException(status_code=403, detail="Only owner/teacher can revoke share")
-    await exec_sql(
-        "UPDATE public.whiteboard_shares SET revoked_at = NOW() WHERE id = %s::UUID AND whiteboard_id = %s::UUID AND school_id = %s::UUID;",
+    revoked_rows = await exec_sql(
+        """
+        UPDATE public.whiteboard_shares
+        SET revoked_at = NOW()
+        WHERE id = %s::UUID AND whiteboard_id = %s::UUID AND school_id = %s::UUID
+        RETURNING target_id::TEXT AS target_id, share_type;
+        """,
         (share_id, whiteboard_id, school_id),
-        fetch=False,
     )
+    if revoked_rows:
+        t_id = revoked_rows[0].get("target_id")
+        s_type = str(revoked_rows[0].get("share_type") or "").lower()
+        if t_id and s_type in ("student", "teacher", "user"):
+            remaining = await exec_sql(
+                "SELECT 1 FROM public.whiteboard_shares WHERE whiteboard_id = %s::UUID AND school_id = %s::UUID AND target_id = %s::UUID AND revoked_at IS NULL LIMIT 1;",
+                (whiteboard_id, school_id, t_id),
+            )
+            if not remaining:
+                await exec_sql(
+                    "DELETE FROM public.whiteboard_permissions WHERE whiteboard_id = %s::UUID AND school_id = %s::UUID AND user_id = %s::UUID;",
+                    (whiteboard_id, school_id, t_id),
+                    fetch=False,
+                )
     return {"success": True}
 
 

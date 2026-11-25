@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -756,7 +757,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
   }
 
   Widget _buildDropdownField() {
-    return DropdownButtonFormField<String>(
+    return AppSearchableDropdownFormField<String>.fromMenuItems(
       initialValue: _selectedSubject,
       onChanged: (val) {
         setState(() {

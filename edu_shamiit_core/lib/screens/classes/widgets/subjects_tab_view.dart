@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -483,7 +484,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: typeItems.contains(_selectedTypeFilter)
                     ? _selectedTypeFilter
                     : 'ALL',
@@ -515,7 +516,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: (_selectedClassFilter == 'ALL' ||
                         state.availableClasses
                             .any((c) => c.id == _selectedClassFilter))
@@ -549,7 +550,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       : const Color(0xFFCBD5E1)),
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: statusItems.contains(_selectedStatusFilter)
                     ? _selectedStatusFilter
                     : 'ALL',
@@ -1318,7 +1319,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                                   : const Color(0xFFCBD5E1)),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: selectedSub != null &&
                                     state.subjects
                                         .any((s) => s.id == selectedSub.id)
@@ -2324,7 +2325,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                               : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: [10, 25, 50, 100].contains(state.pageSize)
                             ? state.pageSize
                             : 10,

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/safety_compliance_provider.dart';
@@ -159,7 +160,7 @@ class _SafetyComplianceCenterPanelState extends ConsumerState<SafetyComplianceCe
                             builder: (context) {
                               final options = _getStatusDropdownOptions(state.activeSubTab);
                               final currentVal = options.contains(state.selectedStatus) ? state.selectedStatus : options.first;
-                              return DropdownButton<String>(
+                              return AppSearchableDropdown<String>.fromMenuItems(
                                 value: currentVal,
                                 isDense: true,
                                 dropdownColor: cardBg,

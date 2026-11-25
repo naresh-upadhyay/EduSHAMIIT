@@ -510,6 +510,7 @@ async def get_visitor_kpis(
     date_range_label: Optional[str] = None,
     location: Optional[str] = None,
     category: Optional[str] = None,
+    search: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """Retrieve 6 KPI card metrics computed dynamically from PostgreSQL records."""
@@ -525,6 +526,8 @@ async def get_visitor_kpis(
         filter_params["location"] = location
     if category and category not in ("All", "All Visitor Types"):
         filter_params["category"] = category
+    if search and search.strip():
+        filter_params["search"] = search.strip()
 
     try:
         rows = await exec_sql(
@@ -1020,14 +1023,28 @@ async def get_scheduled_kpis(
     school_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    search: Optional[str] = None,
+    location: Optional[str] = None,
+    category: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """Retrieve 5 KPI card metrics for Scheduled Visitors matching UI design."""
     effective_school_id = _get_school_id(current_user, school_id)
+    filter_params = {}
+    if date_from:
+        filter_params["date_from"] = date_from
+    if date_to:
+        filter_params["date_to"] = date_to
+    if search and search.strip():
+        filter_params["search"] = search.strip()
+    if location and location not in ("All", "All Locations"):
+        filter_params["location"] = location
+    if category and category not in ("All", "All Visitor Types"):
+        filter_params["category"] = category
     try:
         rows = await exec_sql(
-            "SELECT public.fn_visitors_get_scheduled_kpis(%s::UUID, %s::TIMESTAMPTZ, %s::TIMESTAMPTZ) AS kpis;",
-            (effective_school_id, date_from, date_to)
+            "SELECT public.fn_visitors_get_scheduled_kpis(%s::UUID, %s::JSONB) AS kpis;",
+            (effective_school_id, json.dumps(filter_params))
         )
         if rows and rows[0].get("kpis"):
             return {"success": True, "data": _serialize_val(rows[0]["kpis"])}
@@ -1353,15 +1370,31 @@ async def check_in_appointment(
 async def get_blacklisted_kpis(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    search: Optional[str] = None,
+    location: Optional[str] = None,
+    category: Optional[str] = None,
+    reason: Optional[str] = None,
     school_id: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
-    """Retrieve 4 KPI card metrics for Blacklisted Visitors matching UI design with optional date range."""
+    """Retrieve 4 KPI card metrics for Blacklisted Visitors matching UI design with optional filters."""
     effective_school_id = _get_school_id(current_user, school_id)
+    filter_params = {}
+    if date_from:
+        filter_params["date_from"] = date_from
+    if date_to:
+        filter_params["date_to"] = date_to
+    if search and search.strip():
+        filter_params["search"] = search.strip()
+    if location and location not in ("All", "All Locations"):
+        filter_params["location"] = location
+    effective_reason = reason or category
+    if effective_reason and effective_reason not in ("All", "All Block Reasons", "All Visitor Types"):
+        filter_params["reason"] = effective_reason
     try:
         rows = await exec_sql(
-            "SELECT public.fn_visitors_get_blacklisted_kpis(%s::UUID, %s::TIMESTAMPTZ, %s::TIMESTAMPTZ) AS kpis;",
-            (effective_school_id, date_from, date_to)
+            "SELECT public.fn_visitors_get_blacklisted_kpis(%s::UUID, %s::JSONB) AS kpis;",
+            (effective_school_id, json.dumps(filter_params))
         )
         if rows and rows[0].get("kpis"):
             return {"success": True, "data": _serialize_val(rows[0]["kpis"])}

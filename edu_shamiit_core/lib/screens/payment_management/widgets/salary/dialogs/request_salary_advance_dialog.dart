@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/payment_management_api_service.dart';
@@ -135,7 +136,7 @@ class _RequestSalaryAdvanceDialogState
                             : const Color(0xFFCBD5E1)),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: AppSearchableDropdown<String>.fromMenuItems(
                       value: _selectedStaffId,
                       isExpanded: true,
                       dropdownColor:
@@ -221,7 +222,7 @@ class _RequestSalaryAdvanceDialogState
                       purposeMap[effectivePurpose] = effectivePurpose;
                     }
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         key: ValueKey('advance_purpose_$effectivePurpose'),
                         value: effectivePurpose,
                         isExpanded: true,

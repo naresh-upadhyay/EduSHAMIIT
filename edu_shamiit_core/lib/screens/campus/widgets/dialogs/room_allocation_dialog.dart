@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -156,7 +157,7 @@ class _RoomAllocationDialogState extends State<RoomAllocationDialog> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _referenceModule,
                         isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Allocation Module *'),

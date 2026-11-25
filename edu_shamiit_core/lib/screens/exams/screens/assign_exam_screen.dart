@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -850,7 +851,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 18),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: _selectedBatch,
                                       decoration: const InputDecoration(
                                         labelText: 'Batch / Scope',

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/campus_reports_provider.dart';
@@ -202,7 +203,7 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
                     border: Border.all(color: borderColor),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: AppSearchableDropdown<String>.fromMenuItems(
                       value: timeRange,
                       isDense: true,
                       dropdownColor: bgCard,
@@ -223,7 +224,7 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
                     border: Border.all(color: borderColor),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
+                    child: AppSearchableDropdown<String?>.fromMenuItems(
                       value: (selectedBuildingId != null && buildings.any((b) => b.id == selectedBuildingId))
                           ? selectedBuildingId
                           : null,

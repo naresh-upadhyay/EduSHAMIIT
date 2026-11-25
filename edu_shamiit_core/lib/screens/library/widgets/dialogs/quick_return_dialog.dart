@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/circulation_provider.dart';
@@ -228,7 +229,7 @@ class _QuickReturnDialogState extends ConsumerState<QuickReturnDialog> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _condition,
                           items: const [
                             DropdownMenuItem(value: 'GOOD', child: Text('Good Condition')),
@@ -263,7 +264,7 @@ class _QuickReturnDialogState extends ConsumerState<QuickReturnDialog> {
                     children: [
                       const Text('Payment Mode: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       const SizedBox(width: 10),
-                      DropdownButton<String>(
+                      AppSearchableDropdown<String>.fromMenuItems(
                         value: _paymentMethod,
                         items: const [
                           DropdownMenuItem(value: 'CASH', child: Text('Cash')),

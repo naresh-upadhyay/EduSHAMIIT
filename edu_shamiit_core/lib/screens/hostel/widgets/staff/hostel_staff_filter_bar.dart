@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/download_helper.dart';
@@ -283,7 +284,7 @@ class _HostelStaffFilterBarState extends ConsumerState<HostelStaffFilterBar> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           isDense: true,
           isExpanded: true,
@@ -441,7 +442,7 @@ class _HostelStaffFilterBarState extends ConsumerState<HostelStaffFilterBar> {
                   children: [
                     const Text('Filter by Shift Timings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: shift,
                       isDense: true,
                       decoration: InputDecoration(

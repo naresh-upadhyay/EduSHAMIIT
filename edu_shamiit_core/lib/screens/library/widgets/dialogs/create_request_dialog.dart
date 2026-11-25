@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -149,9 +150,16 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
   Widget build(BuildContext context) {
     final state = ref.watch(requestProvider);
     final options = state.options;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: isDark
+            ? const BorderSide(color: Color(0xFF1E293B))
+            : BorderSide.none,
+      ),
       elevation: 16,
       child: Container(
         width: 650,
@@ -310,15 +318,24 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Required By Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                Text('Required By Date',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? const Color(0xFFCBD5E1)
+                                            : const Color(0xFF334155))),
                                 const SizedBox(height: 6),
                                 InkWell(
                                   onTap: () async {
                                     final picked = await showDatePicker(
                                       context: context,
-                                      initialDate: _requiredBy ?? DateTime.now().add(const Duration(days: 7)),
+                                      initialDate: _requiredBy ??
+                                          DateTime.now()
+                                              .add(const Duration(days: 7)),
                                       firstDate: DateTime.now(),
-                                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                                      lastDate: DateTime.now()
+                                          .add(const Duration(days: 365)),
                                     );
                                     if (picked != null) {
                                       setState(() => _requiredBy = picked);
@@ -327,20 +344,42 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
                                     height: 42,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
+                                      color: isDark
+                                          ? const Color(0xFF0F172A)
+                                          : const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                                      border: Border.all(
+                                          color: isDark
+                                              ? const Color(0xFF334155)
+                                              : const Color(0xFFCBD5E1)),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          _requiredBy != null ? DateFormat('dd MMM yyyy').format(_requiredBy!) : 'Select Date',
-                                          style: TextStyle(fontSize: 13, color: _requiredBy != null ? const Color(0xFF0F172A) : Colors.grey.shade400),
+                                          _requiredBy != null
+                                              ? DateFormat('dd MMM yyyy')
+                                                  .format(_requiredBy!)
+                                              : 'Select Date',
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: _requiredBy != null
+                                                  ? (isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF0F172A))
+                                                  : (isDark
+                                                      ? const Color(0xFF64748B)
+                                                      : Colors.grey.shade400)),
                                         ),
-                                        const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF64748B)),
+                                        Icon(Icons.calendar_today_rounded,
+                                            size: 16,
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B)),
                                       ],
                                     ),
                                   ),
@@ -375,24 +414,47 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Supporting Documents & Files',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF334155)),
                           ),
                           OutlinedButton.icon(
-                            onPressed: _isUploadingAttachment ? null : _pickAndUploadAttachment,
+                            onPressed: _isUploadingAttachment
+                                ? null
+                                : _pickAndUploadAttachment,
                             icon: _isUploadingAttachment
-                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.attach_file_rounded, size: 16),
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.attach_file_rounded,
+                                    size: 16),
                             label: Text(
-                              _isUploadingAttachment ? 'Uploading...' : 'Attach File',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              _isUploadingAttachment
+                                  ? 'Uploading...'
+                                  : 'Attach File',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF2563EB),
-                              side: const BorderSide(color: Color(0xFFBFDBFE)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              foregroundColor: isDark
+                                  ? const Color(0xFF60A5FA)
+                                  : const Color(0xFF2563EB),
+                              side: BorderSide(
+                                  color: isDark
+                                      ? const Color(0xFF2563EB)
+                                          .withValues(alpha: 0.5)
+                                      : const Color(0xFFBFDBFE)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6)),
                             ),
                           ),
                         ],
@@ -401,20 +463,32 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
 
                       if (_uploadedAttachments.isEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14, horizontal: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                            border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFE2E8F0),
+                                style: BorderStyle.solid),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.upload_file_rounded, size: 20, color: Color(0xFF94A3B8)),
+                              const Icon(Icons.upload_file_rounded,
+                                  size: 20, color: Color(0xFF94A3B8)),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   'Attach syllabus, requisition forms, sample covers, or references (PDF, Word, Excel, Image)',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? const Color(0xFF94A3B8)
+                                          : Colors.grey.shade600),
                                 ),
                               ),
                             ],
@@ -422,21 +496,31 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
                         )
                       else
                         Column(
-                          children: _uploadedAttachments.asMap().entries.map((entry) {
+                          children:
+                              _uploadedAttachments.asMap().entries.map((entry) {
                             final idx = entry.key;
                             final att = entry.value;
-                            final fileName = att['file_name']?.toString() ?? 'Attachment';
-                            final fileSize = int.tryParse(att['file_size']?.toString() ?? '0') ?? 0;
+                            final fileName =
+                                att['file_name']?.toString() ?? 'Attachment';
+                            final fileSize = int.tryParse(
+                                    att['file_size']?.toString() ?? '0') ??
+                                0;
                             final color = _getFileColor(fileName);
                             final icon = _getFileIcon(fileName);
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
+                                color: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : const Color(0xFFE2E8F0)),
                               ),
                               child: Row(
                                 children: [
@@ -451,23 +535,34 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           fileName,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF0F172A)),
                                         ),
                                         Text(
                                           _formatFileSize(fileSize),
-                                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark
+                                                  ? const Color(0xFF94A3B8)
+                                                  : Colors.grey.shade500),
                                         ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFEF4444)),
+                                    icon: const Icon(Icons.close_rounded,
+                                        size: 16, color: Color(0xFFEF4444)),
                                     splashRadius: 14,
                                     onPressed: () {
                                       setState(() {
@@ -490,16 +585,27 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(14)),
+                border: Border(
+                    top: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : Colors.grey.shade200)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                    onPressed:
+                        _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
@@ -570,29 +676,49 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? const Color(0xFFCBD5E1)
+                    : const Color(0xFF334155))),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white : const Color(0xFF0F172A)),
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            hintStyle: TextStyle(
+                fontSize: 13,
+                color:
+                    isDark ? const Color(0xFF64748B) : Colors.grey.shade400),
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            fillColor:
+                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              borderSide: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              borderSide: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFCBD5E1)),
             ),
             isDense: true,
           ),
@@ -607,28 +733,46 @@ class _CreateRequestDialogState extends ConsumerState<CreateRequestDialog> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final sanitizedItems = items.toSet().toList();
-    final sanitizedValue = sanitizedItems.contains(value) ? value : sanitizedItems.first;
+    final sanitizedValue =
+        sanitizedItems.contains(value) ? value : sanitizedItems.first;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? const Color(0xFFCBD5E1)
+                    : const Color(0xFF334155))),
         const SizedBox(height: 6),
         Container(
           height: 42,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFCBD5E1)),
+            border: Border.all(
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: sanitizedValue,
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w500),
               items: sanitizedItems.map((e) {
                 return DropdownMenuItem<String>(
                   value: e,

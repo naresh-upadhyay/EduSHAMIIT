@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +9,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/app_config.dart';
 import '../models/whiteboard_models.dart';
 import '../providers/whiteboard_provider.dart';
-import '../../providers/live_class_management_provider.dart';
 
 class RichTextEditorDialog extends StatefulWidget {
   final String initialText;
@@ -148,7 +149,7 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
                     ],
                     // Font Family Dropdown
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _fontFamily,
                         dropdownColor: dialogBg,
                         isDense: true,
@@ -167,7 +168,7 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
                     Container(width: 1, height: 18, color: borderColor),
                     // Font Size Dropdown
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<double>(
+                      child: AppSearchableDropdown<double>.fromMenuItems(
                         value: _fontSize,
                         dropdownColor: dialogBg,
                         isDense: true,
@@ -390,7 +391,12 @@ class _RichTextEditorDialogState extends State<RichTextEditorDialog> {
 }
 
 class WhiteboardTemplatesDialog extends ConsumerStatefulWidget {
-  const WhiteboardTemplatesDialog({super.key});
+  final bool forceStandalone;
+
+  const WhiteboardTemplatesDialog({
+    super.key,
+    this.forceStandalone = false,
+  });
 
   @override
   ConsumerState<WhiteboardTemplatesDialog> createState() => _WhiteboardTemplatesDialogState();
@@ -559,6 +565,7 @@ class _WhiteboardTemplatesDialogState extends ConsumerState<WhiteboardTemplatesD
                         title: titleText,
                         templateType: _selectedTemplate,
                         collaborationEnabled: _collabEnabled,
+                        forceStandalone: widget.forceStandalone,
                       );
                   if (context.mounted) {
                     Navigator.pop(context, ok);
@@ -695,154 +702,1200 @@ class _WhiteboardVersionHistoryDialogState extends ConsumerState<WhiteboardVersi
 }
 
 class WhiteboardShareDialog extends ConsumerStatefulWidget {
-  const WhiteboardShareDialog({super.key});
+  final String? whiteboardId;
+  final String? boardTitle;
+
+  const WhiteboardShareDialog({
+    super.key,
+    this.whiteboardId,
+    this.boardTitle,
+  });
 
   @override
   ConsumerState<WhiteboardShareDialog> createState() => _WhiteboardShareDialogState();
 }
 
 class _WhiteboardShareDialogState extends ConsumerState<WhiteboardShareDialog> {
-  String _shareType = 'class';
-  String _accessLevel = 'VIEW';
-  late final TextEditingController _targetCtrl;
-  WhiteboardShareItem? _createdShare;
+  // Mode: 'class_sections' | 'individual' | 'link'
+  String _mode = 'class_sections';
+
+  // Option 1: Cascading Class -> Multiple Sections -> Students & Teachers
+  bool _loadingClasses = true;
+  List<Map<String, dynamic>> _classes = [];
+  String? _selectedClassId;
+  final Set<String> _selectedSectionIds = {};
+  bool _includeStudents = true;
+  bool _includeTeachers = true;
+  bool _loadingMembers = false;
+  List<Map<String, dynamic>> _classStudents = [];
+  List<Map<String, dynamic>> _classTeachers = [];
+  final Set<String> _checkedMemberIds = {};
+  final TextEditingController _memberFilterCtrl = TextEditingController();
+
+  // Option 2: Individual Search & Multi-Select
+  final TextEditingController _individualSearchCtrl = TextEditingController();
+  String _individualRoleFilter = 'all'; // 'all' | 'teacher' | 'student'
+  bool _searchingIndividuals = false;
+  List<Map<String, dynamic>> _searchResults = [];
+  final Map<String, Map<String, dynamic>> _selectedIndividuals = {};
+  Timer? _searchDebounce;
+
+  // Option 3: Share Link
+  final TextEditingController _linkLabelCtrl = TextEditingController(text: 'Authorized Institutional Link');
+
+  // Access Level & Granular Capabilities ("What they can do")
+  String _accessLevel = 'VIEW'; // 'VIEW' | 'ANNOTATE' | 'EDIT'
+  bool _capDraw = false;
+  bool _capNotes = false;
+  bool _capExport = true;
+  bool _capManagePages = false;
+
+  bool _isSubmitting = false;
+  List<WhiteboardShareItem> _lastCreatedShares = [];
+  List<WhiteboardShareItem> _existingShares = [];
+  bool _loadingShares = true;
 
   @override
   void initState() {
     super.initState();
-    final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
-    final sel = ref.read(liveClassManagementProvider).selectedMyClass;
-    final cls = activeSess?.classSection ?? sel?.classSection ?? 'Class 12 - A';
-    _targetCtrl = TextEditingController(text: cls);
+    _loadInitialDirectory();
+    _loadShares();
+    _runIndividualSearch();
   }
 
   @override
   void dispose() {
-    _targetCtrl.dispose();
+    _searchDebounce?.cancel();
+    _memberFilterCtrl.dispose();
+    _individualSearchCtrl.dispose();
+    _linkLabelCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadInitialDirectory() async {
+    final dirs = await ref.read(whiteboardProvider.notifier).fetchShareDirectoryClasses();
+    if (!mounted) return;
+    setState(() {
+      _classes = dirs;
+      _loadingClasses = false;
+      if (dirs.isNotEmpty) {
+        _selectedClassId = dirs.first['id']?.toString();
+      }
+    });
+    if (_selectedClassId != null && _selectedClassId!.isNotEmpty) {
+      await _loadMembersForSelectedClass();
+    }
+  }
+
+  Future<void> _loadMembersForSelectedClass() async {
+    final cid = _selectedClassId;
+    if (cid == null || cid.isEmpty) return;
+    setState(() => _loadingMembers = true);
+    final res = await ref.read(whiteboardProvider.notifier).fetchShareClassMembers(
+          classId: cid,
+          sectionIds: _selectedSectionIds.toList(),
+        );
+    if (!mounted) return;
+    final students = res['students'] ?? [];
+    final teachers = res['teachers'] ?? [];
+    setState(() {
+      _classStudents = students;
+      _classTeachers = teachers;
+      _checkedMemberIds.clear();
+      if (_includeStudents) {
+        for (final s in students) {
+          final id = (s['id'] ?? '').toString();
+          if (id.isNotEmpty) _checkedMemberIds.add(id);
+        }
+      }
+      if (_includeTeachers) {
+        for (final t in teachers) {
+          final id = (t['id'] ?? '').toString();
+          if (id.isNotEmpty) _checkedMemberIds.add(id);
+        }
+      }
+      _loadingMembers = false;
+    });
+  }
+
+  Future<void> _runIndividualSearch() async {
+    setState(() => _searchingIndividuals = true);
+    final users = await ref.read(whiteboardProvider.notifier).searchShareUsers(
+          query: _individualSearchCtrl.text.trim(),
+          roleFilter: _individualRoleFilter,
+          limit: 60,
+        );
+    if (mounted) {
+      setState(() {
+        _searchResults = users;
+        _searchingIndividuals = false;
+      });
+    }
+  }
+
+  void _onIndividualSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), _runIndividualSearch);
+  }
+
+  Future<void> _loadShares() async {
+    final shares = await ref.read(whiteboardProvider.notifier).listBoardShares(widget.whiteboardId);
+    if (mounted) {
+      setState(() {
+        _existingShares = shares;
+        _loadingShares = false;
+      });
+    }
+  }
+
+  void _applyAccessLevelPreset(String level) {
+    setState(() {
+      _accessLevel = level;
+      if (level == 'VIEW') {
+        _capDraw = false;
+        _capNotes = false;
+        _capExport = true;
+        _capManagePages = false;
+      } else if (level == 'ANNOTATE') {
+        _capDraw = true;
+        _capNotes = true;
+        _capExport = true;
+        _capManagePages = false;
+      } else {
+        _capDraw = true;
+        _capNotes = true;
+        _capExport = true;
+        _capManagePages = true;
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> get _selectedClassSections {
+    if (_selectedClassId == null) return const [];
+    final cls = _classes.where((c) => c['id']?.toString() == _selectedClassId).firstOrNull;
+    if (cls == null) return const [];
+    return (cls['sections'] as List? ?? []).whereType<Map<String, dynamic>>().toList();
+  }
+
+  List<Map<String, dynamic>> get _visibleClassMembers {
+    final filter = _memberFilterCtrl.text.trim().toLowerCase();
+    final combined = <Map<String, dynamic>>[];
+    if (_includeTeachers) {
+      for (final t in _classTeachers) {
+        combined.add({...t, '_kind': 'teacher'});
+      }
+    }
+    if (_includeStudents) {
+      for (final s in _classStudents) {
+        combined.add({...s, '_kind': 'student'});
+      }
+    }
+    if (filter.isEmpty) return combined;
+    return combined.where((m) {
+      final name = (m['full_name'] ?? '').toString().toLowerCase();
+      final email = (m['email'] ?? '').toString().toLowerCase();
+      final sec = (m['section_name'] ?? '').toString().toLowerCase();
+      final extra = (m['assignment_label'] ?? m['roll_number'] ?? '').toString().toLowerCase();
+      return name.contains(filter) || email.contains(filter) || sec.contains(filter) || extra.contains(filter);
+    }).toList();
+  }
+
+  Future<void> _submitShare() async {
+    setState(() => _isSubmitting = true);
+    final caps = {
+      'can_view': true,
+      'can_draw': _capDraw,
+      'can_add_notes': _capNotes,
+      'can_export': _capExport,
+      'can_manage_pages': _capManagePages,
+    };
+
+    Map<String, dynamic>? result;
+    if (_mode == 'class_sections') {
+      final cls = _classes.where((c) => c['id']?.toString() == _selectedClassId).firstOrNull;
+      if (cls == null) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a class first.')));
+        return;
+      }
+      final pickedSections = _selectedClassSections
+          .where((s) => _selectedSectionIds.contains(s['id']?.toString()))
+          .map((s) => {'id': s['id'], 'name': s['name']})
+          .toList();
+
+      final checkedUsers = <Map<String, dynamic>>[];
+      for (final m in _visibleClassMembers) {
+        final uid = (m['id'] ?? '').toString();
+        if (uid.isNotEmpty && _checkedMemberIds.contains(uid)) {
+          checkedUsers.add({
+            'id': uid,
+            'name': m['full_name'] ?? 'Member',
+            'role': m['role'] ?? (m['_kind'] == 'teacher' ? 'teacher' : 'student'),
+          });
+        }
+      }
+
+      result = await ref.read(whiteboardProvider.notifier).shareBoardBatch(
+            whiteboardId: widget.whiteboardId,
+            mode: 'class_sections',
+            classId: cls['id']?.toString(),
+            className: cls['name']?.toString(),
+            sections: pickedSections,
+            includeStudents: _includeStudents,
+            includeTeachers: _includeTeachers,
+            users: checkedUsers,
+            accessLevel: _accessLevel,
+            capabilities: caps,
+          );
+    } else if (_mode == 'individual') {
+      if (_selectedIndividuals.isEmpty) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select one or more individuals from the search list.')),
+        );
+        return;
+      }
+      final userPayloads = _selectedIndividuals.values.map((u) {
+        final role = (u['role'] ?? 'student').toString();
+        final cls = (u['class_name'] ?? '').toString();
+        final sec = (u['section_name'] ?? '').toString();
+        final dept = (u['department'] ?? '').toString();
+        final label = cls.isNotEmpty
+            ? (sec.isNotEmpty ? '$cls - $sec' : cls)
+            : (dept.isNotEmpty ? '$role • $dept' : role);
+        return {
+          'id': u['id'],
+          'name': u['full_name'] ?? 'User',
+          'role': role,
+          'label': label,
+        };
+      }).toList();
+
+      result = await ref.read(whiteboardProvider.notifier).shareBoardBatch(
+            whiteboardId: widget.whiteboardId,
+            mode: 'individual',
+            users: userPayloads,
+            accessLevel: _accessLevel,
+            capabilities: caps,
+          );
+    } else {
+      result = await ref.read(whiteboardProvider.notifier).shareBoardBatch(
+            whiteboardId: widget.whiteboardId,
+            mode: 'link',
+            targetLabel: _linkLabelCtrl.text.trim().isEmpty ? 'Authorized Institutional Link' : _linkLabelCtrl.text.trim(),
+            accessLevel: _accessLevel,
+            capabilities: caps,
+          );
+    }
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (result != null) {
+      final created = (result['shares'] as List<WhiteboardShareItem>?) ?? [];
+      final grantedCount = (result['granted_users_count'] as num?)?.toInt() ?? 0;
+      setState(() {
+        _lastCreatedShares = created;
+        if (_mode == 'individual') _selectedIndividuals.clear();
+      });
+      await _loadShares();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              grantedCount > 0
+                  ? 'Shared board cleanly ($grantedCount user permission(s) synced with $_accessLevel access)!'
+                  : 'Shared board link created ($_accessLevel)!',
+            ),
+            backgroundColor: const Color(0xFF16A34A),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to share board. Please verify network/permissions.'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final menuBg = isDark ? const Color(0xFF1E2235) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF13182C) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF2E3852) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final boardName = widget.boardTitle ?? ref.read(whiteboardProvider).document?.title ?? 'Whiteboard';
+    final screenW = MediaQuery.of(context).size.width;
+    final dialogW = screenW < 720 ? screenW * 0.92 : 660.0;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      backgroundColor: menuBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: borderColor, width: 1.2),
+      ),
+      title: Row(
         children: [
-          Icon(Icons.share_rounded, color: Color(0xFF2563EB)),
-          SizedBox(width: 8),
-          Text('Share Whiteboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.share_rounded, color: Color(0xFF2563EB), size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Share Whiteboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+                Text(boardName, style: TextStyle(fontSize: 11.5, color: textSecondary), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
         ],
       ),
       content: SizedBox(
-        width: 440,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: _shareType,
-              dropdownColor: menuBg,
-              style: TextStyle(fontSize: 13, color: textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Share With',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              items: [
-                DropdownMenuItem(value: 'class', child: Text('Class', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'section', child: Text('Section', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'student', child: Text('Selected Student(s)', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'teacher', child: Text('Faculty / Teachers', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'link', child: Text('Authorized Institutional Link', style: TextStyle(color: textPrimary))),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _shareType = v);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _targetCtrl,
-              decoration: InputDecoration(
-                labelText: 'Recipient / Label',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _accessLevel,
-              dropdownColor: menuBg,
-              style: TextStyle(fontSize: 13, color: textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Access Level',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              items: [
-                DropdownMenuItem(value: 'VIEW', child: Text('View Only', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'ANNOTATE', child: Text('View & Annotate', style: TextStyle(color: textPrimary))),
-                DropdownMenuItem(value: 'EDIT', child: Text('Full Collaborate / Edit', style: TextStyle(color: textPrimary))),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => _accessLevel = v);
-              },
-            ),
-            if (_createdShare != null) ...[
-              const SizedBox(height: 14),
+        width: dialogW,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Share Mode Selector (No manual label entry required!)
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Row(
                   children: [
+                    _modeTab('class_sections', Icons.account_tree_outlined, 'Class & Sections', textPrimary, textSecondary),
+                    _modeTab('individual', Icons.person_search_rounded, 'Search Individuals', textPrimary, textSecondary),
+                    _modeTab('link', Icons.link_rounded, 'Share Link', textPrimary, textSecondary),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              if (_mode == 'class_sections')
+                _buildClassSectionsPane(isDark, menuBg, cardBg, borderColor, textPrimary, textSecondary)
+              else if (_mode == 'individual')
+                _buildIndividualSearchPane(isDark, cardBg, borderColor, textPrimary, textSecondary)
+              else
+                _buildLinkPane(cardBg, borderColor, textPrimary),
+
+              const SizedBox(height: 14),
+              // Access Level + Capabilities ("What they can do")
+              _buildAccessLevelAndCapabilitiesPane(isDark, cardBg, borderColor, textPrimary, textSecondary),
+
+              if (_lastCreatedShares.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.28) : const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? const Color(0xFF059669) : const Color(0xFFBBF7D0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Latest Token: ${_lastCreatedShares.first.shareToken} (${_lastCreatedShares.length} entry added)',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Copy Token',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.copy, size: 15),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: _lastCreatedShares.first.shareToken));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Share token copied!')));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              if (!_loadingShares && _existingShares.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text('Active Shares (${_existingShares.length})', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
+                const SizedBox(height: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 150),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _existingShares.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 5),
+                    itemBuilder: (_, idx) {
+                      final sh = _existingShares[idx];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('${sh.targetLabel} (${sh.shareType})', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary), overflow: TextOverflow.ellipsis),
+                                  Text('${sh.accessLevel} • ${sh.shareToken}', style: TextStyle(fontSize: 10.5, color: textSecondary), overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Copy Token',
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(Icons.copy, size: 14, color: textSecondary),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: sh.shareToken));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Share token copied!')));
+                              },
+                            ),
+                            IconButton(
+                              tooltip: 'Revoke Access',
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
+                              onPressed: () async {
+                                final ok = await ref.read(whiteboardProvider.notifier).revokeBoardShare(sh.id, widget.whiteboardId);
+                                if (ok) _loadShares();
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: Text('Close', style: TextStyle(color: textSecondary)),
+        ),
+        ElevatedButton.icon(
+          icon: _isSubmitting
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.send_rounded, size: 15),
+          label: Text(_isSubmitting ? 'Sharing...' : 'Share & Assign Access'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2563EB),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: _isSubmitting ? null : _submitShare,
+        ),
+      ],
+    );
+  }
+
+  Widget _modeTab(String modeKey, IconData icon, String label, Color textPrimary, Color textSecondary) {
+    final active = _mode == modeKey;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _mode = modeKey),
+        borderRadius: BorderRadius.circular(7),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFF2563EB) : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: active ? Colors.white : textSecondary),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: active ? FontWeight.bold : FontWeight.w500,
+                    color: active ? Colors.white : textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClassSectionsPane(
+    bool isDark,
+    Color menuBg,
+    Color cardBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    if (_loadingClasses) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_classes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: borderColor)),
+        child: Text('No classes found in Class Management.', style: TextStyle(fontSize: 12, color: textSecondary)),
+      );
+    }
+
+    final sections = _selectedClassSections;
+    final visibleMembers = _visibleClassMembers;
+    final selectedVisibleCount = visibleMembers.where((m) => _checkedMemberIds.contains((m['id'] ?? '').toString())).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Step 1: Class Dropdown
+        AppSearchableDropdownFormField<String>.fromMenuItems(
+          initialValue: _selectedClassId,
+          dropdownColor: menuBg,
+          style: TextStyle(fontSize: 13, color: textPrimary),
+          decoration: InputDecoration(
+            labelText: '1. Select Class',
+            labelStyle: TextStyle(color: textSecondary, fontSize: 12),
+            filled: true,
+            fillColor: cardBg,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+          ),
+          items: _classes.map((c) {
+            final cid = c['id'].toString();
+            final cname = (c['name'] ?? '').toString();
+            final scount = (c['students_count'] as num?)?.toInt() ?? 0;
+            final secLen = (c['sections'] as List? ?? []).length;
+            return DropdownMenuItem(
+              value: cid,
+              child: Text('$cname  ($secLen sections • $scount students)', style: TextStyle(fontSize: 12.5, color: textPrimary)),
+            );
+          }).toList(),
+          onChanged: (val) async {
+            if (val == null || val == _selectedClassId) return;
+            setState(() {
+              _selectedClassId = val;
+              _selectedSectionIds.clear();
+            });
+            await _loadMembersForSelectedClass();
+          },
+        ),
+        const SizedBox(height: 10),
+
+        // Step 2: Multi-Select Sections
+        Row(
+          children: [
+            Text('2. Select Section(s)', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textSecondary)),
+            const Spacer(),
+            Text(
+              _selectedSectionIds.isEmpty ? 'All sections included' : '${_selectedSectionIds.length} section(s) selected',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            FilterChip(
+              label: Text('All Sections', style: TextStyle(fontSize: 11, color: _selectedSectionIds.isEmpty ? Colors.white : textPrimary)),
+              selected: _selectedSectionIds.isEmpty,
+              selectedColor: const Color(0xFF2563EB),
+              backgroundColor: cardBg,
+              checkmarkColor: Colors.white,
+              onSelected: (_) async {
+                setState(() => _selectedSectionIds.clear());
+                await _loadMembersForSelectedClass();
+              },
+            ),
+            for (final sec in sections)
+              () {
+                final sid = sec['id'].toString();
+                final sname = (sec['name'] ?? '').toString();
+                final scnt = (sec['students_count'] as num?)?.toInt() ?? 0;
+                final isSel = _selectedSectionIds.contains(sid);
+                return FilterChip(
+                  label: Text('$sname ($scnt)', style: TextStyle(fontSize: 11, color: isSel ? Colors.white : textPrimary)),
+                  selected: isSel,
+                  selectedColor: const Color(0xFF2563EB),
+                  backgroundColor: cardBg,
+                  checkmarkColor: Colors.white,
+                  onSelected: (checked) async {
+                    setState(() {
+                      if (checked) {
+                        _selectedSectionIds.add(sid);
+                      } else {
+                        _selectedSectionIds.remove(sid);
+                      }
+                    });
+                    await _loadMembersForSelectedClass();
+                  },
+                );
+              }(),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Step 3: Students & Teachers inside selected Class/Sections
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Text('3. Class & Section Members', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textSecondary)),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                FilterChip(
+                  label: Text('Teachers (${_classTeachers.length})', style: TextStyle(fontSize: 10.5, color: _includeTeachers ? Colors.white : textPrimary)),
+                  selected: _includeTeachers,
+                  selectedColor: const Color(0xFF10B981),
+                  backgroundColor: cardBg,
+                  checkmarkColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (v) {
+                    setState(() {
+                      _includeTeachers = v;
+                      for (final t in _classTeachers) {
+                        final id = (t['id'] ?? '').toString();
+                        if (v) {
+                          _checkedMemberIds.add(id);
+                        } else {
+                          _checkedMemberIds.remove(id);
+                        }
+                      }
+                    });
+                  },
+                ),
+                FilterChip(
+                  label: Text('Students (${_classStudents.length})', style: TextStyle(fontSize: 10.5, color: _includeStudents ? Colors.white : textPrimary)),
+                  selected: _includeStudents,
+                  selectedColor: const Color(0xFF2563EB),
+                  backgroundColor: cardBg,
+                  checkmarkColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (v) {
+                    setState(() {
+                      _includeStudents = v;
+                      for (final s in _classStudents) {
+                        final id = (s['id'] ?? '').toString();
+                        if (v) {
+                          _checkedMemberIds.add(id);
+                        } else {
+                          _checkedMemberIds.remove(id);
+                        }
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                child: Row(
+                  children: [
                     Expanded(
-                      child: Text(
-                        'Share Token: ${_createdShare!.shareToken}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
+                      child: TextField(
+                        controller: _memberFilterCtrl,
+                        onChanged: (_) => setState(() {}),
+                        style: TextStyle(fontSize: 12, color: textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Filter members in selected section(s)...',
+                          hintStyle: TextStyle(fontSize: 11, color: textSecondary),
+                          prefixIcon: Icon(Icons.search, size: 15, color: textSecondary),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor)),
+                        ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 16),
+                    const SizedBox(width: 6),
+                    TextButton(
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _createdShare!.shareToken));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Share token copied!')));
+                        setState(() {
+                          for (final m in visibleMembers) {
+                            final id = (m['id'] ?? '').toString();
+                            if (id.isNotEmpty) _checkedMemberIds.add(id);
+                          }
+                        });
                       },
+                      child: const Text('All', style: TextStyle(fontSize: 11)),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          for (final m in visibleMembers) {
+                            _checkedMemberIds.remove((m['id'] ?? '').toString());
+                          }
+                        });
+                      },
+                      child: const Text('None', style: TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$selectedVisibleCount of ${visibleMembers.length} recipient(s) selected',
+                    style: TextStyle(fontSize: 10.5, color: textSecondary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              if (_loadingMembers)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              else if (visibleMembers.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Text('No teachers or students match the selected section filters.', style: TextStyle(fontSize: 11.5, color: textSecondary)),
+                )
+              else
+                Material(
+                  type: MaterialType.transparency,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 165),
+                    child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: visibleMembers.length,
+                    itemBuilder: (_, idx) {
+                      final m = visibleMembers[idx];
+                      final uid = (m['id'] ?? '').toString();
+                      final isTeacher = m['_kind'] == 'teacher';
+                      final checked = _checkedMemberIds.contains(uid);
+                      final subInfo = isTeacher
+                          ? '${m['assignment_label'] ?? 'Teacher'} • ${m['section_name'] ?? ''}'
+                          : 'Student • ${m['section_name'] ?? ''} ${m['roll_number']?.toString().isNotEmpty == true ? '• Roll ${m['roll_number']}' : ''}';
+                      return CheckboxListTile(
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        value: checked,
+                        activeColor: const Color(0xFF2563EB),
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == true) {
+                              _checkedMemberIds.add(uid);
+                            } else {
+                              _checkedMemberIds.remove(uid);
+                            }
+                          });
+                        },
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                (m['full_name'] ?? 'Member').toString(),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: (isTeacher ? const Color(0xFF10B981) : const Color(0xFF2563EB)).withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isTeacher ? 'Teacher' : 'Student',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isTeacher ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Text(subInfo, style: TextStyle(fontSize: 10.5, color: textSecondary), overflow: TextOverflow.ellipsis),
+                      );
+                    },
+                  ),
+                ),
+                ),
             ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.send_rounded, size: 16),
-          label: const Text('Share Board'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
-          onPressed: () async {
-            final res = await ref.read(whiteboardProvider.notifier).shareBoard(
-                  shareType: _shareType,
-                  targetLabel: _targetCtrl.text.trim(),
-                  accessLevel: _accessLevel,
-                );
-            if (res != null && mounted) {
-              setState(() => _createdShare = res);
-            }
-          },
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIndividualSearchPane(
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _individualSearchCtrl,
+          onChanged: _onIndividualSearchChanged,
+          style: TextStyle(fontSize: 13, color: textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Search student or teacher by name, email, roll no, or employee ID...',
+            hintStyle: TextStyle(fontSize: 11.5, color: textSecondary),
+            prefixIcon: Icon(Icons.person_search_rounded, size: 18, color: textSecondary),
+            suffixIcon: _individualSearchCtrl.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear_rounded, size: 16, color: textSecondary),
+                    onPressed: () {
+                      _individualSearchCtrl.clear();
+                      _runIndividualSearch();
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: cardBg,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final rf in const [('all', 'All Users'), ('teacher', 'Teachers / Staff'), ('student', 'Students')])
+                  ChoiceChip(
+                    label: Text(rf.$2, style: TextStyle(fontSize: 11, color: _individualRoleFilter == rf.$1 ? Colors.white : textPrimary)),
+                    selected: _individualRoleFilter == rf.$1,
+                    selectedColor: const Color(0xFF2563EB),
+                    backgroundColor: cardBg,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) {
+                      setState(() => _individualRoleFilter = rf.$1);
+                      _runIndividualSearch();
+                    },
+                  ),
+              ],
+            ),
+            Text('${_selectedIndividuals.length} selected', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+          ],
+        ),
+        if (_selectedIndividuals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withValues(alpha: isDark ? 0.16 : 0.06),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.35)),
+            ),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _selectedIndividuals.entries.map((entry) {
+                final u = entry.value;
+                return InputChip(
+                  label: Text('${u['full_name'] ?? 'User'}', style: TextStyle(fontSize: 11, color: textPrimary)),
+                  deleteIconColor: textSecondary,
+                  onDeleted: () => setState(() => _selectedIndividuals.remove(entry.key)),
+                  visualDensity: VisualDensity.compact,
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: _searchingIndividuals
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              : _searchResults.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(child: Text('No matching users found.', style: TextStyle(fontSize: 12, color: textSecondary))),
+                    )
+                  : Material(
+                      type: MaterialType.transparency,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 195),
+                        child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (_, idx) {
+                          final u = _searchResults[idx];
+                          final uid = (u['id'] ?? '').toString();
+                          final selected = _selectedIndividuals.containsKey(uid);
+                          final role = (u['role'] ?? 'student').toString().toLowerCase();
+                          final isTeacher = role != 'student';
+                          final cls = (u['class_name'] ?? '').toString();
+                          final sec = (u['section_name'] ?? '').toString();
+                          final email = (u['email'] ?? '').toString();
+                          final sub = cls.isNotEmpty
+                              ? '$cls${sec.isNotEmpty ? ' - $sec' : ''} • $email'
+                              : '${u['department']?.toString().isNotEmpty == true ? '${u['department']} • ' : ''}$email';
+
+                          return CheckboxListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            value: selected,
+                            activeColor: const Color(0xFF2563EB),
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked == true) {
+                                  _selectedIndividuals[uid] = u;
+                                } else {
+                                  _selectedIndividuals.remove(uid);
+                                }
+                              });
+                            },
+                            title: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    (u['full_name'] ?? 'User').toString(),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: (isTeacher ? const Color(0xFF10B981) : const Color(0xFF2563EB)).withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    role.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: isTeacher ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text(sub, style: TextStyle(fontSize: 10.5, color: textSecondary), overflow: TextOverflow.ellipsis),
+                          );
+                        },
+                      ),
+                    ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLinkPane(Color cardBg, Color borderColor, Color textPrimary) {
+    return TextField(
+      controller: _linkLabelCtrl,
+      style: TextStyle(fontSize: 13, color: textPrimary),
+      decoration: InputDecoration(
+        labelText: 'Share Link Name / Label',
+        filled: true,
+        fillColor: cardBg,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+      ),
+    );
+  }
+
+  Widget _buildAccessLevelAndCapabilitiesPane(
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Level of Access & What Recipients Can Do', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _accessPresetCard('VIEW', Icons.visibility_outlined, 'View Only', 'Read pages', isDark, borderColor, textPrimary, textSecondary),
+              const SizedBox(width: 6),
+              _accessPresetCard('ANNOTATE', Icons.rate_review_outlined, 'Annotate', 'Notes & draw', isDark, borderColor, textPrimary, textSecondary),
+              const SizedBox(width: 6),
+              _accessPresetCard('EDIT', Icons.edit_rounded, 'Full Edit', 'Full board edit', isDark, borderColor, textPrimary, textSecondary),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _capabilityChip('View Board', true, null, textPrimary),
+              _capabilityChip(
+                'Draw & Shapes',
+                _capDraw,
+                (v) => setState(() {
+                  _capDraw = v;
+                  if (v && _accessLevel == 'VIEW') _accessLevel = 'ANNOTATE';
+                }),
+                textPrimary,
+              ),
+              _capabilityChip(
+                'Sticky Notes & Comments',
+                _capNotes,
+                (v) => setState(() {
+                  _capNotes = v;
+                  if (v && _accessLevel == 'VIEW') _accessLevel = 'ANNOTATE';
+                }),
+                textPrimary,
+              ),
+              _capabilityChip(
+                'Export PDF / PNG',
+                _capExport,
+                (v) => setState(() => _capExport = v),
+                textPrimary,
+              ),
+              _capabilityChip(
+                'Manage Pages',
+                _capManagePages,
+                (v) => setState(() {
+                  _capManagePages = v;
+                  if (v) _accessLevel = 'EDIT';
+                }),
+                textPrimary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _accessPresetCard(
+    String value,
+    IconData icon,
+    String title,
+    String subtitle,
+    bool isDark,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final active = _accessLevel == value;
+    return Expanded(
+      child: InkWell(
+        onTap: () => _applyAccessLevelPreset(value),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.25 : 0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: active ? const Color(0xFF2563EB) : borderColor, width: active ? 1.6 : 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 14, color: active ? const Color(0xFF2563EB) : textSecondary),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: active ? const Color(0xFF2563EB) : textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(subtitle, style: TextStyle(fontSize: 10, color: textSecondary), overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _capabilityChip(String label, bool enabled, ValueChanged<bool>? onToggle, Color textPrimary) {
+    return FilterChip(
+      label: Text(label, style: TextStyle(fontSize: 10.5, color: enabled ? Colors.white : textPrimary)),
+      selected: enabled,
+      selectedColor: const Color(0xFF2563EB),
+      checkmarkColor: Colors.white,
+      visualDensity: VisualDensity.compact,
+      onSelected: onToggle,
     );
   }
 }
 
 class WhiteboardExportDialog extends ConsumerStatefulWidget {
-  const WhiteboardExportDialog({super.key});
+  final String? whiteboardId;
+  final String? boardTitle;
+
+  const WhiteboardExportDialog({
+    super.key,
+    this.whiteboardId,
+    this.boardTitle,
+  });
 
   @override
   ConsumerState<WhiteboardExportDialog> createState() => _WhiteboardExportDialogState();
@@ -874,7 +1927,7 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _format,
               dropdownColor: menuBg,
               style: TextStyle(fontSize: 13, color: textPrimary),
@@ -892,7 +1945,7 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
               },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _scope,
               dropdownColor: menuBg,
               style: TextStyle(fontSize: 13, color: textPrimary),
@@ -910,7 +1963,7 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
             ),
             if (_format == 'PDF') ...[
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _orientation,
                 dropdownColor: menuBg,
                 style: TextStyle(fontSize: 13, color: textPrimary),
@@ -943,6 +1996,7 @@ class _WhiteboardExportDialogState extends ConsumerState<WhiteboardExportDialog>
               : () async {
                   setState(() => _isExporting = true);
                   final res = await ref.read(whiteboardProvider.notifier).exportBoard(
+                        whiteboardId: widget.whiteboardId,
                         format: _format,
                         scope: _scope,
                         orientation: _orientation,

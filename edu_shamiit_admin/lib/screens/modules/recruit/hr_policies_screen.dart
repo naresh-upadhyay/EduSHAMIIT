@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -597,7 +598,7 @@ class _HRPoliciesScreenState extends State<HRPoliciesScreen> {
                     border: Border.all(color: Colors.grey.shade400),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<Map<String, dynamic>>(
+                    child: AppSearchableDropdown<Map<String, dynamic>>.fromMenuItems(
                       value: selectedCategory,
                       isExpanded: true,
                       items: _categories.map((c) {
@@ -1250,7 +1251,7 @@ class _HRPoliciesScreenState extends State<HRPoliciesScreen> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
+        child: AppSearchableDropdown<T>.fromMenuItems(
           value: value,
           isDense: true,
           isExpanded: true,
@@ -2564,7 +2565,7 @@ class _HRPoliciesScreenState extends State<HRPoliciesScreen> {
                 border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   isDense: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

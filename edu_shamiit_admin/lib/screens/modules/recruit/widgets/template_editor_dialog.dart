@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -697,7 +698,7 @@ class _TemplateEditorDialogState extends State<TemplateEditorDialog> with Single
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
+                                        child: AppSearchableDropdown<String>.fromMenuItems(
                                           value: _templateType,
                                           isExpanded: true,
                                           isDense: true,
@@ -747,7 +748,7 @@ class _TemplateEditorDialogState extends State<TemplateEditorDialog> with Single
                                           border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                                         ),
                                         child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
+                                          child: AppSearchableDropdown<String>.fromMenuItems(
                                             value: _selectedCategory,
                                             isDense: true,
                                             style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black),

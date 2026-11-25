@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -136,7 +137,7 @@ class _AssignTechnicianDialogState extends ConsumerState<AssignTechnicianDialog>
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _technicians.contains(_technician) ? _technician : (_technicians.isNotEmpty ? _technicians.first : null),
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -149,7 +150,7 @@ class _AssignTechnicianDialogState extends ConsumerState<AssignTechnicianDialog>
               ),
               const SizedBox(height: 12),
 
-              DropdownButtonFormField<String?>(
+              AppSearchableDropdownFormField<String?>.fromMenuItems(
                 initialValue: _vendors.contains(_vendor) ? _vendor : (_vendors.isNotEmpty ? _vendors.first : null),
                 isExpanded: true,
                 decoration: InputDecoration(

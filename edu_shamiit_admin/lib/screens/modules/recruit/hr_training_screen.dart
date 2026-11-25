@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_admin/widgets/hr_management_tab_header.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -1870,7 +1871,7 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
                       border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _pageSize,
                         isDense: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2477,7 +2478,7 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _categoryFilterOptions.contains(_filterCategory) ? _filterCategory : 'All',
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
@@ -2485,7 +2486,7 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
               onChanged: (v) => setState(() => _filterCategory = v ?? 'All'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _departmentFilterOptions.contains(_filterDepartment) ? _filterDepartment : 'All',
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
@@ -2493,7 +2494,7 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
               onChanged: (v) => setState(() => _filterDepartment = v ?? 'All'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _modeFilterOptions.contains(_filterMode) ? _filterMode : 'All',
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Training Mode', border: OutlineInputBorder()),

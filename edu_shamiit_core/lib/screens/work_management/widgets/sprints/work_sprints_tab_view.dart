@@ -33,13 +33,29 @@ class WorkSprintsTabView extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<WorkSprintsTabView> createState() => _WorkSprintsTabViewState();
+  ConsumerState<WorkSprintsTabView> createState() => WorkSprintsTabViewState();
 }
 
-class _WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
+class WorkSprintsTabViewState extends ConsumerState<WorkSprintsTabView> {
   final String _selectedBoard = 'All Boards';
   String _selectedTeam = 'All Teams';
   int _activeSubTabIndex = 0;
+
+  void switchToCapacity({String? team, String? sprintId}) {
+    setState(() {
+      _activeSubTabIndex = 1;
+      if (team != null && team.isNotEmpty) {
+        _selectedTeam = team;
+      }
+    });
+    final targetSid = sprintId ?? ref.read(allSprintsProvider).selectedSprintId ?? ref.read(workSprintDashboardProvider).sprint?.id;
+    if (targetSid != null) {
+      ref.read(allSprintsProvider.notifier).selectSprint(targetSid);
+      ref.read(workSprintCapacityProvider.notifier).init(sprintId: targetSid, team: team ?? _selectedTeam);
+    } else {
+      ref.read(workSprintCapacityProvider.notifier).selectTeam(team ?? _selectedTeam);
+    }
+  }
 
   // Filter state for child views
   final String _keywordFilter = '';

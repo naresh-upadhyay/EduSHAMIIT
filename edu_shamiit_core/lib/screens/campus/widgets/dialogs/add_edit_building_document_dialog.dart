@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -265,7 +266,7 @@ class _AddEditBuildingDocumentDialogState extends State<AddEditBuildingDocumentD
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _documentType,
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -280,7 +281,7 @@ class _AddEditBuildingDocumentDialogState extends State<AddEditBuildingDocumentD
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(

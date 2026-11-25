@@ -68,6 +68,7 @@ class WhiteboardApiService {
   Future<WhiteboardDocument?> updateWhiteboardMeta(
     String whiteboardId, {
     String? title,
+    String? description,
     bool? collaborationEnabled,
     bool? presentationMode,
     bool? teacherOnlyMode,
@@ -76,6 +77,7 @@ class WhiteboardApiService {
     try {
       final res = await _api.patch('/whiteboards/$whiteboardId', {
         if (title != null) 'title': title,
+        if (description != null) 'description': description,
         if (collaborationEnabled != null) 'collaboration_enabled': collaborationEnabled,
         if (presentationMode != null) 'presentation_mode': presentationMode,
         if (teacherOnlyMode != null) 'teacher_only_mode': teacherOnlyMode,
@@ -86,6 +88,35 @@ class WhiteboardApiService {
       }
     } catch (e) {
       debugPrint('[WhiteboardApiService] updateWhiteboardMeta error: $e');
+    }
+    return null;
+  }
+
+  Future<bool> deleteWhiteboard(String whiteboardId) async {
+    try {
+      final res = await _api.delete('/whiteboards/$whiteboardId');
+      return res['success'] == true;
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] deleteWhiteboard error: $e');
+      return false;
+    }
+  }
+
+  Future<WhiteboardDocument?> duplicateWhiteboard(
+    String whiteboardId, {
+    String? title,
+    String? sessionId,
+  }) async {
+    try {
+      final res = await _api.post('/whiteboards/$whiteboardId/duplicate', {
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
+      });
+      if (res['data'] is Map<String, dynamic>) {
+        return WhiteboardDocument.fromJson(res['data']);
+      }
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] duplicateWhiteboard error: $e');
     }
     return null;
   }
@@ -251,6 +282,94 @@ class WhiteboardApiService {
     } catch (e) {
       debugPrint('[WhiteboardApiService] setPermission error: $e');
       return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchShareDirectoryClasses() async {
+    try {
+      final res = await _api.get('/whiteboards/directory/classes', useCache: false);
+      final list = res['data'] as List? ?? [];
+      return list.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] fetchShareDirectoryClasses error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> fetchShareClassMembers({
+    required String classId,
+    List<String> sectionIds = const [],
+  }) async {
+    try {
+      final query = <String, dynamic>{'class_id': classId};
+      if (sectionIds.isNotEmpty) {
+        query['section_ids'] = sectionIds.join(',');
+      }
+      final res = await _api.get('/whiteboards/directory/class-members', query: query, useCache: false);
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final students = (data['students'] as List? ?? []).whereType<Map<String, dynamic>>().toList();
+      final teachers = (data['teachers'] as List? ?? []).whereType<Map<String, dynamic>>().toList();
+      return {'students': students, 'teachers': teachers};
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] fetchShareClassMembers error: $e');
+      return {'students': [], 'teachers': []};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchShareUsers({
+    String query = '',
+    String roleFilter = 'all',
+    int limit = 60,
+  }) async {
+    try {
+      final res = await _api.get(
+        '/whiteboards/directory/search-users',
+        query: {'q': query, 'role_filter': roleFilter, 'limit': limit},
+        useCache: false,
+      );
+      final list = res['data'] as List? ?? [];
+      return list.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] searchShareUsers error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> shareWhiteboardBatch(
+    String whiteboardId, {
+    required String mode,
+    String? classId,
+    String? className,
+    List<Map<String, dynamic>> sections = const [],
+    bool includeStudents = true,
+    bool includeTeachers = true,
+    List<Map<String, dynamic>> users = const [],
+    String accessLevel = 'VIEW',
+    Map<String, dynamic> capabilities = const {},
+    String? targetLabel,
+  }) async {
+    try {
+      final res = await _api.post('/whiteboards/$whiteboardId/share/batch', {
+        'mode': mode,
+        if (classId != null) 'class_id': classId,
+        if (className != null) 'class_name': className,
+        'sections': sections,
+        'include_students': includeStudents,
+        'include_teachers': includeTeachers,
+        'users': users,
+        'access_level': accessLevel,
+        'capabilities': capabilities,
+        if (targetLabel != null) 'target_label': targetLabel,
+      });
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final rawShares = (data['shares'] as List? ?? []).whereType<Map<String, dynamic>>().map(WhiteboardShareItem.fromJson).toList();
+      return {
+        'shares': rawShares,
+        'granted_users_count': (data['granted_users_count'] as num?)?.toInt() ?? 0,
+      };
+    } catch (e) {
+      debugPrint('[WhiteboardApiService] shareWhiteboardBatch error: $e');
+      return null;
     }
   }
 

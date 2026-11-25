@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -124,7 +125,7 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
 
                           // Room Selection
                           _buildLabel('Space / Room *', textSecondary),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: state.bookableRooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
                             isExpanded: true,
                             dropdownColor: dialogBg,
@@ -144,7 +145,7 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                           // Recurrence Pattern & Strategy
                           if (isCompact) ...[
                             _buildLabel('Recurrence Pattern *', textSecondary),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _recurrenceType,
                               isExpanded: true,
                               dropdownColor: dialogBg,
@@ -161,7 +162,7 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                             ),
                             const SizedBox(height: 12),
                             _buildLabel('Conflict Handling Strategy', textSecondary),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _conflictStrategy,
                               isExpanded: true,
                               dropdownColor: dialogBg,
@@ -182,7 +183,7 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       _buildLabel('Recurrence Pattern *', textSecondary),
-                                      DropdownButtonFormField<String>(
+                                      AppSearchableDropdownFormField<String>.fromMenuItems(
                                         initialValue: _recurrenceType,
                                         isExpanded: true,
                                         dropdownColor: dialogBg,
@@ -206,7 +207,7 @@ class _RecurringBookingDialogState extends ConsumerState<RecurringBookingDialog>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       _buildLabel('Conflict Handling Strategy', textSecondary),
-                                      DropdownButtonFormField<String>(
+                                      AppSearchableDropdownFormField<String>.fromMenuItems(
                                         initialValue: _conflictStrategy,
                                         isExpanded: true,
                                         dropdownColor: dialogBg,

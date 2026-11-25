@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -1210,7 +1211,7 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           onChanged: onChanged,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1741,7 +1742,7 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
                 ),
               ),
               const SizedBox(width: 4),
-              DropdownButton<int>(
+              AppSearchableDropdown<int>.fromMenuItems(
                 value: _rowsPerPage,
                 isDense: true,
                 underline: const SizedBox(),
@@ -3327,7 +3328,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _targetType,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Target Mode'),
@@ -3353,7 +3354,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
 
           // 1. Group Selector
           if (_targetType == 'group') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _groupCounts.containsKey(_selectedGroup) ? _selectedGroup : _groupCounts.keys.first,
               isExpanded: true,
               decoration: InputDecoration(
@@ -3379,7 +3380,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
 
           // 2. Device Type Selector
           if (_targetType == 'device_type') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _typeCounts.containsKey(_selectedDeviceType) ? _selectedDeviceType : _typeCounts.keys.first,
               isExpanded: true,
               decoration: InputDecoration(
@@ -3405,7 +3406,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
 
           // 3. Location Selector
           if (_targetType == 'location') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _locationCounts.containsKey(_selectedLocation) ? _selectedLocation : _locationCounts.keys.first,
               isExpanded: true,
               decoration: InputDecoration(
@@ -3681,7 +3682,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _operationType,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Operation Category'),
@@ -3753,7 +3754,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
                 const SizedBox(width: 12),
                 // HVAC Mode
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _hvacMode,
                     decoration: const InputDecoration(labelText: 'HVAC Mode', isDense: true),
                     items: const [
@@ -3771,7 +3772,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
             ),
             const SizedBox(height: 10),
             // Fan Speed
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _hvacFanSpeed,
               decoration: const InputDecoration(labelText: 'Fan Speed', isDense: true),
               items: const [
@@ -3813,7 +3814,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _lightTone,
                     decoration: const InputDecoration(labelText: 'Color Tone', isDense: true),
                     items: const [
@@ -3829,7 +3830,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
               ],
             ),
           ] else if (_operationType == 'fan_control') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _fanSpeed,
               decoration: const InputDecoration(labelText: 'Ceiling Fan Speed', isDense: true),
               items: const [
@@ -3843,7 +3844,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
               },
             ),
           ] else if (_operationType == 'security_access') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _doorLockAction,
               decoration: const InputDecoration(labelText: 'Door Access Action', isDense: true),
               items: const [
@@ -3856,7 +3857,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
               },
             ),
           ] else if (_operationType == 'preset_scene') ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _sceneName,
               decoration: const InputDecoration(labelText: 'Select Campus Preset Scene', isDense: true),
               items: const [
@@ -3875,7 +3876,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
               children: [
                 Expanded(
                   flex: 3,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _bellTone,
                     decoration: const InputDecoration(labelText: 'Bell Chime Audio', isDense: true),
                     items: const [
@@ -4019,7 +4020,7 @@ class _CreateEditScheduleDialogState extends State<_CreateEditScheduleDialog> {
           const SizedBox(height: 10),
 
           // Recurrence
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _recurrenceType,
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Recurrence Pattern'),

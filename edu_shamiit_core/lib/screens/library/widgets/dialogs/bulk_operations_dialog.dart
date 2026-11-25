@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/book_provider.dart';
@@ -92,7 +93,7 @@ class _BulkOperationsDialogState extends ConsumerState<BulkOperationsDialog> {
                         style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: categories.contains(_newCategory)
                           ? _newCategory
                           : categories.first,

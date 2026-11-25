@@ -377,7 +377,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                               border: Border.all(color: selectedScope.toLowerCase() == 'individual' ? const Color(0xFF10B981) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: selectedScope.toLowerCase() == 'individual' ? 'Individual' : 'Global',
                                 isExpanded: true,
                                 dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -455,7 +455,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                     border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                                   ),
                                   child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
+                                    child: AppSearchableDropdown<String>.fromMenuItems(
                                       value: selectedType,
                                       isExpanded: true,
                                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1296,7 +1296,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
         border: Border.all(color: Colors.white10),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           dropdownColor: cardBg,
           onChanged: onChanged,
@@ -1573,7 +1573,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
+                    child: AppSearchableDropdown<int>.fromMenuItems(
                       value: _pageSize,
                       dropdownColor: cardBg,
                       style: GoogleFonts.dmSans(fontSize: 11, color: textSecondary),

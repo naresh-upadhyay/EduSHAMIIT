@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/lookup_models.dart';
@@ -241,7 +242,7 @@ class _AddEditLookupValueDialogState extends ConsumerState<AddEditLookupValueDia
                           ),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: _status,
                           decoration: InputDecoration(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

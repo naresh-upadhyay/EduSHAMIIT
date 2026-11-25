@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -391,7 +392,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                               validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _buildingType,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Building Type'),
@@ -399,7 +400,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                               onChanged: (v) => setState(() => _buildingType = v ?? _buildingType),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Operational Status'),
@@ -431,7 +432,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _buildingType,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Building Type'),
@@ -441,7 +442,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _status,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Operational Status'),
@@ -477,7 +478,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                               decoration: const InputDecoration(labelText: 'Built-up Area', hintText: '45000'),
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _areaUnit,
                               isExpanded: true,
                               decoration: const InputDecoration(labelText: 'Unit'),
@@ -525,7 +526,7 @@ class _AddEditBuildingDialogState extends State<AddEditBuildingDialog> {
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: DropdownButtonFormField<String>(
+                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _areaUnit,
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'Unit'),

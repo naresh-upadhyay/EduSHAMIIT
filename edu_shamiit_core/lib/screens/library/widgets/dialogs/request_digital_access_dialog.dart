@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/book_models.dart';
@@ -174,7 +175,7 @@ class _RequestDigitalAccessDialogState
                       color: Color(0xFF334155)),
                 ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: _accessScope,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(

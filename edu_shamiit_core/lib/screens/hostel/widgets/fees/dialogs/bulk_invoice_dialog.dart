@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/hostel_provider.dart';
@@ -170,7 +171,7 @@ class _BulkInvoiceDialogState extends ConsumerState<BulkInvoiceDialog> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _selectedHostel,
                   decoration: _inputDecoration(isDark),
@@ -329,7 +330,7 @@ class _BulkInvoiceDialogState extends ConsumerState<BulkInvoiceDialog> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String?>(
+                AppSearchableDropdownFormField<String?>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _selectedFeePlanId,
                   decoration: _inputDecoration(isDark, hint: 'Use Student Assigned Plans (Default)'),

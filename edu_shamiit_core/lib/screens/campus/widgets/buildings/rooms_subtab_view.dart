@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
 import '../../services/campus_lookup_helper.dart';
@@ -193,7 +194,7 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: (widget.filterFloorId != null && widget.floors.any((f) => f.id == widget.filterFloorId))
                         ? widget.filterFloorId
                         : null,
@@ -218,7 +219,7 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: (widget.filterRoomType != null && roomTypes.contains(widget.filterRoomType))
                         ? widget.filterRoomType
                         : null,
@@ -243,7 +244,7 @@ class _RoomsSubtabViewState extends State<RoomsSubtabView> {
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: (widget.filterStatus != null && roomStatuses.contains(widget.filterStatus))
                         ? widget.filterStatus
                         : null,

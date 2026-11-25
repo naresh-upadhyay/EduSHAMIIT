@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
@@ -1161,7 +1162,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                           Text('Applicant / Employee',
                               style: _labelStyle(isDark)),
                           const SizedBox(height: 5),
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: (state.staffRoster.any((s) =>
                                     s.employeeId == _selectedApplicantId))
                                 ? _selectedApplicantId
@@ -1215,7 +1216,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                                   Text('Leave Type *',
                                       style: _labelStyle(isDark)),
                                   const SizedBox(height: 5),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue:
                                         leaveTypes.contains(_leaveType)
                                             ? _leaveType
@@ -1255,7 +1256,7 @@ class _ApplyLeaveDialogState extends ConsumerState<ApplyLeaveDialog> {
                                   Text('Duration Type',
                                       style: _labelStyle(isDark)),
                                   const SizedBox(height: 5),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: (policy?.allowHalfDay ?? true)
                                         ? ([
                                             'FULL_DAY',
@@ -2090,7 +2091,7 @@ class _PermissionRequestDialogState
                         color:
                             isDark ? Colors.white70 : const Color(0xFF475569))),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: (state.staffRoster
                           .any((s) => s.employeeId == _selectedApplicantId))
                       ? _selectedApplicantId
@@ -2133,7 +2134,7 @@ class _PermissionRequestDialogState
                       color:
                           isDark ? Colors.white70 : const Color(0xFF475569))),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: const [
                   'LATE_ARRIVAL',
                   'EARLY_DEPARTURE',
@@ -4139,7 +4140,7 @@ class _LeaveTypeDialogState extends ConsumerState<LeaveTypeDialog> {
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: const [
                                     'PAID',
                                     'UNPAID',

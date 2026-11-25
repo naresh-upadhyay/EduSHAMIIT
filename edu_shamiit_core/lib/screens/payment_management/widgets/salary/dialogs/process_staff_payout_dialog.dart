@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -542,7 +543,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                     const Icon(Icons.calendar_month_rounded, size: 14, color: Color(0xFF3B82F6)),
                     const SizedBox(width: 6),
                     DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: _selectedMonthStr,
                         isDense: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -692,7 +693,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _selectedStaffId,
                     isExpanded: true,
                     isDense: true,
@@ -1157,7 +1158,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                       const SizedBox(height: 6),
                       _buildNumberInput('Bonus Amount (₹)', _bonusController, isDark),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _bonusType,
                         decoration: InputDecoration(
                           labelText: 'Bonus Classification',
@@ -1403,7 +1404,7 @@ class _ProcessStaffPayoutDialogState extends ConsumerState<ProcessStaffPayoutDia
                 availableModes.insert(0, _paymentMode);
               }
 
-              return DropdownButtonFormField<String>(
+              return AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _paymentMode,
                 decoration: InputDecoration(
                   labelText: 'Payment Mode',

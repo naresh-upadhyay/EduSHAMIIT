@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -348,7 +349,7 @@ class _TransferHostelStudentDialogState extends ConsumerState<TransferHostelStud
                       children: [
                         const Text('Target Hostel *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: state.structureTree.any((b) => b.id == _targetBuildingId)
                               ? _targetBuildingId
@@ -387,7 +388,7 @@ class _TransferHostelStudentDialogState extends ConsumerState<TransferHostelStud
                       children: [
                         const Text('Room Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: _roomTypeLookups.any((l) => l.code == _targetRoomType)
                               ? _targetRoomType
@@ -468,7 +469,7 @@ class _TransferHostelStudentDialogState extends ConsumerState<TransferHostelStud
                   ),
                 )
               else
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: filteredRooms.any((r) => r.id == _targetRoomId) ? _targetRoomId : filteredRooms.first.id,
                   decoration: InputDecoration(
@@ -539,7 +540,7 @@ class _TransferHostelStudentDialogState extends ConsumerState<TransferHostelStud
                   ),
                 )
               else
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _availableBedsInRoom.any((b) => b.id == _targetBedId)
                       ? _targetBedId

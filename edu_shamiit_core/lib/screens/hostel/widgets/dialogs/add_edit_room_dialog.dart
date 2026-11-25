@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -270,7 +271,7 @@ class _AddEditRoomDialogState extends ConsumerState<AddEditRoomDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: buildings.any((b) => b.id == _selectedBuildingId)
                             ? _selectedBuildingId
@@ -290,7 +291,7 @@ class _AddEditRoomDialogState extends ConsumerState<AddEditRoomDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: floors.any((f) => f.id == _selectedFloorId)
                             ? _selectedFloorId
@@ -320,7 +321,7 @@ class _AddEditRoomDialogState extends ConsumerState<AddEditRoomDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 3,
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: currentTypes.contains(_roomType) ? _roomType : currentTypes.first,
                         decoration: const InputDecoration(
@@ -393,7 +394,7 @@ class _AddEditRoomDialogState extends ConsumerState<AddEditRoomDialog> {
                           (s) => s.toLowerCase() == _status.toLowerCase(),
                           orElse: () => currentStatusList.first,
                         );
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: safeStatus,
                           decoration: const InputDecoration(labelText: 'Operational Status'),
@@ -425,7 +426,7 @@ class _AddEditRoomDialogState extends ConsumerState<AddEditRoomDialog> {
                             ? _genderRestriction
                             : items.first.code;
 
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           initialValue: safeCode,
                           decoration: const InputDecoration(labelText: 'Gender Restriction'),

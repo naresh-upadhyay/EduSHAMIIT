@@ -163,7 +163,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   initialValue: status,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: ['Active', 'Inactive'].map((s) {
@@ -943,7 +943,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedCategory,
                         style: TextStyle(
                           fontSize: 13,
@@ -968,7 +968,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedType,
                         style: TextStyle(
                           fontSize: 13,
@@ -1670,7 +1670,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                     ),
                   ],
                 ),
-                DropdownButton<int>(
+                AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   dropdownColor: cardBg,
                   style: TextStyle(color: textPrimary, fontSize: 12),
@@ -1792,7 +1792,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
         border: Border.all(color: Colors.white10),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           dropdownColor: cardBg,
           style: GoogleFonts.dmSans(fontSize: 12, color: textSecondary, fontWeight: FontWeight.bold),
@@ -2422,7 +2422,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                     ),
                   ],
                 ),
-                DropdownButton<int>(
+                AppSearchableDropdown<int>.fromMenuItems(
                   value: _categoriesPageSize,
                   dropdownColor: cardBg,
                   style: TextStyle(color: textPrimary, fontSize: 12),
@@ -3345,7 +3345,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                     ),
                   ],
                 ),
-                DropdownButton<int>(
+                AppSearchableDropdown<int>.fromMenuItems(
                   value: _assignPageSize,
                   dropdownColor: cardBg,
                   style: TextStyle(color: textPrimary, fontSize: 12),
@@ -3963,7 +3963,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           isExpanded: true,
           dropdownColor: cardBg,
           iconEnabledColor: textSecondary,
@@ -4405,7 +4405,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                     ),
                   ],
                 ),
-                DropdownButton<int>(
+                AppSearchableDropdown<int>.fromMenuItems(
                   value: _requestsPageSize,
                   dropdownColor: cardBg,
                   style: TextStyle(color: textPrimary, fontSize: 12),

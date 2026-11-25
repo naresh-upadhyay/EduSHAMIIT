@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -1457,7 +1458,7 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           onChanged: onChanged,
           isDense: true,
@@ -1888,7 +1889,7 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
                       color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
-                  DropdownButton<int>(
+                  AppSearchableDropdown<int>.fromMenuItems(
                     value: _rowsPerPage,
                     underline: const SizedBox(),
                     items: [5, 10, 20, 50].map((e) => DropdownMenuItem(value: e, child: Text('$e', style: const TextStyle(fontSize: 12)))).toList(),
@@ -3334,7 +3335,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _sceneType,
                                 isExpanded: true,
                                 decoration: InputDecoration(
@@ -3352,7 +3353,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _category,
                                 isExpanded: true,
                                 decoration: InputDecoration(
@@ -3374,7 +3375,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _status,
                                 isExpanded: true,
                                 decoration: InputDecoration(
@@ -3525,7 +3526,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
 
                               // Scope Content Based on Mode
                               if (_targetType == 'group') ...[
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _groupCounts.containsKey(_selectedGroup) ? _selectedGroup : _groupCounts.keys.first,
                                   isExpanded: true,
                                   decoration: InputDecoration(
@@ -3543,7 +3544,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                                   onChanged: (v) => setState(() => _selectedGroup = v ?? _selectedGroup),
                                 ),
                               ] else if (_targetType == 'device_type') ...[
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _typeCounts.containsKey(_selectedDeviceType) ? _selectedDeviceType : _typeCounts.keys.first,
                                   isExpanded: true,
                                   decoration: InputDecoration(
@@ -3561,7 +3562,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                                   onChanged: (v) => setState(() => _selectedDeviceType = v ?? _selectedDeviceType),
                                 ),
                               ] else if (_targetType == 'location') ...[
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _locationCounts.containsKey(_selectedLocation) ? _selectedLocation : _locationCounts.keys.first,
                                   isExpanded: true,
                                   decoration: InputDecoration(
@@ -4051,7 +4052,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
           const SizedBox(height: 10),
 
           // Target Appliance Component
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _stepTarget,
             isExpanded: true,
             decoration: InputDecoration(
@@ -4078,7 +4079,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepActionType,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4096,7 +4097,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepLightTone,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4136,7 +4137,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepHvacMode,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4156,7 +4157,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepHvacFan,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4196,7 +4197,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepAvInput,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4216,7 +4217,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _stepActionType,
                     isExpanded: true,
                     decoration: InputDecoration(
@@ -4236,7 +4237,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
               ],
             ),
           ] else if (_stepTarget.contains('Door') || _stepTarget.contains('Locks')) ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _stepDoorAction,
               isExpanded: true,
               decoration: InputDecoration(
@@ -4253,7 +4254,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
               onChanged: (v) => setState(() => _stepDoorAction = v ?? 'Lock All Doors (Secure)'),
             ),
           ] else if (_stepTarget.contains('Bell') || _stepTarget.contains('PA')) ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _stepBellTone,
               isExpanded: true,
               decoration: InputDecoration(
@@ -4271,7 +4272,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
               onChanged: (v) => setState(() => _stepBellTone = v ?? 'Standard Class Period Bell'),
             ),
           ] else ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _stepActionType,
               isExpanded: true,
               decoration: InputDecoration(
@@ -4293,7 +4294,7 @@ class _CreateEditScenePresetDialogState extends State<_CreateEditScenePresetDial
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<int>(
+                child: AppSearchableDropdownFormField<int>.fromMenuItems(
                   initialValue: _stepDelaySeconds,
                   isExpanded: true,
                   decoration: InputDecoration(

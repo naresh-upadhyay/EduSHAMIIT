@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../../models/device_management_models.dart';
 
@@ -137,7 +138,7 @@ class _DeviceFilterDialogState extends State<DeviceFilterDialog> {
             // Dynamic Building Selector
             Text('Building / Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: validBuilding,
               isExpanded: true,
               decoration: InputDecoration(
@@ -154,7 +155,7 @@ class _DeviceFilterDialogState extends State<DeviceFilterDialog> {
             // Dynamic Device Type Selector
             Text('Device Category / Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: validType,
               isExpanded: true,
               decoration: InputDecoration(
@@ -171,7 +172,7 @@ class _DeviceFilterDialogState extends State<DeviceFilterDialog> {
             // Status Selector
             Text('Operational / Online Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: ['All', 'online', 'offline'].contains(_status) ? _status : 'All',
               isExpanded: true,
               decoration: InputDecoration(

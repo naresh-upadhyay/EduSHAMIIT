@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -442,7 +443,7 @@ class _UploadDocumentDialogState extends State<UploadDocumentDialog> {
                           const SizedBox(width: 16),
                           Expanded(
                             flex: 2,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _documentTypes.contains(_documentType) ? _documentType : (_documentTypes.isNotEmpty ? _documentTypes.first : null),
                               decoration: InputDecoration(
@@ -459,7 +460,7 @@ class _UploadDocumentDialogState extends State<UploadDocumentDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _selectedCategory,
                               decoration: InputDecoration(
@@ -474,7 +475,7 @@ class _UploadDocumentDialogState extends State<UploadDocumentDialog> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _accessLevels.contains(_accessLevel) ? _accessLevel : (_accessLevels.isNotEmpty ? _accessLevels.first : null),
                               decoration: InputDecoration(

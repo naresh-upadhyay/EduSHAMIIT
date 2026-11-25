@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/device_management_provider.dart';
@@ -150,7 +151,7 @@ class _MapDeviceLocationDialogState extends ConsumerState<MapDeviceLocationDialo
                             ),
                           ),
                         ] else ...[
-                          DropdownButtonFormField<String>(
+                          AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _selectedDeviceId.isNotEmpty ? _selectedDeviceId : null,
                             isExpanded: true,
                             decoration: InputDecoration(
@@ -242,7 +243,7 @@ class _MapDeviceLocationDialogState extends ConsumerState<MapDeviceLocationDialo
                             final selectedRoomValue = rooms.any((r) => r.id == _selectedRoomId)
                                 ? _selectedRoomId
                                 : (rooms.isNotEmpty ? rooms.first.id : null);
-                            return DropdownButtonFormField<String>(
+                            return AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: selectedRoomValue,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -275,7 +276,7 @@ class _MapDeviceLocationDialogState extends ConsumerState<MapDeviceLocationDialo
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
                                   ),
                                   const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
+                                  AppSearchableDropdownFormField<String>.fromMenuItems(
                                     initialValue: _mountType,
                                     isExpanded: true,
                                     decoration: InputDecoration(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -188,7 +189,7 @@ class _BulkCreateRoomsDialogState extends State<BulkCreateRoomsDialog> {
                         if (isCompact) {
                           return Column(
                             children: [
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _selectedFloorId.isNotEmpty ? _selectedFloorId : null,
                                 isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Target Floor *'),
@@ -196,7 +197,7 @@ class _BulkCreateRoomsDialogState extends State<BulkCreateRoomsDialog> {
                                 onChanged: (v) => setState(() => _selectedFloorId = v ?? _selectedFloorId),
                               ),
                               const SizedBox(height: 10),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _roomType,
                                 isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Room Type'),
@@ -215,7 +216,7 @@ class _BulkCreateRoomsDialogState extends State<BulkCreateRoomsDialog> {
                           return Row(
                             children: [
                               Expanded(
-                                child: DropdownButtonFormField<String>(
+                                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _selectedFloorId.isNotEmpty ? _selectedFloorId : null,
                                   isExpanded: true,
                                   decoration: const InputDecoration(labelText: 'Target Floor *'),
@@ -225,7 +226,7 @@ class _BulkCreateRoomsDialogState extends State<BulkCreateRoomsDialog> {
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: DropdownButtonFormField<String>(
+                                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _roomType,
                                   isExpanded: true,
                                   decoration: const InputDecoration(labelText: 'Room Type'),

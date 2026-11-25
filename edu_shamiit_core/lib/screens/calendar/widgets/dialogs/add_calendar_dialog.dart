@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 
 class AddCalendarDialog extends StatefulWidget {
@@ -142,7 +143,7 @@ class _AddCalendarDialogState extends State<AddCalendarDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               key: ValueKey('add_cal_type_$_selectedType'),
               initialValue: _selectedType,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

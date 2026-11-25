@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
@@ -297,7 +298,7 @@ class _EditSprintDialogState extends ConsumerState<EditSprintDialog> {
                   child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))),
                 )
               : DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     isExpanded: true,
                     value: _selectedTeamId,
                     hint: Text(
@@ -384,7 +385,7 @@ class _EditSprintDialogState extends ConsumerState<EditSprintDialog> {
             border: Border.all(color: isDark ? const Color(0xFF1F293D) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               isExpanded: true,
               value: _selectedStatus,
               dropdownColor: isDark ? const Color(0xFF1E2640) : Colors.white,

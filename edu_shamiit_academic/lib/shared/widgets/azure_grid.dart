@@ -1,9 +1,10 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Column definition for the [AzureGrid] table view.
+/// Column definition for the [AzureGrid] / [ShamiitGrid] table view.
 class AzureGridColumn<T> {
   final String label;
   final Widget Function(T item) cellBuilder;
@@ -18,7 +19,7 @@ class AzureGridColumn<T> {
   });
 }
 
-/// Filter definition for the [AzureGrid] command bar.
+/// Filter definition for the [AzureGrid] / [ShamiitGrid] command bar.
 class AzureGridFilter<T> {
   final String label;
   final List<String> options;
@@ -31,7 +32,7 @@ class AzureGridFilter<T> {
   });
 }
 
-/// A highly dense, premium responsive data grid modeled after the Azure Cloud Platform UI.
+/// A highly dense, premium responsive data grid modeled after the SHAMIIT Enterprise Platform UI.
 ///
 /// Features:
 /// - Dense tabular layout for desktop and tablet screens.
@@ -39,7 +40,7 @@ class AzureGridFilter<T> {
 /// - Command bar with search, multi-filters, bulk actions, and count tags.
 /// - Multiselect checkboxes.
 /// - Dynamic interactive column sorting.
-/// - Azure-style pagination controls with configurable page sizes.
+/// - SHAMIIT-style pagination controls with configurable page sizes.
 /// - Proportional column stretching when columns fit within the viewport.
 /// - Custom horizontal and vertical scrollbars for smooth desktop/web navigation.
 class AzureGrid<T> extends StatefulWidget {
@@ -84,6 +85,11 @@ class AzureGrid<T> extends StatefulWidget {
   @override
   State<AzureGrid<T>> createState() => _AzureGridState<T>();
 }
+
+/// Typedef aliases so the component is seamlessly accessible as [ShamiitGrid].
+typedef ShamiitGrid<T> = AzureGrid<T>;
+typedef ShamiitGridColumn<T> = AzureGridColumn<T>;
+typedef ShamiitGridFilter<T> = AzureGridFilter<T>;
 
 class _AzureGridState<T> extends State<AzureGrid<T>> {
   final TextEditingController _searchController = TextEditingController();
@@ -398,7 +404,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: currentVal,
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
@@ -890,7 +896,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               const SizedBox(width: 8),
               SizedBox(
                 height: 28,
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,

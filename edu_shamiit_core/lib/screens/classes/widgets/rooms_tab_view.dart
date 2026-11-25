@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/class_models.dart';
@@ -333,7 +334,7 @@ class RoomsTabView extends ConsumerWidget {
                     : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: statusItems.contains(state.roomStatusFilter)
                   ? state.roomStatusFilter
                   : 'ALL',
@@ -502,7 +503,7 @@ class RoomsTabView extends ConsumerWidget {
             color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: items.contains(value) ? value : items.first,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           style: TextStyle(
@@ -2071,7 +2072,7 @@ class RoomsTabView extends ConsumerWidget {
                               : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: [10, 25, 50, 100].contains(state.pageSize)
                             ? state.pageSize
                             : 10,

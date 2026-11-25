@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../constants/app_fonts.dart';
@@ -90,7 +91,7 @@ class _BulkOperationsTabState extends ConsumerState<BulkOperationsTab> {
                                 : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<AttendanceStatus>(
+                        child: AppSearchableDropdown<AttendanceStatus>.fromMenuItems(
                           value: _selectedTargetStatus,
                           items: [
                             AttendanceStatus.present,

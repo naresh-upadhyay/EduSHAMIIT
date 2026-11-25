@@ -408,7 +408,7 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           dropdownColor: theme.cardColor,
           style: TextStyle(

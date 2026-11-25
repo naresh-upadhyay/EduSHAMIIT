@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 
@@ -400,7 +401,7 @@ class _OnboardingStageTransitionDialogState extends State<OnboardingStageTransit
               // Target Stage Dropdown
               const Text('Target Stage *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: _selectedStage,
                 decoration: InputDecoration(
                   prefixIcon: Icon(_getStageIcon(_selectedStage), color: _getStageColor(_selectedStage), size: 18),

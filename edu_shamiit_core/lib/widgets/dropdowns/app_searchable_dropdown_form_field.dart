@@ -60,8 +60,10 @@ class AppSearchableDropdownFormField<T> extends FormField<T> {
   })  : decoration = (decoration ??
                 InputDecoration(
                   labelText: labelText,
-                  hintText: hintText ?? (hint is Text ? hint.data : 'Select option...'),
-                  prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 18) : null,
+                  hintText: hintText ??
+                      (hint is Text ? hint.data : 'Select option...'),
+                  prefixIcon:
+                      prefixIcon != null ? Icon(prefixIcon, size: 18) : null,
                 ))
             .applyDefaults(const InputDecorationTheme()),
         super(
@@ -210,11 +212,12 @@ class _AppSearchableDropdownFormFieldState<T> extends FormFieldState<T> {
     final menuWidth = widget.dropdownWidth ??
         (targetSize.width > 240 ? targetSize.width : 280.0);
 
-    final estimatedNeededHeight =
-        (96.0 + widget.items.length * 38.0).clamp(140.0, widget.maxDropdownHeight);
+    final estimatedNeededHeight = (96.0 + widget.items.length * 38.0)
+        .clamp(140.0, widget.maxDropdownHeight);
 
     // Calculate vertical position (flip up if not enough space below)
-    final spaceBelow = screenSize.height - (targetOffset.dy + targetSize.height);
+    final spaceBelow =
+        screenSize.height - (targetOffset.dy + targetSize.height);
     final spaceAbove = targetOffset.dy;
     final openUpwards =
         spaceBelow < estimatedNeededHeight + 16 && spaceAbove > spaceBelow;
@@ -285,7 +288,9 @@ class _AppSearchableDropdownFormFieldState<T> extends FormFieldState<T> {
     final hasVal = displayLabel.isNotEmpty;
 
     Widget? customSelectedWidget;
-    if (widget.selectedItemBuilder != null && widget.items.isNotEmpty && value != null) {
+    if (widget.selectedItemBuilder != null &&
+        widget.items.isNotEmpty &&
+        value != null) {
       try {
         final idx = widget.items.indexOf(value as T);
         final builtWidgets = widget.selectedItemBuilder!(context);
@@ -314,22 +319,24 @@ class _AppSearchableDropdownFormFieldState<T> extends FormFieldState<T> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: customSelectedWidget ?? Text(
-                  hasVal
-                      ? displayLabel
-                      : (widget.decoration.hintText ?? 'Select...'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: hasVal ? FontWeight.w500 : FontWeight.normal,
-                    color: hasVal
-                        ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                        : (isDark
-                            ? const Color(0xFF64748B)
-                            : const Color(0xFF94A3B8)),
-                  ),
-                ),
+                child: customSelectedWidget ??
+                    Text(
+                      hasVal
+                          ? displayLabel
+                          : (widget.decoration.hintText ?? 'Select...'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            hasVal ? FontWeight.w500 : FontWeight.normal,
+                        color: hasVal
+                            ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                            : (isDark
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8)),
+                      ),
+                    ),
               ),
               if (widget.allowClear && hasVal && widget.enabled)
                 InkWell(
@@ -516,7 +523,8 @@ class _FormFieldPopoverContentState<T>
                               const BoxConstraints(minWidth: 28, minHeight: 28),
                           suffixIcon: _searchCtrl.text.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.close_rounded, size: 14),
+                                  icon:
+                                      const Icon(Icons.close_rounded, size: 14),
                                   splashRadius: 12,
                                   color: secondaryTextColor,
                                   onPressed: () => _searchCtrl.clear(),

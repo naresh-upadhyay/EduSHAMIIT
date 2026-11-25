@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -404,7 +405,7 @@ class _EditStaffSalaryStructureDialogState extends ConsumerState<EditStaffSalary
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedStaffId,
                             isExpanded: true,
                             hint: const Text('Choose an unconfigured staff member...', style: TextStyle(fontSize: 13)),
@@ -603,7 +604,7 @@ class _EditStaffSalaryStructureDialogState extends ConsumerState<EditStaffSalary
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _paymentMode,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

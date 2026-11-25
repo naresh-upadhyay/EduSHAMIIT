@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
@@ -386,7 +387,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                           ),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: currentVal,
                             style: GoogleFonts.dmSans(
                               fontSize: 12,
@@ -502,7 +503,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                         ),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: currentVal,
                           style: GoogleFonts.dmSans(
                             fontSize: 12,
@@ -988,7 +989,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               const SizedBox(width: 8),
               SizedBox(
                 height: 28,
-                child: DropdownButton<int>(
+                child: AppSearchableDropdown<int>.fromMenuItems(
                   value: _pageSize,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,

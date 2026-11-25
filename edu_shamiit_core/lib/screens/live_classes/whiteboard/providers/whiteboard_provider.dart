@@ -480,20 +480,50 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
+  Future<void> initializeStandalone({
+    String? defaultTitle,
+    String? defaultTemplate = 'blank',
+  }) async {
+    await _initializeInternal(
+      null,
+      defaultTitle: defaultTitle,
+      defaultTemplate: defaultTemplate,
+      standaloneOnly: true,
+    );
+  }
+
   Future<void> initializeForSession(
     String? sessionId, {
     String? defaultTitle,
     String? defaultTemplate,
   }) async {
+    await _initializeInternal(
+      sessionId,
+      defaultTitle: defaultTitle,
+      defaultTemplate: defaultTemplate,
+      standaloneOnly: false,
+    );
+  }
+
+  Future<void> _initializeInternal(
+    String? sessionId, {
+    String? defaultTitle,
+    String? defaultTemplate,
+    bool standaloneOnly = false,
+  }) async {
     state = state.copyWith(isLoading: true);
     final templates = await _api.fetchTemplates();
 
     // Dynamically determine appropriate title and template matching the active live class curriculum
-    final resolvedTitle = defaultTitle ?? 'Whiteboard - Class 12 - A – Chemistry';
-    String resolvedTemplate = defaultTemplate ?? 'chemistry';
+    final resolvedTitle = defaultTitle ?? (standaloneOnly ? 'Offline Class Whiteboard' : 'Whiteboard - Class 12 - A – Chemistry');
+    String resolvedTemplate = (defaultTemplate != null && defaultTemplate.isNotEmpty)
+        ? defaultTemplate
+        : (standaloneOnly ? 'blank' : 'chemistry');
     final titleLower = resolvedTitle.toLowerCase();
-    if (defaultTemplate == null || defaultTemplate.isEmpty || defaultTemplate == 'blank') {
-      if (titleLower.contains('chem')) {
+    if (defaultTemplate == null || defaultTemplate.isEmpty) {
+      if (standaloneOnly) {
+        resolvedTemplate = 'blank';
+      } else if (titleLower.contains('chem')) {
         resolvedTemplate = 'chemistry';
       } else if (titleLower.contains('math') || titleLower.contains('algebra') || titleLower.contains('calc')) {
         resolvedTemplate = 'mathematics';
@@ -508,23 +538,26 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       }
     }
 
-    // Only query whiteboards strictly for this active session to avoid cross-class data leakage
-    var boards = await _api.listWhiteboards(sessionId: sessionId);
+    // Query whiteboards for active session, or school whiteboards for standalone offline mode
+    var boards = await _api.listWhiteboards(sessionId: standaloneOnly ? null : sessionId);
+    final candidateBoards = standaloneOnly
+        ? boards.where((b) => b['session_id'] == null || b['session_id'].toString().isEmpty).toList()
+        : boards;
 
     WhiteboardDocument? doc;
-    if (boards.isNotEmpty) {
-      final firstId = boards.first['id'].toString();
+    if (candidateBoards.isNotEmpty) {
+      final firstId = candidateBoards.first['id'].toString();
       doc = await _api.fetchWhiteboard(firstId);
     } else {
-      // Create session-specific whiteboard matching the active curriculum subject
+      // Create session-specific or standalone offline whiteboard
       doc = await _api.createWhiteboard(
-        sessionId: sessionId,
+        sessionId: standaloneOnly ? null : sessionId,
         title: resolvedTitle,
         templateType: resolvedTemplate,
-        collaborationEnabled: true,
+        collaborationEnabled: !standaloneOnly,
       );
       if (doc != null) {
-        boards = await _api.listWhiteboards(sessionId: sessionId);
+        boards = await _api.listWhiteboards(sessionId: standaloneOnly ? null : sessionId);
       }
     }
 
@@ -565,19 +598,30 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   }
 
   Future<void> loadWhiteboard(String whiteboardId) async {
+    final switchingBoard = state.document?.id != whiteboardId;
     final doc = await _api.fetchWhiteboard(whiteboardId);
     if (doc == null) return;
-    final boards = await _api.listWhiteboards(sessionId: doc.sessionId);
-    final currentActive = state.activePageId;
+    final boards = await _api.listWhiteboards();
+    final currentActive = switchingBoard ? null : state.activePageId;
     final hasCurrent = currentActive != null && doc.pages.any((p) => p.id == currentActive);
     state = state.copyWith(
       document: doc,
       sessionBoards: boards.isNotEmpty ? boards : state.sessionBoards,
       activePageId: hasCurrent ? currentActive : (doc.pages.isNotEmpty ? doc.pages.first.id : null),
       saveState: WhiteboardSaveState.saved,
+      undoStack: switchingBoard ? [] : state.undoStack,
+      redoStack: switchingBoard ? [] : state.redoStack,
+      selectedObjectIds: switchingBoard ? {} : state.selectedObjectIds,
     );
-    if (!_ws.isConnected) {
+    if (switchingBoard || !_ws.isConnected) {
       await _ws.connect(doc.id);
+    }
+  }
+
+  Future<void> refreshHistoryBoards() async {
+    final boards = await _api.listWhiteboards();
+    if (boards.isNotEmpty || state.sessionBoards.isNotEmpty) {
+      state = state.copyWith(sessionBoards: boards);
     }
   }
 
@@ -585,8 +629,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     required String title,
     String templateType = 'blank',
     bool collaborationEnabled = true,
+    bool forceStandalone = false,
   }) async {
-    final sessionId = state.document?.sessionId;
+    final sessionId = forceStandalone ? null : state.document?.sessionId;
     state = state.copyWith(isLoading: true);
     WhiteboardDocument? created;
     try {
@@ -1187,29 +1232,129 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  Future<void> updateBoardMeta({
+  Future<bool> updateBoardMeta({
+    String? targetWhiteboardId,
     String? title,
+    String? description,
     bool? collaborationEnabled,
     bool? presentationMode,
     bool? teacherOnlyMode,
     Map<String, dynamic>? defaultPermissions,
   }) async {
     final doc = state.document;
-    if (doc == null) return;
-    state = state.copyWith(saveState: WhiteboardSaveState.saving);
+    final wbId = targetWhiteboardId ?? doc?.id;
+    if (wbId == null) return false;
+    final isTargetActive = doc != null && doc.id == wbId;
+    if (isTargetActive) {
+      state = state.copyWith(saveState: WhiteboardSaveState.saving);
+    }
     final updated = await _api.updateWhiteboardMeta(
-      doc.id,
+      wbId,
       title: title,
+      description: description,
       collaborationEnabled: collaborationEnabled,
       presentationMode: presentationMode,
       teacherOnlyMode: teacherOnlyMode,
       defaultPermissions: defaultPermissions,
     );
     if (updated != null) {
-      state = state.copyWith(document: updated, saveState: WhiteboardSaveState.saved);
-    } else {
+      final updatedList = state.sessionBoards.map((b) {
+        if (b['id']?.toString() == wbId) {
+          return {
+            ...b,
+            'title': updated.title,
+            if (description != null) 'description': description,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        }
+        return b;
+      }).toList();
+      state = state.copyWith(
+        document: isTargetActive ? updated : doc,
+        sessionBoards: updatedList,
+        saveState: isTargetActive ? WhiteboardSaveState.saved : state.saveState,
+      );
+      return true;
+    } else if (wbId.startsWith('wb_') && isTargetActive) {
+      final localUpdated = doc.copyWith(title: title ?? doc.title);
+      final updatedList = state.sessionBoards.map((b) {
+        if (b['id']?.toString() == wbId) {
+          return {...b, 'title': localUpdated.title, 'updated_at': DateTime.now().toIso8601String()};
+        }
+        return b;
+      }).toList();
+      state = state.copyWith(document: localUpdated, sessionBoards: updatedList, saveState: WhiteboardSaveState.saved);
+      return true;
+    } else if (isTargetActive) {
       state = state.copyWith(saveState: WhiteboardSaveState.syncFailed);
     }
+    return false;
+  }
+
+  Future<bool> duplicateBoard(String sourceWhiteboardId, {String? title, bool openAfter = true}) async {
+    final dup = await _api.duplicateWhiteboard(sourceWhiteboardId, title: title);
+    if (dup != null) {
+      final entry = {
+        'id': dup.id,
+        'session_id': dup.sessionId,
+        'title': dup.title,
+        'template_type': dup.templateType,
+        'page_count': dup.pages.length,
+        'object_count': dup.pages.fold<int>(0, (sum, p) => sum + p.objects.length),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      final boards = [entry, ...state.sessionBoards.where((b) => b['id']?.toString() != dup.id)];
+      if (openAfter) {
+        state = state.copyWith(
+          document: dup,
+          sessionBoards: boards,
+          activePageId: dup.pages.isNotEmpty ? dup.pages.first.id : null,
+          undoStack: [],
+          redoStack: [],
+          selectedObjectIds: {},
+          saveState: WhiteboardSaveState.saved,
+        );
+        unawaited(_ws.connect(dup.id));
+      } else {
+        state = state.copyWith(sessionBoards: boards);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteBoard(String whiteboardId) async {
+    final isLocalOnly = whiteboardId.startsWith('wb_');
+    final ok = isLocalOnly ? true : await _api.deleteWhiteboard(whiteboardId);
+    if (!ok) return false;
+
+    final remaining = state.sessionBoards.where((b) => b['id']?.toString() != whiteboardId).toList();
+    final deletingActive = state.document?.id == whiteboardId;
+
+    if (deletingActive) {
+      if (remaining.isNotEmpty) {
+        final nextId = remaining.first['id']?.toString();
+        state = state.copyWith(sessionBoards: remaining);
+        if (nextId != null && !nextId.startsWith('wb_')) {
+          await loadWhiteboard(nextId);
+          return true;
+        }
+      }
+      // No remaining persisted board -> initialize a clean blank offline board
+      await createNewBoard(
+        title: 'Offline Class Whiteboard',
+        templateType: 'blank',
+        collaborationEnabled: false,
+        forceStandalone: true,
+      );
+      state = state.copyWith(
+        sessionBoards: state.sessionBoards.where((b) => b['id']?.toString() != whiteboardId).toList(),
+      );
+      return true;
+    }
+
+    state = state.copyWith(sessionBoards: remaining);
+    return true;
   }
 
   // Page Actions
@@ -1979,21 +2124,80 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     return ok;
   }
 
+  Future<List<Map<String, dynamic>>> fetchShareDirectoryClasses() =>
+      _api.fetchShareDirectoryClasses();
+
+  Future<Map<String, List<Map<String, dynamic>>>> fetchShareClassMembers({
+    required String classId,
+    List<String> sectionIds = const [],
+  }) =>
+      _api.fetchShareClassMembers(classId: classId, sectionIds: sectionIds);
+
+  Future<List<Map<String, dynamic>>> searchShareUsers({
+    String query = '',
+    String roleFilter = 'all',
+    int limit = 60,
+  }) =>
+      _api.searchShareUsers(query: query, roleFilter: roleFilter, limit: limit);
+
+  Future<Map<String, dynamic>?> shareBoardBatch({
+    String? whiteboardId,
+    required String mode,
+    String? classId,
+    String? className,
+    List<Map<String, dynamic>> sections = const [],
+    bool includeStudents = true,
+    bool includeTeachers = true,
+    List<Map<String, dynamic>> users = const [],
+    String accessLevel = 'VIEW',
+    Map<String, dynamic> capabilities = const {},
+    String? targetLabel,
+  }) async {
+    final wbId = whiteboardId ?? state.document?.id;
+    if (wbId == null) return null;
+    return await _api.shareWhiteboardBatch(
+      wbId,
+      mode: mode,
+      classId: classId,
+      className: className,
+      sections: sections,
+      includeStudents: includeStudents,
+      includeTeachers: includeTeachers,
+      users: users,
+      accessLevel: accessLevel,
+      capabilities: capabilities,
+      targetLabel: targetLabel,
+    );
+  }
+
   Future<WhiteboardShareItem?> shareBoard({
+    String? whiteboardId,
     required String shareType,
     required String targetLabel,
     String accessLevel = 'VIEW',
     String? expiresAt,
   }) async {
-    final doc = state.document;
-    if (doc == null) return null;
+    final wbId = whiteboardId ?? state.document?.id;
+    if (wbId == null) return null;
     return await _api.shareWhiteboard(
-      doc.id,
+      wbId,
       shareType: shareType,
       targetLabel: targetLabel,
       accessLevel: accessLevel,
       expiresAt: expiresAt,
     );
+  }
+
+  Future<List<WhiteboardShareItem>> listBoardShares([String? whiteboardId]) async {
+    final wbId = whiteboardId ?? state.document?.id;
+    if (wbId == null) return [];
+    return await _api.listShares(wbId);
+  }
+
+  Future<bool> revokeBoardShare(String shareId, [String? whiteboardId]) async {
+    final wbId = whiteboardId ?? state.document?.id;
+    if (wbId == null) return false;
+    return await _api.revokeShare(wbId, shareId);
   }
 
   Future<Map<String, dynamic>?> uploadAndInsertAsset({
@@ -2130,18 +2334,19 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   }
 
   Future<Map<String, dynamic>?> exportBoard({
+    String? whiteboardId,
     required String format,
     required String scope,
     List<String>? selectedPageIds,
     String orientation = 'landscape',
   }) async {
-    final doc = state.document;
-    if (doc == null) return null;
+    final wbId = whiteboardId ?? state.document?.id;
+    if (wbId == null) return null;
     return await _api.exportWhiteboard(
-      whiteboardId: doc.id,
+      whiteboardId: wbId,
       format: format,
       scope: scope,
-      pageId: state.activePageId,
+      pageId: whiteboardId == null ? state.activePageId : null,
       pageIds: selectedPageIds,
       orientation: orientation,
     );

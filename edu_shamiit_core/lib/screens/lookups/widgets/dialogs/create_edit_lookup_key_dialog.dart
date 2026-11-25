@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/lookup_models.dart';
@@ -379,7 +380,7 @@ class _CreateEditLookupKeyDialogState extends ConsumerState<CreateEditLookupKeyD
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _status,
                                 decoration: InputDecoration(
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -411,7 +412,7 @@ class _CreateEditLookupKeyDialogState extends ConsumerState<CreateEditLookupKeyD
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: _keyType,
                                   decoration: InputDecoration(
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

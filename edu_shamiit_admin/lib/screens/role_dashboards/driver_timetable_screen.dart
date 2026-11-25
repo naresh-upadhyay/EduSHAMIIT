@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
@@ -716,7 +717,7 @@ class _DriverTimetableScreenState extends ConsumerState<DriverTimetableScreen> {
                     border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: AppSearchableDropdown<String>.fromMenuItems(
                       value: _selectedRouteFilter,
                       icon: const Icon(Icons.keyboard_arrow_down,
                           size: 18, color: Color(0xFF64748B)),

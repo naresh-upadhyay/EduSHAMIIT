@@ -880,7 +880,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           ],
           Expanded(
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: value,
                 isExpanded: true,
                 isDense: true,
@@ -2604,7 +2604,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
           ],
           Expanded(
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: value,
                 isExpanded: true,
                 isDense: true,
@@ -3989,7 +3989,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                     clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
                         items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
@@ -4006,7 +4006,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: type,
                               decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
                               items: ['Safety', 'Medical', 'Technical', 'Operational', 'Awareness'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4015,7 +4015,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                               items: ['Completed', 'In Progress', 'Upcoming', 'Overdue'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4899,7 +4899,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                     clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
                         items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
@@ -4907,7 +4907,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         onChanged: isEdit ? null : (val) => setDialogState(() => selectedDriverId = val),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Involved *', border: OutlineInputBorder()),
                         items: uniqueVehicles.values.map((v) {
@@ -4921,7 +4921,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: type,
                               decoration: const InputDecoration(labelText: 'Violation Type', border: OutlineInputBorder()),
                               items: ['Overspeeding', 'Signal Jump', 'Seat Belt Not Worn', 'Mobile Usage', 'Harsh Braking', 'Wrong Route', 'Overtime Driving', 'Parking Violation'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4930,7 +4930,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: severity,
                               decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
                               items: ['High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4965,7 +4965,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                         items: ['Pending', 'Resolved', 'Cancelled', 'Waived'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5108,7 +5108,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(border: Border.all(color: _border), borderRadius: BorderRadius.circular(6)),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: pageSize,
                     dropdownColor: _cardBg,
                     style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
@@ -5349,7 +5349,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                     clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
                         items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
@@ -5360,7 +5360,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: docType,
                               decoration: const InputDecoration(labelText: 'Document Type *', border: OutlineInputBorder()),
                               items: ['Driving License', 'Badge', 'Police Verification', 'Aadhaar Card', 'Medical Certificate', 'Other'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5369,7 +5369,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                               items: ['Valid', 'Expiring Soon', 'Expired', 'Permanent'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5631,7 +5631,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                     clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
                         items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
@@ -5639,7 +5639,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         onChanged: (val) => setDialogState(() => selectedDriverId = val),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Assigned', border: OutlineInputBorder()),
                         items: uniqueVehicles.values.map((v) => DropdownMenuItem<String>(value: v['id'].toString(), child: Text('${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['vehicle_type'] ?? 'Bus'})'))).toList(),
@@ -5934,7 +5934,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: licenseType,
                               decoration: const InputDecoration(labelText: 'License Type', border: OutlineInputBorder()),
                               items: ['LMV', 'HMV'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -5955,7 +5955,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                               items: ['Active', 'On Duty', 'On Leave', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -6035,7 +6035,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: assignedVehicleId,
                         decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder()),
                         items: [

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -297,9 +298,10 @@ class HostelFeeFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: current,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
@@ -335,9 +337,10 @@ class HostelFeeFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: current,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
@@ -365,9 +368,10 @@ class HostelFeeFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: current,
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,

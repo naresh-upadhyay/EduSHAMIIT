@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -891,7 +892,7 @@ class _ProcessIssueRequestDialogState
                               fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: _selectedWaitingReason,
                           decoration: _inputDecoration(isDark),
                           items: _waitingReasons

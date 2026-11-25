@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/visitors_provider.dart';
@@ -191,7 +192,7 @@ class _VisitorsMoreFiltersDialogState extends ConsumerState<VisitorsMoreFiltersD
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: state.availableLocations.contains(_selectedLocation) ? _selectedLocation : state.availableLocations.first,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -225,7 +226,7 @@ class _VisitorsMoreFiltersDialogState extends ConsumerState<VisitorsMoreFiltersD
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _categories.contains(_selectedCategory) ? _selectedCategory : _categories.first,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -259,7 +260,7 @@ class _VisitorsMoreFiltersDialogState extends ConsumerState<VisitorsMoreFiltersD
                   border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: _statuses.contains(_selectedStatus) ? _selectedStatus : _statuses.first,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

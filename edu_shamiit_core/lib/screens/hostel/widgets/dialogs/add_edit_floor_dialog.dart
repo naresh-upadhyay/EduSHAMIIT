@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -154,7 +155,7 @@ class _AddEditFloorDialogState extends ConsumerState<AddEditFloorDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: buildings.any((b) => b.id == _selectedBuildingId)
                       ? _selectedBuildingId
@@ -236,7 +237,7 @@ class _AddEditFloorDialogState extends ConsumerState<AddEditFloorDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: ['ACTIVE', 'MAINTENANCE', 'INACTIVE'].contains(_status.toUpperCase())
                             ? _status.toUpperCase()

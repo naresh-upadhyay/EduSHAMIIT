@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../classes/services/academic_lookup_helper.dart';
@@ -217,7 +218,7 @@ class _QuickEventCreatePopoverState extends State<QuickEventCreatePopover> {
                   } else {
                     map[current] = current;
                   }
-                  return DropdownButtonFormField<String>(
+                  return AppSearchableDropdownFormField<String>.fromMenuItems(
                     key: ValueKey('quick_type_$current'),
                     initialValue: current,
                     dropdownColor:

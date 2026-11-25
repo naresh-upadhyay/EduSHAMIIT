@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../../models/class_models.dart';
 import '../../services/class_api_service.dart';
@@ -305,7 +306,7 @@ class _AssignSubjectToSectionDialogState
                         color: isDark ? const Color(0xFF0F172A) : Colors.white,
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _selectedClassId,
                           isExpanded: true,
                           dropdownColor:

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../providers/broadcast_provider.dart';
 import 'schedule_broadcast_dialog.dart';
@@ -59,7 +60,7 @@ class _ScheduledBroadcastsTabViewState extends State<ScheduledBroadcastsTabView>
                   ),
                 ),
                 const SizedBox(width: 12),
-                DropdownButton<String>(
+                AppSearchableDropdown<String>.fromMenuItems(
                   value: _selectedPlatformFilter,
                   items: const [
                     DropdownMenuItem(value: 'All', child: Text('All Platforms')),

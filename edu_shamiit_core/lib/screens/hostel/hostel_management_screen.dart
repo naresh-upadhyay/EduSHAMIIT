@@ -14,7 +14,6 @@ import 'widgets/fees/hostel_fees_tab.dart';
 import 'widgets/leave/hostel_leave_tab.dart';
 import 'widgets/complaints/hostel_complaints_tab.dart';
 import 'widgets/reports/hostel_reports_tab.dart';
-import '../visitors/visitors_management_screen.dart';
 
 class HostelManagementScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -32,7 +31,7 @@ class _HostelManagementScreenState extends ConsumerState<HostelManagementScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(hostelProvider.notifier).selectTab(widget.initialTab.clamp(0, 8));
+        ref.read(hostelProvider.notifier).selectTab(widget.initialTab.clamp(0, 7));
       }
     });
   }
@@ -43,7 +42,7 @@ class _HostelManagementScreenState extends ConsumerState<HostelManagementScreen>
     if (widget.initialTab != oldWidget.initialTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref.read(hostelProvider.notifier).selectTab(widget.initialTab.clamp(0, 8));
+          ref.read(hostelProvider.notifier).selectTab(widget.initialTab.clamp(0, 7));
         }
       });
     }
@@ -132,10 +131,7 @@ class _HostelManagementScreenState extends ConsumerState<HostelManagementScreen>
         // Tab 6: Complaints matching Screenshot Pixel-Perfect
         return const HostelComplaintsTab();
       case 7:
-        // Tab 7: Integrated Visitors Management Hub
-        return const VisitorsManagementScreen(isEmbedded: true);
-      case 8:
-        // Tab 8: Universal Reports & Exports
+        // Tab 7: Universal Reports & Exports
         return const HostelReportsTab();
       default:
         return const HostelOverviewTab();

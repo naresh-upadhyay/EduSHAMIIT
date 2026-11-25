@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -373,7 +374,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           const Text('Exam Status',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
+          AppSearchableDropdownFormField<String>.fromMenuItems(
             initialValue: _getDropdownValue(_status),
             decoration: InputDecoration(
               border:
@@ -441,7 +442,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedSubject,
                     decoration: InputDecoration(
                         border: OutlineInputBorder(
@@ -579,7 +580,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _examType,
                     decoration: InputDecoration(
                         border: OutlineInputBorder(
@@ -612,7 +613,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedType,
                     decoration: InputDecoration(
                         border: OutlineInputBorder(

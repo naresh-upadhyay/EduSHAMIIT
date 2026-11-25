@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/app_config.dart';
 import '../../../services/api_service.dart';
 import '../models/live_class_models.dart';
 
@@ -42,24 +44,24 @@ class LiveClassApiService {
       debugPrint('[LiveClassApiService] Error fetching recordings dashboard: $e');
     }
     return RecordingsDashboardData(
-      totalRecordings: 486,
-      thisWeek: 28,
-      totalDurationDisplay: '362 h 14 min',
-      storageUsedGb: 728.4,
+      totalRecordings: 0,
+      thisWeek: 0,
+      totalDurationDisplay: '0 min',
+      storageUsedGb: 0.0,
       storageTotalTb: 1.0,
-      storageUsedPercentage: 71,
-      totalDownloads: 1842,
-      avgViews: 38,
-      retentionRatePct: 96,
+      storageUsedPercentage: 0,
+      totalDownloads: 0,
+      avgViews: 0,
+      retentionRatePct: 100,
       storageBreakdown: StorageBreakdown(
-        recordingsGb: 612.3,
-        recordingsPct: 59.8,
-        classResourcesGb: 94.6,
-        classResourcesPct: 9.2,
-        othersGb: 21.5,
-        othersPct: 2.0,
-        freeSpaceGb: 295.6,
-        freeSpacePct: 29.0,
+        recordingsGb: 0.0,
+        recordingsPct: 0.0,
+        classResourcesGb: 0.0,
+        classResourcesPct: 0.0,
+        othersGb: 0.0,
+        othersPct: 0.0,
+        freeSpaceGb: 1024.0,
+        freeSpacePct: 100.0,
       ),
       settings: RecordingSettings(
         autoRecording: true,
@@ -268,13 +270,193 @@ class LiveClassApiService {
   }
 
   Future<void> shareRecording(String sessionId, String sharedToId) async {
-    await _apiService.post('/live-classes/$sessionId/share', {
+    await _apiService.post('/live-classes/recordings/$sessionId/share', {
       'shared_to_id': sharedToId,
     });
   }
 
+  Future<Map<String, dynamic>> uploadRecordingFile({
+    List<int>? fileBytes,
+    String? fileName,
+    required String title,
+    String? description,
+    String? classId,
+    String? sectionId,
+    String? subjectId,
+    String? teacherId,
+    String? teacherName,
+    int durationMinutes = 1,
+    int? durationSeconds,
+    String visibility = 'CLASS',
+    String? externalUrl,
+  }) async {
+    final fields = <String, String>{
+      'title': title,
+      'duration_minutes': durationMinutes.toString(),
+      'duration_seconds': (durationSeconds ?? (durationMinutes * 60)).toString(),
+      'visibility': visibility,
+      'recording_type': 'Uploaded Recording',
+    };
+    if (description != null && description.isNotEmpty) fields['description'] = description;
+    if (classId != null && classId.isNotEmpty) fields['class_id'] = classId;
+    if (sectionId != null && sectionId.isNotEmpty) fields['section_id'] = sectionId;
+    if (subjectId != null && subjectId.isNotEmpty) fields['subject_id'] = subjectId;
+    if (teacherId != null && teacherId.isNotEmpty) fields['teacher_id'] = teacherId;
+    if (teacherName != null && teacherName.isNotEmpty) fields['teacher_name'] = teacherName;
+    if (externalUrl != null && externalUrl.isNotEmpty) fields['external_url'] = externalUrl;
+
+    if (fileBytes != null && fileBytes.isNotEmpty && fileName != null && fileName.isNotEmpty) {
+      return await _apiService.multipartPostBytes(
+        '/live-classes/recordings/upload',
+        fileBytes,
+        fileName,
+        'file',
+        fields: fields,
+        timeout: const Duration(minutes: 5),
+      );
+    }
+    return await _apiService.post('/live-classes/recordings/upload', fields);
+  }
+
+  Future<Map<String, dynamic>> updateRecording(
+    String recordingId,
+    Map<String, dynamic> payload,
+  ) async {
+    return await _apiService.patch('/live-classes/recordings/$recordingId', payload);
+  }
+
   Future<void> deleteRecording(String recordingId) async {
     await _apiService.delete('/live-classes/recordings/$recordingId');
+  }
+
+  Future<Map<String, dynamic>> bulkDeleteRecordings(List<String> recordingIds) async {
+    return await _apiService.post('/live-classes/recordings/bulk-delete', {
+      'recording_ids': recordingIds,
+    });
+  }
+
+  Future<int?> recordRecordingView(String recordingId) async {
+    try {
+      final res = await _apiService.post('/live-classes/recordings/$recordingId/view', {});
+      return (res['views'] as num?)?.toInt();
+    } catch (e) {
+      debugPrint('[LiveClassApiService] recordRecordingView error: $e');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRecordingShares(String recordingId) async {
+    try {
+      final res = await _apiService.get('/live-classes/recordings/$recordingId/shares', useCache: false);
+      final raw = res['data'];
+      if (raw is List) {
+        return raw.whereType<Map<String, dynamic>>().toList();
+      }
+    } catch (e) {
+      debugPrint('[LiveClassApiService] fetchRecordingShares error: $e');
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> shareRecordingBatch(
+    String recordingId,
+    Map<String, dynamic> payload,
+  ) async {
+    return await _apiService.post('/live-classes/recordings/$recordingId/share/batch', payload);
+  }
+
+  Future<bool> revokeRecordingShare(String recordingId, String shareId) async {
+    try {
+      final res = await _apiService.delete('/live-classes/recordings/$recordingId/shares/$shareId');
+      return res['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] revokeRecordingShare error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> saveRecordingSettings(Map<String, dynamic> payload) async {
+    try {
+      final res = await _apiService.post('/live-classes/recordings/settings', payload);
+      return res['success'] == true;
+    } catch (e) {
+      debugPrint('[LiveClassApiService] saveRecordingSettings error: $e');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchShareDirectoryClasses() async {
+    try {
+      final res = await _apiService.get('/whiteboards/directory/classes', useCache: false);
+      final raw = res['data']?['classes'] ?? res['classes'];
+      if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      debugPrint('[LiveClassApiService] fetchShareDirectoryClasses error: $e');
+    }
+    return [];
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> fetchShareClassMembers({
+    required String classId,
+    List<String> sectionIds = const [],
+  }) async {
+    try {
+      final q = <String, String>{'class_id': classId};
+      if (sectionIds.isNotEmpty) q['section_ids'] = sectionIds.join(',');
+      final res = await _apiService.get('/whiteboards/directory/class-members', query: q, useCache: false);
+      final data = res['data'] ?? {};
+      return {
+        'students': (data['students'] as List? ?? []).whereType<Map<String, dynamic>>().toList(),
+        'teachers': (data['teachers'] as List? ?? []).whereType<Map<String, dynamic>>().toList(),
+      };
+    } catch (e) {
+      debugPrint('[LiveClassApiService] fetchShareClassMembers error: $e');
+      return {'students': [], 'teachers': []};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchShareUsers({String query = '', String? role}) async {
+    try {
+      final q = <String, String>{'q': query};
+      if (role != null && role.isNotEmpty) q['role'] = role;
+      final res = await _apiService.get('/whiteboards/directory/search-users', query: q, useCache: false);
+      final raw = res['data']?['users'] ?? res['users'];
+      if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      debugPrint('[LiveClassApiService] searchShareUsers error: $e');
+    }
+    return [];
+  }
+
+  Future<String> resolveAuthenticatedMediaUrl(
+    RecordingItem item, {
+    bool isDownload = false,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    String raw;
+    if (isDownload) {
+      raw = '/api/live-classes/recordings/${item.id}/download';
+    } else if (item.recordingUrl != null && item.recordingUrl!.trim().isNotEmpty) {
+      final u = item.recordingUrl!.trim();
+      if (u.contains('/storage/v1/object/') && item.id.isNotEmpty) {
+        // Route storage-backed recordings through backend range stream endpoint when local/storage binary exists
+        raw = '/api/live-classes/recordings/${item.id}/stream';
+      } else {
+        raw = u;
+      }
+    } else {
+      raw = '/api/live-classes/recordings/${item.id}/stream';
+    }
+
+    final resolved = AppConfig.resolveUrl(raw);
+    if (token.isEmpty) return resolved;
+    // Append JWT for internal API / stream / download URLs
+    if (resolved.contains('/api/live-classes/recordings/')) {
+      final sep = resolved.contains('?') ? '&' : '?';
+      return '$resolved${sep}token=${Uri.encodeQueryComponent(token)}';
+    }
+    return resolved;
   }
 
   // ============================================================================

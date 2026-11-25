@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -457,6 +458,7 @@ class _HostelComplaintsFilterBarState extends ConsumerState<HostelComplaintsFilt
 
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -464,10 +466,11 @@ class _HostelComplaintsFilterBarState extends ConsumerState<HostelComplaintsFilt
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF64748B)),
           isDense: true,
+          isExpanded: false,
           style: TextStyle(
             fontSize: 12.5,
             color: isDark ? Colors.white : const Color(0xFF0F172A),

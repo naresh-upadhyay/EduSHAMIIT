@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/services/hr_lookup_helper.dart';
@@ -573,7 +574,7 @@ class _StartOnboardingDialogState extends State<StartOnboardingDialog> {
                   children: [
                     const Text('Department *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _departments.contains(_selectedDepartment) ? _selectedDepartment : (_departments.isNotEmpty ? _departments.first : null),
                       items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                       onChanged: (val) {
@@ -621,7 +622,7 @@ class _StartOnboardingDialogState extends State<StartOnboardingDialog> {
                   children: [
                     const Text('Employment Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _employmentTypes.contains(_selectedEmploymentType) ? _selectedEmploymentType : (_employmentTypes.isNotEmpty ? _employmentTypes.first : null),
                       items: _employmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                       onChanged: (val) {
@@ -733,7 +734,7 @@ class _StartOnboardingDialogState extends State<StartOnboardingDialog> {
                   children: [
                     const Text('Probation Period (Months)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<int>(
+                    AppSearchableDropdownFormField<int>.fromMenuItems(
                       initialValue: _probationPeriodMonths,
                       items: [3, 6, 9, 12].map((m) => DropdownMenuItem(value: m, child: Text('$m Months'))).toList(),
                       onChanged: (val) {

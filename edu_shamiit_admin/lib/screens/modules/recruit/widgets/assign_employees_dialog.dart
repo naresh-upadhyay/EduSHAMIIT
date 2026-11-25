@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/services/hr_lookup_helper.dart';
@@ -227,7 +228,7 @@ class _AssignEmployeesDialogState extends State<AssignEmployeesDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
                     isExpanded: true,
                     decoration: const InputDecoration(

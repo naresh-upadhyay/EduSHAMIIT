@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
+import 'dart:async';
 
 void triggerBrowserFullscreen() {
   try {
@@ -23,4 +24,8 @@ bool isBrowserInFullscreen() {
   } catch (_) {
     return false;
   }
+}
+
+Stream<bool> get onBrowserFullscreenChange {
+  return html.document.onFullscreenChange.map((_) => isBrowserInFullscreen());
 }

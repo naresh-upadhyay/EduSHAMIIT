@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -364,7 +365,7 @@ class _ScheduleInterviewDialogState extends State<ScheduleInterviewDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _rounds.contains(_round) ? _round : (_rounds.isNotEmpty ? _rounds.first : null),
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -380,7 +381,7 @@ class _ScheduleInterviewDialogState extends State<ScheduleInterviewDialog> {
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         initialValue: _modes.contains(_mode) ? _mode : (_modes.isNotEmpty ? _modes.first : null),
                         isExpanded: true,
                         decoration: const InputDecoration(

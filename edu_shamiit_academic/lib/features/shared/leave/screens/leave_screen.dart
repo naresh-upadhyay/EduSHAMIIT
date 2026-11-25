@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/constants/app_fonts.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import 'package:edu_shamiit_academic/core/providers/leave_provider.dart';
@@ -1325,7 +1326,7 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
               // Leave type dropdown
               const _FieldLabel('Leave Type'),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: widget.leaveTypes.contains(_selectedType)
                     ? _selectedType
                     : widget.leaveTypes.first,

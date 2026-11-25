@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -53,6 +54,8 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   bool _isStageFullscreen = false;
   final TextEditingController _searchCtrl = TextEditingController();
   final GlobalKey<LiveClassChatPanelState> _chatPanelKey = GlobalKey<LiveClassChatPanelState>();
+  final GlobalKey _classroomStageGlobalKey = GlobalKey(debugLabel: 'classroomStagePersistentKey');
+  StreamSubscription<bool>? _fullscreenSub;
 
   // Join via Code Controllers
   final TextEditingController _joinCodeCtrl = TextEditingController(text: '10A-MATH');
@@ -115,6 +118,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
   @override
   void initState() {
     super.initState();
+    _fullscreenSub = onBrowserFullscreenChange.listen((isInFullscreen) {
+      if (mounted && _isStageFullscreen != isInFullscreen) {
+        setState(() => _isStageFullscreen = isInFullscreen);
+      }
+    });
     // Auto-fetch My Classes data if not yet loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(liveClassManagementProvider.notifier).refreshMyClasses();
@@ -123,6 +131,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
   @override
   void dispose() {
+    _fullscreenSub?.cancel();
     _searchCtrl.dispose();
     _joinCodeCtrl.dispose();
     _guestCodeCtrl.dispose();
@@ -149,8 +158,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         isLiveClass: true,
         onSave: (payload, {recurrenceScope = 'entire_series', targetInstanceDate}) async {
           try {
-            // 1. Create calendar schedule
-            await calendarNotifier.createSchedule(payload);
+            // 1. Create calendar schedule & capture schedule_id
+            final schedRes = await calendarNotifier.createSchedule(payload);
+            final schedData = schedRes['data'];
+            final scheduleId = (schedData is Map) ? schedData['id']?.toString() : null;
 
             // 2. Extract curriculum cohort details from payload target_class_sections
             String? classId;
@@ -180,6 +191,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             final liveClassPayload = {
               'title': payload['title'],
               'description': payload['description'],
+              'schedule_id': scheduleId,
               'class_id': classId,
               'section_id': sectionId,
               'subject_id': subjectId,
@@ -199,7 +211,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               'allow_student_cam': true,
               'allow_chat': true,
               'allow_reactions': true,
-              'max_participants': 50,
+              'target_roles': payload['target_roles'],
+              'target_class_sections': payload['target_class_sections'],
+              'target_user_ids': payload['target_user_ids'],
+              'visibility': payload['visibility'],
             };
 
             await liveClassNotifier.createInstantClass(liveClassPayload);
@@ -1103,6 +1118,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
       return Container(
         color: const Color(0xFF0F172A),
         child: LiveClassroomStage(
+          key: _classroomStageGlobalKey,
           session: activeSess,
           isFullscreen: true,
           initialStageMode: _classroomStageMode,
@@ -1230,6 +1246,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                         SizedBox(
                           height: 480,
                           child: LiveClassroomStage(
+                            key: _classroomStageGlobalKey,
                             session: activeSess,
                             isFullscreen: _isStageFullscreen,
                             initialStageMode: _classroomStageMode,
@@ -1302,6 +1319,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                         child: SizedBox(
                           height: 530,
                           child: LiveClassroomStage(
+                            key: _classroomStageGlobalKey,
                             session: activeSess,
                             isFullscreen: _isStageFullscreen,
                             initialStageMode: _classroomStageMode,
@@ -1512,14 +1530,15 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                 : (conductStats?.todaysClasses ?? 1)));
 
     final roomService = ref.watch(liveRoomServiceProvider);
-    final realJoinedCount = roomService.participantTracks.where((t) => !t.isScreenShare).length;
-    final totalLiveStudents = realJoinedCount > 0
-        ? realJoinedCount
-        : (state.conductSessionData?.participants.isNotEmpty == true
-            ? state.conductSessionData!.participants.length
-            : ((selClass?.viewerCount != null && selClass!.viewerCount > 0)
-                ? selClass.viewerCount
-                : (state.conductSessionData != null ? 1 : 0)));
+    final authInfo = _getActiveAuthUserInfo();
+    final unifiedParticipants = resolveUnifiedParticipants(
+      roomService: roomService,
+      localUserId: authInfo['id']!,
+      localUserName: authInfo['name']!,
+      localUserRole: authInfo['role']!,
+      dbParticipants: state.conductSessionData?.participants ?? state.joinDashboard?.participants,
+    );
+    final totalLiveStudents = unifiedParticipants.length;
 
     final liveCount = (myDash?.ongoingLive != null && myDash!.ongoingLive > 0)
         ? myDash.ongoingLive
@@ -1736,7 +1755,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     return InkWell(
       onTap: () {
         if (label == 'Live Classroom') {
-          setState(() => _selectedSubnav = 'Conduct Class');
+          setState(() {
+            _classroomStageMode = StageMode.teacherPresentation;
+            _selectedSubnav = 'Conduct Class';
+          });
         } else if (label == 'Join via Code') {
           setState(() => _selectedSubnav = 'Join via Code');
           ref.read(liveClassManagementProvider.notifier).loadJoinViaCodeData();
@@ -1978,7 +2000,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       ElevatedButton.icon(
                         onPressed: () {
                           ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(nextClass);
-                          setState(() => _selectedSubnav = 'Conduct Class');
+                          ref.read(liveClassManagementProvider.notifier).startClass(nextClass.id);
+                          setState(() {
+                            _classroomStageMode = StageMode.teacherPresentation;
+                            _selectedSubnav = 'Conduct Class';
+                          });
                         },
                         icon: const Icon(Icons.play_arrow_rounded, size: 14),
                         label: const Text('Start Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -2244,7 +2270,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                     await roomService.initializeRoom();
                   } catch (_) {}
                   if (!mounted) return;
-                  setState(() => _selectedSubnav = 'Conduct Class');
+                  setState(() {
+                    _classroomStageMode = StageMode.teacherPresentation;
+                    _selectedSubnav = 'Conduct Class';
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Connected to ${session.classSection} • ${session.subject} live stage.'),
@@ -2306,7 +2335,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
         );
         await roomService.initializeRoom();
         if (!mounted) return;
-        setState(() => _selectedSubnav = 'Conduct Class');
+        setState(() {
+          _classroomStageMode = StageMode.teacherPresentation;
+          _selectedSubnav = 'Conduct Class';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Joined live class as Guest!'),
@@ -2344,7 +2376,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             await roomService.initializeRoom();
           } catch (_) {}
           if (!mounted) return;
-          setState(() => _selectedSubnav = 'Conduct Class');
+          setState(() {
+            _classroomStageMode = StageMode.teacherPresentation;
+            _selectedSubnav = 'Conduct Class';
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('The host has admitted you to the live class! Welcome!'),
@@ -2590,7 +2625,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             : distinctSessions.keys.first;
 
                         return DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: effectiveSelectedId,
                             dropdownColor: cardBg,
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: LiveClassTheme.primary(context)),
@@ -2689,7 +2724,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                         Text('Max Student Capacity:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                         const SizedBox(width: 10),
                         DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
+                          child: AppSearchableDropdown<int>.fromMenuItems(
                             value: _settingMaxCapacity,
                             dropdownColor: cardBg,
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
@@ -3470,7 +3505,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                   children: [
                     Text('Purpose / Role *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: _guestPurpose,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -4118,55 +4153,65 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           // 1. Header with Title, Date Pills, and + Create Instant Class
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                const Icon(Icons.calendar_month_rounded, color: Color(0xFF2563EB), size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'My Classes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_month_rounded, color: Color(0xFF2563EB), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'My Classes',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
+                    ),
+                  ],
                 ),
-                const Spacer(),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    // Date Pills: Today, This Week, This Month
+                    _buildDatePill('Today', state.myClassesDateFilter),
+                    _buildDatePill('This Week', state.myClassesDateFilter),
+                    _buildDatePill('This Month', state.myClassesDateFilter),
 
-                // Date Pills: Today, This Week, This Month
-                _buildDatePill('Today', state.myClassesDateFilter),
-                const SizedBox(width: 6),
-                _buildDatePill('This Week', state.myClassesDateFilter),
-                const SizedBox(width: 6),
-                _buildDatePill('This Month', state.myClassesDateFilter),
-                const SizedBox(width: 8),
+                    // Calendar icon picker
+                    IconButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime(2026),
+                        );
+                        if (picked != null) {
+                          ref.read(liveClassManagementProvider.notifier).setMyClassesDateFilter('Custom');
+                        }
+                      },
+                      icon: Icon(Icons.calendar_today_outlined, size: 18, color: textSecondary),
+                      tooltip: 'Pick custom date',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
 
-                // Calendar icon picker
-                IconButton(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2024),
-                      lastDate: DateTime(2026),
-                    );
-                    if (picked != null) {
-                      ref.read(liveClassManagementProvider.notifier).setMyClassesDateFilter('Custom');
-                    }
-                  },
-                  icon: Icon(Icons.calendar_today_outlined, size: 18, color: textSecondary),
-                  tooltip: 'Pick custom date',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                ),
-                const SizedBox(width: 8),
-
-                // + Create Instant Class Button
-                ElevatedButton.icon(
-                  onPressed: _showCreateInstantDialog,
-                  icon: const Icon(Icons.add, size: 14),
-                  label: const Text('Create Instant Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+                    // + Create Instant Class Button
+                    ElevatedButton.icon(
+                      onPressed: _showCreateInstantDialog,
+                      icon: const Icon(Icons.add, size: 14),
+                      label: const Text('Create Instant Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -4869,7 +4914,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
 
                       // Rows per page
                       Text('Rows per page: ', style: TextStyle(fontSize: 11, color: textSecondary)),
-                      DropdownButton<int>(
+                      AppSearchableDropdown<int>.fromMenuItems(
                         value: const [5, 10, 20, 50, 100].contains(state.myClassesPageSize)
                             ? state.myClassesPageSize
                             : 10,
@@ -4990,7 +5035,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             border: Border.all(color: cardBorder),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: effectiveValue,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary),
@@ -5070,7 +5115,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               debugPrint('Async room connect notice: $e');
             });
           } catch (_) {}
-          setState(() => _selectedSubnav = 'Conduct Class');
+          setState(() {
+            _classroomStageMode = StageMode.teacherPresentation;
+            _selectedSubnav = 'Conduct Class';
+          });
         },
         icon: const Icon(Icons.play_arrow_rounded, size: 14),
         label: const Text('Join', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
@@ -5086,6 +5134,9 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     } else if (status == 'upcoming') {
       return OutlinedButton.icon(
         onPressed: () async {
+          try {
+            await ref.read(liveClassManagementProvider.notifier).startClass(item.id);
+          } catch (_) {}
           await ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(item);
           try {
             final roomService = ref.read(liveRoomServiceProvider);
@@ -5100,7 +5151,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               debugPrint('Async room connect notice: $e');
             });
           } catch (_) {}
-          setState(() => _selectedSubnav = 'Conduct Class');
+          if (!mounted) return;
+          setState(() {
+            _classroomStageMode = StageMode.teacherPresentation;
+            _selectedSubnav = 'Conduct Class';
+          });
         },
         icon: const Icon(Icons.play_arrow_rounded, size: 14, color: Color(0xFF2563EB)),
         label: const Text('Start', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
@@ -5115,8 +5170,8 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     } else if (status == 'completed') {
       return OutlinedButton.icon(
         onPressed: () {
-          // Switch to tab 1 (Recordings) or tab 2 (Attendance)
-          ref.read(liveClassManagementProvider.notifier).setTab(2);
+          // Switch to tab 1 (Recordings)
+          ref.read(liveClassManagementProvider.notifier).setTab(1);
         },
         icon: const Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF2563EB)),
         label: const Text('View', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
@@ -5171,8 +5226,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Class code copied to clipboard')),
           );
-        } else if (action == 'attendance') {
-          ref.read(liveClassManagementProvider.notifier).setTab(2);
         } else if (action == 'edit') {
           showDialog(
             context: context,
@@ -5222,16 +5275,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               Icon(Icons.qr_code_rounded, size: 16, color: Color(0xFF475569)),
               SizedBox(width: 8),
               Text('Copy Room Code', style: TextStyle(fontSize: 12)),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'attendance',
-          child: Row(
-            children: [
-              Icon(Icons.fact_check_outlined, size: 16, color: Color(0xFF10B981)),
-              SizedBox(width: 8),
-              Text('View Attendance', style: TextStyle(fontSize: 12)),
             ],
           ),
         ),
@@ -5319,7 +5362,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     final topic = details?.topic ?? item?.topic ?? '';
     final dateStr = details?.dateStr ?? item?.scheduledDateStr ?? '';
     final timeStr = details?.timeStr ?? item?.scheduledTimeStr ?? '';
-    final studentsStr = details?.studentsCountStr ?? item?.studentCountStr ?? '0 / 45';
+    final studentsStr = details?.studentsCountStr ?? item?.studentCountStr ?? '0 / 0';
     final meetingCode = details?.meetingCode ?? item?.roomCode ?? '';
     final meetingLink = details?.meetingLink ?? item?.meetingLink ?? '';
     final authUser = ref.read(authProvider).userData;
@@ -5379,7 +5422,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                   if (sel != null) {
                     ref.read(liveClassManagementProvider.notifier).selectAndActivateLiveClass(sel, details);
                   }
-                  setState(() => _selectedSubnav = 'Conduct Class');
+                  setState(() {
+                    _classroomStageMode = StageMode.teacherPresentation;
+                    _selectedSubnav = 'Conduct Class';
+                  });
                 },
                 tooltip: 'Open in classroom view',
                 padding: EdgeInsets.zero,
@@ -5536,7 +5582,10 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                   });
                 } catch (_) {}
               }
-              setState(() => _selectedSubnav = 'Conduct Class');
+              setState(() {
+                _classroomStageMode = StageMode.teacherPresentation;
+                _selectedSubnav = 'Conduct Class';
+              });
             },
             icon: const Icon(Icons.videocam_rounded, size: 16),
             label: const Text('Join Class', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
@@ -5557,8 +5606,8 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
               _buildRightActionTile(Icons.groups_rounded, 'Participants (${details?.viewerCount ?? item?.viewerCount ?? 0})', onTap: () {
                 setState(() => _selectedSubnav = 'Conduct Class');
               }),
-              _buildRightActionTile(Icons.fact_check_outlined, 'Attendance', onTap: () {
-                ref.read(liveClassManagementProvider.notifier).setTab(2);
+              _buildRightActionTile(Icons.video_library_outlined, 'Recordings', onTap: () {
+                ref.read(liveClassManagementProvider.notifier).setTab(1);
               }),
               _buildRightActionTile(Icons.chat_bubble_outline_rounded, 'Chat', onTap: () {
                 setState(() => _selectedSubnav = 'Conduct Class');
@@ -5768,7 +5817,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     final completedPct = progress?.completedPct ?? 25.0;
 
     return Container(
-      height: 180,
+      height: 190,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
@@ -5875,7 +5924,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     final participation = summary?.avgParticipationPct ?? 92.7;
 
     return Container(
-      height: 180,
+      constraints: const BoxConstraints(minHeight: 180),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
@@ -5949,7 +5998,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
     final days = (trend != null && trend.isNotEmpty) ? trend : defaultDays;
 
     return Container(
-      height: 180,
+      height: 190,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
@@ -6163,13 +6212,6 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                       );
                     }
                   }
-                },
-              ),
-              _buildControlTile(
-                Icons.fact_check_outlined,
-                'Attendance',
-                onTap: () {
-                  ref.read(liveClassManagementProvider.notifier).setTab(2);
                 },
               ),
               _buildControlTile(

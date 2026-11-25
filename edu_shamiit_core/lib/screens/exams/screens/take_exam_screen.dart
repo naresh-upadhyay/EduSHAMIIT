@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -3508,7 +3509,7 @@ class _TakeExamScreenState extends ConsumerState<TakeExamScreen> with WidgetsBin
         borderRadius: BorderRadius.circular(6),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: _safeSectionFilter,
           isExpanded: true,
           isDense: true,

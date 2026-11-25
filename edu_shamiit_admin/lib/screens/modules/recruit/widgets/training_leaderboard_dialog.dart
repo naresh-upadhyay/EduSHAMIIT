@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 
@@ -187,7 +188,7 @@ class _TrainingLeaderboardDialogState extends State<TrainingLeaderboardDialog> {
                 const SizedBox(width: 12),
                 SizedBox(
                   width: 180,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _selectedDept,
                     isDense: true,
                     decoration: InputDecoration(

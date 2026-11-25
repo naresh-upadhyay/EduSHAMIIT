@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -275,7 +276,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: effectiveClassId,
                     isExpanded: true,
                     icon: Icon(Icons.keyboard_arrow_down_rounded,
@@ -357,7 +358,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: effectiveSectionId,
                     isExpanded: true,
                     icon: Icon(Icons.keyboard_arrow_down_rounded,
@@ -3175,7 +3176,7 @@ class _DailyAttendanceTabState extends ConsumerState<DailyAttendanceTab> {
                           : const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: [5, 10, 20, 50].contains(state.pageSize)
                         ? state.pageSize
                         : 10,

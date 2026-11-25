@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -106,7 +107,8 @@ class _RenewBookDialogState extends ConsumerState<RenewBookDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<LibraryTransactionModel>(
+                  child: AppSearchableDropdown<LibraryTransactionModel>.fromMenuItems(
+                    value: _selectedTx,
                     isExpanded: true,
                     hint: const Text('Choose a loan to renew...'),
                     items: activeLoans.map((tx) {

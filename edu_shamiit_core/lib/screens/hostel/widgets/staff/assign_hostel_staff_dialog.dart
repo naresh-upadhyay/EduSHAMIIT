@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -180,7 +181,7 @@ class _AssignHostelStaffDialogState extends ConsumerState<AssignHostelStaffDialo
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: AppSearchableDropdown<String>.fromMenuItems(
                               value: _selectedHostelId,
                               isExpanded: true,
                               hint: const Text('Select Hostel Building'),
@@ -217,7 +218,7 @@ class _AssignHostelStaffDialogState extends ConsumerState<AssignHostelStaffDialo
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
+                                      child: AppSearchableDropdown<String>.fromMenuItems(
                                         value: _selectedRole,
                                         isExpanded: true,
                                         items: _roles.map((r) {

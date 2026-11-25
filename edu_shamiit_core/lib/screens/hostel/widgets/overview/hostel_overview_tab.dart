@@ -244,7 +244,7 @@ class HostelOverviewTab extends ConsumerWidget {
                 icon: Icons.analytics_outlined,
                 bgColor: const Color(0xFF0D9488),
                 textColor: Colors.white,
-                onTap: () => notifier.selectTab(8),
+                onTap: () => notifier.selectTab(7),
               ),
               _buildActionButton(
                 label: 'Night Roll-Call',

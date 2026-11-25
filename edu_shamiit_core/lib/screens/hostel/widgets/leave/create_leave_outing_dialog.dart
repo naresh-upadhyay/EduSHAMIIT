@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -495,7 +496,7 @@ class _CreateLeaveOutingDialogState extends ConsumerState<CreateLeaveOutingDialo
           ),
         ),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: _requestSubtype,
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
@@ -815,7 +816,7 @@ class _CreateLeaveOutingDialogState extends ConsumerState<CreateLeaveOutingDialo
           ),
         ),
         const SizedBox(height: 10),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: _accompaniedBy,
           decoration: InputDecoration(
             labelText: 'Accompanied By',
@@ -848,7 +849,7 @@ class _CreateLeaveOutingDialogState extends ConsumerState<CreateLeaveOutingDialo
         ],
 
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: _transportMode,
           decoration: InputDecoration(
             labelText: 'Transport Mode',

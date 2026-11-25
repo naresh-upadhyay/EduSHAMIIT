@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -131,169 +132,176 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Search box
-          Container(
-            width: 240,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-              ),
-            ),
-            child: TextField(
-              onChanged: (val) {
-                ref.read(inventoryProvider.notifier).setSoSearch(val);
-              },
-              decoration: InputDecoration(
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 18,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Search box
+              Container(
+                width: isNarrow ? constraints.maxWidth : 230,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
                 ),
-                hintText: 'Search sales orders...',
-                hintStyle: TextStyle(
-                  fontSize: 12.5,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                  fontFamily: 'Inter',
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 9),
-              ),
-            ),
-          ),
-
-          // Status Dropdown
-          _buildDropdownFilter(
-            label: 'All Status',
-            value: state.selectedSoStatus,
-            items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('All Status')),
-              ...?metadata?.salesStatuses.map(
-                (s) {
-                  final text = s.lookupValue.isNotEmpty ? s.lookupValue : s.lookupCode;
-                  return DropdownMenuItem<String?>(
-                    value: text,
-                    child: Text(text),
-                  );
-                },
-              ),
-            ],
-            onChanged: (val) => ref.read(inventoryProvider.notifier).setSoStatus(val),
-            isDark: isDark,
-          ),
-
-          // All Customers Dropdown (Unique Customers from SO list)
-          _buildCustomerDropdown(state, isDark),
-
-          // Date Range picker chip
-          InkWell(
-            onTap: () async {
-              final range = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2024),
-                lastDate: DateTime(2027),
-              );
-              if (range != null) {
-                final fmt = DateFormat('dd MMM yyyy');
-                setState(() {
-                  _dateRangeText = '${fmt.format(range.start)} - ${fmt.format(range.end)}';
-                });
-                ref.read(inventoryProvider.notifier).setSoDateRange(
-                      range.start.toIso8601String().split('T')[0],
-                      range.end.toIso8601String().split('T')[0],
-                    );
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.calendar_today_outlined, size: 15, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                  const SizedBox(width: 8),
-                  Text(
-                    _dateRangeText,
-                    style: TextStyle(
+                child: TextField(
+                  onChanged: (val) {
+                    ref.read(inventoryProvider.notifier).setSoSearch(val);
+                  },
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 18,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                    hintText: 'Search sales orders...',
+                    hintStyle: TextStyle(
                       fontSize: 12.5,
-                      color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                       fontFamily: 'Inter',
                     ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+              ),
+
+              // Status Dropdown
+              _buildDropdownFilter(
+                label: 'All Status',
+                value: state.selectedSoStatus,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('All Status')),
+                  ...?metadata?.salesStatuses.map(
+                    (s) {
+                      final text = s.lookupValue.isNotEmpty ? s.lookupValue : s.lookupCode;
+                      return DropdownMenuItem<String?>(
+                        value: text,
+                        child: Text(text),
+                      );
+                    },
+                  ),
                 ],
+                onChanged: (val) => ref.read(inventoryProvider.notifier).setSoStatus(val),
+                isDark: isDark,
               ),
-            ),
-          ),
 
-          // Filter Button
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(inventoryProvider.notifier).loadSalesOrders();
-            },
-            icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF2563EB)),
-            label: const Text(
-              'Filter',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF2563EB),
-                fontFamily: 'Inter',
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF2563EB)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
+              // All Customers Dropdown (Unique Customers from SO list)
+              _buildCustomerDropdown(state, isDark),
 
-          // Toggle List / Chart
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+              // Date Range picker chip
+              InkWell(
+                onTap: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime(2027),
+                  );
+                  if (range != null) {
+                    final fmt = DateFormat('dd MMM yyyy');
+                    setState(() {
+                      _dateRangeText = '${fmt.format(range.start)} - ${fmt.format(range.end)}';
+                    });
+                    ref.read(inventoryProvider.notifier).setSoDateRange(
+                          range.start.toIso8601String().split('T')[0],
+                          range.end.toIso8601String().split('T')[0],
+                        );
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.calendar_today_outlined, size: 15, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        _dateRangeText,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.keyboard_arrow_down, size: 16, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildViewToggleButton(
-                  icon: Icons.format_list_bulleted_rounded,
-                  label: 'List',
-                  isSelected: !_isChartView,
-                  onTap: () => setState(() => _isChartView = false),
-                  isDark: isDark,
+
+              // Filter Button
+              OutlinedButton.icon(
+                onPressed: () {
+                  ref.read(inventoryProvider.notifier).loadSalesOrders();
+                },
+                icon: const Icon(Icons.filter_alt_outlined, size: 16, color: Color(0xFF2563EB)),
+                label: const Text(
+                  'Filter',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2563EB),
+                    fontFamily: 'Inter',
+                  ),
                 ),
-                _buildViewToggleButton(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Chart',
-                  isSelected: _isChartView,
-                  onTap: () => setState(() => _isChartView = true),
-                  isDark: isDark,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF2563EB)),
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+
+              // Toggle List / Chart
+              Container(
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildViewToggleButton(
+                      icon: Icons.format_list_bulleted_rounded,
+                      label: 'List',
+                      isSelected: !_isChartView,
+                      onTap: () => setState(() => _isChartView = false),
+                      isDark: isDark,
+                    ),
+                    _buildViewToggleButton(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Chart',
+                      isSelected: _isChartView,
+                      onTap: () => setState(() => _isChartView = true),
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -318,6 +326,7 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
 
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 195),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -327,8 +336,13 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
+        child: AppSearchableDropdown<String?>.fromMenuItems(
           value: matchedValue,
+          label: 'All Customers',
+          hint: 'All Customers',
+          allowClear: true,
+          isDense: true,
+          isExpanded: false,
           icon: Icon(
             Icons.keyboard_arrow_down,
             size: 16,
@@ -409,6 +423,7 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
 
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 195),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -418,8 +433,13 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<T?>(
+        child: AppSearchableDropdown<T?>.fromMenuItems(
           value: matchedValue,
+          label: label,
+          hint: label,
+          allowClear: true,
+          isDense: true,
+          isExpanded: false,
           icon: Icon(
             Icons.keyboard_arrow_down,
             size: 16,
@@ -1246,7 +1266,7 @@ class _SalesOrdersTabState extends ConsumerState<SalesOrdersTab> {
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: state.soPageSize,
                     icon: Icon(
                       Icons.keyboard_arrow_down,

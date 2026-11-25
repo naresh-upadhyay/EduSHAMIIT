@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -875,23 +876,28 @@ class _MemberTableState extends ConsumerState<MemberTable> {
     final endItem = (state.currentPage * state.pageSize).clamp(0, state.totalRecords);
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
         children: [
           // "Showing X to Y of Z members"
-          Expanded(
-            child: Text(
-              'Showing $startItem to $endItem of ${state.totalRecords} members',
-              style: TextStyle(
-                fontSize: 12.5,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-              ),
+          Text(
+            'Showing $startItem to $endItem of ${state.totalRecords} members',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
           ),
 
           // Rows per page dropdown
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 6,
             children: [
               Container(
                 height: 32,
@@ -903,7 +909,7 @@ class _MemberTableState extends ConsumerState<MemberTable> {
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: state.pageSize,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(

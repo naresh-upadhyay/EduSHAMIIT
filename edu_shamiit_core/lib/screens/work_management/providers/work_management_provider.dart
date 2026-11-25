@@ -1490,7 +1490,7 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
     try {
       final teams = await _api.getCapacityTeams(forceRefresh: forceRefresh);
       if (teams.isNotEmpty) {
-        state = state.copyWith(availableTeams: teams);
+        state = state.copyWith(availableTeams: teams.where((t) => !t.isArchived).toList());
       }
     } catch (_) {}
   }
@@ -1544,7 +1544,9 @@ class WorkSprintCapacityNotifier extends StateNotifier<WorkSprintCapacityState> 
         currentPage: p,
         rowsPerPage: l,
         allMembers: finalDash.members,
-        availableTeams: finalDash.teams.isNotEmpty ? finalDash.teams : state.availableTeams,
+        availableTeams: finalDash.teams.isNotEmpty 
+            ? finalDash.teams.where((t) => !t.isArchived).toList() 
+            : state.availableTeams.where((t) => !t.isArchived).toList(),
       );
     } catch (e) {
       final defDash = _buildDefaultDashboard(sid, t);
@@ -2083,15 +2085,26 @@ final workSprintTeamProvider =
 final workTeamsListProvider = Provider<List<String>>((ref) {
   final sprintTeamState = ref.watch(workSprintTeamProvider);
   if (sprintTeamState.teams.isNotEmpty) {
-    return sprintTeamState.teams.map((t) => t.name).toList();
+    return sprintTeamState.teams
+        .where((t) => t.status.toUpperCase() != 'ARCHIVED' && t.isActive)
+        .map((t) => t.name)
+        .toList();
   }
   final retroTeams = ref.watch(workSprintRetroProvider).workspace?.availableTeams;
   if (retroTeams != null && retroTeams.isNotEmpty) {
-    return retroTeams.map((t) => t.name).where((t) => t != 'All Teams' && t != 'All').toList();
+    return retroTeams
+        .where((t) => !t.isArchived)
+        .map((t) => t.name)
+        .where((t) => t != 'All Teams' && t != 'All')
+        .toList();
   }
   final capTeams = ref.watch(workSprintCapacityProvider).availableTeams;
   if (capTeams.isNotEmpty) {
-    return capTeams.map((t) => t.name).where((t) => t != 'All Teams' && t != 'All').toList();
+    return capTeams
+        .where((t) => !t.isArchived)
+        .map((t) => t.name)
+        .where((t) => t != 'All Teams' && t != 'All')
+        .toList();
   }
   return WorkFilterHelper.defaultTeams.where((t) => t != 'All' && t != 'All Teams').toList();
 });
@@ -2225,7 +2238,15 @@ class WorkSprintRetroNotifier extends StateNotifier<WorkSprintRetroState> {
         for (final e in ws.shouldImprove.entries) {
           if (e.hasVoted) voted.add(e.id);
         }
-        state = state.copyWith(workspace: ws, votedEntryIds: voted, isLoading: false);
+        String? validTeamId = state.teamId;
+        if (validTeamId != null && validTeamId.isNotEmpty && validTeamId != 'All Teams' && ws.availableTeams.isNotEmpty) {
+          final target = validTeamId.toLowerCase();
+          final exists = ws.availableTeams.any((t) => !t.isArchived && (t.id == validTeamId || t.name.toLowerCase() == target));
+          if (!exists) {
+            validTeamId = null;
+          }
+        }
+        state = state.copyWith(workspace: ws, teamId: validTeamId, votedEntryIds: voted, isLoading: false);
       } else {
         state = state.copyWith(isLoading: false);
       }

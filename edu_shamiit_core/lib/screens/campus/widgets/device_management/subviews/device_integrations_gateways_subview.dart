@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -2757,7 +2758,7 @@ class _DeviceIntegrationsGatewaysSubviewState
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: effectiveValue,
           isDense: true,
           icon: const Icon(Icons.arrow_drop_down_rounded, size: 18),
@@ -4427,7 +4428,7 @@ class _AddIntegrationWizardDialogState
             const Text('Category / Type',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _type,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -4451,7 +4452,7 @@ class _AddIntegrationWizardDialogState
             const Text('Communication Protocol',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _protocol,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -4879,7 +4880,7 @@ class _EditGatewayModalDialogState extends State<_EditGatewayModalDialog> {
               const Text('Status',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _status,
                 isDense: true,
                 decoration: const InputDecoration(border: OutlineInputBorder()),

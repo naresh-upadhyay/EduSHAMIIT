@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -140,7 +141,7 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
             children: [
               const Text('Select Target Stage *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: targetStage,
                 decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
                 items: ['Offer Accepted', 'Document Collection', 'Orientation', 'IT Setup', 'Training', 'Completed']
@@ -409,7 +410,7 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
                         border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _stages.contains(_selectedStage) ? _selectedStage : 'All',
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -442,7 +443,7 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
                         border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -475,7 +476,7 @@ class _OnboardingPipelineDialogState extends State<OnboardingPipelineDialog> {
                         border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _selectedStatus,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,

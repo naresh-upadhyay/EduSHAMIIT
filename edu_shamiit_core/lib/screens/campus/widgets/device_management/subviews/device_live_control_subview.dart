@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/device_management_models.dart';
@@ -1030,7 +1031,7 @@ class _DeviceLiveControlSubviewState
                 ),
                 const SizedBox(width: 4),
                 DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+                  child: AppSearchableDropdown<String>.fromMenuItems(
                     value: sortOptions.any((o) => o['value'] == state.liveControlSortBy)
                         ? state.liveControlSortBy
                         : 'device_name',
@@ -1340,7 +1341,7 @@ class _DeviceLiveControlSubviewState
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: pageSize,
                         isDense: true,
                         style: TextStyle(
@@ -1786,7 +1787,7 @@ class _DeviceLiveControlSubviewState
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: currentVal,
           onChanged: onChanged,
           isDense: true,
@@ -3482,7 +3483,7 @@ class _DeviceLiveControlSubviewState
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         value: ['Low', 'Medium', 'High'].contains(device.fanSpeed)
                             ? device.fanSpeed
                             : 'Medium',

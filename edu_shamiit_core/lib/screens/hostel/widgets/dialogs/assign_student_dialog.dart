@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -234,7 +235,7 @@ class _AssignStudentDialogState extends ConsumerState<AssignStudentDialog> {
                   ],
                 ],
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: availableBeds.any((b) => b.id == _selectedBedId) ? _selectedBedId : (availableBeds.isNotEmpty ? availableBeds.first.id : null),
                   decoration: const InputDecoration(labelText: 'Select Bed *'),

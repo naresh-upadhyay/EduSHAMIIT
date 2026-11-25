@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/device_management_models.dart';
@@ -1850,7 +1851,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
           border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         ),
         child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
+          child: AppSearchableDropdown<String>.fromMenuItems(
             isExpanded: true,
             value: items.contains(value) ? value : items.first,
             style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w500),
@@ -1907,7 +1908,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
             border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<int>(
+            child: AppSearchableDropdown<int>.fromMenuItems(
               value: limit,
               icon: const Icon(Icons.arrow_drop_down, size: 16),
               style: TextStyle(
@@ -2144,7 +2145,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                           border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: availableFloors.any((f) => f.id == state.selectedLocationFloorId)
                                 ? state.selectedLocationFloorId
                                 : availableFloors.first.id,
@@ -2210,7 +2211,7 @@ class _DeviceLocationsMappingSubviewState extends ConsumerState<DeviceLocationsM
                               border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: availableFloors.any((f) => f.id == state.selectedLocationFloorId)
                                     ? state.selectedLocationFloorId
                                     : availableFloors.first.id,

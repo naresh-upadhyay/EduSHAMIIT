@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/payment_management_api_service.dart';
@@ -99,7 +100,7 @@ class _AddStudentPenaltyDialogState extends ConsumerState<AddStudentPenaltyDialo
                       penaltyMap[effectivePenalty] = effectivePenalty;
                     }
                     return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
+                      child: AppSearchableDropdown<String>.fromMenuItems(
                         key: ValueKey('penalty_type_$effectivePenalty'),
                         value: effectivePenalty,
                         isExpanded: true,

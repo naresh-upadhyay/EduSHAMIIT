@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../constants/app_fonts.dart';
@@ -255,7 +256,7 @@ class _DocumentUploadDialogState extends State<DocumentUploadDialog> {
                 builder: (context, box) {
                   final isTight = box.maxWidth < 450;
 
-                  final catField = DropdownButtonFormField<String>(
+                  final catField = AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: _category,
                     decoration: const InputDecoration(
@@ -276,7 +277,7 @@ class _DocumentUploadDialogState extends State<DocumentUploadDialog> {
                     onChanged: (val) => setState(() => _category = val ?? 'academic'),
                   );
 
-                  final folderField = DropdownButtonFormField<String?>(
+                  final folderField = AppSearchableDropdownFormField<String?>.fromMenuItems(
                     isExpanded: true,
                     initialValue: _selectedFolderId,
                     decoration: const InputDecoration(
@@ -319,7 +320,7 @@ class _DocumentUploadDialogState extends State<DocumentUploadDialog> {
                 builder: (context, box) {
                   final isTight = box.maxWidth < 450;
 
-                  final deptField = DropdownButtonFormField<String>(
+                  final deptField = AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: _department,
                     decoration: const InputDecoration(
@@ -569,7 +570,7 @@ class _CreateFolderDialogState extends State<CreateFolderDialog> {
             ),
             const SizedBox(height: 12),
 
-            DropdownButtonFormField<String?>(
+            AppSearchableDropdownFormField<String?>.fromMenuItems(
               isExpanded: true,
               initialValue: _parentId,
               decoration: const InputDecoration(labelText: 'Parent Folder', border: OutlineInputBorder()),
@@ -1006,7 +1007,7 @@ class _ShareDocumentDialogState extends State<ShareDocumentDialog> {
                   ],
                 ],
               ] else if (_shareType == 'role') ...[
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _selectedRole,
                   decoration: InputDecoration(
@@ -1019,7 +1020,7 @@ class _ShareDocumentDialogState extends State<ShareDocumentDialog> {
                   onChanged: (val) => setState(() => _selectedRole = val ?? 'Teacher'),
                 ),
               ] else if (_shareType == 'department') ...[
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _selectedDepartment,
                   decoration: InputDecoration(
@@ -1032,7 +1033,7 @@ class _ShareDocumentDialogState extends State<ShareDocumentDialog> {
                   onChanged: (val) => setState(() => _selectedDepartment = val ?? 'Academics'),
                 ),
               ] else if (_shareType == 'class') ...[
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: _selectedClass,
                   decoration: InputDecoration(
@@ -1052,7 +1053,7 @@ class _ShareDocumentDialogState extends State<ShareDocumentDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
+                    child: AppSearchableDropdownFormField<String>.fromMenuItems(
                       isExpanded: true,
                       initialValue: _permissionLevel,
                       decoration: InputDecoration(
@@ -1397,7 +1398,7 @@ class _DocumentRequestDialogState extends State<DocumentRequestDialog> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _category,
                     decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                     items: const [
@@ -1411,7 +1412,7 @@ class _DocumentRequestDialogState extends State<DocumentRequestDialog> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _priority,
                     decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                     items: const [
@@ -1643,7 +1644,7 @@ class _DocumentRequestsManagerDialogState extends State<DocumentRequestsManagerD
             children: [
               Text('Request: ${req.title}', style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              AppSearchableDropdownFormField<String>.fromMenuItems(
                 initialValue: currentStatus,
                 decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                 items: const [
@@ -1699,7 +1700,7 @@ class _DocumentRequestsManagerDialogState extends State<DocumentRequestsManagerD
               if (widget.availableDocuments.isEmpty)
                 const Text('No uploaded documents available to link. Please upload the requested file first.', style: TextStyle(color: Colors.red))
               else
-                DropdownButtonFormField<String>(
+                AppSearchableDropdownFormField<String>.fromMenuItems(
                   isExpanded: true,
                   initialValue: selectedDocId,
                   decoration: const InputDecoration(labelText: 'Select Institutional Document', border: OutlineInputBorder()),

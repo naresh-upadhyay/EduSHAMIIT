@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/circulation_provider.dart';
@@ -142,7 +143,7 @@ class _FineCollectionDialogState extends ConsumerState<FineCollectionDialog> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<Map<String, dynamic>>(
+                  child: AppSearchableDropdown<Map<String, dynamic>>.fromMenuItems(
                     value: _selectedFine,
                     isExpanded: true,
                     items: _fines.map((f) {
@@ -208,7 +209,7 @@ class _FineCollectionDialogState extends ConsumerState<FineCollectionDialog> {
                   children: [
                     const Text('Payment Method: ', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                     const SizedBox(width: 10),
-                    DropdownButton<String>(
+                    AppSearchableDropdown<String>.fromMenuItems(
                       value: _paymentMethod,
                       items: const [
                         DropdownMenuItem(value: 'CASH', child: Text('Cash')),

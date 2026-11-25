@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../services/campus_lookup_helper.dart';
@@ -198,7 +199,7 @@ class _LogUtilityReadingDialogState extends State<LogUtilityReadingDialog> {
                         const SizedBox(height: 16),
 
                         // Utility Type Dropdown (from lookups)
-                        DropdownButtonFormField<String>(
+                        AppSearchableDropdownFormField<String>.fromMenuItems(
                           initialValue: _utilityType,
                           isExpanded: true,
                           decoration: _buildInputDeco('Utility Infrastructure System', borderColor, isDark),
@@ -225,7 +226,7 @@ class _LogUtilityReadingDialogState extends State<LogUtilityReadingDialog> {
                         const SizedBox(height: 12),
 
                         // Building Location (from buildings table)
-                        DropdownButtonFormField<String?>(
+                        AppSearchableDropdownFormField<String?>.fromMenuItems(
                           initialValue: _selectedBuildingId,
                           isExpanded: true,
                           decoration: _buildInputDeco('Campus Sub-Station / Building Location', borderColor, isDark),

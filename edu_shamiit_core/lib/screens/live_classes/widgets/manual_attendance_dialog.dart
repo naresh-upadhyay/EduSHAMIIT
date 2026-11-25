@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
@@ -178,7 +179,7 @@ class _ManualAttendanceDialogState
                     fontWeight: FontWeight.w600,
                     color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _selectedStatus,
               dropdownColor: cardBg,
               style: TextStyle(fontSize: 13, color: textPrimary),

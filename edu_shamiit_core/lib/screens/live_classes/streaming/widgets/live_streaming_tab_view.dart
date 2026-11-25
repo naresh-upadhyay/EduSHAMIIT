@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import '../models/broadcast_models.dart';
 import '../providers/broadcast_provider.dart';
@@ -236,7 +237,7 @@ class LiveStreamingTabView extends StatelessWidget {
                         const SizedBox(height: 4),
                         SizedBox(
                           height: 34,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: provider.selectedCategory,
                             isExpanded: true,
                             isDense: true,
@@ -265,7 +266,7 @@ class LiveStreamingTabView extends StatelessWidget {
                         const SizedBox(height: 4),
                         SizedBox(
                           height: 34,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: provider.selectedPrivacy,
                             isExpanded: true,
                             isDense: true,
@@ -300,7 +301,7 @@ class LiveStreamingTabView extends StatelessWidget {
                         const SizedBox(height: 4),
                         SizedBox(
                           height: 34,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: provider.selectedQuality,
                             isExpanded: true,
                             isDense: true,
@@ -329,7 +330,7 @@ class LiveStreamingTabView extends StatelessWidget {
                         const SizedBox(height: 4),
                         SizedBox(
                           height: 34,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: provider.selectedBitrate,
                             isExpanded: true,
                             isDense: true,

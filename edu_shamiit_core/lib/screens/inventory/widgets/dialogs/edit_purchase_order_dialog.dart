@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -465,7 +466,7 @@ class _EditPurchaseOrderDialogState extends ConsumerState<EditPurchaseOrderDialo
                                   ),
                                 ),
                                 const SizedBox(height: 7),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   isExpanded: true,
                                   initialValue: _statusOptions.contains(_status) ? _status : _statusOptions.first,
                                   items: _statusOptions

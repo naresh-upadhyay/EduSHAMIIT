@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/safety_compliance_models.dart';
@@ -153,7 +154,7 @@ class _AddCertificateDialogState extends ConsumerState<AddCertificateDialog> {
                             children: [
                               Text('Category *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _categories.contains(_category) ? _category : (_categories.isNotEmpty ? _categories.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),

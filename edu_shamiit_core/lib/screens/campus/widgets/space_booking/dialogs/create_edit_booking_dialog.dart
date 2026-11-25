@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1331,7 +1332,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
           _buildFormField(
             label: 'Purpose *',
             color: textSecondary,
-            child: DropdownButtonFormField<String>(
+            child: AppSearchableDropdownFormField<String>.fromMenuItems(
               value: _bookingPurposes.contains(_purpose)
                   ? _purpose
                   : (_bookingPurposes.isNotEmpty ? _bookingPurposes.first : null),
@@ -1372,7 +1373,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                 child: _buildFormField(
                   label: 'Purpose *',
                   color: textSecondary,
-                  child: DropdownButtonFormField<String>(
+                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
                     value: _bookingPurposes.contains(_purpose)
                         ? _purpose
                         : (_bookingPurposes.isNotEmpty ? _bookingPurposes.first : null),
@@ -1447,7 +1448,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                   _buildFormField(
                     label: 'Target Class',
                     color: textSecondary,
-                    child: DropdownButtonFormField<String>(
+                    child: AppSearchableDropdownFormField<String>.fromMenuItems(
                       value: _selectedClassId,
                       isExpanded: true,
                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1480,7 +1481,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                     _buildFormField(
                       label: 'Target Section',
                       color: textSecondary,
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         value: _selectedSectionId,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1494,7 +1495,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                     _buildFormField(
                       label: 'Subject',
                       color: textSecondary,
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         value: _selectedSubject,
                         isExpanded: true,
                         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1513,7 +1514,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                         child: _buildFormField(
                           label: 'Target Class',
                           color: textSecondary,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             value: _selectedClassId,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1549,7 +1550,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                           child: _buildFormField(
                             label: 'Target Section',
                             color: textSecondary,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               value: _selectedSectionId,
                               isExpanded: true,
                               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1566,7 +1567,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                           child: _buildFormField(
                             label: 'Subject',
                             color: textSecondary,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               value: _selectedSubject,
                               isExpanded: true,
                               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1782,7 +1783,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                         _buildFormField(
                           label: '1. Facility Category',
                           color: textSecondary,
-                          child: DropdownButtonFormField<String?>(
+                          child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                             value: currentCatValue,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1808,7 +1809,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                         _buildFormField(
                           label: '2. Select Campus Facility *',
                           color: textSecondary,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             value: currentFacValue,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1851,7 +1852,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                         child: _buildFormField(
                           label: '1. Facility Category',
                           color: textSecondary,
-                          child: DropdownButtonFormField<String?>(
+                          child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                             value: currentCatValue,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1880,7 +1881,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                         child: _buildFormField(
                           label: '2. Select Campus Facility *',
                           color: textSecondary,
-                          child: DropdownButtonFormField<String>(
+                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
                             value: currentFacValue,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1970,7 +1971,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                   _buildFormField(
                     label: '1. Select Building',
                   color: textSecondary,
-                  child: DropdownButtonFormField<String?>(
+                  child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                     value: availableBuildings.any((b) => b['id'] == _selectedBuildingId) ? _selectedBuildingId : null,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2003,7 +2004,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                 _buildFormField(
                   label: '2. Select Floor',
                   color: textSecondary,
-                  child: DropdownButtonFormField<String?>(
+                  child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                     value: availableFloors.any((f) => f['id'] == _selectedFloorId) ? _selectedFloorId : null,
                     isExpanded: true,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2039,7 +2040,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                       child: _buildFormField(
                         label: '1. Select Building',
                         color: textSecondary,
-                        child: DropdownButtonFormField<String?>(
+                        child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                           value: availableBuildings.any((b) => b['id'] == _selectedBuildingId) ? _selectedBuildingId : null,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2075,7 +2076,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
                       child: _buildFormField(
                         label: '2. Select Floor',
                         color: textSecondary,
-                        child: DropdownButtonFormField<String?>(
+                        child: AppSearchableDropdownFormField<String?>.fromMenuItems(
                           value: availableFloors.any((f) => f['id'] == _selectedFloorId) ? _selectedFloorId : null,
                           isExpanded: true,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2113,7 +2114,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               _buildFormField(
                 label: '3. Select Room / Space (Capacity) *',
                 color: textSecondary,
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   value: filteredRooms.any((r) => r.id == _selectedRoomId) ? _selectedRoomId : null,
                   isExpanded: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2381,7 +2382,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               child: _buildFormField(
                 label: 'Setup Buffer',
                 color: textSecondary,
-                child: DropdownButtonFormField<int>(
+                child: AppSearchableDropdownFormField<int>.fromMenuItems(
                   value: const [0, 5, 10, 15, 30].contains(_setupMinutes) ? _setupMinutes : 10,
                   isExpanded: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2406,7 +2407,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               child: _buildFormField(
                 label: 'Cleanup Buffer',
                 color: textSecondary,
-                child: DropdownButtonFormField<int>(
+                child: AppSearchableDropdownFormField<int>.fromMenuItems(
                   value: const [0, 5, 10, 15, 30].contains(_cleanupMinutes) ? _cleanupMinutes : 10,
                   isExpanded: true,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -2848,7 +2849,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
         _buildFormField(
           label: 'Repeat Frequency',
           color: textSecondary,
-          child: DropdownButtonFormField<String>(
+          child: AppSearchableDropdownFormField<String>.fromMenuItems(
             value: const ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'custom'].contains(_recurrenceFreq)
                 ? _recurrenceFreq
                 : 'daily',
@@ -3276,7 +3277,7 @@ class _CreateEditBookingDialogState extends ConsumerState<CreateEditBookingDialo
               child: _buildFormField(
                 label: 'Organizer Role',
                 color: textSecondary,
-                child: DropdownButtonFormField<String>(
+                child: AppSearchableDropdownFormField<String>.fromMenuItems(
                   value: _organizerRoles.contains(_organizerRole)
                       ? _organizerRole
                       : (_organizerRoles.isNotEmpty ? _organizerRoles.first : null),

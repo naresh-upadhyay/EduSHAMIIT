@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -141,7 +142,7 @@ class _BulkGenerateRoomsDialogState extends ConsumerState<BulkGenerateRoomsDialo
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: buildings.any((b) => b.id == _selectedBuildingId) ? _selectedBuildingId : (buildings.isNotEmpty ? buildings.first.id : null),
                         decoration: const InputDecoration(labelText: 'Building *'),
@@ -156,7 +157,7 @@ class _BulkGenerateRoomsDialogState extends ConsumerState<BulkGenerateRoomsDialo
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: floors.any((f) => f.id == _selectedFloorId) ? _selectedFloorId : (floors.isNotEmpty ? floors.first.id : null),
                         decoration: const InputDecoration(labelText: 'Floor *'),
@@ -208,7 +209,7 @@ class _BulkGenerateRoomsDialogState extends ConsumerState<BulkGenerateRoomsDialo
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: types.contains(_roomType) ? _roomType : types.first,
                         decoration: const InputDecoration(

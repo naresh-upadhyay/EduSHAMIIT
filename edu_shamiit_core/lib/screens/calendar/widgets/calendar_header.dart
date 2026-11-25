@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
@@ -542,7 +543,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         final effectiveCategory = catMap.containsKey(state.selectedCategory)
                             ? state.selectedCategory
                             : 'All';
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           key: ValueKey('header_cat_$effectiveCategory'),
                           initialValue: effectiveCategory,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -591,7 +592,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         final effectivePriority = validPriorities.contains(state.selectedPriority)
                             ? state.selectedPriority
                             : 'All';
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           key: ValueKey('header_priority_$effectivePriority'),
                           initialValue: effectivePriority,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -641,7 +642,7 @@ class CalendarHeaderWidget extends ConsumerWidget {
                         final effectiveStatus = validStatuses.contains(state.selectedStatus)
                             ? state.selectedStatus
                             : 'All';
-                        return DropdownButtonFormField<String>(
+                        return AppSearchableDropdownFormField<String>.fromMenuItems(
                           key: ValueKey('header_status_$effectiveStatus'),
                           initialValue: effectiveStatus,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

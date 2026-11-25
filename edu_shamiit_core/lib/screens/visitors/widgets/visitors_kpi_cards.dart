@@ -59,7 +59,7 @@ class VisitorsKPICards extends ConsumerWidget {
                 badgeColor: const Color(0xFF2563EB),
                 icon: Icons.north_east_rounded,
                 iconColor: const Color(0xFF2563EB),
-                isSelected: state.selectedDateRange == 'Today' && state.selectedStatus == 'All Status',
+                isSelected: state.selectedDateRange == 'Today' && state.selectedStatus == 'Checked In',
                 tooltip: 'Visitors checked in today',
                 onTap: () => notifier.applyKpiFilter('Checked In Today'),
               ),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/safety_compliance_models.dart';
@@ -179,7 +180,7 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
                             children: [
                               Text('Severity *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _severities.contains(_severity) ? _severity : (_severities.isNotEmpty ? _severities.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -196,7 +197,7 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
                             children: [
                               Text('Incident Type *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _incidentTypes.contains(_incidentType) ? _incidentType : (_incidentTypes.isNotEmpty ? _incidentTypes.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),
@@ -233,7 +234,7 @@ class _ReportIncidentDialogState extends ConsumerState<ReportIncidentDialog> {
                             children: [
                               Text('Incident Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 5),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 isExpanded: true,
                                 initialValue: _statuses.contains(_status) ? _status : (_statuses.isNotEmpty ? _statuses.first : null),
                                 decoration: _inputDeco('', borderColor, isDark),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/l10n.dart';
@@ -577,7 +578,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<TeacherTimetablePeriod?>(
+                      child: AppSearchableDropdown<TeacherTimetablePeriod?>.fromMenuItems(
                         value: getDropdownValue(),
                         isExpanded: true,
                         icon: const Icon(Icons.keyboard_arrow_down,
@@ -967,7 +968,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                                 style: TextStyle(
                                     color: Colors.white70, fontSize: 9)),
                             DropdownButtonHideUnderline(
-                              child: DropdownButton<TeacherTimetablePeriod?>(
+                              child: AppSearchableDropdown<TeacherTimetablePeriod?>.fromMenuItems(
                                 value: getDropdownValue(),
                                 dropdownColor: const Color(0xFF0369A1),
                                 icon: const Icon(Icons.keyboard_arrow_down,

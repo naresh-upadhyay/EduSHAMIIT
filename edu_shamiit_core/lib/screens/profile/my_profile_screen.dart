@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2862,7 +2863,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
                 'Audit Trail History (${filteredLogs.length})',
                 style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold),
               ),
-              DropdownButton<String>(
+              AppSearchableDropdown<String>.fromMenuItems(
                 value: _selectedLogModule,
                 underline: const SizedBox(),
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -3125,7 +3126,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen>
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
+            child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
               style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13),

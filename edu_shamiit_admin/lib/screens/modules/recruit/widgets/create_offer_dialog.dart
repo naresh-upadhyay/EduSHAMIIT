@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
@@ -289,7 +290,7 @@ class _CreateOfferDialogState extends State<CreateOfferDialog> {
                           const SizedBox(width: 14),
                           Expanded(
                             flex: 3,
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _employmentTypes.contains(_employmentType) ? _employmentType : (_employmentTypes.isNotEmpty ? _employmentTypes.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
@@ -73,7 +74,7 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                const minTableWidth = 1200.0;
+                const minTableWidth = 1250.0;
                 final tableWidth = constraints.maxWidth > minTableWidth ? constraints.maxWidth : minTableWidth;
 
                 return Scrollbar(
@@ -167,9 +168,9 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
           Expanded(flex: 11, child: _buildSortHeader('Type', 'transaction_type', state, notifier)),
           const SizedBox(width: 10),
 
-          // 11. Actions (width: 150)
+          // 11. Actions (width: 195)
           const SizedBox(
-            width: 150,
+            width: 195,
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(
@@ -398,9 +399,9 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
               ),
               const SizedBox(width: 10),
 
-              // 11. Actions (width: 150)
+              // 11. Actions (width: 195)
               SizedBox(
-                width: 150,
+                width: 195,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -801,9 +802,13 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
     final end = (state.page * state.pageSize).clamp(0, state.totalTransactions);
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
         children: [
           // "Showing X to Y of Z transactions"
           Text(
@@ -813,6 +818,7 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
 
           // Page size + Navigation controls
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Page size dropdown
               Container(
@@ -823,7 +829,7 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
                     value: state.pageSize,
                     style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     items: const [10, 25, 50, 100].map((size) => DropdownMenuItem(value: size, child: Text('$size per page'))).toList(),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -525,7 +526,7 @@ class _TeacherAchievementsScreenState
                               const SizedBox(height: 20),
 
                               // Target Class Dropdown
-                              DropdownButtonFormField<String?>(
+                              AppSearchableDropdownFormField<String?>.fromMenuItems(
                                 initialValue: targetClass,
                                 decoration: InputDecoration(
                                   labelText: 'Target Class (Optional)',

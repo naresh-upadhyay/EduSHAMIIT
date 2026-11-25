@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/staff_salary_provider.dart';
@@ -381,7 +382,7 @@ class StaffSalaryFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           key: ValueKey('salary_filter_dept_${state.subTab}_$effectiveDept'),
           value: effectiveDept,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -405,7 +406,7 @@ class StaffSalaryFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           key: ValueKey('salary_filter_role_$effectiveRole'),
           value: effectiveRole,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -431,7 +432,7 @@ class StaffSalaryFilterBar extends ConsumerWidget {
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           key: ValueKey('salary_filter_status_$effectiveStatus'),
           value: effectiveStatus,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,

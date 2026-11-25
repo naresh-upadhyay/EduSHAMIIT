@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/visitors_provider.dart';
@@ -30,6 +31,7 @@ class VisitorsFilterBar extends ConsumerWidget {
   static const List<String> _statuses = [
     'All Status',
     'Inside',
+    'Checked In',
     'Checked Out',
     'Overstay',
     'Blocked',
@@ -311,6 +313,7 @@ class VisitorsFilterBar extends ConsumerWidget {
     final validValue = items.contains(value) ? value : items.first;
     return Container(
       height: 38,
+      constraints: const BoxConstraints(maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -320,9 +323,10 @@ class VisitorsFilterBar extends ConsumerWidget {
         ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: validValue,
           isDense: true,
+          isExpanded: false,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
           style: TextStyle(
             fontSize: 12.5,

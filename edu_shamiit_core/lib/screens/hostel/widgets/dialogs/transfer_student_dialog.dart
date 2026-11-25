@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -173,7 +174,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: safeBuildingId,
                         decoration: const InputDecoration(labelText: 'Target Building *'),
@@ -189,7 +190,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
                         initialValue: safeFloorId,
                         decoration: const InputDecoration(labelText: 'Target Floor'),
@@ -209,7 +210,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                 if (_isLoadingRooms)
                   const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()))
                 else
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: safeRoomId,
                     decoration: const InputDecoration(labelText: 'Target Room (with available beds) *'),
@@ -229,7 +230,7 @@ class _TransferStudentDialogState extends ConsumerState<TransferStudentDialog> {
                 if (_isLoadingDetail)
                   const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()))
                 else if (_targetRoomDetail != null) ...[
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     isExpanded: true,
                     initialValue: safeBedId,
                     decoration: const InputDecoration(labelText: 'Target Bed *'),

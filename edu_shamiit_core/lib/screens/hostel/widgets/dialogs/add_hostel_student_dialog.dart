@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -806,7 +807,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
         // Hostel Building Dropdown
         const Text('Target Hostel Building *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: _selectedHostelId,
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -867,7 +868,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
           style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
         ),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: _roomTypeLookups.any((t) => t.label == _hostelType)
               ? _hostelType
               : (_roomTypeLookups.isNotEmpty ? _roomTypeLookups.first.label : null),
@@ -964,7 +965,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
               ),
             )
           else ...[
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: selectedRoom?.id,
               decoration: InputDecoration(
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1051,7 +1052,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
               ),
             )
           else
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _availableBedsInRoom.any((b) => b.id == _selectedBedId) ? _selectedBedId : _availableBedsInRoom.first.id,
               decoration: InputDecoration(
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1118,7 +1119,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
         // Fee Billing Plan (Dynamically loaded from DB lookups with clean names only)
         const Text('Fee Billing Plan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
+        AppSearchableDropdownFormField<String>.fromMenuItems(
           initialValue: selectedPlan,
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1205,7 +1206,7 @@ class _AddHostelStudentDialogState extends ConsumerState<AddHostelStudentDialog>
                 children: [
                   const Text('Initial Fee Payment Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: selectedStatus,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

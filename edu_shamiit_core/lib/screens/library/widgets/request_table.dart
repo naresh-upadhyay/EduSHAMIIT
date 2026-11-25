@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -21,6 +22,7 @@ class RequestTable extends ConsumerWidget {
     final notifier = ref.read(requestProvider.notifier);
     final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     final authState = ref.watch(authProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = authState.userData?['id']?.toString() ??
         authState.userData?['profile_id']?.toString() ??
         authState.userData?['user_id']?.toString();
@@ -29,14 +31,19 @@ class RequestTable extends ConsumerWidget {
       return Container(
         height: 350,
         alignment: Alignment.center,
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(strokeWidth: 3, color: Color(0xFF2563EB)),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(
+                strokeWidth: 3, color: Color(0xFF2563EB)),
+            const SizedBox(height: 16),
             Text(
               'Loading library requests...',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
             ),
           ],
         ),
@@ -51,18 +58,28 @@ class RequestTable extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: isDark
+                ? const Color(0xFFDC2626).withValues(alpha: 0.12)
+                : const Color(0xFFFEF2F2),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFECACA)),
+            border: Border.all(
+                color: isDark
+                    ? const Color(0xFFDC2626).withValues(alpha: 0.35)
+                    : const Color(0xFFFECACA)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 32),
+              const Icon(Icons.error_outline_rounded,
+                  color: Color(0xFFDC2626), size: 32),
               const SizedBox(height: 8),
               Text(
                 state.errorMessage!,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                style: TextStyle(
+                    fontSize: 14,
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF64748B)),
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
@@ -85,21 +102,33 @@ class RequestTable extends ConsumerWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF1F5F9),
+              decoration: BoxDecoration(
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.inbox_rounded, size: 36, color: Color(0xFF94A3B8)),
+              child: Icon(Icons.inbox_rounded,
+                  size: 36,
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8)),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'No requests found',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B)),
             ),
             const SizedBox(height: 4),
             Text(
               'Try changing search filters or create a new library request.',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : Colors.grey.shade500),
             ),
           ],
         ),
@@ -112,8 +141,10 @@ class RequestTable extends ConsumerWidget {
         // Main Responsive Data Table
         LayoutBuilder(
           builder: (context, constraints) {
-            const minTableWidth = 1000.0;
-            final tableWidth = constraints.maxWidth > minTableWidth ? constraints.maxWidth : minTableWidth;
+            const minTableWidth = 1020.0;
+            final tableWidth = constraints.maxWidth > minTableWidth
+                ? constraints.maxWidth
+                : minTableWidth;
 
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -122,9 +153,15 @@ class RequestTable extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildTableHeader(),
-                    const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
-                    ...state.items.map((item) => _buildTableRow(context, item, ref, notifier, isLibraryAdmin, currentUserId)),
+                    _buildTableHeader(isDark),
+                    Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFE2E8F0)),
+                    ...state.items.map((item) => _buildTableRow(context, item,
+                        ref, notifier, isLibraryAdmin, currentUserId, isDark)),
                   ],
                 ),
               ),
@@ -132,42 +169,54 @@ class RequestTable extends ConsumerWidget {
           },
         ),
 
-        const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+        Divider(
+            height: 1,
+            thickness: 1,
+            color:
+                isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
 
         // Enterprise Table Pagination Footer
-        _buildPaginationFooter(context, state, notifier),
+        _buildPaginationFooter(context, state, notifier, isDark),
       ],
     );
   }
 
-  Widget _buildTableHeader() {
+  Widget _buildTableHeader(bool isDark) {
+    final headerStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    );
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      color: const Color(0xFFF8FAFC),
-      child: const Row(
+      color: isDark
+          ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+          : const Color(0xFFF8FAFC),
+      child: Row(
         children: [
-          Expanded(flex: 12, child: Text('Request ID', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 22, child: Text('Title / Item', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 12, child: Text('Request Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 18, child: Text('Requested By', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 10, child: Text('Priority', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 11, child: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 14, child: Text('Date Requested', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
-          Expanded(flex: 14, child: Text('Last Updated', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)))),
-          SizedBox(width: 10),
+          Expanded(flex: 12, child: Text('Request ID', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 22, child: Text('Title / Item', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 12, child: Text('Request Type', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 18, child: Text('Requested By', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 10, child: Text('Priority', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 11, child: Text('Status', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(
+              flex: 14, child: Text('Date Requested', style: headerStyle)),
+          const SizedBox(width: 10),
+          Expanded(flex: 14, child: Text('Last Updated', style: headerStyle)),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 130,
+            width: 145,
             child: Align(
               alignment: Alignment.centerRight,
-              child: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+              child: Text('Actions', style: headerStyle),
             ),
           ),
         ],
@@ -182,6 +231,7 @@ class RequestTable extends ConsumerWidget {
     RequestNotifier notifier,
     bool isLibraryAdmin,
     String? currentUserId,
+    bool isDark,
   ) {
     final dateFormat = DateFormat('dd MMM yyyy hh:mm a');
     final isPendingWithoutAction = item.status == 'NEW' || item.status == 'PENDING';
@@ -194,9 +244,12 @@ class RequestTable extends ConsumerWidget {
 
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -215,19 +268,25 @@ class RequestTable extends ConsumerWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       child: Text(
                         item.requestNumber,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF0F172A),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -248,7 +307,7 @@ class RequestTable extends ConsumerWidget {
                   },
                   child: Row(
                     children: [
-                      _buildItemThumbnail(item),
+                      _buildItemThumbnail(item, isDark),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -259,13 +318,16 @@ class RequestTable extends ConsumerWidget {
                               item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF1E293B),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1E293B),
                               ),
                             ),
-                            if (item.author != null && item.author!.isNotEmpty) ...[
+                            if (item.author != null &&
+                                item.author!.isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(
                                 item.author!,
@@ -273,7 +335,9 @@ class RequestTable extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: Colors.grey.shade500,
+                                  color: isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : Colors.grey.shade500,
                                 ),
                               ),
                             ],
@@ -291,7 +355,7 @@ class RequestTable extends ConsumerWidget {
                 flex: 12,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: _buildTypeBadge(item.requestType),
+                  child: _buildTypeBadge(item.requestType, isDark),
                 ),
               ),
               const SizedBox(width: 10),
@@ -303,9 +367,12 @@ class RequestTable extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: _getRoleBgColor(item.requesterRole),
+                      backgroundColor:
+                          _getRoleBgColor(item.requesterRole, isDark),
                       child: Text(
-                        item.requesterName.isNotEmpty ? item.requesterName[0].toUpperCase() : 'U',
+                        item.requesterName.isNotEmpty
+                            ? item.requesterName[0].toUpperCase()
+                            : 'U',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -323,21 +390,26 @@ class RequestTable extends ConsumerWidget {
                             item.requesterName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           Text(
-                            item.requesterClass.isNotEmpty && item.requesterClass != 'N/A'
+                            item.requesterClass.isNotEmpty &&
+                                    item.requesterClass != 'N/A'
                                 ? item.requesterClass
                                 : (item.requesterRole.toUpperCase()),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 10.5,
-                              color: Colors.grey.shade500,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : Colors.grey.shade500,
                             ),
                           ),
                         ],
@@ -353,7 +425,7 @@ class RequestTable extends ConsumerWidget {
                 flex: 10,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: _buildPriorityBadge(item.priority),
+                  child: _buildPriorityBadge(item.priority, isDark),
                 ),
               ),
               const SizedBox(width: 10),
@@ -363,7 +435,7 @@ class RequestTable extends ConsumerWidget {
                 flex: 11,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: _buildStatusBadge(item.status),
+                  child: _buildStatusBadge(item.status, isDark),
                 ),
               ),
               const SizedBox(width: 10),
@@ -373,7 +445,11 @@ class RequestTable extends ConsumerWidget {
                 flex: 14,
                 child: Text(
                   dateFormat.format(item.createdAt),
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF475569)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -385,24 +461,33 @@ class RequestTable extends ConsumerWidget {
                 flex: 14,
                 child: Text(
                   dateFormat.format(item.updatedAt),
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF475569)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 10),
 
-              // 9. Actions (width: 130)
+              // 9. Actions (width: 145)
               SizedBox(
-                width: 130,
+                width: 145,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF64748B)),
+                      icon: Icon(Icons.visibility_outlined,
+                          size: 18,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
                       tooltip: 'View Request Details',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints:
+                          const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () {
                         notifier.openRequestDetail(item.id);
                         onViewRequest?.call(item.id);
@@ -410,30 +495,46 @@ class RequestTable extends ConsumerWidget {
                     ),
                     if (canDelete)
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            size: 18, color: Color(0xFFEF4444)),
                         tooltip: 'Delete Request',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        onPressed: () => _confirmDeleteRequest(context, item, notifier),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () =>
+                            _confirmDeleteRequest(context, item, notifier),
                       ),
                     if (isLibraryAdmin) ...[
                       IconButton(
-                        icon: const Icon(Icons.edit_note_rounded, size: 20, color: Color(0xFF2563EB)),
+                        icon: Icon(Icons.edit_note_rounded,
+                            size: 20,
+                            color: isDark
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF2563EB)),
                         tooltip: 'Process Request Status',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints:
+                            const BoxConstraints(minWidth: 28, minHeight: 28),
                         onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (ctx) => ProcessRequestDialog(request: item),
+                            builder: (ctx) =>
+                                ProcessRequestDialog(request: item),
                           );
                         },
                       ),
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded, size: 18, color: Color(0xFF64748B)),
+                        icon: Icon(Icons.more_vert_rounded,
+                            size: 18,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B)),
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        constraints:
+                            const BoxConstraints(minWidth: 26, minHeight: 26),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         onSelected: (val) async {
                           if (val == 'view') {
                             notifier.openRequestDetail(item.id);
@@ -535,7 +636,7 @@ class RequestTable extends ConsumerWidget {
     );
   }
 
-  Widget _buildItemThumbnail(LibraryRequestItem item) {
+  Widget _buildItemThumbnail(LibraryRequestItem item, bool isDark) {
     if (item.bookCoverUrl != null && item.bookCoverUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(6),
@@ -544,14 +645,15 @@ class RequestTable extends ConsumerWidget {
           width: 34,
           height: 46,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackTypeIcon(item.requestType),
+          errorBuilder: (_, __, ___) =>
+              _buildFallbackTypeIcon(item.requestType, isDark),
         ),
       );
     }
-    return _buildFallbackTypeIcon(item.requestType);
+    return _buildFallbackTypeIcon(item.requestType, isDark);
   }
 
-  Widget _buildFallbackTypeIcon(String type) {
+  Widget _buildFallbackTypeIcon(String type, bool isDark) {
     IconData icon;
     Color bg;
     Color color;
@@ -560,29 +662,29 @@ class RequestTable extends ConsumerWidget {
       case 'e-book':
       case 'ebook':
         icon = Icons.tablet_mac_rounded;
-        bg = const Color(0xFFEDE9FE);
         color = const Color(0xFF7C3AED);
+        bg = isDark ? color.withValues(alpha: 0.16) : const Color(0xFFEDE9FE);
         break;
       case 'digital resource':
       case 'digital_resource':
         icon = Icons.folder_zip_rounded;
-        bg = const Color(0xFFE0F2FE);
         color = const Color(0xFF0284C7);
+        bg = isDark ? color.withValues(alpha: 0.16) : const Color(0xFFE0F2FE);
         break;
       case 'audiobook':
         icon = Icons.headphones_rounded;
-        bg = const Color(0xFFFCE7F3);
         color = const Color(0xFFDB2777);
+        bg = isDark ? color.withValues(alpha: 0.16) : const Color(0xFFFCE7F3);
         break;
       case 'journal / magazine':
         icon = Icons.auto_stories_rounded;
-        bg = const Color(0xFFFEF3C7);
         color = const Color(0xFFD97706);
+        bg = isDark ? color.withValues(alpha: 0.16) : const Color(0xFFFEF3C7);
         break;
       default:
         icon = Icons.menu_book_rounded;
-        bg = const Color(0xFFEFF6FF);
         color = const Color(0xFF2563EB);
+        bg = isDark ? color.withValues(alpha: 0.16) : const Color(0xFFEFF6FF);
     }
 
     return Container(
@@ -596,50 +698,66 @@ class RequestTable extends ConsumerWidget {
     );
   }
 
-  Widget _buildTypeBadge(String type) {
+  Widget _buildTypeBadge(String type, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color:
+                isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Text(
         type,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF334155),
+          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
         ),
       ),
     );
   }
 
-  Widget _buildPriorityBadge(String priority) {
+  Widget _buildPriorityBadge(String priority, bool isDark) {
     Color bg;
     Color textColor;
     Color border;
 
     switch (priority.toLowerCase()) {
       case 'urgent':
-        bg = const Color(0xFFFEF2F2);
         textColor = const Color(0xFFDC2626);
-        border = const Color(0xFFFECACA);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFFEF2F2);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFFECACA);
         break;
       case 'high':
-        bg = const Color(0xFFFFF1F2);
         textColor = const Color(0xFFE11D48);
-        border = const Color(0xFFFFE4E6);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFFFF1F2);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFFFE4E6);
         break;
       case 'medium':
-        bg = const Color(0xFFFEF3C7);
         textColor = const Color(0xFFD97706);
-        border = const Color(0xFFFDE68A);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFFEF3C7);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFFDE68A);
         break;
       default:
-        bg = const Color(0xFFF1F5F9);
-        textColor = const Color(0xFF475569);
-        border = const Color(0xFFE2E8F0);
+        textColor =
+            isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+        border =
+            isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     }
 
     return Container(
@@ -660,7 +778,7 @@ class RequestTable extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(String status, bool isDark) {
     Color bg;
     Color textColor;
     Color border;
@@ -669,52 +787,83 @@ class RequestTable extends ConsumerWidget {
     switch (status.toUpperCase()) {
       case 'NEW':
       case 'PENDING':
-        bg = const Color(0xFFEFF6FF);
-        textColor = const Color(0xFF2563EB);
-        border = const Color(0xFFBFDBFE);
+        textColor =
+            isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB);
+        bg = isDark
+            ? const Color(0xFF2563EB).withValues(alpha: 0.16)
+            : const Color(0xFFEFF6FF);
+        border = isDark
+            ? const Color(0xFF2563EB).withValues(alpha: 0.35)
+            : const Color(0xFFBFDBFE);
         label = 'New';
         break;
       case 'ACTIVE':
-        bg = const Color(0xFFEEF2FF);
-        textColor = const Color(0xFF4F46E5);
-        border = const Color(0xFFC7D2FE);
+        textColor =
+            isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5);
+        bg = isDark
+            ? const Color(0xFF4F46E5).withValues(alpha: 0.16)
+            : const Color(0xFFEEF2FF);
+        border = isDark
+            ? const Color(0xFF4F46E5).withValues(alpha: 0.35)
+            : const Color(0xFFC7D2FE);
         label = 'Active';
         break;
       case 'IN_PROGRESS':
-        bg = const Color(0xFFF5F3FF);
-        textColor = const Color(0xFF7C3AED);
-        border = const Color(0xFFDDD6FE);
+        textColor =
+            isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+        bg = isDark
+            ? const Color(0xFF7C3AED).withValues(alpha: 0.16)
+            : const Color(0xFFF5F3FF);
+        border = isDark
+            ? const Color(0xFF7C3AED).withValues(alpha: 0.35)
+            : const Color(0xFFDDD6FE);
         label = 'In Progress';
         break;
       case 'RESOLVED':
-        bg = const Color(0xFFECFDF5);
-        textColor = const Color(0xFF059669);
-        border = const Color(0xFFA7F3D0);
+        textColor = const Color(0xFF10B981);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFECFDF5);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFA7F3D0);
         label = 'Resolved';
         break;
       case 'COMPLETED':
-        bg = const Color(0xFFF0FDF4);
-        textColor = const Color(0xFF16A34A);
-        border = const Color(0xFFBBF7D0);
+        textColor = const Color(0xFF22C55E);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFF0FDF4);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFBBF7D0);
         label = 'Completed';
         break;
       case 'REJECTED':
-        bg = const Color(0xFFFEF2F2);
-        textColor = const Color(0xFFDC2626);
-        border = const Color(0xFFFECACA);
+        textColor = const Color(0xFFEF4444);
+        bg = isDark
+            ? textColor.withValues(alpha: 0.16)
+            : const Color(0xFFFEF2F2);
+        border = isDark
+            ? textColor.withValues(alpha: 0.35)
+            : const Color(0xFFFECACA);
         label = 'Rejected';
         break;
       case 'CANCELED':
       case 'CANCELLED':
-        bg = const Color(0xFFF8FAFC);
-        textColor = const Color(0xFF64748B);
-        border = const Color(0xFFE2E8F0);
+        textColor =
+            isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+        border =
+            isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
         label = 'Cancelled';
         break;
       default:
-        bg = const Color(0xFFF1F5F9);
-        textColor = const Color(0xFF475569);
-        border = const Color(0xFFE2E8F0);
+        textColor =
+            isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+        border =
+            isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     }
 
     return Container(
@@ -735,17 +884,25 @@ class RequestTable extends ConsumerWidget {
     );
   }
 
-  Color _getRoleBgColor(String role) {
+  Color _getRoleBgColor(String role, bool isDark) {
     switch (role.toLowerCase()) {
       case 'teacher':
-        return const Color(0xFFEDE9FE);
+        return isDark
+            ? const Color(0xFF7C3AED).withValues(alpha: 0.2)
+            : const Color(0xFFEDE9FE);
       case 'staff':
       case 'librarian':
-        return const Color(0xFFECFDF5);
+        return isDark
+            ? const Color(0xFF059669).withValues(alpha: 0.2)
+            : const Color(0xFFECFDF5);
       case 'parent':
-        return const Color(0xFFFEF3C7);
+        return isDark
+            ? const Color(0xFFD97706).withValues(alpha: 0.2)
+            : const Color(0xFFFEF3C7);
       default:
-        return const Color(0xFFEFF6FF);
+        return isDark
+            ? const Color(0xFF2563EB).withValues(alpha: 0.2)
+            : const Color(0xFFEFF6FF);
     }
   }
 
@@ -767,39 +924,60 @@ class RequestTable extends ConsumerWidget {
     BuildContext context,
     RequestState state,
     RequestNotifier notifier,
+    bool isDark,
   ) {
-    final startItem = state.total == 0 ? 0 : ((state.page - 1) * state.pageSize) + 1;
-    final endItem = (state.page * state.pageSize) > state.total ? state.total : (state.page * state.pageSize);
+    final startItem =
+        state.total == 0 ? 0 : ((state.page - 1) * state.pageSize) + 1;
+    final endItem = (state.page * state.pageSize) > state.total
+        ? state.total
+        : (state.page * state.pageSize);
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF131B2E) : Colors.white,
         border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
+          top: BorderSide(
+              color:
+                  isDark ? const Color(0xFF1E293B) : Colors.grey.shade200),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 10,
         children: [
           // Items Per Page Dropdown & Total Counter
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Text(
                 'Showing $startItem-$endItem of ${state.total} requests',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : Colors.grey.shade600),
               ),
-              const SizedBox(width: 16),
-              const Text('Rows per page:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(width: 6),
-              DropdownButton<int>(
+              Text('Rows per page:',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
+              AppSearchableDropdown<int>.fromMenuItems(
                 value: state.pageSize,
                 underline: const SizedBox(),
                 isDense: true,
                 items: [10, 25, 50, 100].map((e) {
                   return DropdownMenuItem<int>(
                     value: e,
-                    child: Text(e.toString(), style: const TextStyle(fontSize: 12)),
+                    child:
+                        Text(e.toString(), style: const TextStyle(fontSize: 12)),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -811,27 +989,38 @@ class RequestTable extends ConsumerWidget {
 
           // Pagination Next / Prev buttons
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded, size: 20),
                 splashRadius: 18,
-                onPressed: state.page > 1 ? () => notifier.setPage(state.page - 1) : null,
+                onPressed: state.page > 1
+                    ? () => notifier.setPage(state.page - 1)
+                    : null,
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '${state.page} / ${state.totalPages == 0 ? 1 : state.totalPages}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF334155)),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 splashRadius: 18,
-                onPressed: state.page < state.totalPages ? () => notifier.setPage(state.page + 1) : null,
+                onPressed: state.page < state.totalPages
+                    ? () => notifier.setPage(state.page + 1)
+                    : null,
               ),
             ],
           ),

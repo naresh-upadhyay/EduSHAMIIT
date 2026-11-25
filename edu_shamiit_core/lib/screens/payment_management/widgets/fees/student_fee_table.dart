@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/js_helper.dart';
@@ -559,7 +560,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                 ),
               ),
               const SizedBox(width: 8),
-              DropdownButton<int>(
+              AppSearchableDropdown<int>.fromMenuItems(
                 value: state.pageSize,
                 underline: const SizedBox.shrink(),
                 dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -890,7 +891,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: classesList.contains(_feeClassFilter) ? _feeClassFilter : 'All Classes',
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -911,7 +912,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: sectionsList.contains(_feeSectionFilter) ? _feeSectionFilter : 'All Sections',
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -932,7 +933,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: frequenciesList.contains(_feeFrequencyFilter) ? _feeFrequencyFilter : 'All Frequencies',
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1462,7 +1463,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _invoiceStatusFilter,
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1490,7 +1491,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: classesList.contains(_invoiceClassFilter) ? _invoiceClassFilter : 'All Classes',
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1799,7 +1800,7 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
                         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
+                        child: AppSearchableDropdown<String>.fromMenuItems(
                           value: modesList.contains(_paymentModeFilter) ? _paymentModeFilter : 'All Modes',
                           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                           style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

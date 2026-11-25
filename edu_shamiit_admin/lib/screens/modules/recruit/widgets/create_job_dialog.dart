@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -253,7 +254,7 @@ class _CreateJobDialogState extends State<CreateJobDialog> {
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _departments.contains(_department) ? _department : (_departments.isNotEmpty ? _departments.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -269,7 +270,7 @@ class _CreateJobDialogState extends State<CreateJobDialog> {
                           ),
                           const SizedBox(width: 14),
                           Expanded(
-                            child: DropdownButtonFormField<String>(
+                            child: AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: _employmentTypes.contains(_employmentType) ? _employmentType : (_employmentTypes.isNotEmpty ? _employmentTypes.first : null),
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -444,7 +445,7 @@ class _CreateJobDialogState extends State<CreateJobDialog> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: DropdownButtonFormField<String>(
+                                    child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: _workModes.contains(_workMode) ? _workMode : (_workModes.isNotEmpty ? _workModes.first : null),
                                       decoration: const InputDecoration(
                                         labelText: 'Work Mode',

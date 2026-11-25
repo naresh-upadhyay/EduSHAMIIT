@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -1329,7 +1330,7 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                           fontWeight: FontWeight.bold,
                           color: Colors.grey)),
                   const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
+                  AppSearchableDropdownFormField<String>.fromMenuItems(
                     initialValue: _category,
                     items: const [
                       DropdownMenuItem(

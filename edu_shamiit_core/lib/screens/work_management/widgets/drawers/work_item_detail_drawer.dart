@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../config/app_config.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../utils/download_helper.dart';
+import '../../../../widgets/dropdowns/dropdowns.dart';
 import '../../models/work_models.dart';
 import '../../providers/work_management_provider.dart';
 import '../../utils/work_filter_helper.dart';
@@ -1181,7 +1182,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                       ),
                     ),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: linkType,
                       isDense: true,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1460,7 +1461,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                               children: [
                                 Text('Work Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: selectedType,
                                   isDense: true,
                                   dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1484,7 +1485,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                               children: [
                                 Text('Priority', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
+                                AppSearchableDropdownFormField<String>.fromMenuItems(
                                   initialValue: selectedPriority,
                                   isDense: true,
                                   dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1534,7 +1535,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                               children: [
                                 Text('Assignee', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569))),
                                 const SizedBox(height: 6),
-                                DropdownButtonFormField<String?>(
+                                AppSearchableDropdownFormField<String?>.fromMenuItems(
                                   initialValue: selectedAssigneeId,
                                   isDense: true,
                                   dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
@@ -1699,7 +1700,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF475569)),
                     ),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
+                    AppSearchableDropdownFormField<String>.fromMenuItems(
                       initialValue: ['RELATED', 'CHILD', 'PARENT', 'BLOCKS', 'BLOCKED_BY'].contains(selectedRelation)
                           ? selectedRelation
                           : 'RELATED',
@@ -2019,7 +2020,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           _buildPropertyRow(
             label: 'Status:',
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: statusList.contains(item.status.toUpperCase()) ? item.status.toUpperCase() : 'NEW',
                 isDense: true,
                 style: TextStyle(
@@ -2061,7 +2062,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           _buildPropertyRow(
             label: 'Priority:',
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: priorityList.contains(item.priority.toUpperCase()) ? item.priority.toUpperCase() : 'MEDIUM',
                 isDense: true,
                 style: TextStyle(
@@ -2101,7 +2102,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
           _buildPropertyRow(
             label: 'Board:',
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+              child: AppSearchableDropdown<String>.fromMenuItems(
                 value: _boards.any((b) => b.id == _selectedBoardId)
                     ? _selectedBoardId
                     : (_boards.isNotEmpty ? _boards.first.id : null),
@@ -2135,7 +2136,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
               return _buildPropertyRow(
                 label: 'Sprint:',
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: currentSprints.any((s) => s.id == _selectedSprintId) ? _selectedSprintId : null,
                     isDense: true,
                     isExpanded: true,
@@ -2188,7 +2189,7 @@ class _WorkItemDetailDrawerState extends ConsumerState<WorkItemDetailDrawer>
                       ? effectiveValue
                       : null;
 
-                  return DropdownButton<String?>(
+                  return AppSearchableDropdown<String?>.fromMenuItems(
                     value: dropdownValue,
                     isDense: true,
                     isExpanded: true,

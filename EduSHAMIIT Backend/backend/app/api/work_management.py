@@ -849,15 +849,21 @@ async def create_work_item(
                 t_id = safe_uuid(payload.team_id)
                 t_name = payload.team_name
                 if t_id and not t_name:
-                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (t_id,))
                     if t_rows:
                         t_name = t_rows[0]["name"]
+                    else:
+                        t_id = None
+                        t_name = None
                 elif t_name and not t_id:
                     if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
-                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (sid, str(t_name).strip()))
                         if t_rows:
                             t_id = str(t_rows[0]["id"])
                             t_name = t_rows[0]["name"]
+                        else:
+                            t_name = None
+                            t_id = None
                     else:
                         t_name = None
                         t_id = None
@@ -882,7 +888,7 @@ async def update_work_item(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """
-    Update fields on a work item with Azure DevOps effort calculations and audit trails.
+    Update fields on a work item with SHAMIIT effort calculations and audit trails.
     """
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     uid = safe_uuid(current_user.get("id")) if current_user else None
@@ -915,15 +921,21 @@ async def update_work_item(
                 t_id = safe_uuid(payload.team_id)
                 t_name = payload.team_name
                 if t_id and not t_name:
-                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                    t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (t_id,))
                     if t_rows:
                         t_name = t_rows[0]["name"]
+                    else:
+                        t_id = None
+                        t_name = None
                 elif t_name and not t_id:
                     if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
-                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                        t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (sid, str(t_name).strip()))
                         if t_rows:
                             t_id = str(t_rows[0]["id"])
                             t_name = t_rows[0]["name"]
+                        else:
+                            t_name = None
+                            t_id = None
                     else:
                         t_name = None
                         t_id = None
@@ -940,15 +952,21 @@ async def update_work_item(
             t_id = safe_uuid(payload.team_id)
             t_name = payload.team_name
             if t_id and not t_name:
-                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (t_id,))
                 if t_rows:
                     t_name = t_rows[0]["name"]
+                else:
+                    t_id = None
+                    t_name = None
             elif t_name and not t_id:
                 if str(t_name).strip().upper() not in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
-                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (sid, str(t_name).strip()))
                     if t_rows:
                         t_id = str(t_rows[0]["id"])
                         t_name = t_rows[0]["name"]
+                    else:
+                        t_name = None
+                        t_id = None
                 else:
                     t_name = None
                     t_id = None
@@ -970,7 +988,7 @@ async def copy_work_item(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Azure DevOps: Create Copy / Clone of Story, Task, Bug, Epic."""
+    """SHAMIIT: Create Copy / Clone of Story, Task, Bug, Epic."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_source_id = safe_uuid(item_id)
     uid = safe_uuid(current_user.get("id")) if current_user else None
@@ -994,7 +1012,7 @@ async def link_work_items(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Azure DevOps: Link work items (CHILD, PARENT, RELATED, BLOCKS, BLOCKED_BY) by UUID or item_number."""
+    """SHAMIIT: Link work items (CHILD, PARENT, RELATED, BLOCKS, BLOCKED_BY) by UUID or item_number."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_source_id = safe_uuid(item_id)
     target_ref = (payload.target_id or "").strip()
@@ -1019,7 +1037,7 @@ async def unlink_work_items(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Azure DevOps: Unlink work item dependency or child/parent link."""
+    """SHAMIIT: Unlink work item dependency or child/parent link."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_source_id = safe_uuid(item_id)
     clean_target_id = safe_uuid(target_id)
@@ -1045,7 +1063,7 @@ async def update_work_item_link_endpoint(
     school_id: Optional[str] = Query(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Azure DevOps: Update relationship type between work items (CHILD, PARENT, BLOCKS, BLOCKED_BY, RELATED)."""
+    """SHAMIIT: Update relationship type between work items (CHILD, PARENT, BLOCKS, BLOCKED_BY, RELATED)."""
     sid = safe_uuid(school_id) or (safe_uuid(current_user.get("school_id")) if current_user else None) or "11111111-1111-1111-1111-111111111111"
     clean_source_id = safe_uuid(item_id)
     clean_target_id = safe_uuid(target_id)
@@ -1397,18 +1415,24 @@ async def bulk_update_work_items(
             t_id = safe_uuid(payload.team_id)
             t_name = payload.team_name
             if t_id and not t_name:
-                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (t_id,))
+                t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (t_id,))
                 if t_rows:
                     t_name = t_rows[0]["name"]
+                else:
+                    t_id = None
+                    t_name = None
             elif t_name and not t_id:
                 if str(t_name).strip().upper() in ("NONE", "NULL", "UNASSIGN", "ALL", "NO TEAM"):
                     t_name = None
                     t_id = None
                 else:
-                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;", (sid, str(t_name).strip()))
+                    t_rows = await exec_sql("SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", (sid, str(t_name).strip()))
                     if t_rows:
                         t_id = str(t_rows[0]["id"])
                         t_name = t_rows[0]["name"]
+                    else:
+                        t_id = None
+                        t_name = None
             updates.append("team_id = %s::UUID")
             params.append(t_id)
             updates.append("team_name = %s")
@@ -1976,7 +2000,9 @@ async def list_capacity_teams(
             FROM public.work_teams t
             LEFT JOIN public.profiles p ON p.id = t.lead_id
             LEFT JOIN public.sprint_members sm ON sm.team_name = t.name
-            WHERE t.school_id = %s::UUID AND t.is_active = TRUE
+            WHERE t.school_id = %s::UUID 
+              AND COALESCE(t.status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') 
+              AND COALESCE(t.is_active, TRUE) = TRUE
             GROUP BY t.id, t.name, t.department, t.icon, p.full_name
             ORDER BY t.name ASC;
             """,
@@ -2467,6 +2493,8 @@ async def update_work_team(
     try:
         updates = []
         params = []
+        is_lead_explicit = "lead_id" in req.model_fields_set or req.lead_id is not None
+        clean_lead_id = safe_uuid(req.lead_id) if (req.lead_id and str(req.lead_id).strip().lower() not in ("unassigned", "none", "null", "")) else None
         if req.name is not None:
             updates.append("name = %s")
             params.append(req.name.strip())
@@ -2476,9 +2504,12 @@ async def update_work_team(
         if req.department is not None:
             updates.append("department = %s")
             params.append(req.department.strip())
-        if req.lead_id is not None:
-            updates.append("lead_id = %s::UUID")
-            params.append(safe_uuid(req.lead_id))
+        if is_lead_explicit:
+            if clean_lead_id:
+                updates.append("lead_id = %s::UUID")
+                params.append(clean_lead_id)
+            else:
+                updates.append("lead_id = NULL")
         if req.description is not None:
             updates.append("description = %s")
             params.append(req.description)
@@ -2509,12 +2540,57 @@ async def update_work_team(
             params.extend([clean_team_id, sid])
             await exec_sql(
                 f"UPDATE public.work_teams SET {', '.join(updates)} WHERE id = %s::UUID AND school_id = %s::UUID;",
-                tuple(params)
+                tuple(params),
+                fetch=False
             )
+
+        # Synchronize team members is_lead flag if lead was modified
+        if is_lead_explicit:
+            if clean_lead_id:
+                await exec_sql(
+                    "UPDATE public.work_team_members SET is_lead = FALSE WHERE team_id = %s::UUID;",
+                    (clean_team_id,),
+                    fetch=False
+                )
+                m_exist = await exec_sql(
+                    "SELECT id FROM public.work_team_members WHERE team_id = %s::UUID AND user_id = %s::UUID LIMIT 1;",
+                    (clean_team_id, clean_lead_id)
+                )
+                if m_exist:
+                    await exec_sql(
+                        "UPDATE public.work_team_members SET is_lead = TRUE, role = 'Team Lead' WHERE team_id = %s::UUID AND user_id = %s::UUID;",
+                        (clean_team_id, clean_lead_id),
+                        fetch=False
+                    )
+                else:
+                    await exec_sql(
+                        """
+                        INSERT INTO public.work_team_members (school_id, team_id, user_id, role, is_lead, capacity_hours, daily_hours)
+                        VALUES (%s::UUID, %s::UUID, %s::UUID, 'Team Lead', TRUE, 80.0, 8.0)
+                        ON CONFLICT (team_id, user_id) DO UPDATE SET is_lead = TRUE;
+                        """,
+                        (sid, clean_team_id, clean_lead_id),
+                        fetch=False
+                    )
+            else:
+                await exec_sql(
+                    "UPDATE public.work_team_members SET is_lead = FALSE WHERE team_id = %s::UUID;",
+                    (clean_team_id,),
+                    fetch=False
+                )
 
         act_desc = f"Team updated by {actor_name}"
         act_type = "TEAM_UPDATED"
-        if req.capacity_hours is not None:
+        if is_lead_explicit:
+            if clean_lead_id:
+                lead_prof = await exec_sql("SELECT full_name FROM public.profiles WHERE id = %s::UUID LIMIT 1;", (clean_lead_id,))
+                lead_name = lead_prof[0]["full_name"] if lead_prof else "Team Lead"
+                act_desc = f"Team lead assigned to {lead_name} by {actor_name}"
+                act_type = "LEAD_ASSIGNED"
+            else:
+                act_desc = f"Team lead unassigned by {actor_name}"
+                act_type = "LEAD_UNASSIGNED"
+        elif req.capacity_hours is not None:
             act_desc = f"Team capacity updated to {int(req.capacity_hours)} h by {actor_name}"
             act_type = "CAPACITY_UPDATED"
         elif req.goal is not None:
@@ -2907,18 +2983,25 @@ async def get_sprint_retrospective_workspace(
     t_name = None
     if not clean_team_id and team_id and str(team_id).strip().lower() not in ("all", "all teams", "none", ""):
         t_rows = await exec_sql(
-            "SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) LIMIT 1;",
+            "SELECT id, name FROM public.work_teams WHERE school_id = %s::UUID AND LOWER(name) = LOWER(%s) AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;",
             (sid, str(team_id).strip())
         )
         if t_rows:
             clean_team_id = t_rows[0]["id"]
             t_name = t_rows[0]["name"]
         else:
-            t_name = str(team_id).strip()
+            clean_team_id = None
+            t_name = None
     elif clean_team_id:
-        t_rows = await exec_sql("SELECT name FROM public.work_teams WHERE id = %s::UUID LIMIT 1;", (clean_team_id,))
+        t_rows = await exec_sql(
+            "SELECT name FROM public.work_teams WHERE id = %s::UUID AND school_id = %s::UUID AND COALESCE(status, 'ACTIVE') NOT IN ('ARCHIVED', 'DELETED') AND COALESCE(is_active, TRUE) = TRUE LIMIT 1;", 
+            (clean_team_id, sid)
+        )
         if t_rows:
             t_name = t_rows[0]["name"]
+        else:
+            clean_team_id = None
+            t_name = None
 
     actor_id = safe_uuid(current_user.get("id")) if (current_user and hasattr(current_user, 'get')) else None
     try:

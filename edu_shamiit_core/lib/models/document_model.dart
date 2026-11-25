@@ -127,9 +127,9 @@ class DocumentModel {
     final sharedBy = json['shared_by'] as Map<String, dynamic>?;
     final owner = json['owner'] as Map<String, dynamic>?;
 
-    String? parsedFileType = json['file_type'] as String?;
-    final fileName = json['file_name'] as String?;
-    final mimeType = json['mime_type'] as String?;
+    String? parsedFileType = json['file_type']?.toString();
+    final fileName = json['file_name']?.toString();
+    final mimeType = json['mime_type']?.toString();
 
     if (parsedFileType == null || parsedFileType.isEmpty) {
       if (fileName != null && fileName.contains('.')) {
@@ -149,53 +149,74 @@ class DocumentModel {
       }
     }
 
+    String? parsedDepartment;
+    if (json['department'] is List) {
+      parsedDepartment = (json['department'] as List).map((e) => e.toString()).join(', ');
+    } else if (json['department'] != null) {
+      parsedDepartment = json['department'].toString();
+    }
+
+    String? parsedTags;
+    if (json['tags'] is List) {
+      parsedTags = (json['tags'] as List).map((e) => e.toString()).join(', ');
+    } else if (json['tags'] != null) {
+      parsedTags = json['tags'].toString();
+    }
+
+    String? parsedAccessType;
+    if (json['access_type'] is List) {
+      parsedAccessType = (json['access_type'] as List).map((e) => e.toString()).join(', ');
+    } else if (json['access_type'] != null) {
+      parsedAccessType = json['access_type'].toString();
+    }
+
     return DocumentModel(
-      id: json['id'] as String? ?? '',
-      schoolId: json['school_id'] as String? ?? '',
-      ownerId: json['owner_id'] as String? ?? '',
-      ownerName: json['owner_name'] as String? ?? owner?['full_name'] as String? ?? 'Admin',
-      title: json['title'] as String? ?? 'Untitled',
-      description: json['description'] as String?,
-      category: DocumentCategory.fromValue(json['category'] as String? ?? 'my_uploads'),
-      fileUrl: json['file_url'] as String?,
+      id: json['id']?.toString() ?? '',
+      schoolId: json['school_id']?.toString() ?? '',
+      ownerId: json['owner_id']?.toString() ?? '',
+      ownerName: json['owner_name']?.toString() ?? owner?['full_name']?.toString() ?? 'Admin',
+      title: json['title']?.toString() ?? 'Untitled',
+      description: json['description']?.toString(),
+      category: DocumentCategory.fromValue(json['category']?.toString() ?? 'my_uploads'),
+      fileUrl: json['file_url']?.toString(),
       fileName: fileName,
       fileSize: (json['file_size'] as num?)?.toInt(),
       mimeType: mimeType,
-      content: json['content'] as String?,
-      sourceChatSessionId: json['source_chat_session_id'] as String?,
-      sharedById: json['shared_by_id'] as String?,
-      sharedByName: sharedBy?['full_name'] as String?,
-      sharedByRole: sharedBy?['role'] as String?,
+      content: json['content']?.toString(),
+      sourceChatSessionId: json['source_chat_session_id']?.toString(),
+      sharedById: json['shared_by_id']?.toString(),
+      sharedByName: sharedBy?['full_name']?.toString(),
+      sharedByRole: sharedBy?['role']?.toString(),
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
-      folderId: json['folder_id'] as String?,
-      folderName: json['folder_name'] as String?,
+      folderId: json['folder_id']?.toString(),
+      folderName: json['folder_name']?.toString(),
       fileType: parsedFileType,
-      approvalStatus: json['approval_status'] as String? ?? 'Approved',
+      approvalStatus: json['approval_status']?.toString() ?? 'Approved',
       versionNumber: (json['version_number'] as num?)?.toInt() ?? 1,
       isStarred: json['is_starred'] as bool? ?? false,
       isDeleted: json['is_deleted'] as bool? ?? false,
       allowDownload: json['allow_download'] as bool? ?? true,
       canShare: json['can_share'] as bool? ?? true,
       canDelete: json['can_delete'] as bool? ?? true,
-      ownerRole: json['owner_role'] as String? ?? owner?['role'] as String?,
-      ownerAvatar: json['owner_avatar'] as String?,
-      storagePath: json['storage_path'] as String?,
-      department: json['department'] as String?,
-      tags: json['tags'] as String?,
-      accessType: json['access_type'] as String?,
+      ownerRole: json['owner_role']?.toString() ?? owner?['role']?.toString(),
+      ownerAvatar: json['owner_avatar']?.toString(),
+      storagePath: json['storage_path']?.toString(),
+      department: parsedDepartment,
+      tags: parsedTags,
+      accessType: parsedAccessType,
       isArchived: json['is_archived'] as bool? ?? false,
-      deletedAt: json['deleted_at'] != null ? DateTime.tryParse(json['deleted_at'] as String) : null,
-      expiryDate: json['expiry_date'] != null ? DateTime.tryParse(json['expiry_date'] as String) : null,
+      deletedAt: json['deleted_at'] != null ? DateTime.tryParse(json['deleted_at'].toString()) : null,
+      expiryDate: json['expiry_date'] != null ? DateTime.tryParse(json['expiry_date'].toString()) : null,
       downloadCount: (json['download_count'] as num?)?.toInt() ?? 0,
       previewCount: (json['preview_count'] as num?)?.toInt() ?? 0,
       versionsCount: (json['versions_count'] as num?)?.toInt() ?? 0,
       sharesCount: (json['shares_count'] as num?)?.toInt() ?? 0,
-      currentUserPermission: json['current_user_permission'] as String? ?? 'Editor',
+      currentUserPermission: json['current_user_permission']?.toString() ?? 'Editor',
     );
   }
 
@@ -498,18 +519,18 @@ class DocumentVersionModel {
     }
 
     return DocumentVersionModel(
-      id: json['id'] as String? ?? '',
-      documentId: json['document_id'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      documentId: json['document_id']?.toString() ?? '',
       versionNumber: (json['version_number'] as num?)?.toInt() ?? 1,
-      fileName: json['file_name'] as String? ?? '',
+      fileName: json['file_name']?.toString() ?? '',
       fileSize: size,
       fileSizeLabel: sizeLabel,
-      uploaderName: json['uploader_name'] as String? ?? 'Admin',
-      changeSummary: json['change_summary'] as String?,
+      uploaderName: json['uploader_name']?.toString() ?? 'Admin',
+      changeSummary: json['change_summary']?.toString(),
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      fileUrl: json['file_url'] as String?,
+      fileUrl: json['file_url']?.toString(),
     );
   }
 }
@@ -546,22 +567,22 @@ class DocumentShareModel {
 
   factory DocumentShareModel.fromJson(Map<String, dynamic> json) {
     return DocumentShareModel(
-      id: json['id'] as String? ?? '',
-      documentId: json['document_id'] as String? ?? '',
-      shareType: json['share_type'] as String? ?? 'User',
-      targetId: json['target_id'] as String?,
-      targetName: json['target_name'] as String?,
-      permissionLevel: json['permission_level'] as String? ?? 'Viewer',
+      id: json['id']?.toString() ?? '',
+      documentId: json['document_id']?.toString() ?? '',
+      shareType: json['share_type']?.toString() ?? 'User',
+      targetId: json['target_id']?.toString(),
+      targetName: json['target_name']?.toString(),
+      permissionLevel: json['permission_level']?.toString() ?? 'Viewer',
       allowDownload: json['allow_download'] as bool? ?? true,
       allowPrint: json['allow_print'] as bool? ?? true,
       expiryDate: json['expiry_date'] != null
-          ? DateTime.tryParse(json['expiry_date'] as String)
+          ? DateTime.tryParse(json['expiry_date'].toString())
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
-      targetRole: json['target_role'] as String?,
-      message: json['message'] as String?,
+      targetRole: json['target_role']?.toString(),
+      message: json['message']?.toString(),
     );
   }
 }
@@ -586,13 +607,13 @@ class DocumentActivityModel {
 
   factory DocumentActivityModel.fromJson(Map<String, dynamic> json) {
     return DocumentActivityModel(
-      id: json['id'] as String? ?? '',
-      documentId: json['document_id'] as String? ?? '',
-      activityType: json['activity_type'] as String? ?? '',
-      actorName: json['actor_name'] as String? ?? 'System',
-      description: json['description'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      documentId: json['document_id']?.toString() ?? '',
+      activityType: json['activity_type']?.toString() ?? '',
+      actorName: json['actor_name']?.toString() ?? 'System',
+      description: json['description']?.toString() ?? '',
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }
@@ -628,18 +649,18 @@ class DocumentRequestModel {
 
   factory DocumentRequestModel.fromJson(Map<String, dynamic> json) {
     return DocumentRequestModel(
-      id: json['id'] as String? ?? '',
-      requesterName: json['requester_name'] as String?,
-      requesterId: json['requester_id'] as String?,
-      title: json['title'] as String? ?? 'Untitled Request',
-      category: json['category'] as String? ?? 'General',
-      priority: json['priority'] as String? ?? 'Medium',
-      status: json['status'] as String? ?? 'Pending',
-      description: json['description'] as String?,
-      responseNotes: json['response_notes'] as String?,
-      fulfilledDocumentId: json['fulfilled_document_id'] as String?,
+      id: json['id']?.toString() ?? '',
+      requesterName: json['requester_name']?.toString(),
+      requesterId: json['requester_id']?.toString(),
+      title: json['title']?.toString() ?? 'Untitled Request',
+      category: json['category']?.toString() ?? 'General',
+      priority: json['priority']?.toString() ?? 'Medium',
+      status: json['status']?.toString() ?? 'Pending',
+      description: json['description']?.toString(),
+      responseNotes: json['response_notes']?.toString(),
+      fulfilledDocumentId: json['fulfilled_document_id']?.toString(),
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }

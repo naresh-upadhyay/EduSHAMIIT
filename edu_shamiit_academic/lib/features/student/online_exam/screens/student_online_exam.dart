@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/utils/l10n.dart';
 import 'package:flutter/material.dart';
@@ -514,7 +515,7 @@ String _getMonthAbbr(String dateStr) {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+            AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _subjects.isNotEmpty ? _subjects.first : 'Mathematics',
               items: _subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) {},

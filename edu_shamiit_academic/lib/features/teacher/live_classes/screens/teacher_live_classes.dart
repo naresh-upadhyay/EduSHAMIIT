@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/l10n.dart';
@@ -1191,7 +1192,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: (selectedClass != null &&
                                               availableClasses
                                                   .contains(selectedClass))
@@ -1234,7 +1235,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: (selectedSubject != null &&
                                               availableSubjects
                                                   .contains(selectedSubject))
@@ -1278,7 +1279,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               initialValue: selectedPlatform,
                               dropdownColor: const Color(0xFF1E293B),
                               style: const TextStyle(
@@ -1811,7 +1812,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: selectedClass,
                                       dropdownColor: const Color(0xFF0F172A),
                                       style: const TextStyle(
@@ -1848,7 +1849,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: selectedSubject,
                                       dropdownColor: const Color(0xFF0F172A),
                                       style: const TextStyle(
@@ -1889,7 +1890,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: [
                                         'In-App',
                                         'Zoom',
@@ -1940,7 +1941,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),
-                                    DropdownButtonFormField<String>(
+                                    AppSearchableDropdownFormField<String>.fromMenuItems(
                                       initialValue: [
                                         'scheduled',
                                         'ongoing',

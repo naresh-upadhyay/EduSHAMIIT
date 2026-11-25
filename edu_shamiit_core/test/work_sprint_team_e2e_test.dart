@@ -162,6 +162,8 @@ void main() {
         updatedAt: 'Jan 06, 2025',
         lead: const TeamLeadModel(id: 'u1', name: 'Neha Sharma'),
         capacity: const TeamDetailCapacityModel(
+          sprintId: 'sprint-103-id',
+          sprintName: 'Sprint 103',
           totalCapacityHours: 280.0,
           plannedHours: 257.0,
           remainingHours: 23.0,
@@ -267,16 +269,25 @@ void main() {
         activeDrawerTab: 'Overview',
       );
 
+      String? navigatedTeam;
+      String? navigatedSprintId;
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
             workSprintTeamProvider.overrideWith((ref) => MockWorkSprintTeamNotifier(testState)),
           ],
-          child: const MaterialApp(
+          child: MaterialApp(
             home: Scaffold(
               body: SingleChildScrollView(
-                child: SprintTeamTabView(sprintId: 'sprint-8-id'),
+                child: SprintTeamTabView(
+                  sprintId: 'sprint-8-id',
+                  onNavigateToCapacity: (team, sprintId) {
+                    navigatedTeam = team;
+                    navigatedSprintId = sprintId;
+                  },
+                ),
               ),
             ),
           ),
@@ -310,7 +321,8 @@ void main() {
       // Verify Right Selected Team Drawer
       expect(find.text('Team Code'), findsOneWidget);
       expect(find.text('DCT'), findsOneWidget);
-      expect(find.text('Team Capacity (Sprint 8)'), findsOneWidget);
+      expect(find.text('Team Capacity (Sprint 103)'), findsOneWidget);
+      expect(find.text('View More'), findsOneWidget);
       expect(find.text('280 h'), findsAtLeastNWidgets(1));
       expect(find.text('Allocated Work: 257 h'), findsOneWidget);
       expect(find.text('Available Capacity: 23 h'), findsOneWidget);
@@ -319,6 +331,25 @@ void main() {
       expect(find.text('Student Portal'), findsOneWidget);
       expect(find.text('Deliver student portal enhancement, examination notifications and key infrastructure fixes.'), findsOneWidget);
       expect(find.text('Team capacity updated to 280 h by Dr. Rajesh Verma'), findsOneWidget);
+
+      // Verify View More interaction switches to Capacity screen with team & sprint
+      await tester.tap(find.text('View More'));
+      await tester.pump();
+      expect(navigatedTeam, 'Digital Campus Team');
+      expect(navigatedSprintId, 'sprint-103-id');
+
+      // Verify Team Lead is clickable and opens Assign Team Lead dialog
+      expect(find.text('Change'), findsOneWidget);
+      await tester.tap(find.text('Change'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assign Team Lead'), findsOneWidget);
+      expect(find.text('Select a team member or staff to lead Digital Campus Team'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Close dialog
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
     });
   });
 }

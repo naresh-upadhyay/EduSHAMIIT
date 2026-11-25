@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
 import 'onboarding_document_viewer_dialog.dart';
@@ -313,7 +314,7 @@ class _OnboardingDocumentsDialogState extends State<OnboardingDocumentsDialog> {
                     border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: AppSearchableDropdown<String>.fromMenuItems(
                       value: _selectedStatus,
                       dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

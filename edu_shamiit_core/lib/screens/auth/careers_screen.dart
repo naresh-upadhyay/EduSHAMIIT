@@ -685,7 +685,7 @@ class _SharedCareersScreenState extends State<SharedCareersScreen> {
                       Expanded(
                         flex: 3,
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedLocation,
                             isExpanded: true,
                             icon: const Padding(
@@ -726,7 +726,7 @@ class _SharedCareersScreenState extends State<SharedCareersScreen> {
                       Expanded(
                         flex: 3,
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedDepartment,
                             isExpanded: true,
                             icon: const Padding(
@@ -797,7 +797,7 @@ class _SharedCareersScreenState extends State<SharedCareersScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: _selectedLocation,
                                 isExpanded: true,
                                 items: _locations
@@ -815,7 +815,7 @@ class _SharedCareersScreenState extends State<SharedCareersScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: _selectedDepartment,
                                 isExpanded: true,
                                 items: _departments
@@ -2189,7 +2189,7 @@ class _JobApplicationFormDialogState extends State<JobApplicationFormDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _selectedGender,
                                 decoration: _inputDeco('Gender', Icons.wc_outlined),
                                 style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF1E293B)),

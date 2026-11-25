@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/inventory_models.dart';
@@ -200,7 +201,7 @@ class _AdjustStockDialogState extends ConsumerState<AdjustStockDialog> {
                               ),
                             ),
                             const SizedBox(height: 7),
-                            DropdownButtonFormField<String>(
+                            AppSearchableDropdownFormField<String>.fromMenuItems(
                               isExpanded: true,
                               initialValue: _adjustmentType,
                               decoration: InputDecoration(

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -128,7 +129,7 @@ class _VisitorsDataTableState extends ConsumerState<VisitorsDataTable> {
               child: Row(
                 children: [
                   Text(
-                    'Visitors (${pagination.totalRecords > 0 ? pagination.totalRecords : visits.length})',
+                    'Visitors (${pagination.totalRecords})',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -909,7 +910,7 @@ class _VisitorsDataTableState extends ConsumerState<VisitorsDataTable> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: [10, 25, 50, 100].contains(pagination.pageSize) ? pagination.pageSize : 10,
                         isDense: true,
                         style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),

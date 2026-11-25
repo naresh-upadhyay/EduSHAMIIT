@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/work_models.dart';
@@ -158,7 +159,7 @@ class _CompleteSprintDialogState extends ConsumerState<CompleteSprintDialog> {
                 RadioListTile<String>(
                   title: _availableSprints.isNotEmpty
                       ? DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
+                          child: AppSearchableDropdown<String>.fromMenuItems(
                             value: _selectedSprintId ?? _availableSprints.first.id,
                             isExpanded: true,
                             dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,

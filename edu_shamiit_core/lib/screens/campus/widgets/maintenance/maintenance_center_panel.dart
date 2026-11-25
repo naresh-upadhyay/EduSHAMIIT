@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -659,7 +660,7 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
         border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           isDense: true,
           items: items.map((e) => DropdownMenuItem(value: e, child: Text('$label: $e', style: const TextStyle(fontSize: 11.5)))).toList(),

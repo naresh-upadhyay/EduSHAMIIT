@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/campus_models.dart';
@@ -171,7 +172,7 @@ class _DocumentsSubtabViewState extends State<DocumentsSubtabView> {
               SizedBox(
                 height: 32,
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
+                  child: AppSearchableDropdown<String?>.fromMenuItems(
                     value: _selectedType,
                     hint: const Text('All Categories', style: TextStyle(fontSize: 11.5)),
                     items: const [

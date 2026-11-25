@@ -937,7 +937,7 @@ class _ApisScreenState extends State<ApisScreen> {
                       border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _pageSize,
                         dropdownColor: theme.cardColor,
                         icon: const Icon(Icons.arrow_drop_down, size: 14),
@@ -1119,7 +1119,7 @@ class _ApisScreenState extends State<ApisScreen> {
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: AppSearchableDropdown<String>.fromMenuItems(
           value: value,
           onChanged: onChanged,
           dropdownColor: theme.cardColor,
@@ -1755,7 +1755,7 @@ class _ApisScreenState extends State<ApisScreen> {
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: category,
                                 dropdownColor: theme.cardColor,
                                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
@@ -1959,7 +1959,7 @@ class _ApisScreenState extends State<ApisScreen> {
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
+                              child: AppSearchableDropdown<String>.fromMenuItems(
                                 value: category,
                                 dropdownColor: theme.cardColor,
                                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
@@ -2202,7 +2202,7 @@ class _ApisScreenState extends State<ApisScreen> {
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),
                             child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
+                              child: AppSearchableDropdown<int>.fromMenuItems(
                                 value: statusCode,
                                 dropdownColor: theme.cardColor,
                                 style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),

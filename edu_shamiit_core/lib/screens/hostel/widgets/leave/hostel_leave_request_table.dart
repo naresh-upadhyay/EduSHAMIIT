@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/hostel_provider.dart';
@@ -523,7 +524,7 @@ class HostelLeaveRequestTable extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
                           value: pageSize,
                           isDense: true,
                           style: TextStyle(

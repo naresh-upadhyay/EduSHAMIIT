@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -572,7 +573,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                             children: [
                               Text('Category *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _category,
                                 isExpanded: true,
                                 dropdownColor: cardBg,
@@ -597,7 +598,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                             children: [
                               Text('Priority', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary)),
                               const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
+                              AppSearchableDropdownFormField<String>.fromMenuItems(
                                 initialValue: _priority,
                                 isExpanded: true,
                                 dropdownColor: cardBg,
@@ -709,7 +710,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           final isCompact = constraints.maxWidth < 520;
 
                           // 1. Hostel Dropdown
-                          final hostelField = DropdownButtonFormField<String>(
+                          final hostelField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _selectedHostelId,
                             isExpanded: true,
                             dropdownColor: cardBg,
@@ -751,7 +752,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           );
 
                           // 2. Building / Block Dropdown
-                          final buildingField = DropdownButtonFormField<String>(
+                          final buildingField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _selectedBuildingName,
                             isExpanded: true,
                             dropdownColor: cardBg,
@@ -774,7 +775,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           );
 
                           // 3. Floor Dropdown
-                          final floorField = DropdownButtonFormField<String>(
+                          final floorField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _selectedFloorId,
                             isExpanded: true,
                             dropdownColor: cardBg,
@@ -815,7 +816,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           );
 
                           // 4. Room No. Dropdown
-                          final roomField = DropdownButtonFormField<String>(
+                          final roomField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _isCustomRoom ? '__CUSTOM__' : _selectedRoomId,
                             isExpanded: true,
                             dropdownColor: cardBg,
@@ -865,7 +866,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           );
 
                           // 5. Equipment / Asset Dropdown
-                          final equipmentField = DropdownButtonFormField<String>(
+                          final equipmentField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _selectedEquipmentPreset,
                             isExpanded: true,
                             dropdownColor: cardBg,
@@ -896,7 +897,7 @@ class _RaiseComplaintDialogState extends ConsumerState<RaiseComplaintDialog> {
                           );
 
                           // 6. Dynamic Preferred Visit Time Dropdown with Calendar Picker Shortcut
-                          final visitTimeField = DropdownButtonFormField<String>(
+                          final visitTimeField = AppSearchableDropdownFormField<String>.fromMenuItems(
                             initialValue: _preferredVisitTime,
                             isExpanded: true,
                             dropdownColor: cardBg,
