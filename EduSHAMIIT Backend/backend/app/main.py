@@ -6,7 +6,7 @@ import json
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, whiteboards, broadcasts, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library, recruitment, onboarding, hr_documents, hr_training, hr_overview, hostel, visitors, payments_management, inventory, exams, campus, space_booking, maintenance, safety_compliance, device_management, work_management, payment_bridge, departments
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, whiteboards, broadcasts, superadmin, audit_logs, tickets, announcements, system_config, insights, contact, alerts, transport, gis, calendar, notices, lookups, classes, attendance, library, recruitment, onboarding, hr_documents, hr_training, hr_overview, hostel, visitors, payments_management, inventory, exams, campus, space_booking, maintenance, safety_compliance, device_management, work_management, payment_bridge, departments, sms_gateway
 
 
 @asynccontextmanager
@@ -506,6 +506,7 @@ app.include_router(payment_bridge.router, prefix="/api/payment-bridge", tags=["P
 app.include_router(payment_bridge.router, prefix="/api/v1/payments", tags=["Payment Bridge Compatibility v1"])
 app.include_router(departments.router, prefix="/api/departments", tags=["Departments SSOT"])
 app.include_router(departments.router, prefix="/api/v1/departments", tags=["Departments SSOT v1"])
+app.include_router(sms_gateway.router, prefix="/api/v1", tags=["SHAMIIT SMS Gateway v1"])
 
 
 @app.websocket("/api/ws/documents/{doc_id}")
