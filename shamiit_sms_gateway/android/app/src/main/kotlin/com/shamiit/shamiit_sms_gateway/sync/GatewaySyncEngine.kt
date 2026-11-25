@@ -36,14 +36,26 @@ class GatewaySyncEngine(private val context: Context) {
 
     fun getApiBaseUrl(): String {
         val flutterPrefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val saved = flutterPrefs.getString("flutter.sms_pref_server_url", null)
-        if (!saved.isNullOrBlank()) {
-            val clean = saved.trim().trimEnd('/')
+        val saved = flutterPrefs.getString("flutter.sms_pref_server_url", null)?.trim()
+        if (!saved.isNullOrEmpty()) {
+            val migrated = if (saved.lowercase().contains("sms.shamiit.com")) {
+                DEFAULT_API_BASE.also {
+                    flutterPrefs.edit().putString("flutter.sms_pref_server_url", it).apply()
+                }
+            } else {
+                saved
+            }
+            val clean = migrated.trimEnd('/')
             return if (clean.endsWith("/api/v1")) clean else "$clean/api/v1"
         }
         val dbUrl = (db.getSettings()["server_url"] as? String)?.trim()?.trimEnd('/')
-        if (!dbUrl.isNullOrBlank()) {
-            return if (dbUrl.endsWith("/api/v1")) dbUrl else "$dbUrl/api/v1"
+        if (!dbUrl.isNullOrEmpty()) {
+            val migrated = if (dbUrl.lowercase().contains("sms.shamiit.com")) {
+                "https://eduapi.shamiit.com"
+            } else {
+                dbUrl
+            }
+            return if (migrated.endsWith("/api/v1")) migrated else "$migrated/api/v1"
         }
         return DEFAULT_API_BASE
     }

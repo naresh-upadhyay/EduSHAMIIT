@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shamiit_sms_gateway/core/constants.dart';
 import 'package:shamiit_sms_gateway/core/sms_utils.dart';
 import 'package:shamiit_sms_gateway/core/theme.dart';
 import 'package:shamiit_sms_gateway/models/sms_models.dart';
+import 'package:shamiit_sms_gateway/services/api_service.dart';
 import 'package:shamiit_sms_gateway/widgets/common_components.dart';
 
 void main() {
@@ -155,6 +158,18 @@ void main() {
       expect(find.text('(Jio)'), findsOneWidget);
       expect(find.text('To: +919876543210'), findsOneWidget);
       expect(find.text('Delivered'), findsOneWidget);
+    });
+  });
+
+  group('Server URL Migration', () {
+    test('ApiService.init migrates deprecated sms.shamiit.com to eduapi.shamiit.com', () async {
+      SharedPreferences.setMockInitialValues({
+        AppConstants.prefsServerUrlKey: 'https://sms.shamiit.com/api/v1',
+      });
+      final api = ApiService();
+      await api.init();
+      expect(api.baseUrl, equals('https://eduapi.shamiit.com/api/v1'));
+      expect(api.displayServerHost, equals('https://eduapi.shamiit.com'));
     });
   });
 }

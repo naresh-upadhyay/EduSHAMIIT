@@ -26,7 +26,7 @@ class SmsGatewayDatabaseHelper(private val appContext: Context) :
 
     companion object {
         const val DATABASE_NAME = "shamiit_sms_gateway.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
 
         const val TBL_MESSAGES = "local_sms_messages"
         const val TBL_EVENTS = "local_sms_events"
@@ -251,6 +251,11 @@ class SmsGatewayDatabaseHelper(private val appContext: Context) :
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL(
+                "UPDATE $TBL_SETTINGS SET server_url = 'https://eduapi.shamiit.com' WHERE LOWER(server_url) LIKE '%sms.shamiit.com%'"
+            )
+        }
     }
 
     fun upsertMessage(values: ContentValues) {

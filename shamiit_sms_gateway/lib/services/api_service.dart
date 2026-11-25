@@ -46,10 +46,18 @@ class ApiService {
 
     final savedUrl = prefs.getString(AppConstants.prefsServerUrlKey);
     if (savedUrl != null && savedUrl.trim().isNotEmpty) {
-      _baseUrl = _normalizeApiBase(savedUrl);
+      if (savedUrl.toLowerCase().contains('sms.shamiit.com')) {
+        // Migrate deprecated placeholder host from older installs to eduapi.shamiit.com
+        _baseUrl = AppConstants.liveSmsApiBaseUrl;
+        await prefs.setString(AppConstants.prefsServerUrlKey, _baseUrl);
+        await PlatformBridge.saveLocalSettings({'server_url': _baseUrl});
+      } else {
+        _baseUrl = _normalizeApiBase(savedUrl);
+      }
     } else {
       _baseUrl = AppConstants.getDefaultApiUrl();
       await prefs.setString(AppConstants.prefsServerUrlKey, _baseUrl);
+      await PlatformBridge.saveLocalSettings({'server_url': _baseUrl});
     }
 
     await PlatformBridge.saveCredentials(
