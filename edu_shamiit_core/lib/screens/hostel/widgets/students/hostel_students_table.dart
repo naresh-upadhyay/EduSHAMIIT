@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/hostel_models.dart';
@@ -45,6 +46,9 @@ class HostelStudentsTable extends ConsumerWidget {
               backgroundColor: Colors.transparent,
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
             ),
+
+          if (state.selectedStudentRosterIds.isNotEmpty)
+            _buildBulkSelectionBar(context, state, notifier, isDark),
 
           // Scrollable Table Grid
           Expanded(
@@ -672,6 +676,46 @@ class HostelStudentsTable extends ConsumerWidget {
                 ),
                 child: const Text('Next', style: TextStyle(fontSize: 12)),
               ),
+              const SizedBox(width: 12),
+              Text(
+                'Rows:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: AppSearchableDropdown<int>.fromMenuItems(
+                    value: [10, 25, 50, 100].contains(pagination.pageSize)
+                        ? pagination.pageSize
+                        : 10,
+                    isDense: true,
+                    isExpanded: false,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    items: const [10, 25, 50, 100]
+                        .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) notifier.setStudentsPageSize(val);
+                    },
+                  ),
+                ),
+              ),
             ],
           );
 
@@ -711,6 +755,141 @@ class HostelStudentsTable extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildBulkSelectionBar(
+    BuildContext context,
+    HostelState state,
+    HostelNotifier notifier,
+    bool isDark,
+  ) {
+    final count = state.selectedStudentRosterIds.length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.25) : const Color(0xFFEFF6FF),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+          ),
+        ),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '$count Selected',
+              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _confirmStudentBulkAction(
+              context,
+              title: 'Release Beds ($count Students)',
+              message: 'Release allocated hostel beds for the $count selected student(s)?',
+              actionLabel: 'Release Beds',
+              onConfirm: () => notifier.bulkStudentsAction('RELEASE_BED'),
+            ),
+            icon: const Icon(Icons.bed_outlined, size: 15),
+            label: const Text('Release Beds', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFD97706),
+              side: const BorderSide(color: Color(0xFFF59E0B)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _confirmStudentBulkAction(
+              context,
+              title: 'Check Out ($count Students)',
+              message: 'Complete hostel checkout for the $count selected student(s)? Active bed allocations will be freed.',
+              actionLabel: 'Check Out',
+              onConfirm: () => notifier.bulkStudentsAction('CHECKOUT'),
+            ),
+            icon: const Icon(Icons.logout_rounded, size: 15),
+            label: const Text('Check Out', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+              side: const BorderSide(color: Color(0xFFEF4444)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => notifier.bulkStudentsAction('MARK_ON_LEAVE'),
+            icon: const Icon(Icons.flight_takeoff_rounded, size: 15),
+            label: const Text('Mark On Leave', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => notifier.bulkStudentsAction('MARK_ACTIVE'),
+            icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+            label: const Text('Mark Active', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF16A34A),
+              side: const BorderSide(color: Color(0xFF22C55E)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => notifier.exportStudentsCsv(onlySelected: true),
+            icon: const Icon(Icons.download_rounded, size: 15),
+            label: const Text('Export Selected', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+          ),
+          TextButton(
+            onPressed: () => notifier.toggleSelectAllStudents(false),
+            child: const Text('Clear', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmStudentBulkAction(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String actionLabel,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Text(message, style: const TextStyle(fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+            child: Text(actionLabel),
+          ),
+        ],
       ),
     );
   }

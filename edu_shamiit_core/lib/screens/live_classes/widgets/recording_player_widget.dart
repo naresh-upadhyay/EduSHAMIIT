@@ -31,19 +31,12 @@ class RecordingPlayerWidget extends StatefulWidget {
 class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
   String? _viewType;
   String? _registeredUrl;
-  bool _isPlaying = false;
-  bool _isMuted = false;
-  final double _volume = 1.0;
-  double _playbackRate = 1.0;
-  int _positionSec = 0;
-  int _durationSec = 0;
   String? _errorText;
   bool _trackedFirstPlay = false;
 
   @override
   void initState() {
     super.initState();
-    _durationSec = widget.item.durationSeconds;
     _initPlayerIfNeeded();
   }
 
@@ -52,12 +45,8 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.id != widget.item.id ||
         oldWidget.resolvedStreamUrl != widget.resolvedStreamUrl) {
-      _positionSec = 0;
-      _durationSec = widget.item.durationSeconds;
-      _isPlaying = false;
       _errorText = null;
       _trackedFirstPlay = false;
-      _playbackRate = 1.0;
       _initPlayerIfNeeded();
     }
   }
@@ -65,6 +54,10 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
   void _initPlayerIfNeeded() {
     final url = (widget.resolvedStreamUrl ?? '').trim();
     if (!kIsWeb || url.isEmpty || url == _registeredUrl) return;
+
+    if (_viewType != null) {
+      disposeRecordingVideoElement(_viewType!);
+    }
 
     final vt =
         'shamiit-rec-${widget.item.id}-${DateTime.now().microsecondsSinceEpoch}';
@@ -78,18 +71,10 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
       showNativeControls: true,
       onPlayStateChanged: (playing) {
         if (!mounted) return;
-        setState(() => _isPlaying = playing);
         if (playing && !_trackedFirstPlay) {
           _trackedFirstPlay = true;
           widget.onFirstPlay?.call();
         }
-      },
-      onTimeUpdate: (pos, dur) {
-        if (!mounted) return;
-        setState(() {
-          _positionSec = pos;
-          if (dur > 0) _durationSec = dur;
-        });
       },
       onError: (msg) {
         if (!mounted) return;
@@ -98,33 +83,12 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
     );
   }
 
-  String _fmt(int sec) {
-    final s = sec < 0 ? 0 : sec;
-    final h = s ~/ 3600;
-    final m = (s % 3600) ~/ 60;
-    final r = s % 60;
-    if (h > 0) {
-      return '${h.toString()}:${m.toString().padLeft(2, '0')}:${r.toString().padLeft(2, '0')}';
-    }
-    return '${m.toString().padLeft(2, '0')}:${r.toString().padLeft(2, '0')}';
-  }
-
-  void _cycleSpeed() {
-    const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
-    final idx = speeds.indexOf(_playbackRate);
-    final next = speeds[(idx + 1) % speeds.length];
-    setState(() => _playbackRate = next);
+  @override
+  void dispose() {
     if (_viewType != null) {
-      setRecordingSpeed(_viewType!, next);
+      disposeRecordingVideoElement(_viewType!);
     }
-  }
-
-  void _toggleMute() {
-    final nextMuted = !_isMuted;
-    setState(() => _isMuted = nextMuted);
-    if (_viewType != null) {
-      setRecordingVolume(_viewType!, _volume, nextMuted);
-    }
+    super.dispose();
   }
 
   Future<void> _openExternal() async {
@@ -140,19 +104,16 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
   Widget build(BuildContext context) {
     final hasUrl = (widget.resolvedStreamUrl ?? '').trim().isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0B1120),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF1E293B)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
+    return Container(
+      height: widget.height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1120),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
               if (!hasUrl)
                 const Center(
                   child: Column(
@@ -260,181 +221,8 @@ class _RecordingPlayerWidgetState extends State<RecordingPlayerWidget> {
                     ),
                   ),
                 ),
-
-              // Quick top-right Theater Expand button
-              if (widget.onOpenFullscreenModal != null && _errorText == null)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(6),
-                    child: InkWell(
-                      onTap: widget.onOpenFullscreenModal,
-                      borderRadius: BorderRadius.circular(6),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.open_in_full_rounded, size: 13, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text(
-                              'Theater Mode',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-
-        // Interactive Quick Control Strip (Play/Pause, Seek, Time, Volume, Speed, PiP, Native Fullscreen)
-        if (hasUrl && _errorText == null) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1E293B)),
-            ),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: () {
-                    if (_viewType != null) {
-                      toggleRecordingPlayback(_viewType!);
-                    } else {
-                      _openExternal();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${_fmt(_positionSec)} / ${_fmt(_durationSec > 0 ? _durationSec : widget.item.durationSeconds)}',
-                  style: const TextStyle(fontSize: 10, color: Colors.white70, fontFeatures: []),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                      activeTrackColor: const Color(0xFF3B82F6),
-                      inactiveTrackColor: Colors.white24,
-                      thumbColor: Colors.white,
-                    ),
-                    child: Slider(
-                      value: (_durationSec > 0
-                              ? _positionSec / _durationSec
-                              : 0.0)
-                          .clamp(0.0, 1.0),
-                      onChanged: (v) {
-                        if (_viewType != null && _durationSec > 0) {
-                          seekRecordingTo(_viewType!, v * _durationSec);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: _toggleMute,
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      color: Colors.white70,
-                      size: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                InkWell(
-                  onTap: _cycleSpeed,
-                  borderRadius: BorderRadius.circular(4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white24),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${_playbackRate}x',
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                if (kIsWeb) ...[
-                  const SizedBox(width: 4),
-                  Tooltip(
-                    message: 'Picture-in-Picture',
-                    child: InkWell(
-                      onTap: () {
-                        if (_viewType != null) requestRecordingPiP(_viewType!);
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.picture_in_picture_alt_rounded,
-                          color: Colors.white70,
-                          size: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Tooltip(
-                    message: 'Native Fullscreen',
-                    child: InkWell(
-                      onTap: () {
-                        if (_viewType != null) {
-                          final ok = requestRecordingFullscreen(_viewType!);
-                          if (!ok) widget.onOpenFullscreenModal?.call();
-                        } else {
-                          widget.onOpenFullscreenModal?.call();
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.fullscreen_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -509,6 +297,7 @@ class RecordingFullscreenDialog {
                 ),
                 const SizedBox(height: 12),
                 RecordingPlayerWidget(
+                  key: ValueKey('rec-fs-${item.id}'),
                   item: item,
                   resolvedStreamUrl: resolvedUrl,
                   height: playerHeight,

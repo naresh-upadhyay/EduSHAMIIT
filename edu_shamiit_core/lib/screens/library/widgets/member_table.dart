@@ -7,6 +7,7 @@ import '../providers/member_provider.dart';
 import 'dialogs/edit_member_dialog.dart';
 import 'dialogs/renew_membership_dialog.dart';
 import 'dialogs/suspend_member_dialog.dart';
+import 'dialogs/bulk_members_dialog.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
 
@@ -129,6 +130,7 @@ class _MemberTableState extends ConsumerState<MemberTable> {
 
   /// 1. Enterprise Responsive Table View (Fills 100% Screen Width)
   Widget _buildEnterpriseTable(MemberState state, MemberNotifier notifier, bool isDark, bool isDesktop) {
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     return Container(
       margin: EdgeInsets.fromLTRB(
         isDesktop ? 28 : 16,
@@ -150,12 +152,74 @@ class _MemberTableState extends ConsumerState<MemberTable> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const minTableWidth = 1200.0;
+          const minTableWidth = 1240.0;
           final tableWidth = constraints.maxWidth > minTableWidth ? constraints.maxWidth : minTableWidth;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (isLibraryAdmin && state.selectedMemberIds.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE),
+                      ),
+                    ),
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF4F46E5)),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${state.selectedMemberIds.length} member(s) selected',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF312E81),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const BulkMembersDialog(),
+                              );
+                            },
+                            icon: const Icon(Icons.tune_rounded, size: 16),
+                            label: const Text('Bulk Member Actions', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: notifier.clearSelection,
+                            child: const Text('Clear Selection'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               Scrollbar(
                 controller: _horizontalScrollCtrl,
                 thumbVisibility: true,
@@ -167,7 +231,7 @@ class _MemberTableState extends ConsumerState<MemberTable> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildTableHeader(state, notifier, isDark),
+                        _buildTableHeader(state, notifier, isDark, isLibraryAdmin),
                         Divider(height: 1, thickness: 1, color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                         ...state.members.map((member) => _buildTableRow(member, state, notifier, isDark)),
                       ],
@@ -184,7 +248,9 @@ class _MemberTableState extends ConsumerState<MemberTable> {
     );
   }
 
-  Widget _buildTableHeader(MemberState state, MemberNotifier notifier, bool isDark) {
+  Widget _buildTableHeader(MemberState state, MemberNotifier notifier, bool isDark, bool isLibraryAdmin) {
+    final allSelected = state.members.isNotEmpty &&
+        state.members.every((m) => state.selectedMemberIds.contains(m.id));
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -194,6 +260,16 @@ class _MemberTableState extends ConsumerState<MemberTable> {
       ),
       child: Row(
         children: [
+          if (isLibraryAdmin) ...[
+            SizedBox(
+              width: 28,
+              child: Checkbox(
+                value: allSelected,
+                onChanged: (val) => notifier.selectAllCurrentPage(val ?? false),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           // 1. Member ID (flex: 11)
           Expanded(
             flex: 11,
@@ -318,12 +394,17 @@ class _MemberTableState extends ConsumerState<MemberTable> {
 
   Widget _buildTableRow(LibraryMemberModel member, MemberState state, MemberNotifier notifier, bool isDark) {
     final isDrawerActive = state.selectedMember?.id == member.id && state.isDrawerOpen;
+    final isSelected = state.selectedMemberIds.contains(member.id);
     final currencyFormatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
     final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     return Container(
       decoration: BoxDecoration(
-        color: isDrawerActive ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.16 : 0.06) : Colors.transparent,
+        color: isSelected
+            ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.14 : 0.05)
+            : (isDrawerActive
+                ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.16 : 0.06)
+                : Colors.transparent),
         border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))),
       ),
       child: Material(
@@ -335,6 +416,16 @@ class _MemberTableState extends ConsumerState<MemberTable> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
+                if (isLibraryAdmin) ...[
+                  SizedBox(
+                    width: 28,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => notifier.toggleMemberSelection(member.id),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 // 1. Member ID (flex: 11)
                 Expanded(
                   flex: 11,

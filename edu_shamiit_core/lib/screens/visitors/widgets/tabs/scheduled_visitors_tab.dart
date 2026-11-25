@@ -657,12 +657,12 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
                             ),
                             _buildSortableHeaderCell(
                               title: 'Type',
-                              sortKey: 'category',
+                              sortKey: 'visitor_type',
                               width: 80,
                               currentSortBy: state.appointmentsSortBy,
                               currentSortOrder: state.appointmentsSortOrder,
                               isDark: isDark,
-                              onTap: () => notifier.sortAppointments('category'),
+                              onTap: () => notifier.sortAppointments('visitor_type'),
                             ),
                             _buildSortableHeaderCell(
                               title: 'Purpose',
@@ -693,12 +693,12 @@ class _ScheduledVisitorsTabState extends ConsumerState<ScheduledVisitorsTab> {
                             ),
                             _buildSortableHeaderCell(
                               title: 'Date & Time',
-                              sortKey: 'scheduled_start',
+                              sortKey: 'scheduled_start_at',
                               width: dateTimeWidth,
                               currentSortBy: state.appointmentsSortBy,
                               currentSortOrder: state.appointmentsSortOrder,
                               isDark: isDark,
-                              onTap: () => notifier.sortAppointments('scheduled_start'),
+                              onTap: () => notifier.sortAppointments('scheduled_start_at'),
                             ),
                             _buildSortableHeaderCell(
                               title: 'Status',

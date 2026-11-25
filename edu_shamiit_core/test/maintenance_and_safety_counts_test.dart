@@ -102,8 +102,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Maintenance & Safety Compliance Counts Parity Tests', () {
-    test('MaintenanceState initial date range defaults to null (all dates)', () {
-      final state = const MaintenanceState();
+    test('MaintenanceState initial date range defaults to null (all dates)',
+        () {
+      const state = MaintenanceState();
       expect(state.dateRangeStart, isNull);
       expect(state.dateRangeEnd, isNull);
 
@@ -120,7 +121,9 @@ void main() {
       expect(cleared.dateRangeEnd, isNull);
     });
 
-    test('SafetyComplianceKpis parses action_needed_inspections and counts correctly', () {
+    test(
+        'SafetyComplianceKpis parses action_needed_inspections and counts correctly',
+        () {
       final json = {
         'overall_compliance_pct': 96.4,
         'compliance_change_pct': 2.3,
@@ -145,16 +148,20 @@ void main() {
       expect(kpis.drillsConducted, equals(2));
     });
 
-    test('SafetyComplianceNotifier subtab options and status sanitization prevent DropdownButton crashes', () {
+    test(
+        'SafetyComplianceNotifier subtab options and status sanitization prevent DropdownButton crashes',
+        () {
       final mockApi = MockSafetyComplianceApiService();
       final notifier = SafetyComplianceNotifier(mockApi);
 
       // Subtab 2 has 'Expiring Soon'
-      final subTab2Options = SafetyComplianceNotifier.getStatusOptionsForSubTab(2);
+      final subTab2Options =
+          SafetyComplianceNotifier.getStatusOptionsForSubTab(2);
       expect(subTab2Options.contains('Expiring Soon'), isTrue);
 
       // Subtab 0 only has Inspections options
-      final subTab0Options = SafetyComplianceNotifier.getStatusOptionsForSubTab(0);
+      final subTab0Options =
+          SafetyComplianceNotifier.getStatusOptionsForSubTab(0);
       expect(subTab0Options.contains('Expiring Soon'), isFalse);
 
       // Set view to expiring_certs
@@ -168,11 +175,14 @@ void main() {
       expect(notifier.debugState.selectedStatus, equals('All'));
     });
 
-    testWidgets('SafetyComplianceCenterPanel switches tabs without DropdownButton value assertion crash', (tester) async {
+    testWidgets(
+        'SafetyComplianceCenterPanel switches tabs without DropdownButton value assertion crash',
+        (tester) async {
       final mockApi = MockSafetyComplianceApiService();
       final container = ProviderContainer(
         overrides: [
-          safetyComplianceProvider.overrideWith((ref) => SafetyComplianceNotifier(mockApi)),
+          safetyComplianceProvider
+              .overrideWith((ref) => SafetyComplianceNotifier(mockApi)),
         ],
       );
       addTearDown(container.dispose);
@@ -201,7 +211,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Select 'Expiring Soon' from dropdown
-      container.read(safetyComplianceProvider.notifier).setStatus('Expiring Soon');
+      container
+          .read(safetyComplianceProvider.notifier)
+          .setStatus('Expiring Soon');
       await tester.pumpAndSettle();
 
       // Now tap back to 'Safety Inspections' tab
@@ -215,11 +227,14 @@ void main() {
       expect(find.text('Safety Inspections'), findsOneWidget);
     });
 
-    testWidgets('SafetyComplianceLeftPanel renders dynamic badges strictly matching KPIs', (tester) async {
+    testWidgets(
+        'SafetyComplianceLeftPanel renders dynamic badges strictly matching KPIs',
+        (tester) async {
       final mockApi = MockSafetyComplianceApiService();
       final container = ProviderContainer(
         overrides: [
-          safetyComplianceProvider.overrideWith((ref) => SafetyComplianceNotifier(mockApi)),
+          safetyComplianceProvider
+              .overrideWith((ref) => SafetyComplianceNotifier(mockApi)),
         ],
       );
       addTearDown(container.dispose);

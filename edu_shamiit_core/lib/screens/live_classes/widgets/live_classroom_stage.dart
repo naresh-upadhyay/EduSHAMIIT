@@ -1,7 +1,9 @@
 import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -12,6 +14,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/role_provider.dart';
 import '../../../utils/browser_fullscreen.dart';
 import '../utils/live_class_theme.dart';
+import '../utils/live_class_recorder_helper.dart';
 import '../whiteboard/widgets/whiteboard_workspace.dart';
 import 'share_meeting_dialog.dart';
 import 'device_audio_test_dialog.dart';
@@ -76,6 +79,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   bool _isScreenSharing = false;
   bool _isRecording = false;
   bool _isRecordingPaused = false;
+  bool _isRecordingTransitioning = false;
   Duration _recordingDuration = Duration.zero;
   Timer? _recordingTimer;
 
@@ -90,6 +94,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   bool _aiNoiseCancellation = true;
 
   // Keyboard Shortcuts & Push-to-Talk
+  final GlobalKey _stageRepaintKey = GlobalKey();
   final FocusNode _keyboardFocusNode = FocusNode();
   bool _isPushToTalkActive = false;
   bool _wasMicMutedBeforePTT = true;
@@ -97,6 +102,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   @override
   void initState() {
     super.initState();
+    LiveClassBrowserRecorder.instance.registerStageFrameProvider(_captureStageFrame);
     if (widget.initialStageMode != null) {
       _stageMode = widget.initialStageMode!;
     }
@@ -132,27 +138,54 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
   }
 
   void _startManualRecording() async {
+    if (_isRecordingTransitioning || _isRecording || LiveClassBrowserRecorder.instance.isRecording) {
+      return;
+    }
+    _isRecordingTransitioning = true;
+
+    // Instant UI feedback (do NOT mutate InAppLiveRoomService.isRecording before startRecordingWithCapture)
     setState(() {
       _isRecording = true;
       _isRecordingPaused = false;
       _recordingDuration = Duration.zero;
     });
+    _recordingTimer?.cancel();
     _startRecordingTimer();
+
     try {
-      final success = await ref.read(liveClassManagementProvider.notifier).toggleRecording();
+      final result = await ref.read(liveClassManagementProvider.notifier).startRecordingWithCapture();
+      final started = result['success'] == true && result['is_recording'] == true;
       if (mounted) {
+        if (!started) {
+          setState(() {
+            _isRecording = false;
+            _isRecordingPaused = false;
+            _recordingTimer?.cancel();
+          });
+          InAppLiveRoomService.instance.setIsRecording(false);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success
-                ? 'Live recording started. Real live meeting will be captured & saved by egress server.'
-                : 'Recording started locally.'),
-            backgroundColor: const Color(0xFF10B981),
+            content: Text(result['message']?.toString() ??
+                (started
+                    ? 'Live recording started.'
+                    : 'Could not start recording.')),
+            backgroundColor: started ? const Color(0xFF10B981) : const Color(0xFFEF4444),
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       debugPrint('[LiveClassroomStage] Start recording error: $e');
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _recordingTimer?.cancel();
+        });
+      }
+      InAppLiveRoomService.instance.setIsRecording(false);
+    } finally {
+      _isRecordingTransitioning = false;
     }
   }
 
@@ -239,8 +272,45 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
     });
   }
 
+  Future<StageCaptureFrame?> _captureStageFrame({bool includeStandardStage = false}) async {
+    if (!mounted) return null;
+    final roomService = ref.read(liveRoomServiceProvider);
+    final bool boardActive = _stageMode == StageMode.interactiveWhiteboard ||
+        _stageMode == StageMode.screenShare ||
+        _stageMode == StageMode.participantGrid ||
+        _isScreenSharing ||
+        roomService.isCamOff;
+    if (!boardActive && !includeStandardStage) return null;
+
+    final renderObj = _stageRepaintKey.currentContext?.findRenderObject();
+    if (renderObj is! RenderRepaintBoundary || !renderObj.hasSize) return null;
+
+    final Size size = renderObj.size;
+    if (size.width <= 0 || size.height <= 0) return null;
+
+    // Capture at 1280px wide (~1.0-1.5 DPR) for crisp strokes without stalling GPU readback
+    final double pixelRatio = (1280.0 / size.width).clamp(1.0, 1.5);
+    ui.Image? image;
+    try {
+      image = await renderObj.toImage(pixelRatio: pixelRatio);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (byteData == null) return null;
+      return StageCaptureFrame(
+        rgbaBytes: byteData.buffer.asUint8List(),
+        width: image.width,
+        height: image.height,
+        isBoardOrOverlayActive: boardActive,
+      );
+    } catch (_) {
+      return null;
+    } finally {
+      image?.dispose();
+    }
+  }
+
   @override
   void dispose() {
+    LiveClassBrowserRecorder.instance.registerStageFrameProvider(null);
     _recordingTimer?.cancel();
     _equalizerController.dispose();
     _keyboardFocusNode.dispose();
@@ -497,8 +567,12 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                           setState(() {
                             _isRecordingPaused = !_isRecordingPaused;
                           });
+                          if (_isRecordingPaused) {
+                            LiveClassBrowserRecorder.instance.pause();
+                          } else {
+                            LiveClassBrowserRecorder.instance.resume();
+                          }
                           setDlgState(() {});
-                          ref.read(liveClassManagementProvider.notifier).toggleRecording();
                         },
                       ),
                     ),
@@ -517,31 +591,45 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                         icon: const Icon(Icons.stop_circle_outlined, size: 18),
                         label: const Text('Stop & Finalize Recording'),
                         onPressed: () async {
+                          if (_isRecordingTransitioning) return;
+                          _isRecordingTransitioning = true;
                           final recordedSeconds = _recordingDuration.inSeconds;
+                          // Instant UI reset so button immediately shows 'Start Rec' without waiting for upload
+                          InAppLiveRoomService.instance.setIsRecording(false);
                           setState(() {
                             _isRecording = false;
+                            _isRecordingPaused = false;
                             _recordingTimer?.cancel();
                           });
                           Navigator.pop(ctx);
-                          final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
-                          final sessId = ref.read(liveClassManagementProvider).currentConductSessionId ?? activeSess?.id ?? 'sess_active';
-                          ref.read(liveClassManagementProvider.notifier).addLiveMeetingRecording(
-                            sessionId: sessId,
-                            title: activeSess?.title ?? 'Live Class',
-                            classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
-                            subject: activeSess?.subject ?? 'General',
-                            teacherName: activeSess?.teacherName ?? 'King Doe',
-                            durationSeconds: math.max(60, recordedSeconds),
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Finalizing and saving recording in background...'),
+                              duration: Duration(seconds: 2),
+                            ),
                           );
-                          await ref.read(liveClassManagementProvider.notifier).toggleRecording(recordedDurationSeconds: math.max(60, recordedSeconds));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Live recording finalized and saved to Recordings tab by egress server.'),
-                                backgroundColor: Color(0xFF10B981),
-                                duration: Duration(seconds: 4),
-                              ),
-                            );
+                          try {
+                            final result = await ref
+                                .read(liveClassManagementProvider.notifier)
+                                .stopRecordingWithCapture(
+                                  recordedDurationSeconds: math.max(1, recordedSeconds),
+                                );
+                            if (context.mounted) {
+                              final uploaded = result['uploaded'] == true;
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(result['message']?.toString() ??
+                                      (uploaded
+                                          ? 'Live recording captured and saved to Recordings tab!'
+                                          : 'Recording stopped.')),
+                                  backgroundColor: uploaded ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          } finally {
+                            _isRecordingTransitioning = false;
                           }
                         },
                       ),
@@ -1191,6 +1279,7 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
       activeCount: activeCount,
     );
     final pct = maxCap > 0 ? ((activeCount / maxCap) * 100).toStringAsFixed(1) : '100.0';
+    final otherCount = unified.where((p) => !p.isLocal).length;
 
     showDialog(
       context: context,
@@ -1201,18 +1290,23 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
           children: [
             Icon(Icons.call_end_rounded, color: Colors.redAccent, size: 24),
             SizedBox(width: 8),
-            Text('End Live Class for All?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'Leave or End Live Class?',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
         content: SizedBox(
-          width: 440,
+          width: 460,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Ending this session will disconnect all $activeCount active participant${activeCount == 1 ? '' : 's'} and automatically trigger attendance aggregation and recording processing.',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                otherCount > 0
+                    ? '$otherCount other participant${otherCount == 1 ? '' : 's'} ${otherCount == 1 ? 'is' : 'are'} still in this meeting.\n• Leave Meeting keeps the class live until all participants exit.\n• End Meeting for All disconnects everyone and finalizes attendance & recordings.'
+                    : 'No other participants are currently in this meeting.\nLeaving now will automatically end the meeting and trigger attendance aggregation.',
+                style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.45),
               ),
               const SizedBox(height: 14),
               Container(
@@ -1225,8 +1319,8 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                 child: Column(
                   children: [
                     _buildSummaryRow('Session Duration:', _formatDuration(_recordingDuration)),
+                    _buildSummaryRow('Other Active Participants:', '$otherCount participant${otherCount == 1 ? '' : 's'}'),
                     _buildSummaryRow('Attendance Calculated:', '$activeCount / $maxCap Targeted ($pct%)'),
-                    _buildSummaryRow('Recording Upload:', 'Cloud Storage Transcode Queued'),
                     _buildSummaryRow('Student Notes & Whiteboard:', 'Auto-shared to Class Stream'),
                   ],
                 ),
@@ -1239,30 +1333,35 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
           ),
-          ElevatedButton(
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFF59E0B),
+              side: const BorderSide(color: Color(0xFFF59E0B)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.logout_rounded, size: 16),
+            label: Text(otherCount > 0 ? 'Leave Meeting' : 'Leave (Auto-End)'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (widget.onLeaveClass != null) {
+                widget.onLeaveClass!.call();
+              } else {
+                widget.onEndClass?.call();
+              }
+            },
+          ),
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent.shade400,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
+            icon: const Icon(Icons.call_end_rounded, size: 16),
+            label: const Text('End Meeting for All'),
             onPressed: () {
-              if (_isRecording) {
-                final recordedSeconds = _recordingDuration.inSeconds;
-                final activeSess = ref.read(liveClassManagementProvider).conductSessionData?.activeSession;
-                final sessId = ref.read(liveClassManagementProvider).currentConductSessionId ?? activeSess?.id ?? 'sess_active';
-                ref.read(liveClassManagementProvider.notifier).addLiveMeetingRecording(
-                  sessionId: sessId,
-                  title: activeSess?.title ?? 'Live Class',
-                  classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
-                  subject: activeSess?.subject ?? 'General',
-                  teacherName: activeSess?.teacherName ?? 'King Doe',
-                  durationSeconds: math.max(60, recordedSeconds),
-                );
-              }
               Navigator.pop(ctx);
               widget.onEndClass?.call();
             },
-            child: const Text('End Class for All'),
           ),
         ],
       ),
@@ -1543,60 +1642,68 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                 const SizedBox(width: 6),
 
                 // Recording Indicator with elapsed timer (Compact & overflow-safe)
-                InkWell(
-                  onTap: () {
-                    if (!_isRecording) {
-                      _startManualRecording();
-                    } else {
-                      _showRecordingControlsDialog(context);
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: !_isRecording
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : (_isRecordingPaused
-                              ? Colors.amber.withValues(alpha: 0.2)
-                              : Colors.redAccent.withValues(alpha: 0.18)),
+                Builder(
+                  builder: (context) {
+                    final activeRecording = _isRecording ||
+                        InAppLiveRoomService.instance.isRecording ||
+                        LiveClassBrowserRecorder.instance.isRecording;
+                    final isPaused = _isRecordingPaused || LiveClassBrowserRecorder.instance.isPaused;
+                    return InkWell(
+                      onTap: () {
+                        if (!activeRecording) {
+                          _startManualRecording();
+                        } else {
+                          _showRecordingControlsDialog(context);
+                        }
+                      },
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: !_isRecording
-                            ? Colors.white24
-                            : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
-                        width: 0.8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: !activeRecording
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : (isPaused
+                                  ? Colors.amber.withValues(alpha: 0.2)
+                                  : Colors.redAccent.withValues(alpha: 0.18)),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: !activeRecording
+                                ? Colors.white24
+                                : (isPaused ? Colors.amberAccent : Colors.redAccent),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: !activeRecording
+                                    ? Colors.redAccent
+                                    : (isPaused ? Colors.amberAccent : Colors.redAccent),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              !activeRecording
+                                  ? 'Start Rec'
+                                  : (isPaused ? 'Paused' : 'Rec ${_formatDuration(_recordingDuration)}'),
+                              style: TextStyle(
+                                color: !activeRecording
+                                    ? Colors.white
+                                    : (isPaused ? Colors.amberAccent : Colors.redAccent),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: !_isRecording
-                                ? Colors.redAccent
-                                : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          !_isRecording
-                              ? 'Start Rec'
-                              : (_isRecordingPaused ? 'Paused' : 'Rec ${_formatDuration(_recordingDuration)}'),
-                          style: TextStyle(
-                            color: !_isRecording
-                                ? Colors.white
-                                : (_isRecordingPaused ? Colors.amberAccent : Colors.redAccent),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(width: 6),
 
@@ -1824,7 +1931,10 @@ class _LiveClassroomStageState extends ConsumerState<LiveClassroomStage>
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: _buildStageCanvas(primaryTrack, activeScreenShareTrack, unifiedParticipants),
+                        child: RepaintBoundary(
+                          key: _stageRepaintKey,
+                          child: _buildStageCanvas(primaryTrack, activeScreenShareTrack, unifiedParticipants),
+                        ),
                       ),
 
                       // Screen share active indicator (strictly when real screen share track is streaming)

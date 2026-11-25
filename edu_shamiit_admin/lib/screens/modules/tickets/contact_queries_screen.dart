@@ -22,7 +22,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
 
   // Pagination & Filtering state
   int _currentPage = 1;
-  final int _pageSize = 10;
+  int _pageSize = 10;
   String _searchQuery = "";
   String _selectedStatus = "All";
 
@@ -722,6 +722,31 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
         Text(
           'Total: $_totalRecords records',
           style: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          'Rows per page:',
+          style: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
+        ),
+        const SizedBox(width: 6),
+        DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            value: const [10, 25, 50, 100].contains(_pageSize) ? _pageSize : 10,
+            isDense: true,
+            style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
+            items: const [10, 25, 50, 100]
+                .map((s) => DropdownMenuItem(value: s, child: Text('$s')))
+                .toList(),
+            onChanged: (v) {
+              if (v != null && v != _pageSize) {
+                setState(() {
+                  _pageSize = v;
+                  _currentPage = 1;
+                });
+                _fetchQueries();
+              }
+            },
+          ),
         ),
         const Spacer(),
         OutlinedButton(

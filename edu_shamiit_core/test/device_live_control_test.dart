@@ -38,7 +38,8 @@ class TestLiveControlNotifier extends DeviceManagementNotifier {
 
 void main() {
   group('Live Control - Models Unit Tests', () {
-    test('LiveControlKpis deserialization matching exact screenshot metrics', () {
+    test('LiveControlKpis deserialization matching exact screenshot metrics',
+        () {
       final json = {
         'online_devices': 8342,
         'online_percentage': 95.4,
@@ -61,7 +62,8 @@ void main() {
       expect(kpis.activeSchedules, 63);
     });
 
-    test('LiveControlDeviceItem state getters for 8 canonical device types', () {
+    test('LiveControlDeviceItem state getters for 8 canonical device types',
+        () {
       final acItem = LiveControlDeviceItem.fromJson({
         'id': 'c1c00000-0000-0000-0000-000000000009',
         'device_name': 'AC (HVAC)',
@@ -99,7 +101,9 @@ void main() {
         'device_name': 'Smart Switch',
         'device_code': 'SW-A1-103',
         'device_type_name': 'Power & Switches',
-        'current_state': {'channels': [1, 2, 4]},
+        'current_state': {
+          'channels': [1, 2, 4]
+        },
       });
       expect(switchItem.channels, [1, 2, 4]);
 
@@ -109,7 +113,10 @@ void main() {
         'device_name': 'Smart Switch (G002)',
         'device_code': 'SW-G002',
         'device_type_name': 'Power & Switches',
-        'current_state': {'power': true, 'channels': [true, false, true, true]},
+        'current_state': {
+          'power': true,
+          'channels': [true, false, true, true]
+        },
       });
       expect(boolSwitchItem.channels, [1, 3, 4]);
 
@@ -140,8 +147,10 @@ void main() {
 
   group('Live Control - Selection & Pagination Notifier Tests', () {
     test('Multi-selection and Select All toggle logic', () {
-      final dev1 = const LiveControlDeviceItem(id: 'dev-1', deviceName: 'D1', deviceCode: 'C1');
-      final dev2 = const LiveControlDeviceItem(id: 'dev-2', deviceName: 'D2', deviceCode: 'C2');
+      const dev1 = LiveControlDeviceItem(
+          id: 'dev-1', deviceName: 'D1', deviceCode: 'C1');
+      const dev2 = LiveControlDeviceItem(
+          id: 'dev-2', deviceName: 'D2', deviceCode: 'C2');
       final initial = DeviceManagementState(
         liveControlDevices: [dev1, dev2],
         liveControlTotal: 2,
@@ -176,7 +185,7 @@ void main() {
     });
 
     test('Sorting and Page state updates', () {
-      final initial = const DeviceManagementState(
+      const initial = DeviceManagementState(
         liveControlSortBy: 'device_name',
         liveControlSortOrder: 'asc',
         liveControlPage: 1,
@@ -254,7 +263,10 @@ void main() {
           deviceCode: 'SW-A1-103',
           deviceTypeName: 'Power & Switches',
           roomNumber: 'A1-103',
-          currentState: {'power': true, 'channels': [1, 2, 4]},
+          currentState: {
+            'power': true,
+            'channels': [1, 2, 4]
+          },
         ),
         const LiveControlDeviceItem(
           id: 'c1c00000-0000-0000-0000-000000000021',
@@ -337,7 +349,8 @@ void main() {
       );
     }
 
-    testWidgets('Renders all 6 operational KPI metrics accurately', (tester) async {
+    testWidgets('Renders all 6 operational KPI metrics accurately',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1000));
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -369,7 +382,8 @@ void main() {
       expect(find.text('Live View (CCTV)'), findsOneWidget);
     });
 
-    testWidgets('Renders 8 Canonical Device Cards in Room A1-103', (tester) async {
+    testWidgets('Renders 8 Canonical Device Cards in Room A1-103',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1000));
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -384,7 +398,9 @@ void main() {
       expect(find.text('Audio / Speaker'), findsWidgets);
     });
 
-    testWidgets('Interactive Device Cards: Temp Adjust, Switch Channels, Door Lock', (tester) async {
+    testWidgets(
+        'Interactive Device Cards: Temp Adjust, Switch Channels, Door Lock',
+        (tester) async {
       final notifier = TestLiveControlNotifier(mockState);
       await tester.binding.setSurfaceSize(const Size(1600, 1000));
       await tester.pumpWidget(createTestWidget(notifier: notifier));
@@ -401,12 +417,14 @@ void main() {
       expect(notifier.executedCommands.first['commandType'], 'set_temperature');
     });
 
-    testWidgets('Renders Floor Plan view with A1-103 Classroom & Legend', (tester) async {
+    testWidgets('Renders Floor Plan view with A1-103 Classroom & Legend',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1000));
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Floor Plan – Academic Block (A) > First Floor'), findsOneWidget);
+      expect(find.text('Floor Plan – Academic Block (A) > First Floor'),
+          findsOneWidget);
       expect(find.text('Open Full Plan'), findsOneWidget);
       expect(find.text('A1-101'), findsOneWidget);
       expect(find.text('A1-102'), findsOneWidget);
@@ -419,7 +437,9 @@ void main() {
       expect(find.text('Legend'), findsOneWidget);
     });
 
-    testWidgets('Renders Right Device Control Panel Inspector with Mode, Presets, Info', (tester) async {
+    testWidgets(
+        'Renders Right Device Control Panel Inspector with Mode, Presets, Info',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1000));
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -439,7 +459,8 @@ void main() {
       expect(find.text('AC-A1-103'), findsWidgets);
     });
 
-    testWidgets('Tapping Open Full Plan opens expanded floor plan modal dialog', (tester) async {
+    testWidgets('Tapping Open Full Plan opens expanded floor plan modal dialog',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1200));
       await tester.pumpWidget(createTestWidget(size: const Size(1600, 1200)));
       await tester.pumpAndSettle();
@@ -450,10 +471,12 @@ void main() {
       await tester.tap(fullPlanBtn);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Full Architectural Floor Plan'), findsOneWidget);
+      expect(
+          find.textContaining('Full Architectural Floor Plan'), findsOneWidget);
     });
 
-    testWidgets('Tapping CCTV Live View opens live video modal dialog', (tester) async {
+    testWidgets('Tapping CCTV Live View opens live video modal dialog',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1200));
       await tester.pumpWidget(createTestWidget(size: const Size(1600, 1200)));
       await tester.pumpAndSettle();
@@ -468,12 +491,14 @@ void main() {
       expect(find.text('Close Stream'), findsOneWidget);
     });
 
-    testWidgets('Responsive Layout on Compact / Mobile without overflow', (tester) async {
+    testWidgets('Responsive Layout on Compact / Mobile without overflow',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1400));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            deviceManagementProvider.overrideWith((ref) => TestLiveControlNotifier(mockState)),
+            deviceManagementProvider
+                .overrideWith((ref) => TestLiveControlNotifier(mockState)),
           ],
           child: const MaterialApp(
             home: Scaffold(

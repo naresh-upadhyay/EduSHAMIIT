@@ -161,21 +161,45 @@ class HostelFeeService {
   }
 
   Future<List<HostelFeePlanModel>> getFeeStructures({String academicYear = '2026 - 2027'}) async {
+    final res = await getFeeStructuresPaged(academicYear: academicYear, pageSize: 100);
+    return res['plans'] as List<HostelFeePlanModel>;
+  }
+
+  Future<Map<String, dynamic>> getFeeStructuresPaged({
+    String academicYear = '2026 - 2027',
+    int page = 1,
+    int pageSize = 10,
+    String? sortBy,
+    String sortOrder = 'ASC',
+  }) async {
     try {
+      final query = <String, dynamic>{
+        'academic_year': academicYear,
+        'page': page,
+        'page_size': pageSize,
+        'sort_order': sortOrder,
+      };
+      if (sortBy != null && sortBy.trim().isNotEmpty) {
+        query['sort_by'] = sortBy.trim();
+      }
       final res = await _api.get(
         '/hostel/fees/structures',
-        query: {'academic_year': academicYear},
+        query: query,
         useCache: false,
       );
       if (res['success'] == true && res['data'] is List) {
-        return (res['data'] as List)
+        final list = (res['data'] as List)
             .map((p) => HostelFeePlanModel.fromJson(p as Map<String, dynamic>))
             .toList();
+        return {
+          'plans': list,
+          'pagination': res['pagination'] ?? {},
+        };
       }
     } catch (e) {
       // Fallback
     }
-    return [];
+    return {'plans': <HostelFeePlanModel>[], 'pagination': {}};
   }
 
   Future<Map<String, dynamic>> createFeeStructure(Map<String, dynamic> payload) async {
@@ -196,15 +220,19 @@ class HostelFeeService {
     String academicYear = '2026 - 2027',
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String sortOrder = 'DESC',
   }) async {
     try {
       final query = <String, dynamic>{
         'academic_year': academicYear,
         'page': page,
         'page_size': pageSize,
+        'sort_order': sortOrder,
       };
       if (studentId != null) query['student_id'] = studentId;
       if (status != null && status != 'ALL') query['status'] = status;
+      if (sortBy != null && sortBy.trim().isNotEmpty) query['sort_by'] = sortBy.trim();
 
       final res = await _api.get('/hostel/fees/invoices', query: query, useCache: false);
       if (res['success'] == true) {
@@ -242,12 +270,19 @@ class HostelFeeService {
     String? academicYear,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String sortOrder = 'DESC',
   }) async {
     try {
-      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      final query = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+        'sort_order': sortOrder,
+      };
       if (studentId != null) query['student_id'] = studentId;
       if (invoiceId != null) query['invoice_id'] = invoiceId;
       if (academicYear != null) query['academic_year'] = academicYear;
+      if (sortBy != null && sortBy.trim().isNotEmpty) query['sort_by'] = sortBy.trim();
 
       final res = await _api.get('/hostel/fees/payments', query: query, useCache: false);
       if (res['success'] == true) {
@@ -282,19 +317,39 @@ class HostelFeeService {
   }
 
   Future<List<Map<String, dynamic>>> getRefunds({String? studentId, String? status}) async {
+    final res = await getRefundsPaged(studentId: studentId, status: status, pageSize: 100);
+    return res['refunds'] as List<Map<String, dynamic>>;
+  }
+
+  Future<Map<String, dynamic>> getRefundsPaged({
+    String? studentId,
+    String? status,
+    int page = 1,
+    int pageSize = 10,
+    String? sortBy,
+    String sortOrder = 'DESC',
+  }) async {
     try {
-      final query = <String, dynamic>{};
+      final query = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+        'sort_order': sortOrder,
+      };
       if (studentId != null) query['student_id'] = studentId;
       if (status != null && status != 'ALL') query['status'] = status;
+      if (sortBy != null && sortBy.trim().isNotEmpty) query['sort_by'] = sortBy.trim();
 
       final res = await _api.get('/hostel/fees/refunds', query: query, useCache: false);
       if (res['success'] == true && res['data'] is List) {
-        return (res['data'] as List).cast<Map<String, dynamic>>();
+        return {
+          'refunds': (res['data'] as List).cast<Map<String, dynamic>>(),
+          'pagination': res['pagination'] ?? {},
+        };
       }
     } catch (e) {
       // Fallback
     }
-    return [];
+    return {'refunds': <Map<String, dynamic>>[], 'pagination': {}};
   }
 
   Future<Map<String, dynamic>> requestRefund(Map<String, dynamic> payload) async {

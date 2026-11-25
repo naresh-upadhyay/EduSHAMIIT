@@ -176,6 +176,7 @@ class CampusNotifierFake extends StateNotifier<CampusState>
   @override
   Future<void> setFloorsPage(int page) async {}
 
+  @override
   Future<void> setRoomsPage(int page) async {}
 
   @override

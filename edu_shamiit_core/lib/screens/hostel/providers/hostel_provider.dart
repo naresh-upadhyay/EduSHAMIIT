@@ -21,6 +21,9 @@ class HostelState {
   final List<HostelBuilding> structureTree;
   final List<HostelRoomItem> rooms;
   final Map<String, dynamic> pagination;
+  final int roomsPageSize;
+  final String roomsSortBy;
+  final String roomsSortOrder;
   final String contextTitle;
   final String? selectedBuildingId;
   final String? selectedFloorId;
@@ -54,6 +57,7 @@ class HostelState {
   final String studentsFeeStatusFilter;
   final DateTimeRange? selectedDateRange;
   final Set<String> selectedStudentRosterIds;
+  final int studentsPageSize;
   final String studentsSortBy;
   final String studentsSortOrder;
   final int studentDrawerTab; // 0: Overview, 1: Details, 2: Fees, 3: Leave/Outing, 4: Documents
@@ -94,15 +98,32 @@ class HostelState {
   final String feesStatusFilter;
   final DateTimeRange? feesDateRange;
   final Set<String> selectedFeeAccountIds;
+  final int feesPageSize;
   final String? feesSortBy;
   final String feesSortOrder;
   final int feesSubTab; // 0: Student Fees, 1: Invoices, 2: Payments, 3: Fee Structure, 4: Discounts & Concessions, 5: Reports
   final int feeDrawerTab; // 0: Overview, 1: Fee Breakdown, 2: Invoices, 3: Payments, 4: Ledger, 5: Concessions, 6: History
   final bool isFeeDrawerOpen;
   final List<HostelFeePlanModel> feePlans;
+  final Map<String, dynamic> feePlansPagination;
+  final String feePlansSortBy;
+  final String feePlansSortOrder;
+  final int feePlansPageSize;
   final List<HostelInvoiceItemModel> invoicesList;
+  final Map<String, dynamic> invoicesPagination;
+  final String invoicesSortBy;
+  final String invoicesSortOrder;
+  final int invoicesPageSize;
   final List<HostelPaymentReceiptModel> paymentsList;
+  final Map<String, dynamic> paymentsPagination;
+  final String paymentsSortBy;
+  final String paymentsSortOrder;
+  final int paymentsPageSize;
   final List<Map<String, dynamic>> refundsList;
+  final Map<String, dynamic> refundsPagination;
+  final String refundsSortBy;
+  final String refundsSortOrder;
+  final int refundsPageSize;
 
   // Hostel Leave & Outing Module State
   final LeaveOutingKpiData leaveKpis;
@@ -122,6 +143,8 @@ class HostelState {
   final List<LeaveOutingRequestItem> currentlyOutList;
   final List<GatePassData> gatePassesList;
   final Map<String, dynamic> gatePassesPagination;
+  final String gatePassesSortBy;
+  final String gatePassesSortOrder;
   final bool isGatePassesLoading;
   final LeaveOutingSettingsData leaveSettings;
   final bool isLeaveDrawerOpen;
@@ -170,6 +193,9 @@ class HostelState {
     this.structureTree = const [],
     this.rooms = const [],
     this.pagination = const {'total_records': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.roomsPageSize = 10,
+    this.roomsSortBy = 'room_number',
+    this.roomsSortOrder = 'ASC',
     this.contextTitle = 'Rooms',
     this.selectedBuildingId,
     this.selectedFloorId,
@@ -217,6 +243,7 @@ class HostelState {
     this.studentsFeeStatusFilter = 'All Fees',
     this.selectedDateRange,
     this.selectedStudentRosterIds = const {},
+    this.studentsPageSize = 10,
     this.studentsSortBy = 'student_name',
     this.studentsSortOrder = 'ASC',
     this.studentDrawerTab = 0,
@@ -257,15 +284,32 @@ class HostelState {
     this.feesStatusFilter = 'All Status',
     this.feesDateRange,
     this.selectedFeeAccountIds = const {},
+    this.feesPageSize = 10,
     this.feesSortBy,
     this.feesSortOrder = 'ASC',
     this.feesSubTab = 0,
     this.feeDrawerTab = 0,
     this.isFeeDrawerOpen = false,
     this.feePlans = const [],
+    this.feePlansPagination = const {'total_records': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.feePlansSortBy = 'name',
+    this.feePlansSortOrder = 'ASC',
+    this.feePlansPageSize = 10,
     this.invoicesList = const [],
+    this.invoicesPagination = const {'total_records': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.invoicesSortBy = 'invoice_date',
+    this.invoicesSortOrder = 'DESC',
+    this.invoicesPageSize = 10,
     this.paymentsList = const [],
+    this.paymentsPagination = const {'total_records': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.paymentsSortBy = 'payment_date',
+    this.paymentsSortOrder = 'DESC',
+    this.paymentsPageSize = 10,
     this.refundsList = const [],
+    this.refundsPagination = const {'total_records': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.refundsSortBy = 'created_at',
+    this.refundsSortOrder = 'DESC',
+    this.refundsPageSize = 10,
 
     // Hostel Leave & Outing Module defaults
     required this.leaveKpis,
@@ -285,6 +329,8 @@ class HostelState {
     this.currentlyOutList = const [],
     this.gatePassesList = const [],
     this.gatePassesPagination = const {'total': 0, 'page': 1, 'page_size': 10, 'total_pages': 1},
+    this.gatePassesSortBy = 'generated_at',
+    this.gatePassesSortOrder = 'DESC',
     this.isGatePassesLoading = false,
     required this.leaveSettings,
     this.isLeaveDrawerOpen = false,
@@ -335,6 +381,9 @@ class HostelState {
     List<HostelBuilding>? structureTree,
     List<HostelRoomItem>? rooms,
     Map<String, dynamic>? pagination,
+    int? roomsPageSize,
+    String? roomsSortBy,
+    String? roomsSortOrder,
     String? contextTitle,
     String? selectedBuildingId,
     String? selectedFloorId,
@@ -371,6 +420,7 @@ class HostelState {
     String? studentsFeeStatusFilter,
     DateTimeRange? selectedDateRange,
     Set<String>? selectedStudentRosterIds,
+    int? studentsPageSize,
     String? studentsSortBy,
     String? studentsSortOrder,
     int? studentDrawerTab,
@@ -413,15 +463,32 @@ class HostelState {
     String? feesStatusFilter,
     DateTimeRange? feesDateRange,
     Set<String>? selectedFeeAccountIds,
+    int? feesPageSize,
     String? feesSortBy,
     String? feesSortOrder,
     int? feesSubTab,
     int? feeDrawerTab,
     bool? isFeeDrawerOpen,
     List<HostelFeePlanModel>? feePlans,
+    Map<String, dynamic>? feePlansPagination,
+    String? feePlansSortBy,
+    String? feePlansSortOrder,
+    int? feePlansPageSize,
     List<HostelInvoiceItemModel>? invoicesList,
+    Map<String, dynamic>? invoicesPagination,
+    String? invoicesSortBy,
+    String? invoicesSortOrder,
+    int? invoicesPageSize,
     List<HostelPaymentReceiptModel>? paymentsList,
+    Map<String, dynamic>? paymentsPagination,
+    String? paymentsSortBy,
+    String? paymentsSortOrder,
+    int? paymentsPageSize,
     List<Map<String, dynamic>>? refundsList,
+    Map<String, dynamic>? refundsPagination,
+    String? refundsSortBy,
+    String? refundsSortOrder,
+    int? refundsPageSize,
     bool clearSelectedFeeStudent = false,
 
     // Hostel Leave & Outing Module fields
@@ -443,6 +510,8 @@ class HostelState {
     List<LeaveOutingRequestItem>? currentlyOutList,
     List<GatePassData>? gatePassesList,
     Map<String, dynamic>? gatePassesPagination,
+    String? gatePassesSortBy,
+    String? gatePassesSortOrder,
     bool? isGatePassesLoading,
     LeaveOutingSettingsData? leaveSettings,
     bool? isLeaveDrawerOpen,
@@ -492,6 +561,9 @@ class HostelState {
       structureTree: structureTree ?? this.structureTree,
       rooms: rooms ?? this.rooms,
       pagination: pagination ?? this.pagination,
+      roomsPageSize: roomsPageSize ?? this.roomsPageSize,
+      roomsSortBy: roomsSortBy ?? this.roomsSortBy,
+      roomsSortOrder: roomsSortOrder ?? this.roomsSortOrder,
       contextTitle: contextTitle ?? this.contextTitle,
       selectedBuildingId: clearSelectedBuilding ? null : (selectedBuildingId ?? this.selectedBuildingId),
       selectedFloorId: clearSelectedFloor ? null : (selectedFloorId ?? this.selectedFloorId),
@@ -525,6 +597,7 @@ class HostelState {
       studentsFeeStatusFilter: studentsFeeStatusFilter ?? this.studentsFeeStatusFilter,
       selectedDateRange: selectedDateRange ?? this.selectedDateRange,
       selectedStudentRosterIds: selectedStudentRosterIds ?? this.selectedStudentRosterIds,
+      studentsPageSize: studentsPageSize ?? this.studentsPageSize,
       studentsSortBy: studentsSortBy ?? this.studentsSortBy,
       studentsSortOrder: studentsSortOrder ?? this.studentsSortOrder,
       studentDrawerTab: studentDrawerTab ?? this.studentDrawerTab,
@@ -565,15 +638,32 @@ class HostelState {
       feesStatusFilter: feesStatusFilter ?? this.feesStatusFilter,
       feesDateRange: feesDateRange ?? this.feesDateRange,
       selectedFeeAccountIds: selectedFeeAccountIds ?? this.selectedFeeAccountIds,
+      feesPageSize: feesPageSize ?? this.feesPageSize,
       feesSortBy: feesSortBy ?? this.feesSortBy,
       feesSortOrder: feesSortOrder ?? this.feesSortOrder,
       feesSubTab: feesSubTab ?? this.feesSubTab,
       feeDrawerTab: feeDrawerTab ?? this.feeDrawerTab,
       isFeeDrawerOpen: isFeeDrawerOpen ?? this.isFeeDrawerOpen,
       feePlans: feePlans ?? this.feePlans,
+      feePlansPagination: feePlansPagination ?? this.feePlansPagination,
+      feePlansSortBy: feePlansSortBy ?? this.feePlansSortBy,
+      feePlansSortOrder: feePlansSortOrder ?? this.feePlansSortOrder,
+      feePlansPageSize: feePlansPageSize ?? this.feePlansPageSize,
       invoicesList: invoicesList ?? this.invoicesList,
+      invoicesPagination: invoicesPagination ?? this.invoicesPagination,
+      invoicesSortBy: invoicesSortBy ?? this.invoicesSortBy,
+      invoicesSortOrder: invoicesSortOrder ?? this.invoicesSortOrder,
+      invoicesPageSize: invoicesPageSize ?? this.invoicesPageSize,
       paymentsList: paymentsList ?? this.paymentsList,
+      paymentsPagination: paymentsPagination ?? this.paymentsPagination,
+      paymentsSortBy: paymentsSortBy ?? this.paymentsSortBy,
+      paymentsSortOrder: paymentsSortOrder ?? this.paymentsSortOrder,
+      paymentsPageSize: paymentsPageSize ?? this.paymentsPageSize,
       refundsList: refundsList ?? this.refundsList,
+      refundsPagination: refundsPagination ?? this.refundsPagination,
+      refundsSortBy: refundsSortBy ?? this.refundsSortBy,
+      refundsSortOrder: refundsSortOrder ?? this.refundsSortOrder,
+      refundsPageSize: refundsPageSize ?? this.refundsPageSize,
 
       // Leave & Outing
       leaveKpis: leaveKpis ?? this.leaveKpis,
@@ -593,6 +683,8 @@ class HostelState {
       currentlyOutList: currentlyOutList ?? this.currentlyOutList,
       gatePassesList: gatePassesList ?? this.gatePassesList,
       gatePassesPagination: gatePassesPagination ?? this.gatePassesPagination,
+      gatePassesSortBy: gatePassesSortBy ?? this.gatePassesSortBy,
+      gatePassesSortOrder: gatePassesSortOrder ?? this.gatePassesSortOrder,
       isGatePassesLoading: isGatePassesLoading ?? this.isGatePassesLoading,
       leaveSettings: leaveSettings ?? this.leaveSettings,
       isLeaveDrawerOpen: isLeaveDrawerOpen ?? this.isLeaveDrawerOpen,
@@ -721,7 +813,9 @@ class HostelNotifier extends StateNotifier<HostelState> {
         roomType: state.roomTypeFilter == 'All Room Types' ? 'ALL' : state.roomTypeFilter,
         status: state.statusFilter == 'All Status' ? 'ALL' : state.statusFilter,
         page: page,
-        pageSize: 10,
+        pageSize: state.roomsPageSize,
+        sortBy: state.roomsSortBy,
+        sortOrder: state.roomsSortOrder,
       );
 
       final roomsList = res['rooms'] as List<HostelRoomItem>;
@@ -1029,6 +1123,19 @@ class HostelNotifier extends StateNotifier<HostelState> {
     fetchRooms(page: page);
   }
 
+  void setRoomsPageSize(int pageSize) {
+    state = state.copyWith(roomsPageSize: pageSize);
+    fetchRooms(page: 1);
+  }
+
+  void setRoomsSort(String sortBy) {
+    final nextOrder = (state.roomsSortBy == sortBy && state.roomsSortOrder == 'ASC')
+        ? 'DESC'
+        : 'ASC';
+    state = state.copyWith(roomsSortBy: sortBy, roomsSortOrder: nextOrder);
+    fetchRooms(page: 1);
+  }
+
   void setInspectorTab(int tab) {
     state = state.copyWith(inspectorTab: tab);
   }
@@ -1072,7 +1179,7 @@ class HostelNotifier extends StateNotifier<HostelState> {
         status: state.studentsStatusFilter == 'All Status' ? 'ALL' : state.studentsStatusFilter,
         feeStatus: state.studentsFeeStatusFilter == 'All Fees' ? 'ALL' : state.studentsFeeStatusFilter,
         page: 1,
-        pageSize: 10,
+        pageSize: state.studentsPageSize,
         sortBy: state.studentsSortBy,
         sortOrder: state.studentsSortOrder,
       );
@@ -1123,7 +1230,7 @@ class HostelNotifier extends StateNotifier<HostelState> {
         status: state.studentsStatusFilter == 'All Status' ? 'ALL' : state.studentsStatusFilter,
         feeStatus: state.studentsFeeStatusFilter == 'All Fees' ? 'ALL' : state.studentsFeeStatusFilter,
         page: page,
-        pageSize: 10,
+        pageSize: state.studentsPageSize,
         sortBy: state.studentsSortBy,
         sortOrder: state.studentsSortOrder,
       );
@@ -1299,6 +1406,42 @@ class HostelNotifier extends StateNotifier<HostelState> {
     fetchStudentsRoster(page: page);
   }
 
+  void setStudentsPageSize(int pageSize) {
+    state = state.copyWith(studentsPageSize: pageSize);
+    fetchStudentsRoster(page: 1);
+  }
+
+  Future<bool> bulkStudentsAction(String action, {String? reason}) async {
+    final ids = state.selectedStudentRosterIds.toList();
+    if (ids.isEmpty) {
+      showError('Select at least one hostel student');
+      return false;
+    }
+    try {
+      final res = await _service.bulkStudentsAction(
+        admissionIds: ids,
+        action: action,
+        reason: reason,
+      );
+      if (res['success'] == true) {
+        state = state.copyWith(selectedStudentRosterIds: const {});
+        showSuccess(res['message']?.toString() ?? 'Bulk operation completed');
+        await Future.wait([
+          loadStudentsData(),
+          fetchRooms(),
+          fetchStructureTree(),
+        ]);
+        loadOverviewData();
+        return true;
+      } else {
+        showError(res['message']?.toString() ?? 'Bulk action could not process selected students');
+      }
+    } catch (e) {
+      showError('Bulk action failed: $e');
+    }
+    return false;
+  }
+
   void setStudentsSort(String sortBy) {
     if (state.studentsSortBy == sortBy) {
       final nextOrder = state.studentsSortOrder == 'ASC' ? 'DESC' : 'ASC';
@@ -1419,15 +1562,21 @@ class HostelNotifier extends StateNotifier<HostelState> {
     return false;
   }
 
-  Future<bool> exportStudentsCsv() async {
+  Future<bool> exportStudentsCsv({bool onlySelected = false}) async {
     try {
+      final selectedIds = onlySelected ? state.selectedStudentRosterIds.toList() : null;
+      if (onlySelected && (selectedIds == null || selectedIds.isEmpty)) {
+        showError('Select at least one student to export');
+        return false;
+      }
       showSuccess('Exporting hostel students roster...');
       final bytes = await _service.exportStudentsCsv(
         academicYear: state.selectedAcademicYear,
         search: state.studentsSearch,
-        hostelId: state.studentsHostelFilter != 'All Hostels' ? state.studentsHostelFilter : null,
+        hostelId: _resolveHostelId(state.studentsHostelFilter),
         status: state.studentsStatusFilter != 'All Status' ? state.studentsStatusFilter : 'ALL',
-        feeStatus: state.studentsFeeStatusFilter != 'All Fee Status' ? state.studentsFeeStatusFilter : 'ALL',
+        feeStatus: state.studentsFeeStatusFilter != 'All Fees' ? state.studentsFeeStatusFilter : 'ALL',
+        admissionIds: selectedIds,
       );
       if (bytes != null && bytes.isNotEmpty) {
         final dateStr = DateTime.now().toIso8601String().split('T')[0];
@@ -1889,29 +2038,89 @@ class HostelNotifier extends StateNotifier<HostelState> {
     state = state.copyWith(isFeesLoading: false);
   }
 
-  Future<void> fetchInvoicesList() async {
+  Future<void> fetchInvoicesList({int? page}) async {
+    final targetPage = page ?? (state.invoicesPagination['page'] as int? ?? 1);
     try {
-      final res = await _feeService.getInvoices(academicYear: state.selectedAcademicYear);
+      final res = await _feeService.getInvoices(
+        academicYear: state.selectedAcademicYear,
+        page: targetPage,
+        pageSize: state.invoicesPageSize,
+        sortBy: state.invoicesSortBy,
+        sortOrder: state.invoicesSortOrder,
+      );
       final rawList = res['invoices'] as List<dynamic>? ?? [];
       final items = rawList.map((e) => HostelInvoiceItemModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-      state = state.copyWith(invoicesList: items);
+      final pag = Map<String, dynamic>.from(res['pagination'] as Map? ?? {});
+      state = state.copyWith(invoicesList: items, invoicesPagination: pag);
     } catch (_) {}
   }
 
-  Future<void> fetchPaymentsList() async {
+  void setInvoicesPage(int page) => fetchInvoicesList(page: page);
+
+  void setInvoicesPageSize(int pageSize) {
+    state = state.copyWith(invoicesPageSize: pageSize);
+    fetchInvoicesList(page: 1);
+  }
+
+  void setInvoicesSort(String sortBy, String sortOrder) {
+    state = state.copyWith(invoicesSortBy: sortBy, invoicesSortOrder: sortOrder);
+    fetchInvoicesList(page: 1);
+  }
+
+  Future<void> fetchPaymentsList({int? page}) async {
+    final targetPage = page ?? (state.paymentsPagination['page'] as int? ?? 1);
     try {
-      final res = await _feeService.getPayments(academicYear: state.selectedAcademicYear);
+      final res = await _feeService.getPayments(
+        academicYear: state.selectedAcademicYear,
+        page: targetPage,
+        pageSize: state.paymentsPageSize,
+        sortBy: state.paymentsSortBy,
+        sortOrder: state.paymentsSortOrder,
+      );
       final rawList = res['payments'] as List<dynamic>? ?? [];
       final items = rawList.map((e) => HostelPaymentReceiptModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-      state = state.copyWith(paymentsList: items);
+      final pag = Map<String, dynamic>.from(res['pagination'] as Map? ?? {});
+      state = state.copyWith(paymentsList: items, paymentsPagination: pag);
     } catch (_) {}
   }
 
-  Future<void> fetchRefundsList() async {
+  void setPaymentsPage(int page) => fetchPaymentsList(page: page);
+
+  void setPaymentsPageSize(int pageSize) {
+    state = state.copyWith(paymentsPageSize: pageSize);
+    fetchPaymentsList(page: 1);
+  }
+
+  void setPaymentsSort(String sortBy, String sortOrder) {
+    state = state.copyWith(paymentsSortBy: sortBy, paymentsSortOrder: sortOrder);
+    fetchPaymentsList(page: 1);
+  }
+
+  Future<void> fetchRefundsList({int? page}) async {
+    final targetPage = page ?? (state.refundsPagination['page'] as int? ?? 1);
     try {
-      final list = await _feeService.getRefunds();
-      state = state.copyWith(refundsList: list);
+      final res = await _feeService.getRefundsPaged(
+        page: targetPage,
+        pageSize: state.refundsPageSize,
+        sortBy: state.refundsSortBy,
+        sortOrder: state.refundsSortOrder,
+      );
+      final list = res['refunds'] as List<Map<String, dynamic>>? ?? [];
+      final pag = Map<String, dynamic>.from(res['pagination'] as Map? ?? {});
+      state = state.copyWith(refundsList: list, refundsPagination: pag);
     } catch (_) {}
+  }
+
+  void setRefundsPage(int page) => fetchRefundsList(page: page);
+
+  void setRefundsPageSize(int pageSize) {
+    state = state.copyWith(refundsPageSize: pageSize);
+    fetchRefundsList(page: 1);
+  }
+
+  void setRefundsSort(String sortBy, String sortOrder) {
+    state = state.copyWith(refundsSortBy: sortBy, refundsSortOrder: sortOrder);
+    fetchRefundsList(page: 1);
   }
 
   Future<void> loadFeeSummary() async {
@@ -1937,7 +2146,7 @@ class HostelNotifier extends StateNotifier<HostelState> {
         className: state.feesClassFilter == 'All Classes' ? null : state.feesClassFilter,
         status: state.feesStatusFilter == 'All Status' ? null : state.feesStatusFilter,
         page: page,
-        pageSize: 10,
+        pageSize: state.feesPageSize,
         sortBy: state.feesSortBy,
         sortOrder: state.feesSortOrder,
       );
@@ -1966,13 +2175,34 @@ class HostelNotifier extends StateNotifier<HostelState> {
     }
   }
 
-  Future<void> loadFeeStructures() async {
+  Future<void> loadFeeStructures({int? page}) async {
+    final targetPage = page ?? (state.feePlansPagination['page'] as int? ?? 1);
     try {
-      final list = await _feeService.getFeeStructures(academicYear: state.selectedAcademicYear);
-      state = state.copyWith(feePlans: list);
+      final res = await _feeService.getFeeStructuresPaged(
+        academicYear: state.selectedAcademicYear,
+        page: targetPage,
+        pageSize: state.feePlansPageSize,
+        sortBy: state.feePlansSortBy,
+        sortOrder: state.feePlansSortOrder,
+      );
+      final list = res['plans'] as List<HostelFeePlanModel>? ?? [];
+      final pag = Map<String, dynamic>.from(res['pagination'] as Map? ?? {});
+      state = state.copyWith(feePlans: list, feePlansPagination: pag);
     } catch (e) {
       // Ignored
     }
+  }
+
+  void setFeePlansPage(int page) => loadFeeStructures(page: page);
+
+  void setFeePlansPageSize(int pageSize) {
+    state = state.copyWith(feePlansPageSize: pageSize);
+    loadFeeStructures(page: 1);
+  }
+
+  void setFeePlansSort(String sortBy, String sortOrder) {
+    state = state.copyWith(feePlansSortBy: sortBy, feePlansSortOrder: sortOrder);
+    loadFeeStructures(page: 1);
   }
 
   Future<void> fetchFeeStudentDetail(String studentId) async {
@@ -2030,6 +2260,11 @@ class HostelNotifier extends StateNotifier<HostelState> {
 
   void setFeesSort(String? sortBy, String sortOrder) {
     state = state.copyWith(feesSortBy: sortBy, feesSortOrder: sortOrder);
+    loadStudentFees(page: 1);
+  }
+
+  void setFeesPageSize(int pageSize) {
+    state = state.copyWith(feesPageSize: pageSize);
     loadStudentFees(page: 1);
   }
 
@@ -2461,6 +2696,8 @@ class HostelNotifier extends StateNotifier<HostelState> {
         academicYear: state.selectedAcademicYear,
         page: page,
         pageSize: state.gatePassesPagination['page_size'] as int? ?? 10,
+        sortBy: state.gatePassesSortBy,
+        sortOrder: state.gatePassesSortOrder,
       );
       state = state.copyWith(
         gatePassesList: res['items'] as List<GatePassData>? ?? [],
@@ -2498,6 +2735,14 @@ class HostelNotifier extends StateNotifier<HostelState> {
       },
     );
     await loadGatePasses();
+  }
+
+  Future<void> setGatePassSort(String sortBy) async {
+    final nextOrder = (state.gatePassesSortBy == sortBy && state.gatePassesSortOrder == 'ASC')
+        ? 'DESC'
+        : 'ASC';
+    state = state.copyWith(gatePassesSortBy: sortBy, gatePassesSortOrder: nextOrder);
+    await loadGatePasses(resetPage: true);
   }
 
   void setLeaveSearch(String query) {

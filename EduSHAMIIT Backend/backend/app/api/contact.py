@@ -51,6 +51,8 @@ async def submit_contact_query(payload: ContactQueryCreate):
 async def list_contact_queries(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     user=Depends(require_super_admin_or_director)
@@ -65,7 +67,16 @@ async def list_contact_queries(
         if search:
             q = q.or_(f"full_name.ilike.%{search}%,email.ilike.%{search}%,subject.ilike.%{search}%,message.ilike.%{search}%")
             
-        q = q.order("created_at", ascending=False)
+        sort_map = {
+            "created_at": "created_at",
+            "full_name": "full_name",
+            "email": "email",
+            "subject": "subject",
+            "status": "status",
+        }
+        order_col = sort_map.get((sort_by or "created_at").lower(), "created_at")
+        is_asc = (sort_order or "desc").lower() == "asc"
+        q = q.order(order_col, ascending=is_asc)
         
         offset = (page - 1) * page_size
         q = q.limit(page_size).offset(offset)

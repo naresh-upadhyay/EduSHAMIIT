@@ -1792,12 +1792,30 @@ void setupMediaStreamInterception() {
 
         window._eduReleaseHardwareMediaTracks = function(releaseVideo, releaseAudio) {
           try {
+            const recMixer = window._eduRecorderAudioMixer;
+            const recDestStream = recMixer && recMixer.dest ? recMixer.dest.stream : null;
+            const recCanvasStream = window._eduRecorderCanvasStream || null;
+            const isProtectedRecStream = (s) => !s || s === recDestStream || s === recCanvasStream || (s._isEduRecorderStream === true);
+            const isScreenShareTrack = (t) => {
+              try {
+                const lbl = (t.label || '').toLowerCase();
+                if (lbl.includes('screen') || lbl.includes('window') || lbl.includes('display') || lbl.includes('monitor') || lbl.includes('tab')) {
+                  return true;
+                }
+                const st = typeof t.getSettings === 'function' ? t.getSettings() : {};
+                return !!(st && st.displaySurface);
+              } catch (_) { return false; }
+            };
+
             // 1. Release active streams recorded by interception
             if (window._activeEduStreams && Array.isArray(window._activeEduStreams)) {
               window._activeEduStreams.forEach(stream => {
+                if (isProtectedRecStream(stream)) return;
                 try {
                   if (releaseVideo) {
                     stream.getVideoTracks().forEach(track => {
+                      // When toggling Camera OFF, never kill an active Screen Share track
+                      if (!releaseAudio && isScreenShareTrack(track)) return;
                       try {
                         track.enabled = false;
                         track.stop();
@@ -1823,15 +1841,19 @@ void setupMediaStreamInterception() {
               });
             }
 
-            // 2. Scan all video & audio elements in the DOM
+            // 2. Scan all video & audio elements in the DOM (skipping recorder preview & internal elements)
             const mediaEls = document.querySelectorAll('video, audio');
             mediaEls.forEach(el => {
               try {
+                if (el.id && el.id.startsWith('rec-video-')) return;
+                if (el.getAttribute && el.getAttribute('data-shamiit-recorder') === 'true') return;
                 if (el.srcObject) {
                   const stream = el.srcObject;
+                  if (isProtectedRecStream(stream)) return;
                   if (stream && typeof stream.getTracks === 'function') {
                     if (releaseVideo) {
                       stream.getVideoTracks().forEach(t => {
+                        if (!releaseAudio && isScreenShareTrack(t)) return;
                         try {
                           t.enabled = false;
                           t.stop();

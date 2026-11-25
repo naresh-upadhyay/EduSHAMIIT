@@ -55,6 +55,10 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
     'total_records': 0,
     'total_pages': 1,
   };
+  int _pageSize = 10;
+  String _sortBy = 'joining_date';
+  bool _sortAsc = true;
+  int? _sortColumnIndex = 5;
 
   String _searchQuery = '';
   String _selectedDepartment = 'All';
@@ -143,7 +147,9 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
 
     final query = <String, dynamic>{
       'page': page,
-      'page_size': 10,
+      'page_size': _pageSize,
+      'sort_by': _sortBy,
+      'sort_order': _sortAsc ? 'asc' : 'desc',
     };
 
     if (_searchQuery.trim().isNotEmpty) {
@@ -1599,15 +1605,87 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
                           headingRowHeight: 44,
                           dataRowMinHeight: 52,
                           dataRowMaxHeight: 56,
-                          columns: const [
-                            DataColumn(label: SizedBox(width: 85, child: Text('Employee ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 150, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 110, child: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 150, child: Text('Designation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 150, child: Text('Stage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 100, child: Text('Joining Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 100, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                            DataColumn(label: SizedBox(width: 80, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _sortAsc,
+                          columns: [
+                            DataColumn(
+                              label: const SizedBox(width: 85, child: Text('Employee ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'onboarding_code';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 150, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'candidate_name';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 110, child: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'department';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 150, child: Text('Designation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'designation';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 150, child: Text('Stage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'stage';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 100, child: Text('Joining Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'joining_date';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            DataColumn(
+                              label: const SizedBox(width: 100, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              onSort: (idx, asc) {
+                                setState(() {
+                                  _sortColumnIndex = idx;
+                                  _sortBy = 'status';
+                                  _sortAsc = asc;
+                                });
+                                _fetchRecords(page: 1);
+                              },
+                            ),
+                            const DataColumn(label: SizedBox(width: 80, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                           ],
                           rows: _records.map((r) {
                             final status = r['status'] ?? 'Pending';
@@ -1861,8 +1939,8 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
     final totalRecords = (_pagination['total_records'] as num?)?.toInt() ?? 0;
     final totalPages = (_pagination['total_pages'] as num?)?.toInt() ?? 1;
 
-    final startIdx = totalRecords == 0 ? 0 : (currentPage - 1) * 10 + 1;
-    final endIdx = math.min<int>(currentPage * 10, totalRecords);
+    final startIdx = totalRecords == 0 ? 0 : (currentPage - 1) * _pageSize + 1;
+    final endIdx = math.min<int>(currentPage * _pageSize, totalRecords);
 
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
@@ -1870,9 +1948,46 @@ class _HROnboardingScreenState extends State<HROnboardingScreen> {
       spacing: 12,
       runSpacing: 10,
       children: [
-        Text(
-          'Showing $startIdx to $endIdx of $totalRecords new joiners',
-          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            Text(
+              'Showing $startIdx to $endIdx of $totalRecords new joiners',
+              style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Rows per page: ',
+                  style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+                const SizedBox(width: 4),
+                DropdownButton<int>(
+                  value: const [10, 25, 50, 100].contains(_pageSize) ? _pageSize : 10,
+                  isDense: true,
+                  underline: const SizedBox(),
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  items: const [10, 25, 50, 100]
+                      .map((n) => DropdownMenuItem<int>(value: n, child: Text('$n')))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null && val != _pageSize) {
+                      setState(() => _pageSize = val);
+                      _fetchRecords(page: 1);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
         Row(
           mainAxisSize: MainAxisSize.min,

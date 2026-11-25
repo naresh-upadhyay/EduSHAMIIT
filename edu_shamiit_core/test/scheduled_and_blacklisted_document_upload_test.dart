@@ -49,10 +49,10 @@ class MockUploadVisitorsApiService extends VisitorsApiService {
   }
 
   @override
-  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo}) async => const ScheduledKPIs();
+  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo, String? location, String? category, String? search}) async => const ScheduledKPIs();
 
   @override
-  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo}) async => const BlacklistKPIs();
+  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo, String? location, String? reason, String? search}) async => const BlacklistKPIs();
 
   @override
   Future<VisitorKPIs> getKPIs({
@@ -61,6 +61,7 @@ class MockUploadVisitorsApiService extends VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async => const VisitorKPIs();
 
   @override

@@ -1524,9 +1524,10 @@ async def export_students(
     hostel_id: Optional[str] = Query(None),
     status: str = Query("ALL"),
     fee_status: str = Query("ALL"),
+    admission_ids: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user)
 ):
-    """Export filtered hostel residents roster to CSV."""
+    """Export filtered or selected hostel residents roster to CSV."""
     school_id = _get_school_id(current_user)
     h_id = hostel_id.strip() if hostel_id and hostel_id.strip() else None
 
@@ -1539,6 +1540,9 @@ async def export_students(
         (school_id, academic_year, search, h_id, status, fee_status)
     )
     data = rows[0]["result"].get("data", []) if rows else []
+    if admission_ids and admission_ids.strip():
+        selected_set = {x.strip() for x in admission_ids.split(",") if x.strip()}
+        data = [r for r in data if str(r.get("admission_id", "")) in selected_set]
 
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=[
@@ -1682,6 +1686,107 @@ async def checkout_hostel_student(
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("message", "Checkout failed"))
     return res
+
+
+class HostelStudentsBulkActionPayload(BaseModel):
+    admission_ids: List[str]
+    action: str  # RELEASE_BED, CHECKOUT, MARK_ON_LEAVE, MARK_ACTIVE
+    reason: Optional[str] = None
+
+
+@router.post("/students/bulk-action")
+async def bulk_action_hostel_students(
+    payload: HostelStudentsBulkActionPayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """Execute bulk operations on multiple hostel student admissions."""
+    school_id = _get_school_id(current_user)
+    user_id = current_user.get("id")
+    action = payload.action.upper().strip()
+    ids = [i.strip() for i in payload.admission_ids if i and i.strip()]
+    if not ids:
+        raise HTTPException(status_code=400, detail="No hostel student admissions selected")
+
+    valid_actions = {"RELEASE_BED", "CHECKOUT", "MARK_ON_LEAVE", "MARK_ACTIVE"}
+    if action not in valid_actions:
+        raise HTTPException(status_code=400, detail=f"Unsupported bulk action: {action}")
+
+    processed = 0
+    skipped = 0
+    errors = []
+
+    for adm_id in ids:
+        try:
+            if action == "RELEASE_BED":
+                rows = await exec_sql(
+                    "SELECT public.fn_hostel_release_bed(%s::UUID, %s::UUID, %s::JSONB) AS result;",
+                    (school_id, user_id, json.dumps({
+                        "admission_id": adm_id,
+                        "reason": payload.reason or "Bulk bed release",
+                    }))
+                )
+                res = rows[0]["result"] if rows else {}
+                if res.get("success"):
+                    processed += 1
+                else:
+                    skipped += 1
+                    errors.append(res.get("message", f"Skipped {adm_id}"))
+            elif action == "CHECKOUT":
+                rows = await exec_sql(
+                    "SELECT public.fn_hostel_checkout_student(%s::UUID, %s::UUID, %s::JSONB) AS result;",
+                    (school_id, user_id, json.dumps({
+                        "admission_id": adm_id,
+                        "reason": payload.reason or "Bulk checkout",
+                    }))
+                )
+                res = rows[0]["result"] if rows else {}
+                if res.get("success"):
+                    processed += 1
+                else:
+                    skipped += 1
+                    errors.append(res.get("message", f"Skipped {adm_id}"))
+            elif action == "MARK_ON_LEAVE":
+                updated = await exec_sql(
+                    """
+                    UPDATE public.hostel_admissions
+                    SET admission_status = 'ON_LEAVE', updated_at = NOW()
+                    WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+                      AND admission_status = 'ACTIVE'
+                    RETURNING id;
+                    """,
+                    (adm_id, school_id),
+                )
+                if updated:
+                    processed += 1
+                else:
+                    skipped += 1
+            elif action == "MARK_ACTIVE":
+                updated = await exec_sql(
+                    """
+                    UPDATE public.hostel_admissions
+                    SET admission_status = 'ACTIVE', updated_at = NOW()
+                    WHERE id = %s::UUID AND school_id = %s::UUID AND deleted_at IS NULL
+                      AND admission_status IN ('ON_LEAVE', 'AWAITING_ALLOCATION')
+                    RETURNING id;
+                    """,
+                    (adm_id, school_id),
+                )
+                if updated:
+                    processed += 1
+                else:
+                    skipped += 1
+        except Exception as e:
+            skipped += 1
+            errors.append(str(e))
+
+    return {
+        "success": processed > 0 or skipped == 0,
+        "action": action,
+        "processed": processed,
+        "skipped": skipped,
+        "errors": errors,
+        "message": f"Processed {processed} student(s)" + (f", skipped {skipped}" if skipped else ""),
+    }
 
 
 class HostelStudentDocumentUploadPayload(BaseModel):
@@ -3022,14 +3127,40 @@ async def get_hostel_student_ledger(
 @router.get("/fees/structures")
 async def list_hostel_fee_structures(
     academic_year: str = Query("2026 - 2027"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("ASC"),
     current_user: dict = Depends(get_current_user)
 ):
     """
     List configured fee plans with their itemized fee heads.
     """
     school_id = _get_school_id(current_user)
-    plans = await exec_sql(
+    offset = (page - 1) * page_size
+    sort_map = {
+        "code": "p.code",
+        "name": "p.name",
+        "room_type": "p.room_type",
+        "billing_cycle": "p.billing_cycle",
+        "total_annual_amount": "p.total_annual_amount",
+        "status": "p.status",
+    }
+    order_col = sort_map.get((sort_by or "name").strip(), "p.name")
+    order_dir = "DESC" if (sort_order or "ASC").strip().upper() == "DESC" else "ASC"
+
+    count_rows = await exec_sql(
         """
+        SELECT COUNT(*) AS cnt
+        FROM public.hostel_fee_plans p
+        WHERE p.school_id = %s::UUID AND p.academic_year = %s AND p.deleted_at IS NULL;
+        """,
+        (school_id, academic_year)
+    )
+    total_count = count_rows[0]["cnt"] if count_rows else 0
+
+    plans = await exec_sql(
+        f"""
         SELECT 
             p.id,
             p.name,
@@ -3070,11 +3201,21 @@ async def list_hostel_fee_structures(
           AND p.academic_year = %s 
           AND p.deleted_at IS NULL
         GROUP BY p.id, b.name
-        ORDER BY p.name ASC;
+        ORDER BY {order_col} {order_dir}, p.id ASC
+        LIMIT %s OFFSET %s;
         """,
-        (school_id, academic_year)
+        (school_id, academic_year, page_size, offset)
     )
-    return {"success": True, "data": _serialize_val(plans)}
+    return {
+        "success": True,
+        "data": _serialize_val(plans),
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_records": total_count,
+            "total_pages": max(1, (total_count + page_size - 1) // page_size) if page_size > 0 else 1,
+        },
+    }
 
 
 @router.post("/fees/structures", status_code=status.HTTP_201_CREATED)
@@ -3175,6 +3316,8 @@ async def list_hostel_invoices(
     academic_year: str = Query("2026 - 2027"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -3182,6 +3325,19 @@ async def list_hostel_invoices(
     """
     school_id = _get_school_id(current_user)
     offset = (page - 1) * page_size
+
+    sort_map = {
+        "invoice_number": "inv.invoice_number",
+        "student_name": "pr.full_name",
+        "billing_period": "inv.billing_period",
+        "net_amount": "inv.net_amount",
+        "paid_amount": "inv.paid_amount",
+        "balance_amount": "inv.balance_amount",
+        "status": "inv.status",
+        "invoice_date": "inv.invoice_date",
+    }
+    order_col = sort_map.get((sort_by or "invoice_date").strip(), "inv.invoice_date")
+    order_dir = "ASC" if (sort_order or "DESC").strip().upper() == "ASC" else "DESC"
 
     where_clauses = ["inv.school_id = %s::UUID", "inv.academic_year = %s"]
     params = [school_id, academic_year]
@@ -3231,7 +3387,7 @@ async def list_hostel_invoices(
         LEFT JOIN public.hostel_rooms r ON alc.room_id = r.id
         LEFT JOIN public.hostel_buildings b ON r.building_id = b.id
         WHERE {where_str}
-        ORDER BY inv.invoice_date DESC, inv.created_at DESC
+        ORDER BY {order_col} {order_dir}, inv.created_at DESC, inv.id ASC
         LIMIT %s OFFSET %s;
         """,
         tuple(params)
@@ -3244,7 +3400,7 @@ async def list_hostel_invoices(
             "page": page,
             "page_size": page_size,
             "total_records": total_count,
-            "total_pages": (total_count + page_size - 1) // page_size if page_size > 0 else 1
+            "total_pages": max(1, (total_count + page_size - 1) // page_size) if page_size > 0 else 1
         }
     }
 
@@ -3478,6 +3634,8 @@ async def list_hostel_payments(
     academic_year: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -3485,6 +3643,17 @@ async def list_hostel_payments(
     """
     school_id = _get_school_id(current_user)
     offset = (page - 1) * page_size
+
+    sort_map = {
+        "receipt_number": "p.receipt_number",
+        "student_name": "pr.full_name",
+        "amount": "p.amount",
+        "payment_method": "p.payment_method",
+        "payment_date": "COALESCE(p.paid_at, p.created_at)",
+        "status": "p.status",
+    }
+    order_col = sort_map.get((sort_by or "payment_date").strip(), "COALESCE(p.paid_at, p.created_at)")
+    order_dir = "ASC" if (sort_order or "DESC").strip().upper() == "ASC" else "DESC"
 
     where_clauses = ["p.school_id = %s::UUID"]
     params = [school_id]
@@ -3537,7 +3706,7 @@ async def list_hostel_payments(
         LEFT JOIN public.hostel_rooms r ON alc_latest.room_id = r.id
         LEFT JOIN public.hostel_buildings b ON r.building_id = b.id
         WHERE {where_str}
-        ORDER BY p.paid_at DESC, p.created_at DESC
+        ORDER BY {order_col} {order_dir}, p.created_at DESC, p.id ASC
         LIMIT %s OFFSET %s;
         """,
         tuple(params)
@@ -3550,7 +3719,7 @@ async def list_hostel_payments(
             "page": page,
             "page_size": page_size,
             "total_records": total_count,
-            "total_pages": (total_count + page_size - 1) // page_size if page_size > 0 else 1
+            "total_pages": max(1, (total_count + page_size - 1) // page_size) if page_size > 0 else 1
         }
     }
 
@@ -3758,12 +3927,27 @@ async def add_penalty_or_charge(
 async def list_hostel_refunds(
     student_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query(None),
+    sort_order: str = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """
     List refund requests and statuses.
     """
     school_id = _get_school_id(current_user)
+    offset = (page - 1) * page_size
+    sort_map = {
+        "student_name": "pr.full_name",
+        "amount": "r.amount",
+        "reason": "r.reason",
+        "created_at": "r.created_at",
+        "status": "r.status",
+    }
+    order_col = sort_map.get((sort_by or "created_at").strip(), "r.created_at")
+    order_dir = "ASC" if (sort_order or "DESC").strip().upper() == "ASC" else "DESC"
+
     where_clauses = ["r.school_id = %s::UUID"]
     params = [school_id]
 
@@ -3776,6 +3960,13 @@ async def list_hostel_refunds(
         params.append(status.strip().upper())
 
     where_str = " AND ".join(where_clauses)
+    count_rows = await exec_sql(
+        f"SELECT COUNT(*) AS cnt FROM public.hostel_refund_requests r WHERE {where_str};",
+        tuple(params)
+    )
+    total_count = count_rows[0]["cnt"] if count_rows else 0
+
+    params.extend([page_size, offset])
     refunds = await exec_sql(
         f"""
         SELECT 
@@ -3786,11 +3977,21 @@ async def list_hostel_refunds(
         FROM public.hostel_refund_requests r
         JOIN public.profiles pr ON r.student_id = pr.id
         WHERE {where_str}
-        ORDER BY r.created_at DESC;
+        ORDER BY {order_col} {order_dir}, r.id ASC
+        LIMIT %s OFFSET %s;
         """,
         tuple(params)
     )
-    return {"success": True, "data": _serialize_val(refunds)}
+    return {
+        "success": True,
+        "data": _serialize_val(refunds),
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_records": total_count,
+            "total_pages": max(1, (total_count + page_size - 1) // page_size) if page_size > 0 else 1
+        },
+    }
 
 
 @router.post("/refunds")
@@ -4630,6 +4831,8 @@ async def list_gate_passes_endpoint(
     academic_year: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("generated_at"),
+    sort_order: Optional[str] = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """Retrieve digital gate passes with student and movement context."""
@@ -4726,7 +4929,19 @@ async def list_gate_passes_endpoint(
     total_rows = await exec_sql(count_sql, tuple(params))
     total = total_rows[0]["count"] if total_rows else 0
 
-    query += " ORDER BY gp.generated_at DESC LIMIT %s OFFSET %s;"
+    sort_map = {
+        "pass_number": "gp.pass_number",
+        "student_name": "p.full_name",
+        "hostel_name": "COALESCE(r.building_name, 'Hostel')",
+        "request_type": "r.request_type",
+        "valid_from": "gp.valid_from",
+        "valid_until": "gp.valid_until",
+        "status": "gp.status",
+        "generated_at": "gp.generated_at",
+    }
+    order_col = sort_map.get((sort_by or "generated_at").lower().strip(), "gp.generated_at")
+    order_dir = "ASC" if (sort_order or "").upper().strip() == "ASC" else "DESC"
+    query += f" ORDER BY {order_col} {order_dir}, gp.id {order_dir} LIMIT %s OFFSET %s;"
     fetch_params = list(params)
     fetch_params.extend([page_size, offset])
     rows = await exec_sql(query, tuple(fetch_params))

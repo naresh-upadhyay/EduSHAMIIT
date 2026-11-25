@@ -12,6 +12,7 @@ import 'dialogs/audiobook_player_dialog.dart';
 import 'dialogs/videobook_player_dialog.dart';
 import 'dialogs/request_digital_access_dialog.dart';
 import 'dialogs/raise_book_issue_request_dialog.dart';
+import 'dialogs/bulk_operations_dialog.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 
@@ -660,6 +661,7 @@ class _BookTableState extends ConsumerState<BookTable> {
   /// 2. Enterprise Table View
   Widget _buildEnterpriseTable(
       BookState state, BookNotifier notifier, bool isDark, bool isDesktop) {
+    final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
     return Container(
       margin:
           EdgeInsets.symmetric(horizontal: isDesktop ? 28 : 16, vertical: 6),
@@ -678,7 +680,7 @@ class _BookTableState extends ConsumerState<BookTable> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const minTableWidth = 1100.0;
+          const minTableWidth = 1140.0;
           final tableWidth = constraints.maxWidth > minTableWidth
               ? constraints.maxWidth
               : minTableWidth;
@@ -686,6 +688,68 @@ class _BookTableState extends ConsumerState<BookTable> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (isLibraryAdmin && state.selectedBookIds.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE),
+                      ),
+                    ),
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF4F46E5)),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${state.selectedBookIds.length} book(s) selected',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF312E81),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const BulkOperationsDialog(),
+                              );
+                            },
+                            icon: const Icon(Icons.tune_rounded, size: 16),
+                            label: const Text('Bulk Operations', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: notifier.clearSelection,
+                            child: const Text('Clear Selection'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               Scrollbar(
                 controller: _horizontalScrollCtrl,
                 thumbVisibility: true,
@@ -697,7 +761,7 @@ class _BookTableState extends ConsumerState<BookTable> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildTableHeader(isDark),
+                        _buildTableHeader(state, notifier, isDark, isLibraryAdmin),
                         Divider(
                             height: 1,
                             thickness: 1,
@@ -725,7 +789,10 @@ class _BookTableState extends ConsumerState<BookTable> {
     );
   }
 
-  Widget _buildTableHeader(bool isDark) {
+  Widget _buildTableHeader(
+      BookState state, BookNotifier notifier, bool isDark, bool isLibraryAdmin) {
+    final allSelected = state.books.isNotEmpty &&
+        state.books.every((b) => state.selectedBookIds.contains(b.id));
     return Container(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -737,19 +804,42 @@ class _BookTableState extends ConsumerState<BookTable> {
       ),
       child: Row(
         children: [
+          if (isLibraryAdmin) ...[
+            SizedBox(
+              width: 28,
+              child: Checkbox(
+                value: allSelected,
+                onChanged: (_) => notifier.selectAllCurrentPage(),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
-              flex: 32, child: _buildHeaderCell('Book Title & Format', isDark)),
-          const SizedBox(width: 12),
-          Expanded(flex: 16, child: _buildHeaderCell('Author', isDark)),
+              flex: 32,
+              child: _buildSortableHeaderCell(
+                  'Book Title & Format', 'title', state, notifier, isDark)),
           const SizedBox(width: 12),
           Expanded(
-              flex: 14, child: _buildHeaderCell('Category / Subject', isDark)),
+              flex: 16,
+              child: _buildSortableHeaderCell(
+                  'Author', 'author', state, notifier, isDark)),
+          const SizedBox(width: 12),
+          Expanded(
+              flex: 14,
+              child: _buildSortableHeaderCell(
+                  'Category / Subject', 'category', state, notifier, isDark)),
           const SizedBox(width: 12),
           Expanded(flex: 16, child: _buildHeaderCell('Access / DRM', isDark)),
           const SizedBox(width: 12),
-          Expanded(flex: 8, child: _buildHeaderCell('Copies', isDark)),
+          Expanded(
+              flex: 8,
+              child: _buildSortableHeaderCell(
+                  'Copies', 'total_copies', state, notifier, isDark)),
           const SizedBox(width: 12),
-          Expanded(flex: 8, child: _buildHeaderCell('Available', isDark)),
+          Expanded(
+              flex: 8,
+              child: _buildSortableHeaderCell(
+                  'Available', 'available_copies', state, notifier, isDark)),
           const SizedBox(width: 12),
           Expanded(flex: 10, child: _buildHeaderCell('Status', isDark)),
           const SizedBox(width: 12),
@@ -757,6 +847,51 @@ class _BookTableState extends ConsumerState<BookTable> {
               width: 195,
               child: _buildHeaderCell('Actions', isDark,
                   alignment: Alignment.centerRight)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortableHeaderCell(
+    String label,
+    String sortKey,
+    BookState state,
+    BookNotifier notifier,
+    bool isDark,
+  ) {
+    final isCurrent = state.sortBy == sortKey;
+    final isAsc = state.sortOrder.toUpperCase() == 'ASC';
+    return InkWell(
+      onTap: () {
+        final nextOrder = isCurrent && isAsc ? 'DESC' : 'ASC';
+        notifier.setSorting(sortKey, nextOrder);
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isCurrent
+                    ? const Color(0xFF6366F1)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                letterSpacing: 0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isCurrent
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isCurrent ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
+          ),
         ],
       ),
     );
@@ -782,6 +917,7 @@ class _BookTableState extends ConsumerState<BookTable> {
       BookModel book, BookState state, BookNotifier notifier, bool isDark) {
     final isDrawerActive =
         state.selectedBook?.id == book.id && state.isDrawerOpen;
+    final isSelected = state.selectedBookIds.contains(book.id);
     final isLibraryAdmin = ref.watch(isLibraryAdminProvider);
 
     Color formatColor = const Color(0xFF6366F1);
@@ -795,9 +931,11 @@ class _BookTableState extends ConsumerState<BookTable> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDrawerActive
-            ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.16 : 0.06)
-            : Colors.transparent,
+        color: isSelected
+            ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.14 : 0.05)
+            : (isDrawerActive
+                ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.16 : 0.06)
+                : Colors.transparent),
         border: Border(
             bottom: BorderSide(
                 color: isDark
@@ -814,6 +952,16 @@ class _BookTableState extends ConsumerState<BookTable> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
+                if (isLibraryAdmin) ...[
+                  SizedBox(
+                    width: 28,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => notifier.toggleBookSelection(book.id),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 // Title + Cover + Format Icon
                 Expanded(
                   flex: 32,

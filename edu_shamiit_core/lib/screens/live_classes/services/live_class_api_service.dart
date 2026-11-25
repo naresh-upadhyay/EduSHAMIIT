@@ -17,19 +17,19 @@ class LiveClassApiService {
       debugPrint('[LiveClassApiService] Error fetching join-conduct dashboard: $e');
     }
     return JoinConductDashboardData(
-      liveNow: 1,
-      todaysClasses: 1,
-      totalParticipantsLive: 43,
-      recordingInProgress: 1,
+      liveNow: 0,
+      todaysClasses: 0,
+      totalParticipantsLive: 0,
+      recordingInProgress: 0,
       avgClassDurationMin: 45,
       classQuality: 'Excellent (98%)',
       systemStatus: 'Online',
       engagement: ClassEngagement(
-        overallPercentage: 92,
-        activeParticipantsPct: 92,
-        interactionPct: 88,
-        pollResponsePct: 95,
-        contentViewPct: 93,
+        overallPercentage: 0,
+        activeParticipantsPct: 0,
+        interactionPct: 0,
+        pollResponsePct: 0,
+        contentViewPct: 0,
       ),
     );
   }
@@ -177,10 +177,14 @@ class LiveClassApiService {
     String? status,
     int page = 1,
     int pageSize = 8,
+    String sortBy = 'created_at',
+    String sortOrder = 'DESC',
   }) async {
     final params = <String, String>{
       'page': page.toString(),
       'page_size': pageSize.toString(),
+      'sort_by': sortBy,
+      'sort_order': sortOrder,
     };
     if (classId != null && classId.isNotEmpty) params['class_id'] = classId;
     if (subjectId != null && subjectId.isNotEmpty) params['subject_id'] = subjectId;
@@ -250,11 +254,13 @@ class LiveClassApiService {
     await _apiService.post('/live-classes/$sessionId/end', {});
   }
 
-  Future<void> leaveLiveClass(String sessionId) async {
+  Future<Map<String, dynamic>> leaveLiveClass(String sessionId) async {
     try {
-      await _apiService.post('/live-classes/$sessionId/leave', {});
+      final res = await _apiService.post('/live-classes/$sessionId/leave', {});
+      return res;
     } catch (e) {
       debugPrint('[LiveClassApiService] Error leaving live class: $e');
+      return {'success': false, 'auto_ended': false, 'error': e.toString()};
     }
   }
 
@@ -285,6 +291,8 @@ class LiveClassApiService {
     String? subjectId,
     String? teacherId,
     String? teacherName,
+    String? liveClassId,
+    String recordingType = 'Uploaded Recording',
     int durationMinutes = 1,
     int? durationSeconds,
     String visibility = 'CLASS',
@@ -295,7 +303,7 @@ class LiveClassApiService {
       'duration_minutes': durationMinutes.toString(),
       'duration_seconds': (durationSeconds ?? (durationMinutes * 60)).toString(),
       'visibility': visibility,
-      'recording_type': 'Uploaded Recording',
+      'recording_type': recordingType,
     };
     if (description != null && description.isNotEmpty) fields['description'] = description;
     if (classId != null && classId.isNotEmpty) fields['class_id'] = classId;
@@ -303,6 +311,7 @@ class LiveClassApiService {
     if (subjectId != null && subjectId.isNotEmpty) fields['subject_id'] = subjectId;
     if (teacherId != null && teacherId.isNotEmpty) fields['teacher_id'] = teacherId;
     if (teacherName != null && teacherName.isNotEmpty) fields['teacher_name'] = teacherName;
+    if (liveClassId != null && liveClassId.isNotEmpty) fields['live_class_id'] = liveClassId;
     if (externalUrl != null && externalUrl.isNotEmpty) fields['external_url'] = externalUrl;
 
     if (fileBytes != null && fileBytes.isNotEmpty && fileName != null && fileName.isNotEmpty) {
@@ -1003,11 +1012,11 @@ class LiveClassApiService {
     }
   }
 
-  Future<Map<String, dynamic>> toggleRecording(String sessionId) async {
+  Future<Map<String, dynamic>> toggleRecording(String sessionId, {String? action}) async {
     try {
       final res = await _apiService.post(
         '/live-classes/sessions/$sessionId/recordings/toggle',
-        {},
+        {if (action != null) 'action': action},
       );
       return res;
     } catch (e) {

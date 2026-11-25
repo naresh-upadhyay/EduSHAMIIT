@@ -625,6 +625,43 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
     );
   }
 
+  Widget _buildSortableStaffHeader(
+    String label,
+    String sortKey,
+    AttendanceState state,
+    AttendanceNotifier notifier,
+  ) {
+    final isCurrent = state.staffSortBy == sortKey;
+    final isAsc = state.staffSortOrder == 'ASC';
+    return InkWell(
+      onTap: () => notifier.setStaffSort(sortKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 11.5,
+                color: isCurrent ? const Color(0xFF4F46E5) : null,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isCurrent
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isCurrent ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ==========================================================================
   // 3. BULK SELECTION ACTION BAR
   // ==========================================================================
@@ -821,12 +858,12 @@ class _StaffAttendanceTabState extends ConsumerState<StaffAttendanceTab> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     ),
                   ),
-                  const SizedBox(width: 70, child: Text('Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                  const Expanded(flex: 4, child: Text('Employee Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                  const Expanded(flex: 2, child: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                  const Expanded(flex: 3, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                  const Expanded(flex: 2, child: Text('Check-In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                  const Expanded(flex: 2, child: Text('Check-Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
+                  SizedBox(width: 70, child: _buildSortableStaffHeader('Code', 'employee_code', state, notifier)),
+                  Expanded(flex: 4, child: _buildSortableStaffHeader('Employee Name', 'full_name', state, notifier)),
+                  Expanded(flex: 2, child: _buildSortableStaffHeader('Department', 'department', state, notifier)),
+                  Expanded(flex: 3, child: _buildSortableStaffHeader('Status', 'status', state, notifier)),
+                  Expanded(flex: 2, child: _buildSortableStaffHeader('Check-In', 'check_in', state, notifier)),
+                  Expanded(flex: 2, child: _buildSortableStaffHeader('Check-Out', 'check_out', state, notifier)),
                   const Expanded(flex: 2, child: Text('Hours', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
                   const Expanded(flex: 3, child: Text('Remarks / Comments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
                 ],

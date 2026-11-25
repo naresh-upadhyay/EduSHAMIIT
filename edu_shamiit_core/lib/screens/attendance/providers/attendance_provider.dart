@@ -47,6 +47,8 @@ class AttendanceState {
   final String staffSearchQuery;
   final int staffPage;
   final int staffPageSize;
+  final String staffSortBy;
+  final String staffSortOrder;
   final int staffTotalCount;
   final int staffTotalPages;
   final bool isStaffLoading;
@@ -123,6 +125,8 @@ class AttendanceState {
     this.staffSearchQuery = '',
     this.staffPage = 1,
     this.staffPageSize = 10,
+    this.staffSortBy = 'full_name',
+    this.staffSortOrder = 'ASC',
     this.staffTotalCount = 0,
     this.staffTotalPages = 1,
     this.isStaffLoading = false,
@@ -255,6 +259,8 @@ class AttendanceState {
     String? staffSearchQuery,
     int? staffPage,
     int? staffPageSize,
+    String? staffSortBy,
+    String? staffSortOrder,
     int? staffTotalCount,
     int? staffTotalPages,
     bool? isStaffLoading,
@@ -358,6 +364,8 @@ class AttendanceState {
       staffSearchQuery: staffSearchQuery ?? this.staffSearchQuery,
       staffPage: staffPage ?? this.staffPage,
       staffPageSize: staffPageSize ?? this.staffPageSize,
+      staffSortBy: staffSortBy ?? this.staffSortBy,
+      staffSortOrder: staffSortOrder ?? this.staffSortOrder,
       staffTotalCount: staffTotalCount ?? this.staffTotalCount,
       staffTotalPages: staffTotalPages ?? this.staffTotalPages,
       isStaffLoading: isStaffLoading ?? this.isStaffLoading,
@@ -651,6 +659,8 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
         page: state.staffPage,
         pageSize: state.staffPageSize,
         managerId: managerId,
+        sortBy: state.staffSortBy,
+        sortOrder: state.staffSortOrder,
       );
 
       final staff = res['staff'] as List<StaffAttendanceRowModel>;
@@ -1613,6 +1623,13 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
 
   void setStaffPageSize(int pageSize) {
     state = state.copyWith(staffPageSize: pageSize, staffPage: 1);
+    fetchStaffRoster();
+  }
+
+  void setStaffSort(String columnKey) {
+    final isSame = state.staffSortBy == columnKey;
+    final nextOrder = isSame ? (state.staffSortOrder == 'ASC' ? 'DESC' : 'ASC') : 'ASC';
+    state = state.copyWith(staffSortBy: columnKey, staffSortOrder: nextOrder, staffPage: 1);
     fetchStaffRoster();
   }
 

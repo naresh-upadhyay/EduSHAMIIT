@@ -4,7 +4,7 @@ import 'package:edu_shamiit_core/screens/work_management/utils/work_filter_helpe
 
 void main() {
   group('Advanced Work Management Filters Test Suite', () {
-    final studentAssignee1 = WorkAssigneeModel(
+    const studentAssignee1 = WorkAssigneeModel(
       id: 'usr-1',
       userId: 'usr-1',
       fullName: 'Aarav Sharma',
@@ -15,7 +15,7 @@ void main() {
       sectionName: 'A',
     );
 
-    final studentAssignee2 = WorkAssigneeModel(
+    const studentAssignee2 = WorkAssigneeModel(
       id: 'usr-2',
       userId: 'usr-2',
       fullName: 'Bhavya Patel',
@@ -26,7 +26,7 @@ void main() {
       sectionName: 'B',
     );
 
-    final teacherAssignee = WorkAssigneeModel(
+    const teacherAssignee = WorkAssigneeModel(
       id: 'usr-3',
       userId: 'usr-3',
       fullName: 'Rajesh Sharma',
@@ -35,7 +35,7 @@ void main() {
       department: 'Academic',
     );
 
-    final itStaffAssignee = WorkAssigneeModel(
+    const itStaffAssignee = WorkAssigneeModel(
       id: 'usr-4',
       userId: 'usr-4',
       fullName: 'Vikram Singh',
@@ -225,7 +225,9 @@ void main() {
       );
     });
 
-    test('Academic classes and sections extractor parses classes with nested sections', () {
+    test(
+        'Academic classes and sections extractor parses classes with nested sections',
+        () {
       final mockClasses = [
         const WorkAcademicClassModel(
           id: 'cls-1',
@@ -246,18 +248,22 @@ void main() {
         ),
       ];
 
-      final sectionsForCls5 = WorkFilterHelper.getSectionsForClass(mockClasses, 'Class 5');
+      final sectionsForCls5 =
+          WorkFilterHelper.getSectionsForClass(mockClasses, 'Class 5');
       expect(sectionsForCls5, equals(['All', 'A', 'B', 'NEWSUB2']));
 
-      final sectionsForCls10 = WorkFilterHelper.getSectionsForClass(mockClasses, 'Class 10');
+      final sectionsForCls10 =
+          WorkFilterHelper.getSectionsForClass(mockClasses, 'Class 10');
       expect(sectionsForCls10, equals(['All', 'A', 'C']));
 
-      final sectionsForUnknown = WorkFilterHelper.getSectionsForClass(mockClasses, 'NonExistent');
+      final sectionsForUnknown =
+          WorkFilterHelper.getSectionsForClass(mockClasses, 'NonExistent');
       expect(sectionsForUnknown, equals(['All']));
     });
 
-    test('Team filtering isolates Academic Systems Team vs Digital Campus Team', () {
-      final teamTask1 = WorkItemModel(
+    test('Team filtering isolates Academic Systems Team vs Digital Campus Team',
+        () {
+      const teamTask1 = WorkItemModel(
         id: 'tk-10',
         itemNumber: 'TK-201',
         title: 'Curriculum Engine Optimization',
@@ -269,7 +275,7 @@ void main() {
         teamName: 'Academic Systems Team',
       );
 
-      final teamTask2 = WorkItemModel(
+      const teamTask2 = WorkItemModel(
         id: 'tk-11',
         itemNumber: 'TK-202',
         title: 'Student Portal Mobile Responsive Fix',
@@ -321,8 +327,9 @@ void main() {
       );
     });
 
-    test('Parent story matches team filter when child task is tagged to team', () {
-      final childTask = WorkItemModel(
+    test('Parent story matches team filter when child task is tagged to team',
+        () {
+      const childTask = WorkItemModel(
         id: 'tk-child-1',
         itemNumber: 'TK-301',
         title: 'Backend API for Marks Entry',
@@ -372,7 +379,7 @@ void main() {
     });
 
     test('Tagging multiple items updates teamName and teamId correctly', () {
-      final untaggedItem1 = WorkItemModel(
+      const untaggedItem1 = WorkItemModel(
         id: 'item-1',
         itemNumber: 'TK-1001',
         title: 'Setup Library Barcode Scanner',
@@ -382,7 +389,7 @@ void main() {
         category: 'Library',
       );
 
-      final untaggedItem2 = WorkItemModel(
+      const untaggedItem2 = WorkItemModel(
         id: 'item-2',
         itemNumber: 'TK-1002',
         title: 'Library Database Indexing',
@@ -449,7 +456,9 @@ void main() {
         category: 'Academic',
         teamId: 'team-ast',
         teamName: 'Academic Systems Team',
-        assignees: [studentAssignee1], // Aarav Sharma, STUDENT, Academic, Class 5, Section A
+        assignees: [
+          studentAssignee1
+        ], // Aarav Sharma, STUDENT, Academic, Class 5, Section A
       );
 
       // All filters matching

@@ -14,3 +14,4 @@ bool setRecordingVolume(String viewType, double volume, bool muted) => false;
 bool setRecordingSpeed(String viewType, double rate) => false;
 bool requestRecordingFullscreen(String viewType) => false;
 bool requestRecordingPiP(String viewType) => false;
+void disposeRecordingVideoElement(String viewType) {}

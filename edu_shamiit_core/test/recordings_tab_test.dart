@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:edu_shamiit_core/screens/classes/models/class_models.dart';
+import 'package:edu_shamiit_core/screens/classes/providers/class_provider.dart';
 import 'package:edu_shamiit_core/screens/live_classes/models/live_class_models.dart';
 import 'package:edu_shamiit_core/screens/live_classes/providers/live_class_management_provider.dart';
 import 'package:edu_shamiit_core/screens/live_classes/services/live_class_api_service.dart';
@@ -9,6 +11,7 @@ import 'package:edu_shamiit_core/screens/live_classes/tabs/recordings_tab.dart';
 import 'package:edu_shamiit_core/screens/live_classes/widgets/recording_edit_dialog.dart';
 import 'package:edu_shamiit_core/screens/live_classes/widgets/recording_player_widget.dart';
 import 'package:edu_shamiit_core/screens/live_classes/widgets/recording_share_dialog.dart';
+import 'package:edu_shamiit_core/screens/live_classes/widgets/upload_recording_dialog.dart';
 
 class _FakeLiveClassApiService extends LiveClassApiService {
   List<RecordingItem> storedRecordings;
@@ -46,6 +49,8 @@ class _FakeLiveClassApiService extends LiveClassApiService {
     String? status,
     int page = 1,
     int pageSize = 8,
+    String sortBy = 'created_at',
+    String sortOrder = 'desc',
   }) async {
     var list = storedRecordings;
     if (search != null && search.trim().isNotEmpty) {
@@ -162,6 +167,15 @@ class _SeededLiveClassNotifier extends LiveClassNotifier {
 
   @override
   Future<void> loadInitialData() async {}
+}
+
+class _SeededClassNotifier extends ClassNotifier {
+  _SeededClassNotifier(List<AcademicClassModel> classes) : super() {
+    state = ClassState(classes: classes, allClasses: classes);
+  }
+
+  @override
+  Future<void> fetchClasses({String? academicYear, int? page}) async {}
 }
 
 void main() {
@@ -399,6 +413,72 @@ void main() {
 
       expect(fakeApi.deleteCalled, isTrue);
       expect(fakeApi.storedRecordings, isEmpty);
+    });
+
+    testWidgets('Upload Recording opens cleanly when Class Management classes merge with meta sections/classSubjects', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 960));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final rec = sampleRec();
+      final fakeApi = _FakeLiveClassApiService(storedRecordings: [rec], dashboard: sampleDash());
+      final cls10 = AcademicClassModel(
+        id: 'cls-10',
+        name: 'Class 10',
+        code: 'C10',
+        sections: [
+          AcademicSectionModel.fromJson({'id': 'sec-10a', 'name': '10-A', 'class_id': 'cls-10'}),
+        ],
+        subjects: [
+          AcademicSubjectModel.fromJson({'id': 'sub-math', 'name': 'Mathematics', 'code': 'MATH'}),
+        ],
+      );
+      final initState = LiveClassState(
+        recordingsData: sampleDash(),
+        recordingsList: [rec],
+        recordingsTotalCount: 1,
+        recordingsTotalPages: 1,
+        selectedRecordingForPreview: rec,
+        dropdownsData: MetaDropdownsData(
+          classes: [ClassDropdownItem(id: 'cls-10', name: 'Class 10')],
+          sections: [
+            SectionDropdownItem(id: 'sec-10a', classId: 'cls-10', name: '10-A'),
+            SectionDropdownItem(id: 'sec-10b', classId: 'cls-10', name: '10-B'),
+          ],
+          subjects: [SubjectDropdownItem(id: 'sub-math', name: 'Mathematics')],
+          teachers: [TeacherDropdownItem(id: 't-1', fullName: 'King Doe')],
+          sessions: [],
+          classSubjects: [
+            ClassSubjectMapItem(
+              classId: 'cls-10',
+              subjectId: 'sub-phy',
+              subjectName: 'Physics',
+              subjectIcon: 'science',
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            liveClassApiServiceProvider.overrideWithValue(fakeApi),
+            liveClassManagementProvider.overrideWith((ref) => _SeededLiveClassNotifier(fakeApi, initState)),
+            classProvider.overrideWith((ref) => _SeededClassNotifier([cls10])),
+          ],
+          child: const MaterialApp(home: Scaffold(body: RecordingsTab())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Upload Recording'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(UploadRecordingDialog), findsOneWidget);
+      expect(find.text('Upload Video Recording'), findsOneWidget);
+      expect(find.text('Save & Publish Recording'), findsOneWidget);
+      // Both merged sections & subjects must be present without TypeError
+      expect(find.text('10-A'), findsAtLeastNWidgets(1));
+      expect(find.text('Mathematics'), findsAtLeastNWidgets(1));
     });
   });
 }

@@ -2764,6 +2764,8 @@ async def list_audit_logs(
     device_type: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("occurred_at"),
+    sort_order: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
@@ -2821,6 +2823,21 @@ async def list_audit_logs(
         offset = (page - 1) * page_size
         fetch_params = list(params) + [page_size, offset]
 
+        sort_map = {
+            "occurred_at": "occurred_at",
+            "timestamp": "occurred_at",
+            "actor_name": "actor_name",
+            "user": "actor_name",
+            "event_type": "event_type",
+            "action": "action",
+            "target_name": "target_name",
+            "target": "target_name",
+            "result": "result",
+            "source": "source",
+        }
+        order_col = sort_map.get((sort_by or "occurred_at").lower(), "occurred_at")
+        order_dir = "ASC" if (sort_order or "desc").lower() == "asc" else "DESC"
+
         data_sql = f"""
             SELECT id, event_id, correlation_id, causation_id, school_id,
                    TO_CHAR(occurred_at, 'DD Mon YYYY, HH12:MI:SS AM') as timestamp_formatted,
@@ -2830,7 +2847,7 @@ async def list_audit_logs(
                    previous_state, new_state, metadata, hash, previous_hash
             FROM public.enterprise_audit_logs
             WHERE {where_sql}
-            ORDER BY occurred_at DESC
+            ORDER BY {order_col} {order_dir}, id ASC
             LIMIT %s OFFSET %s;
         """
         rows = await exec_sql(data_sql, tuple(fetch_params))

@@ -178,6 +178,8 @@ class AttendanceApiService {
     int page = 1,
     int pageSize = 10,
     String? managerId,
+    String sortBy = 'full_name',
+    String sortOrder = 'ASC',
   }) async {
     final query = <String, String>{
       'attendance_date': date,
@@ -187,6 +189,8 @@ class AttendanceApiService {
       'search': search,
       'page': page.toString(),
       'page_size': pageSize.toString(),
+      'sort_by': sortBy,
+      'sort_order': sortOrder,
     };
     if (managerId != null && managerId.isNotEmpty) query['manager_id'] = managerId;
 

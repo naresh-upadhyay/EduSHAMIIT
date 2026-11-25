@@ -904,6 +904,13 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                     constraints: BoxConstraints(minWidth: tableWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
+                      sortColumnIndex: const ['name', 'code', 'class_name', 'students_count', 'capacity', '', '', 'status']
+                                  .indexOf(state.sectionSortBy) >=
+                              0
+                          ? const ['name', 'code', 'class_name', 'students_count', 'capacity', '', '', 'status']
+                              .indexOf(state.sectionSortBy)
+                          : null,
+                      sortAscending: state.sectionSortOrder.toUpperCase() == 'ASC',
                       headingRowColor: WidgetStateProperty.all(
                         isDark
                             ? const Color(0xFF0F172A).withValues(alpha: 0.6)
@@ -921,16 +928,16 @@ class _SectionsTabViewState extends ConsumerState<SectionsTabView> {
                       dataRowMaxHeight: 60,
                       horizontalMargin: 20,
                       columnSpacing: 18,
-                      columns: const [
-                        DataColumn(label: Text('Section Name ↕')),
-                        DataColumn(label: Text('Section Code ↕')),
-                        DataColumn(label: Text('Class ↕')),
-                        DataColumn(label: Text('Students ↕')),
-                        DataColumn(label: Text('Capacity ↕')),
-                        DataColumn(label: Text('Class Teacher ↕')),
-                        DataColumn(label: Text('Room')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Actions')),
+                      columns: [
+                        DataColumn(label: const Text('Section Name'), onSort: (_, asc) => notifier.setSectionSort('name', asc)),
+                        DataColumn(label: const Text('Section Code'), onSort: (_, asc) => notifier.setSectionSort('code', asc)),
+                        DataColumn(label: const Text('Class'), onSort: (_, asc) => notifier.setSectionSort('class_name', asc)),
+                        DataColumn(label: const Text('Students'), onSort: (_, asc) => notifier.setSectionSort('students_count', asc)),
+                        DataColumn(label: const Text('Capacity'), onSort: (_, asc) => notifier.setSectionSort('capacity', asc)),
+                        const DataColumn(label: Text('Class Teacher')),
+                        const DataColumn(label: Text('Room')),
+                        DataColumn(label: const Text('Status'), onSort: (_, asc) => notifier.setSectionSort('status', asc)),
+                        const DataColumn(label: Text('Actions')),
                       ],
                       rows: sections.map((sec) {
                         final letter = _getSectionLetter(sec.name);

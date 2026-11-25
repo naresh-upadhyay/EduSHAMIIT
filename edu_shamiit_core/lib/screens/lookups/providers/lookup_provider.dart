@@ -24,11 +24,15 @@ class LookupState {
   final int keysPageSize;
   final int keysTotalRecords;
   final int keysTotalPages;
+  final String keysSortBy;
+  final String keysSortOrder;
 
   final int valuesPage;
   final int valuesPageSize;
   final int valuesTotalRecords;
   final int valuesTotalPages;
+  final String valuesSortBy;
+  final String valuesSortOrder;
 
   final bool isKeysLoading;
   final bool isDetailLoading;
@@ -52,10 +56,14 @@ class LookupState {
     this.keysPageSize = 10,
     this.keysTotalRecords = 0,
     this.keysTotalPages = 1,
+    this.keysSortBy = 'created_at',
+    this.keysSortOrder = 'DESC',
     this.valuesPage = 1,
     this.valuesPageSize = 10,
     this.valuesTotalRecords = 0,
     this.valuesTotalPages = 1,
+    this.valuesSortBy = 'sort_order',
+    this.valuesSortOrder = 'ASC',
     this.isKeysLoading = false,
     this.isDetailLoading = false,
     this.isValuesLoading = false,
@@ -80,10 +88,14 @@ class LookupState {
     int? keysPageSize,
     int? keysTotalRecords,
     int? keysTotalPages,
+    String? keysSortBy,
+    String? keysSortOrder,
     int? valuesPage,
     int? valuesPageSize,
     int? valuesTotalRecords,
     int? valuesTotalPages,
+    String? valuesSortBy,
+    String? valuesSortOrder,
     bool? isKeysLoading,
     bool? isDetailLoading,
     bool? isValuesLoading,
@@ -107,10 +119,14 @@ class LookupState {
       keysPageSize: keysPageSize ?? this.keysPageSize,
       keysTotalRecords: keysTotalRecords ?? this.keysTotalRecords,
       keysTotalPages: keysTotalPages ?? this.keysTotalPages,
+      keysSortBy: keysSortBy ?? this.keysSortBy,
+      keysSortOrder: keysSortOrder ?? this.keysSortOrder,
       valuesPage: valuesPage ?? this.valuesPage,
       valuesPageSize: valuesPageSize ?? this.valuesPageSize,
       valuesTotalRecords: valuesTotalRecords ?? this.valuesTotalRecords,
       valuesTotalPages: valuesTotalPages ?? this.valuesTotalPages,
+      valuesSortBy: valuesSortBy ?? this.valuesSortBy,
+      valuesSortOrder: valuesSortOrder ?? this.valuesSortOrder,
       isKeysLoading: isKeysLoading ?? this.isKeysLoading,
       isDetailLoading: isDetailLoading ?? this.isDetailLoading,
       isValuesLoading: isValuesLoading ?? this.isValuesLoading,
@@ -144,6 +160,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
         status: state.statusFilter,
         createdBy: state.createdByFilter,
         keyType: state.keyTypeFilter,
+        sortBy: state.keysSortBy,
+        sortOrder: state.keysSortOrder,
         page: state.keysPage,
         pageSize: state.keysPageSize,
       );
@@ -196,6 +214,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
       // 2. Fetch Key Values
       final valuesRes = await _service.getLookupValues(
         keyId,
+        sortBy: state.valuesSortBy,
+        sortOrder: state.valuesSortOrder,
         page: state.valuesPage,
         pageSize: state.valuesPageSize,
       );
@@ -232,6 +252,8 @@ class LookupNotifier extends StateNotifier<LookupState> {
         state.selectedKey!.id,
         search: search ?? '',
         status: status ?? '',
+        sortBy: state.valuesSortBy,
+        sortOrder: state.valuesSortOrder,
         page: p,
         pageSize: state.valuesPageSize,
       );
@@ -291,10 +313,32 @@ class LookupNotifier extends StateNotifier<LookupState> {
     loadKeys(preserveSelection: false);
   }
 
+  void setKeysPageSize(int pageSize) {
+    state = state.copyWith(keysPageSize: pageSize, keysPage: 1);
+    loadKeys(preserveSelection: false);
+  }
+
+  void setKeysSort(String sortBy) {
+    final nextOrder = (state.keysSortBy == sortBy && state.keysSortOrder == 'ASC') ? 'DESC' : 'ASC';
+    state = state.copyWith(keysSortBy: sortBy, keysSortOrder: nextOrder, keysPage: 1);
+    loadKeys(preserveSelection: false);
+  }
+
   /// Pagination for Values
   void setValuesPage(int page) {
     if (page == state.valuesPage) return;
     loadValues(page: page);
+  }
+
+  void setValuesPageSize(int pageSize) {
+    state = state.copyWith(valuesPageSize: pageSize, valuesPage: 1);
+    loadValues(page: 1);
+  }
+
+  void setValuesSort(String sortBy) {
+    final nextOrder = (state.valuesSortBy == sortBy && state.valuesSortOrder == 'ASC') ? 'DESC' : 'ASC';
+    state = state.copyWith(valuesSortBy: sortBy, valuesSortOrder: nextOrder, valuesPage: 1);
+    loadValues(page: 1);
   }
 
   // ==========================================================================

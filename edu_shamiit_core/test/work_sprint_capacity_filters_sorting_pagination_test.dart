@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/screens/work_management/widgets/sprints/sprint_capacity_tab_view.dart';
-import 'package:edu_shamiit_core/screens/work_management/models/work_models.dart';
-import 'package:edu_shamiit_core/screens/work_management/providers/work_management_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +27,9 @@ void main() {
   }
 
   group('Sprint Capacity Filters, Sorting & Pagination Tests', () {
-    testWidgets('1. Top scope filter bar renders Sprint & Team selectors and Refresh action', (tester) async {
+    testWidgets(
+        '1. Top scope filter bar renders Sprint & Team selectors and Refresh action',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
@@ -40,7 +40,9 @@ void main() {
       expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
     });
 
-    testWidgets('2. Grid filters toolbar renders Search, Role dropdown, and Status dropdown', (tester) async {
+    testWidgets(
+        '2. Grid filters toolbar renders Search, Role dropdown, and Status dropdown',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
@@ -51,7 +53,8 @@ void main() {
       expect(find.text('Status:'), findsOneWidget);
     });
 
-    testWidgets('3. Grid search filters member list in real-time', (tester) async {
+    testWidgets('3. Grid search filters member list in real-time',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
@@ -61,7 +64,8 @@ void main() {
       expect(find.text('Amit Kumar'), findsOneWidget);
 
       // Enter "Karan" into the grid search input
-      final searchFinder = find.widgetWithText(TextField, 'Search member by name, role...');
+      final searchFinder =
+          find.widgetWithText(TextField, 'Search member by name, role...');
       await tester.enterText(searchFinder, 'Karan');
       await tester.pumpAndSettle(const Duration(milliseconds: 350));
 
@@ -82,7 +86,8 @@ void main() {
       expect(find.text('Amit Kumar'), findsOneWidget);
     });
 
-    testWidgets('4. Grid sorting on column headers toggles sort state', (tester) async {
+    testWidgets('4. Grid sorting on column headers toggles sort state',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
@@ -110,7 +115,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('5. Pagination footer renders rows per page and page navigation', (tester) async {
+    testWidgets(
+        '5. Pagination footer renders rows per page and page navigation',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();

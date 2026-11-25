@@ -11,7 +11,8 @@ class LogInspectionDialog extends ConsumerStatefulWidget {
   const LogInspectionDialog({super.key, this.existingInspection});
 
   @override
-  ConsumerState<LogInspectionDialog> createState() => _LogInspectionDialogState();
+  ConsumerState<LogInspectionDialog> createState() =>
+      _LogInspectionDialogState();
 }
 
 class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
@@ -45,10 +46,14 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
     super.initState();
     final item = widget.existingInspection;
     _titleController = TextEditingController(text: item?.title ?? '');
-    _locationController = TextEditingController(text: item?.locationDisplay ?? 'Academic Block / All Floors');
-    _inspectorNameController = TextEditingController(text: item?.inspectorName ?? '');
-    _inspectorRoleController = TextEditingController(text: item?.inspectorRole ?? 'Safety Officer');
-    _scoreController = TextEditingController(text: '${item?.complianceScore ?? 96.0}');
+    _locationController = TextEditingController(
+        text: item?.locationDisplay ?? 'Academic Block / All Floors');
+    _inspectorNameController =
+        TextEditingController(text: item?.inspectorName ?? '');
+    _inspectorRoleController =
+        TextEditingController(text: item?.inspectorRole ?? 'Safety Officer');
+    _scoreController =
+        TextEditingController(text: '${item?.complianceScore ?? 96.0}');
     _findingsController = TextEditingController(text: item?.findings ?? '');
 
     _selectedInspectorUserId = item?.inspectorUserId;
@@ -59,8 +64,10 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
       _selectedRole = item.inspectorRole;
     }
 
-    _categories = CampusLookupHelper.instance.getImmediateLabels('INSPECTION_CATEGORY');
-    _statuses = CampusLookupHelper.instance.getImmediateLabels('INSPECTION_STATUS');
+    _categories =
+        CampusLookupHelper.instance.getImmediateLabels('INSPECTION_CATEGORY');
+    _statuses =
+        CampusLookupHelper.instance.getImmediateLabels('INSPECTION_STATUS');
 
     _loadData();
   }
@@ -92,12 +99,16 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
         if (!_statuses.contains(_status)) _status = _statuses.first;
       }
 
-      if (_selectedInspectorUserId != null && _selectedInspectorUserId!.isNotEmpty) {
-        final match = _staffUsers.where((u) => u['id']?.toString() == _selectedInspectorUserId).firstOrNull;
+      if (_selectedInspectorUserId != null &&
+          _selectedInspectorUserId!.isNotEmpty) {
+        final match = _staffUsers
+            .where((u) => u['id']?.toString() == _selectedInspectorUserId)
+            .firstOrNull;
         if (match != null) {
           _selectedInspectorUserId = match['id']?.toString();
           if (_inspectorNameController.text.isEmpty) {
-            _inspectorNameController.text = (match['full_name'] ?? match['name'] ?? '').toString();
+            _inspectorNameController.text =
+                (match['full_name'] ?? match['name'] ?? '').toString();
           }
         } else {
           _isCustomInspector = true;
@@ -106,15 +117,18 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
         if (_staffUsers.isNotEmpty && _inspectorNameController.text.isEmpty) {
           final first = _staffUsers.first;
           _selectedInspectorUserId = first['id']?.toString();
-          _inspectorNameController.text = (first['full_name'] ?? first['name'] ?? '').toString();
+          _inspectorNameController.text =
+              (first['full_name'] ?? first['name'] ?? '').toString();
           final uRole = (first['role'] ?? 'Safety Officer').toString();
           _selectedRole = _matchRole(uRole, _appRoles);
           _inspectorRoleController.text = _selectedRole ?? uRole;
         }
       } else {
-        final match = _staffUsers.where((u) =>
-            (u['full_name'] ?? '').toString().trim().toLowerCase() == _inspectorNameController.text.trim().toLowerCase()
-        ).firstOrNull;
+        final match = _staffUsers
+            .where((u) =>
+                (u['full_name'] ?? '').toString().trim().toLowerCase() ==
+                _inspectorNameController.text.trim().toLowerCase())
+            .firstOrNull;
         if (match != null) {
           _selectedInspectorUserId = match['id']?.toString();
         } else {
@@ -128,7 +142,8 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
     for (final r in roles) {
       final dName = (r['display_name'] ?? '').toString().trim();
       final name = (r['name'] ?? '').toString().trim();
-      if (dName.toLowerCase() == roleStr.toLowerCase() || name.toLowerCase() == roleStr.toLowerCase()) {
+      if (dName.toLowerCase() == roleStr.toLowerCase() ||
+          name.toLowerCase() == roleStr.toLowerCase()) {
         return dName.isNotEmpty ? dName : name;
       }
     }
@@ -150,9 +165,11 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final borderColor =
+        isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted =
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Dialog(
       backgroundColor: dialogBg,
@@ -167,7 +184,8 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: borderColor)),
                 ),
@@ -179,13 +197,19 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                         color: const Color(0xFF2563EB).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.fact_check_rounded, size: 20, color: Color(0xFF2563EB)),
+                      child: const Icon(Icons.fact_check_rounded,
+                          size: 20, color: Color(0xFF2563EB)),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        widget.existingInspection != null ? 'Edit Safety Inspection' : 'Log Safety & Quality Inspection',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary),
+                        widget.existingInspection != null
+                            ? 'Edit Safety Inspection'
+                            : 'Log Safety & Quality Inspection',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary),
                       ),
                     ),
                     IconButton(
@@ -203,12 +227,21 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Inspection Title *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                      Text('Inspection Title *',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary)),
                       const SizedBox(height: 5),
                       TextFormField(
                         controller: _titleController,
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter inspection title' : null,
-                        decoration: _inputDeco('e.g. Quarterly Extinguisher & Fire Hose Reel Audit', borderColor, isDark),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Please enter inspection title'
+                            : null,
+                        decoration: _inputDeco(
+                            'e.g. Quarterly Extinguisher & Fire Hose Reel Audit',
+                            borderColor,
+                            isDark),
                         style: TextStyle(fontSize: 12.5, color: textPrimary),
                       ),
                       const SizedBox(height: 12),
@@ -222,21 +255,39 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                             children: [
                               Row(
                                 children: [
-                                  Text('Category *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                                  Text('Category *',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: textPrimary)),
                                   const SizedBox(width: 4),
-                                  Text('(Lookup Key)', style: TextStyle(fontSize: 10, color: textMuted)),
+                                  Text('(Lookup Key)',
+                                      style: TextStyle(
+                                          fontSize: 10, color: textMuted)),
                                 ],
                               ),
                               const SizedBox(height: 5),
-                              AppSearchableDropdownFormField<String>.fromMenuItems(
+                              AppSearchableDropdownFormField<
+                                  String>.fromMenuItems(
                                 isExpanded: true,
-                                value: _categories.contains(_category) ? _category : (_categories.isNotEmpty ? _categories.first : null),
+                                value: _categories.contains(_category)
+                                    ? _category
+                                    : (_categories.isNotEmpty
+                                        ? _categories.first
+                                        : null),
                                 decoration: _inputDeco('', borderColor, isDark),
                                 dropdownColor: dialogBg,
                                 items: _categories
-                                    .map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary))))
+                                    .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textPrimary))))
                                     .toList(),
-                                onChanged: (v) => setState(() => _category = v ?? _category),
+                                onChanged: (v) =>
+                                    setState(() => _category = v ?? _category),
                               ),
                             ],
                           ),
@@ -245,21 +296,39 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                             children: [
                               Row(
                                 children: [
-                                  Text('Inspection Status *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                                  Text('Inspection Status *',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: textPrimary)),
                                   const SizedBox(width: 4),
-                                  Text('(Lookup Key)', style: TextStyle(fontSize: 10, color: textMuted)),
+                                  Text('(Lookup Key)',
+                                      style: TextStyle(
+                                          fontSize: 10, color: textMuted)),
                                 ],
                               ),
                               const SizedBox(height: 5),
-                              AppSearchableDropdownFormField<String>.fromMenuItems(
+                              AppSearchableDropdownFormField<
+                                  String>.fromMenuItems(
                                 isExpanded: true,
-                                value: _statuses.contains(_status) ? _status : (_statuses.isNotEmpty ? _statuses.first : null),
+                                value: _statuses.contains(_status)
+                                    ? _status
+                                    : (_statuses.isNotEmpty
+                                        ? _statuses.first
+                                        : null),
                                 decoration: _inputDeco('', borderColor, isDark),
                                 dropdownColor: dialogBg,
                                 items: _statuses
-                                    .map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary))))
+                                    .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: textPrimary))))
                                     .toList(),
-                                onChanged: (v) => setState(() => _status = v ?? _status),
+                                onChanged: (v) =>
+                                    setState(() => _status = v ?? _status),
                               ),
                             ],
                           ),
@@ -274,26 +343,45 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Location Display *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                              Text('Location Display *',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: textPrimary)),
                               const SizedBox(height: 5),
                               TextFormField(
                                 controller: _locationController,
-                                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter inspection location' : null,
-                                decoration: _inputDeco('e.g. Science Block / Labs', borderColor, isDark),
-                                style: TextStyle(fontSize: 12.5, color: textPrimary),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Enter inspection location'
+                                        : null,
+                                decoration: _inputDeco(
+                                    'e.g. Science Block / Labs',
+                                    borderColor,
+                                    isDark),
+                                style: TextStyle(
+                                    fontSize: 12.5, color: textPrimary),
                               ),
                             ],
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Score (%)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                              Text('Score (%)',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: textPrimary)),
                               const SizedBox(height: 5),
                               TextFormField(
                                 controller: _scoreController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: _inputDeco('95.0', borderColor, isDark),
-                                style: TextStyle(fontSize: 12.5, color: textPrimary),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                decoration:
+                                    _inputDeco('95.0', borderColor, isDark),
+                                style: TextStyle(
+                                    fontSize: 12.5, color: textPrimary),
                               ),
                             ],
                           ),
@@ -303,18 +391,25 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
 
                       // Section Header: Inspector Details
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.person_pin_rounded, size: 16, color: Color(0xFF2563EB)),
+                            const Icon(Icons.person_pin_rounded,
+                                size: 16, color: Color(0xFF2563EB)),
                             const SizedBox(width: 6),
                             Text(
                               'Inspector & Role Assignment (From User Profiles & Roles Master)',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: textPrimary),
+                              style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: textPrimary),
                             ),
                           ],
                         ),
@@ -322,33 +417,54 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                       const SizedBox(height: 10),
 
                       // 1. Inspector User Selection (From profiles table)
-                      Text('Assigned Inspector (User from User Management / profiles) *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                      Text(
+                          'Assigned Inspector (User from User Management / profiles) *',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary)),
                       const SizedBox(height: 5),
                       AppSearchableDropdownFormField<String>.fromMenuItems(
                         isExpanded: true,
-                        value: _isCustomInspector ? 'CUSTOM' : _selectedInspectorUserId,
-                        decoration: _inputDeco('Select inspector profile', borderColor, isDark),
+                        value: _isCustomInspector
+                            ? 'CUSTOM'
+                            : _selectedInspectorUserId,
+                        decoration: _inputDeco(
+                            'Select inspector profile', borderColor, isDark),
                         dropdownColor: dialogBg,
                         items: [
                           if (_staffUsers.isNotEmpty)
                             ..._staffUsers.map((u) {
                               final uid = u['id']?.toString() ?? '';
-                              final name = (u['full_name'] ?? u['name'] ?? 'User').toString();
+                              final name =
+                                  (u['full_name'] ?? u['name'] ?? 'User')
+                                      .toString();
                               final role = (u['role'] ?? 'Staff').toString();
                               final email = (u['email'] ?? '').toString();
-                              final label = email.isNotEmpty ? '$name ($role • $email)' : '$name ($role)';
+                              final label = email.isNotEmpty
+                                  ? '$name ($role • $email)'
+                                  : '$name ($role)';
                               return DropdownMenuItem<String>(
                                 value: uid,
-                                child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary)),
+                                child: Text(label,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 12, color: textPrimary)),
                               );
                             }),
-                          DropdownMenuItem<String>(
+                          const DropdownMenuItem<String>(
                             value: 'CUSTOM',
                             child: Row(
                               children: [
-                                const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF2563EB)),
-                                const SizedBox(width: 6),
-                                Text('Other / External Inspector (Manual Entry)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF2563EB))),
+                                Icon(Icons.edit_note_rounded,
+                                    size: 16, color: Color(0xFF2563EB)),
+                                SizedBox(width: 6),
+                                Text(
+                                    'Other / External Inspector (Manual Entry)',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF2563EB))),
                               ],
                             ),
                           ),
@@ -360,15 +476,22 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                               _selectedInspectorUserId = null;
                             });
                           } else if (val != null) {
-                            final match = _staffUsers.where((u) => u['id']?.toString() == val).firstOrNull;
+                            final match = _staffUsers
+                                .where((u) => u['id']?.toString() == val)
+                                .firstOrNull;
                             setState(() {
                               _isCustomInspector = false;
                               _selectedInspectorUserId = val;
                               if (match != null) {
-                                _inspectorNameController.text = (match['full_name'] ?? match['name'] ?? '').toString();
-                                final uRole = (match['role'] ?? 'Safety Officer').toString();
+                                _inspectorNameController.text =
+                                    (match['full_name'] ?? match['name'] ?? '')
+                                        .toString();
+                                final uRole =
+                                    (match['role'] ?? 'Safety Officer')
+                                        .toString();
                                 _selectedRole = _matchRole(uRole, _appRoles);
-                                _inspectorRoleController.text = _selectedRole ?? uRole;
+                                _inspectorRoleController.text =
+                                    _selectedRole ?? uRole;
                               }
                             });
                           }
@@ -378,8 +501,13 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _inspectorNameController,
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter external inspector name' : null,
-                          decoration: _inputDeco('Enter external inspector full name...', borderColor, isDark),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Please enter external inspector name'
+                              : null,
+                          decoration: _inputDeco(
+                              'Enter external inspector full name...',
+                              borderColor,
+                              isDark),
                           style: TextStyle(fontSize: 12.5, color: textPrimary),
                         ),
                       ],
@@ -388,13 +516,24 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                       // 2. Inspector Role Selection (From app_roles table)
                       Row(
                         children: [
-                          Text('Inspector Role (From Role Management / app_roles) *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                          Text(
+                              'Inspector Role (From Role Management / app_roles) *',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: textPrimary)),
                           const Spacer(),
                           InkWell(
-                            onTap: () => setState(() => _isCustomRole = !_isCustomRole),
+                            onTap: () =>
+                                setState(() => _isCustomRole = !_isCustomRole),
                             child: Text(
-                              _isCustomRole ? 'Choose standard role' : '+ Custom Role',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2563EB)),
+                              _isCustomRole
+                                  ? 'Choose standard role'
+                                  : '+ Custom Role',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2563EB)),
                             ),
                           ),
                         ],
@@ -404,27 +543,36 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                         AppSearchableDropdownFormField<String>.fromMenuItems(
                           isExpanded: true,
                           value: _getRoleDropdownValue(),
-                          decoration: _inputDeco('Select role from app_roles', borderColor, isDark),
+                          decoration: _inputDeco('Select role from app_roles',
+                              borderColor, isDark),
                           dropdownColor: dialogBg,
                           items: [
                             ..._appRoles.map((r) {
-                              final dName = (r['display_name'] ?? r['name'] ?? '').toString();
+                              final dName =
+                                  (r['display_name'] ?? r['name'] ?? '')
+                                      .toString();
                               return DropdownMenuItem<String>(
                                 value: dName,
-                                child: Text(dName, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: textPrimary)),
+                                child: Text(dName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 12, color: textPrimary)),
                               );
                             }),
                             const DropdownMenuItem<String>(
                               value: 'Safety Officer',
-                              child: Text('Safety Officer', style: TextStyle(fontSize: 12)),
+                              child: Text('Safety Officer',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                             const DropdownMenuItem<String>(
                               value: 'Fire Marshal',
-                              child: Text('Fire Marshal', style: TextStyle(fontSize: 12)),
+                              child: Text('Fire Marshal',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                             const DropdownMenuItem<String>(
                               value: 'External Auditor',
-                              child: Text('External Auditor', style: TextStyle(fontSize: 12)),
+                              child: Text('External Auditor',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ],
                           onChanged: (val) {
@@ -439,19 +587,31 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                       else
                         TextFormField(
                           controller: _inspectorRoleController,
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter role title' : null,
-                          decoration: _inputDeco('e.g. FSSAI Certified Food Inspector', borderColor, isDark),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Enter role title'
+                              : null,
+                          decoration: _inputDeco(
+                              'e.g. FSSAI Certified Food Inspector',
+                              borderColor,
+                              isDark),
                           style: TextStyle(fontSize: 12.5, color: textPrimary),
                         ),
                       const SizedBox(height: 14),
 
                       // Findings & Audit Observations
-                      Text('Audit Findings & Action Recommendations', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary)),
+                      Text('Audit Findings & Action Recommendations',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary)),
                       const SizedBox(height: 5),
                       TextFormField(
                         controller: _findingsController,
                         maxLines: 3,
-                        decoration: _inputDeco('Enter physical check findings, pressure readings, test outcomes...', borderColor, isDark),
+                        decoration: _inputDeco(
+                            'Enter physical check findings, pressure readings, test outcomes...',
+                            borderColor,
+                            isDark),
                         style: TextStyle(fontSize: 12.5, color: textPrimary),
                       ),
                     ],
@@ -461,7 +621,8 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
 
               // Footer Actions
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: borderColor)),
                 ),
@@ -469,7 +630,8 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _isSaving ? null : () => Navigator.pop(context),
+                      onPressed:
+                          _isSaving ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                     const SizedBox(width: 8),
@@ -478,19 +640,25 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
                           disabledBackgroundColor: const Color(0xFF93C5FD),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
                         ),
                         onPressed: _isSaving ? null : _submit,
                         child: _isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
                             : Text(
-                                widget.existingInspection != null ? 'Save Inspection' : 'Create Inspection',
+                                widget.existingInspection != null
+                                    ? 'Save Inspection'
+                                    : 'Create Inspection',
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600),
                               ),
                       ),
                     ),
@@ -506,14 +674,25 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
 
   String? _getRoleDropdownValue() {
     if (_selectedRole != null) {
-      final existsInRoles = _appRoles.any((r) => (r['display_name'] ?? r['name']) == _selectedRole);
-      final existsInDefaults = ['Safety Officer', 'Fire Marshal', 'External Auditor'].contains(_selectedRole);
+      final existsInRoles = _appRoles
+          .any((r) => (r['display_name'] ?? r['name']) == _selectedRole);
+      final existsInDefaults = [
+        'Safety Officer',
+        'Fire Marshal',
+        'External Auditor'
+      ].contains(_selectedRole);
       if (existsInRoles || existsInDefaults) return _selectedRole;
     }
     if (_inspectorRoleController.text.isNotEmpty) {
-      final existsInRoles = _appRoles.any((r) => (r['display_name'] ?? r['name']) == _inspectorRoleController.text);
-      final existsInDefaults = ['Safety Officer', 'Fire Marshal', 'External Auditor'].contains(_inspectorRoleController.text);
-      if (existsInRoles || existsInDefaults) return _inspectorRoleController.text;
+      final existsInRoles = _appRoles.any((r) =>
+          (r['display_name'] ?? r['name']) == _inspectorRoleController.text);
+      final existsInDefaults = [
+        'Safety Officer',
+        'Fire Marshal',
+        'External Auditor'
+      ].contains(_inspectorRoleController.text);
+      if (existsInRoles || existsInDefaults)
+        return _inspectorRoleController.text;
     }
     return 'Safety Officer';
   }
@@ -534,23 +713,28 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
       'location_display': _locationController.text.trim(),
       'inspector_user_id': _selectedInspectorUserId,
       'inspector_name': _inspectorNameController.text.trim(),
-      'inspector_role': inspectorRoleVal.isNotEmpty ? inspectorRoleVal : 'Safety Officer',
+      'inspector_role':
+          inspectorRoleVal.isNotEmpty ? inspectorRoleVal : 'Safety Officer',
       'status': _status,
       'compliance_score': double.tryParse(_scoreController.text) ?? 95.0,
       'findings': _findingsController.text.trim(),
-      'inspection_date': '${_inspectionDate.year}-${_inspectionDate.month.toString().padLeft(2, '0')}-${_inspectionDate.day.toString().padLeft(2, '0')}',
+      'inspection_date':
+          '${_inspectionDate.year}-${_inspectionDate.month.toString().padLeft(2, '0')}-${_inspectionDate.day.toString().padLeft(2, '0')}',
     };
 
     try {
       final notifier = ref.read(safetyComplianceProvider.notifier);
-      final success = await notifier.saveInspection(payload, inspectionId: widget.existingInspection?.id);
+      final success = await notifier.saveInspection(payload,
+          inspectionId: widget.existingInspection?.id);
       if (mounted) {
         if (success) {
           Navigator.pop(context, true);
         } else {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to save inspection. Please verify details.')),
+            const SnackBar(
+                content:
+                    Text('Failed to save inspection. Please verify details.')),
           );
         }
       }
@@ -596,8 +780,12 @@ class _LogInspectionDialogState extends ConsumerState<LogInspectionDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       filled: true,
       fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: border)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: border)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: border)),
     );
   }
 }

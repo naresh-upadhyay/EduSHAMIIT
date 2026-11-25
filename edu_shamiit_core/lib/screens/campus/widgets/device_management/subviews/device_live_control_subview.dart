@@ -920,7 +920,7 @@ class _DeviceLiveControlSubviewState
       {'label': 'Device Type', 'value': 'device_type'},
       {'label': 'Room Number', 'value': 'room_number'},
       {'label': 'Status', 'value': 'status'},
-      {'label': 'Power State', 'value': 'power_state'},
+      {'label': 'Power State', 'value': 'power'},
     ];
 
     final isAllSelected = state.liveControlDevices.isNotEmpty &&
@@ -1518,7 +1518,7 @@ class _DeviceLiveControlSubviewState
                 label: _buildSortableHeader('Status', 'status', state, notifier, isDark),
               ),
               DataColumn(
-                label: _buildSortableHeader('Power', 'power_state', state, notifier, isDark),
+                label: _buildSortableHeader('Power', 'power', state, notifier, isDark),
               ),
               const DataColumn(
                 label: Text('Quick Live Control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),

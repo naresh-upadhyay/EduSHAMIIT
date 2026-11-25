@@ -72,7 +72,9 @@ void main() {
   );
 
   group('1. Dynamic Lookups & LookupEventBus Invalidation', () {
-    test('CampusLookupHelper returns non-empty rich institutional defaults for all modules', () {
+    test(
+        'CampusLookupHelper returns non-empty rich institutional defaults for all modules',
+        () {
       final helper = CampusLookupHelper.instance;
 
       expect(helper.getImmediateLabels('BUILDING_TYPE').isNotEmpty, isTrue);
@@ -81,8 +83,10 @@ void main() {
       expect(helper.getImmediateLabels('FACILITY_TYPE').isNotEmpty, isTrue);
       expect(helper.getImmediateLabels('BOOKING_PURPOSE').isNotEmpty, isTrue);
       expect(helper.getImmediateLabels('ORGANIZER_ROLE').isNotEmpty, isTrue);
-      expect(helper.getImmediateLabels('MAINTENANCE_CATEGORY').isNotEmpty, isTrue);
-      expect(helper.getImmediateLabels('MAINTENANCE_PRIORITY').isNotEmpty, isTrue);
+      expect(
+          helper.getImmediateLabels('MAINTENANCE_CATEGORY').isNotEmpty, isTrue);
+      expect(
+          helper.getImmediateLabels('MAINTENANCE_PRIORITY').isNotEmpty, isTrue);
       expect(helper.getImmediateLabels('INCIDENT_TYPE').isNotEmpty, isTrue);
       expect(helper.getImmediateLabels('INCIDENT_STATUS').isNotEmpty, isTrue);
       expect(helper.getImmediateLabels('CERTIFICATE_TYPE').isNotEmpty, isTrue);
@@ -90,7 +94,9 @@ void main() {
       expect(helper.getImmediateLabels('UTILITY_TYPE').isNotEmpty, isTrue);
     });
 
-    test('LookupEventBus invalidates CampusLookupHelper cache on lookup mutations', () {
+    test(
+        'LookupEventBus invalidates CampusLookupHelper cache on lookup mutations',
+        () {
       final helper = CampusLookupHelper.instance;
 
       // Ensure cache is populated
@@ -106,7 +112,9 @@ void main() {
     });
   });
 
-  group('2. Tab Switching Across All 8 Tabs Without Crash or Coming-Soon Placeholders', () {
+  group(
+      '2. Tab Switching Across All 8 Tabs Without Crash or Coming-Soon Placeholders',
+      () {
     final campusState = CampusState(
       isLoading: false,
       kpis: sampleKpis,
@@ -117,17 +125,20 @@ void main() {
     );
 
     for (int tabIndex = 0; tabIndex < 8; tabIndex++) {
-      testWidgets('Tab $tabIndex renders smoothly without errors', (tester) async {
+      testWidgets('Tab $tabIndex renders smoothly without errors',
+          (tester) async {
         await tester.binding.setSurfaceSize(const Size(1366, 768));
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              campusProvider.overrideWith((ref) => CampusNotifierFake(campusState)),
+              campusProvider
+                  .overrideWith((ref) => CampusNotifierFake(campusState)),
             ],
             child: MaterialApp(
               theme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
+                colorScheme:
+                    ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
               ),
               home: Scaffold(
                 body: CampusManagementScreen(initialTab: tabIndex),
@@ -152,7 +163,8 @@ void main() {
     }
   });
 
-  group('3. Multi-Device Viewport Responsiveness (Mobile, Tablet, Desktop)', () {
+  group('3. Multi-Device Viewport Responsiveness (Mobile, Tablet, Desktop)',
+      () {
     final campusState = CampusState(
       isLoading: false,
       kpis: sampleKpis,
@@ -162,13 +174,15 @@ void main() {
       filterFloorId: sampleFloor.id,
     );
 
-    testWidgets('Mobile Viewport (390 x 844) - Zero RenderFlex Overflow', (tester) async {
+    testWidgets('Mobile Viewport (390 x 844) - Zero RenderFlex Overflow',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifierFake(campusState)),
+            campusProvider
+                .overrideWith((ref) => CampusNotifierFake(campusState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -183,13 +197,15 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Tablet Viewport (820 x 1180) - Zero RenderFlex Overflow', (tester) async {
+    testWidgets('Tablet Viewport (820 x 1180) - Zero RenderFlex Overflow',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(820, 1180));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifierFake(campusState)),
+            campusProvider
+                .overrideWith((ref) => CampusNotifierFake(campusState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -204,13 +220,15 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Desktop Viewport (1440 x 900) - Zero RenderFlex Overflow', (tester) async {
+    testWidgets('Desktop Viewport (1440 x 900) - Zero RenderFlex Overflow',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifierFake(campusState)),
+            campusProvider
+                .overrideWith((ref) => CampusNotifierFake(campusState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -226,7 +244,9 @@ void main() {
     });
   });
 
-  group('4. Theme-Based Setting Propagation (Custom Institutional Color Schemes)', () {
+  group(
+      '4. Theme-Based Setting Propagation (Custom Institutional Color Schemes)',
+      () {
     const testThemes = [
       Color(0xFF2563EB), // EduSHAMIIT Classic Blue
       Color(0xFF059669), // Institutional Emerald Green
@@ -235,13 +255,16 @@ void main() {
     ];
 
     for (final primaryColor in testThemes) {
-      testWidgets('CampusHeaderBar and Tabs adapt dynamically to primaryColor: $primaryColor', (tester) async {
+      testWidgets(
+          'CampusHeaderBar and Tabs adapt dynamically to primaryColor: $primaryColor',
+          (tester) async {
         await tester.binding.setSurfaceSize(const Size(1280, 800));
 
         await tester.pumpWidget(
           MaterialApp(
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: primaryColor, primary: primaryColor),
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: primaryColor, primary: primaryColor),
             ),
             home: Scaffold(
               body: Column(
@@ -270,8 +293,10 @@ void main() {
     }
   });
 
-  group('5. All Institutional Dialogs Render Cleanly with Dynamic Dropdowns', () {
-    testWidgets('AddEditFacilityDialog renders with dynamic lookups', (tester) async {
+  group('5. All Institutional Dialogs Render Cleanly with Dynamic Dropdowns',
+      () {
+    testWidgets('AddEditFacilityDialog renders with dynamic lookups',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -288,7 +313,8 @@ void main() {
       expect(find.byType(AddEditFacilityDialog), findsOneWidget);
     });
 
-    testWidgets('LogUtilityReadingDialog renders with dynamic utility types', (tester) async {
+    testWidgets('LogUtilityReadingDialog renders with dynamic utility types',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -305,7 +331,8 @@ void main() {
       expect(find.byType(LogUtilityReadingDialog), findsOneWidget);
     });
 
-    testWidgets('CreateEditMaintenanceDialog renders with dynamic categories', (tester) async {
+    testWidgets('CreateEditMaintenanceDialog renders with dynamic categories',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -323,7 +350,9 @@ void main() {
       expect(find.textContaining('Raise Maintenance'), findsOneWidget);
     });
 
-    testWidgets('AssignTechnicianDialog renders with dynamic technicians & vendors', (tester) async {
+    testWidgets(
+        'AssignTechnicianDialog renders with dynamic technicians & vendors',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       final sampleReq = MaintenanceRequestItem(
@@ -356,7 +385,9 @@ void main() {
       expect(find.text('Assign Work Order - MNT-2026-001'), findsOneWidget);
     });
 
-    testWidgets('ReportIncidentDialog renders with dynamic severity & incident types', (tester) async {
+    testWidgets(
+        'ReportIncidentDialog renders with dynamic severity & incident types',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -374,7 +405,8 @@ void main() {
       expect(find.text('Report Safety & Security Incident'), findsOneWidget);
     });
 
-    testWidgets('AddCertificateDialog renders with dynamic certificate types', (tester) async {
+    testWidgets('AddCertificateDialog renders with dynamic certificate types',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -392,7 +424,8 @@ void main() {
       expect(find.text('Add Statutory Certificate'), findsOneWidget);
     });
 
-    testWidgets('ScheduleDrillDialog renders with dynamic drill types', (tester) async {
+    testWidgets('ScheduleDrillDialog renders with dynamic drill types',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -410,7 +443,9 @@ void main() {
       expect(find.text('Schedule Emergency Evacuation Drill'), findsOneWidget);
     });
 
-    testWidgets('Rooms subtab renders 52 rooms with pagination and table/grid view without error', (tester) async {
+    testWidgets(
+        'Rooms subtab renders 52 rooms with pagination and table/grid view without error',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1366, 768));
 
       final sampleRooms = List.generate(
@@ -450,7 +485,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifierFake(stateWithRooms)),
+            campusProvider
+                .overrideWith((ref) => CampusNotifierFake(stateWithRooms)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -467,8 +503,10 @@ void main() {
       expect(find.text('Showing 1 - 10 of 52 rooms'), findsOneWidget);
     });
 
-    testWidgets('6. Building Photo Upload & State Synchronization - BuildingRightDetailsPanel renders updated image', (tester) async {
-      final buildingWithImage = BuildingModel(
+    testWidgets(
+        '6. Building Photo Upload & State Synchronization - BuildingRightDetailsPanel renders updated image',
+        (tester) async {
+      const buildingWithImage = BuildingModel(
         id: 'bld-sports-1',
         schoolId: '11111111-1111-1111-1111-111111111111',
         name: 'Sports Complex',
@@ -482,7 +520,7 @@ void main() {
         imageUrl: '/api/campus/images/0368858b172e_scaled_images (2).jpeg',
       );
 
-      final buildingWithoutImage = BuildingModel(
+      const buildingWithoutImage = BuildingModel(
         id: 'bld-academic-1',
         schoolId: '11111111-1111-1111-1111-111111111111',
         name: 'Academic Block',
@@ -540,8 +578,10 @@ void main() {
       expect(find.text('Upload Building Photo'), findsOneWidget);
     });
 
-    test('6. CampusNotifier.updateBuildingImage updates buildings and selectedBuilding', () {
-      final initialBuilding = BuildingModel(
+    test(
+        '6. CampusNotifier.updateBuildingImage updates buildings and selectedBuilding',
+        () {
+      const initialBuilding = BuildingModel(
         id: 'bld-sports-1',
         schoolId: '11111111-1111-1111-1111-111111111111',
         name: 'Sports Complex',
@@ -556,10 +596,13 @@ void main() {
         selectedBuilding: initialBuilding,
       ));
 
-      notifier.updateBuildingImage('bld-sports-1', '/api/campus/images/new_image.jpg');
+      notifier.updateBuildingImage(
+          'bld-sports-1', '/api/campus/images/new_image.jpg');
 
-      expect(notifier.state.buildings.first.imageUrl, equals('/api/campus/images/new_image.jpg'));
-      expect(notifier.state.selectedBuilding?.imageUrl, equals('/api/campus/images/new_image.jpg'));
+      expect(notifier.state.buildings.first.imageUrl,
+          equals('/api/campus/images/new_image.jpg'));
+      expect(notifier.state.selectedBuilding?.imageUrl,
+          equals('/api/campus/images/new_image.jpg'));
     });
   });
 }

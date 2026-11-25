@@ -342,6 +342,8 @@ async def get_all_exams(
     status: Optional[str] = None,
     page: int = 1,
     page_size: int = 10,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
     user=Depends(require_exam_access),
     school_id=Depends(require_school_id),
 ):
@@ -481,6 +483,19 @@ async def get_all_exams(
     if search and search.strip():
         s = search.strip().lower()
         filtered = [e for e in filtered if s in e["title"].lower() or s in e["class"].lower() or s in e["subject"].lower() or s in e["exam_code"].lower()]
+
+    if sort_by and sort_by.strip():
+        skey = sort_by.strip().lower()
+        rev = (sort_order or "asc").strip().lower() == "desc"
+        key_map = {
+            "title": lambda x: str(x.get("title") or "").lower(),
+            "class": lambda x: str(x.get("class") or "").lower(),
+            "type": lambda x: str(x.get("type") or "").lower(),
+            "date": lambda x: str(x.get("date_raw") or ""),
+            "status": lambda x: str(x.get("status") or "").lower(),
+        }
+        if skey in key_map:
+            filtered.sort(key=key_map[skey], reverse=rev)
 
     # Pagination
     total_count = len(filtered)
@@ -959,6 +974,16 @@ async def router_delete_question_bank(
     school_id=Depends(require_school_id),
 ):
     return await teacher_delete_question_bank(question_id=question_id, user=user, school_id=school_id)
+
+
+@router.post("/question-bank/bulk-action")
+async def router_bulk_question_bank_action(
+    request: dict,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id),
+):
+    from app.api.teacher import teacher_bulk_question_bank_action
+    return await teacher_bulk_question_bank_action(request=request, user=user, school_id=school_id)
 
 
 # ============================================================================
@@ -3519,3 +3544,13 @@ async def standalone_delete_question_bank(
     school_id=Depends(require_school_id),
 ):
     return await teacher_delete_question_bank(question_id=question_id, user=user, school_id=school_id)
+
+
+@question_bank_router.post("/bulk-action")
+async def standalone_bulk_question_bank_action(
+    request: dict,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id),
+):
+    from app.api.teacher import teacher_bulk_question_bank_action
+    return await teacher_bulk_question_bank_action(request=request, user=user, school_id=school_id)

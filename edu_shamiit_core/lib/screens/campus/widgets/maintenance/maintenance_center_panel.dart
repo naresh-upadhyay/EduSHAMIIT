@@ -288,6 +288,7 @@ class _MaintenanceCenterPanelState extends ConsumerState<MaintenanceCenterPanel>
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(minWidth: 850),
                           child: DataTable(
+                            showCheckboxColumn: false,
                             headingRowHeight: 34,
                             dataRowMinHeight: 32,
                             dataRowMaxHeight: 35,

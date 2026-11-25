@@ -703,47 +703,65 @@ class CalendarWeekViewWidget extends ConsumerWidget {
 
   Color _getLightSolidCardBg(Color c) {
     final argb = c.toARGB32();
-    if (argb == const Color(0xFF4F46E5).toARGB32())
+    if (argb == const Color(0xFF4F46E5).toARGB32()) {
       return const Color(0xFFEEF2FF);
-    if (argb == const Color(0xFF10B981).toARGB32())
+    }
+    if (argb == const Color(0xFF10B981).toARGB32()) {
       return const Color(0xFFECFDF5);
-    if (argb == const Color(0xFF3B82F6).toARGB32())
+    }
+    if (argb == const Color(0xFF3B82F6).toARGB32()) {
       return const Color(0xFFE0F2FE);
-    if (argb == const Color(0xFFF59E0B).toARGB32())
+    }
+    if (argb == const Color(0xFFF59E0B).toARGB32()) {
       return const Color(0xFFFEF3C7);
-    if (argb == const Color(0xFFEF4444).toARGB32())
+    }
+    if (argb == const Color(0xFFEF4444).toARGB32()) {
       return const Color(0xFFFEE2E2);
-    if (argb == const Color(0xFF8B5CF6).toARGB32())
+    }
+    if (argb == const Color(0xFF8B5CF6).toARGB32()) {
       return const Color(0xFFF3E8FF);
-    if (argb == const Color(0xFF06B6D4).toARGB32())
+    }
+    if (argb == const Color(0xFF06B6D4).toARGB32()) {
       return const Color(0xFFE0F7FA);
-    if (argb == const Color(0xFFA855F7).toARGB32())
+    }
+    if (argb == const Color(0xFFA855F7).toARGB32()) {
       return const Color(0xFFF3E8FF);
-    if (argb == const Color(0xFFF43F5E).toARGB32())
+    }
+    if (argb == const Color(0xFFF43F5E).toARGB32()) {
       return const Color(0xFFFFE4E6);
+    }
     return Color.lerp(c, Colors.white, 0.88)!;
   }
 
   Color _getDarkSolidCardBg(Color c) {
     final argb = c.toARGB32();
-    if (argb == const Color(0xFF4F46E5).toARGB32())
+    if (argb == const Color(0xFF4F46E5).toARGB32()) {
       return const Color(0xFF1E1B4B);
-    if (argb == const Color(0xFF10B981).toARGB32())
+    }
+    if (argb == const Color(0xFF10B981).toARGB32()) {
       return const Color(0xFF064E3B);
-    if (argb == const Color(0xFF3B82F6).toARGB32())
+    }
+    if (argb == const Color(0xFF3B82F6).toARGB32()) {
       return const Color(0xFF0C4A6E);
-    if (argb == const Color(0xFFF59E0B).toARGB32())
+    }
+    if (argb == const Color(0xFFF59E0B).toARGB32()) {
       return const Color(0xFF451A03);
-    if (argb == const Color(0xFFEF4444).toARGB32())
+    }
+    if (argb == const Color(0xFFEF4444).toARGB32()) {
       return const Color(0xFF4C0519);
-    if (argb == const Color(0xFF8B5CF6).toARGB32())
+    }
+    if (argb == const Color(0xFF8B5CF6).toARGB32()) {
       return const Color(0xFF2E1065);
-    if (argb == const Color(0xFF06B6D4).toARGB32())
+    }
+    if (argb == const Color(0xFF06B6D4).toARGB32()) {
       return const Color(0xFF164E63);
-    if (argb == const Color(0xFFA855F7).toARGB32())
+    }
+    if (argb == const Color(0xFFA855F7).toARGB32()) {
       return const Color(0xFF3B0764);
-    if (argb == const Color(0xFFF43F5E).toARGB32())
+    }
+    if (argb == const Color(0xFFF43F5E).toARGB32()) {
       return const Color(0xFF4C0519);
+    }
     return const Color(0xFF1E293B);
   }
 

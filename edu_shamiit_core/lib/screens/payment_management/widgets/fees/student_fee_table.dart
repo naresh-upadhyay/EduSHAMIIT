@@ -28,20 +28,26 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
   String _feeSectionFilter = 'All Sections';
   String _feeFrequencyFilter = 'All Frequencies';
   int _feePage = 1;
-  final int _feePageSize = 10;
+  int _feePageSize = 10;
+  String _feeSortCol = 'feeName';
+  bool _feeSortAsc = true;
 
   // Invoices Grid state
   final TextEditingController _invoiceSearchController = TextEditingController();
   String _invoiceStatusFilter = 'All Statuses';
   String _invoiceClassFilter = 'All Classes';
   int _invoicePage = 1;
-  final int _invoicePageSize = 10;
+  int _invoicePageSize = 10;
+  String _invoiceSortCol = 'dueDate';
+  bool _invoiceSortAsc = false;
 
   // Payments Grid state
   final TextEditingController _paymentSearchController = TextEditingController();
   String _paymentModeFilter = 'All Modes';
   int _paymentPage = 1;
-  final int _paymentPageSize = 10;
+  int _paymentPageSize = 10;
+  String _paymentSortCol = 'paymentDate';
+  bool _paymentSortAsc = false;
 
   @override
   void dispose() {
@@ -818,6 +824,28 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
       return matchesSearch && matchesClass && matchesSection && matchesFreq;
     }).toList();
 
+    filtered.sort((a, b) {
+      int cmp;
+      switch (_feeSortCol) {
+        case 'classGrade':
+          cmp = a.classGrade.compareTo(b.classGrade);
+          break;
+        case 'frequency':
+          cmp = a.frequencyType.compareTo(b.frequencyType);
+          break;
+        case 'amount':
+          cmp = a.amount.compareTo(b.amount);
+          break;
+        case 'annual':
+          cmp = a.annualLiability.compareTo(b.annualLiability);
+          break;
+        case 'feeName':
+        default:
+          cmp = a.feeName.toLowerCase().compareTo(b.feeName.toLowerCase());
+      }
+      return _feeSortAsc ? cmp : -cmp;
+    });
+
     final totalRecords = filtered.length;
     final totalPages = (totalRecords / _feePageSize).ceil().clamp(1, 9999);
     final currentPage = _feePage.clamp(1, totalPages);
@@ -1104,16 +1132,41 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-            child: const Row(
+            child: Row(
               children: [
-                Expanded(flex: 3, child: Text('FEE HEAD & CATEGORY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('CLASS & SECTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('FREQUENCY / CYCLE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('DUE & LATE FINE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('POLICY STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('BASE RATE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('ANNUAL TOTAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                SizedBox(width: 90, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                Expanded(flex: 3, child: _buildSubTabSortHeader('FEE HEAD & CATEGORY', 'feeName', _feeSortCol, _feeSortAsc, (col) {
+                  setState(() {
+                    if (_feeSortCol == col) { _feeSortAsc = !_feeSortAsc; } else { _feeSortCol = col; _feeSortAsc = true; }
+                    _feePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('CLASS & SECTION', 'classGrade', _feeSortCol, _feeSortAsc, (col) {
+                  setState(() {
+                    if (_feeSortCol == col) { _feeSortAsc = !_feeSortAsc; } else { _feeSortCol = col; _feeSortAsc = true; }
+                    _feePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('FREQUENCY / CYCLE', 'frequency', _feeSortCol, _feeSortAsc, (col) {
+                  setState(() {
+                    if (_feeSortCol == col) { _feeSortAsc = !_feeSortAsc; } else { _feeSortCol = col; _feeSortAsc = true; }
+                    _feePage = 1;
+                  });
+                })),
+                const Expanded(flex: 2, child: Text('DUE & LATE FINE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                const Expanded(flex: 2, child: Text('POLICY STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('BASE RATE', 'amount', _feeSortCol, _feeSortAsc, (col) {
+                  setState(() {
+                    if (_feeSortCol == col) { _feeSortAsc = !_feeSortAsc; } else { _feeSortCol = col; _feeSortAsc = true; }
+                    _feePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('ANNUAL TOTAL', 'annual', _feeSortCol, _feeSortAsc, (col) {
+                  setState(() {
+                    if (_feeSortCol == col) { _feeSortAsc = !_feeSortAsc; } else { _feeSortCol = col; _feeSortAsc = true; }
+                    _feePage = 1;
+                  });
+                })),
+                const SizedBox(width: 90, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
               ],
             ),
           ),
@@ -1338,32 +1391,19 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           const Divider(height: 1),
 
           // Pagination Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  totalRecords == 0
-                      ? 'No items'
-                      : 'Showing ${startIndex + 1} to ${(startIndex + _feePageSize).clamp(1, totalRecords)} of $totalRecords fee heads',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      onPressed: currentPage > 1 ? () => setState(() => _feePage = currentPage - 1) : null,
-                    ),
-                    Text('$currentPage / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      onPressed: currentPage < totalPages ? () => setState(() => _feePage = currentPage + 1) : null,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          _buildSubTabPaginationFooter(
+            label: totalRecords == 0
+                ? 'No items'
+                : 'Showing ${startIndex + 1} to ${(startIndex + _feePageSize).clamp(1, totalRecords)} of $totalRecords fee heads',
+            currentPage: currentPage,
+            totalPages: totalPages,
+            pageSize: _feePageSize,
+            isDark: isDark,
+            onPageChanged: (p) => setState(() => _feePage = p),
+            onPageSizeChanged: (ps) => setState(() {
+              _feePageSize = ps;
+              _feePage = 1;
+            }),
           ),
         ],
       ),
@@ -1393,6 +1433,34 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
       final matchesClass = _invoiceClassFilter == 'All Classes' || inv.className == _invoiceClassFilter;
       return matchesSearch && matchesStatus && matchesClass;
     }).toList();
+
+    filtered.sort((a, b) {
+      int cmp;
+      switch (_invoiceSortCol) {
+        case 'invoiceNumber':
+          cmp = a.invoiceNumber.compareTo(b.invoiceNumber);
+          break;
+        case 'studentName':
+          cmp = (a.studentName ?? '').toLowerCase().compareTo((b.studentName ?? '').toLowerCase());
+          break;
+        case 'title':
+          cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          break;
+        case 'totalBilled':
+          cmp = a.totalBilled.compareTo(b.totalBilled);
+          break;
+        case 'balance':
+          cmp = a.balanceAmount.compareTo(b.balanceAmount);
+          break;
+        case 'status':
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 'dueDate':
+        default:
+          cmp = a.dueDate.compareTo(b.dueDate);
+      }
+      return _invoiceSortAsc ? cmp : -cmp;
+    });
 
     final totalRecords = filtered.length;
     final totalPages = (totalRecords / _invoicePageSize).ceil().clamp(1, 9999);
@@ -1513,16 +1581,51 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-            child: const Row(
+            child: Row(
               children: [
-                Expanded(flex: 2, child: Text('INVOICE #', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 3, child: Text('STUDENT & CLASS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 3, child: Text('FEE HEAD & PLAN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('DUE DATE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('BILLED', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('PAID / BALANCE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                SizedBox(width: 130, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('INVOICE #', 'invoiceNumber', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 3, child: _buildSubTabSortHeader('STUDENT & CLASS', 'studentName', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 3, child: _buildSubTabSortHeader('FEE HEAD & PLAN', 'title', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('DUE DATE', 'dueDate', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('BILLED', 'totalBilled', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('PAID / BALANCE', 'balance', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('STATUS', 'status', _invoiceSortCol, _invoiceSortAsc, (col) {
+                  setState(() {
+                    if (_invoiceSortCol == col) { _invoiceSortAsc = !_invoiceSortAsc; } else { _invoiceSortCol = col; _invoiceSortAsc = true; }
+                    _invoicePage = 1;
+                  });
+                })),
+                const SizedBox(width: 130, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
               ],
             ),
           ),
@@ -1681,32 +1784,19 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           const Divider(height: 1),
 
           // Pagination Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  totalRecords == 0
-                      ? 'No items'
-                      : 'Showing ${startIndex + 1} to ${(startIndex + _invoicePageSize).clamp(1, totalRecords)} of $totalRecords invoices',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      onPressed: currentPage > 1 ? () => setState(() => _invoicePage = currentPage - 1) : null,
-                    ),
-                    Text('$currentPage / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      onPressed: currentPage < totalPages ? () => setState(() => _invoicePage = currentPage + 1) : null,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          _buildSubTabPaginationFooter(
+            label: totalRecords == 0
+                ? 'No items'
+                : 'Showing ${startIndex + 1} to ${(startIndex + _invoicePageSize).clamp(1, totalRecords)} of $totalRecords invoices',
+            currentPage: currentPage,
+            totalPages: totalPages,
+            pageSize: _invoicePageSize,
+            isDark: isDark,
+            onPageChanged: (p) => setState(() => _invoicePage = p),
+            onPageSizeChanged: (ps) => setState(() {
+              _invoicePageSize = ps;
+              _invoicePage = 1;
+            }),
           ),
         ],
       ),
@@ -1732,6 +1822,31 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           p.paymentMethod.toLowerCase().contains(_paymentModeFilter.toLowerCase());
       return matchesSearch && matchesMode;
     }).toList();
+
+    filtered.sort((a, b) {
+      int cmp;
+      switch (_paymentSortCol) {
+        case 'receiptNumber':
+          cmp = a.receiptNumber.compareTo(b.receiptNumber);
+          break;
+        case 'studentName':
+          cmp = (a.studentName ?? '').toLowerCase().compareTo((b.studentName ?? '').toLowerCase());
+          break;
+        case 'paymentMethod':
+          cmp = a.paymentMethod.compareTo(b.paymentMethod);
+          break;
+        case 'amountPaid':
+          cmp = a.amountPaid.compareTo(b.amountPaid);
+          break;
+        case 'status':
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 'paymentDate':
+        default:
+          cmp = a.paymentDate.compareTo(b.paymentDate);
+      }
+      return _paymentSortAsc ? cmp : -cmp;
+    });
 
     final totalRecords = filtered.length;
     final totalPages = (totalRecords / _paymentPageSize).ceil().clamp(1, 9999);
@@ -1844,16 +1959,46 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-            child: const Row(
+            child: Row(
               children: [
-                Expanded(flex: 2, child: Text('RECEIPT #', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 3, child: Text('STUDENT & CLASS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('DATE & TIME', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('PAYMENT MODE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('TXN / UTR REF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('AMOUNT PAID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                Expanded(flex: 2, child: Text('AUDIT STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
-                SizedBox(width: 90, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('RECEIPT #', 'receiptNumber', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                Expanded(flex: 3, child: _buildSubTabSortHeader('STUDENT & CLASS', 'studentName', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('DATE & TIME', 'paymentDate', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('PAYMENT MODE', 'paymentMethod', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                const Expanded(flex: 2, child: Text('TXN / UTR REF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('AMOUNT PAID', 'amountPaid', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                Expanded(flex: 2, child: _buildSubTabSortHeader('AUDIT STATUS', 'status', _paymentSortCol, _paymentSortAsc, (col) {
+                  setState(() {
+                    if (_paymentSortCol == col) { _paymentSortAsc = !_paymentSortAsc; } else { _paymentSortCol = col; _paymentSortAsc = true; }
+                    _paymentPage = 1;
+                  });
+                })),
+                const SizedBox(width: 90, child: Text('ACTIONS', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.5))),
               ],
             ),
           ),
@@ -2044,32 +2189,114 @@ class _StudentFeeTableState extends ConsumerState<StudentFeeTable> {
           const Divider(height: 1),
 
           // Pagination Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  totalRecords == 0
-                      ? 'No items'
-                      : 'Showing ${startIndex + 1} to ${(startIndex + _paymentPageSize).clamp(1, totalRecords)} of $totalRecords receipts',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      onPressed: currentPage > 1 ? () => setState(() => _paymentPage = currentPage - 1) : null,
-                    ),
-                    Text('$currentPage / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      onPressed: currentPage < totalPages ? () => setState(() => _paymentPage = currentPage + 1) : null,
-                    ),
-                  ],
-                ),
-              ],
+          _buildSubTabPaginationFooter(
+            label: totalRecords == 0
+                ? 'No items'
+                : 'Showing ${startIndex + 1} to ${(startIndex + _paymentPageSize).clamp(1, totalRecords)} of $totalRecords receipts',
+            currentPage: currentPage,
+            totalPages: totalPages,
+            pageSize: _paymentPageSize,
+            isDark: isDark,
+            onPageChanged: (p) => setState(() => _paymentPage = p),
+            onPageSizeChanged: (ps) => setState(() {
+              _paymentPageSize = ps;
+              _paymentPage = 1;
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubTabSortHeader(
+    String label,
+    String colKey,
+    String activeCol,
+    bool isAsc,
+    ValueChanged<String> onTap,
+  ) {
+    final isActive = activeCol == colKey;
+    return InkWell(
+      onTap: () => onTap(colKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                letterSpacing: 0.5,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isActive
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isActive ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubTabPaginationFooter({
+    required String label,
+    required int currentPage,
+    required int totalPages,
+    required int pageSize,
+    required bool isDark,
+    required ValueChanged<int> onPageChanged,
+    required ValueChanged<int> onPageSizeChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Rows per page:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              const SizedBox(width: 6),
+              DropdownButtonHideUnderline(
+                child: AppSearchableDropdown<int>.fromMenuItems(
+                  value: const [10, 25, 50, 100].contains(pageSize) ? pageSize : 10,
+                  isDense: true,
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  items: const [
+                    DropdownMenuItem(value: 10, child: Text('10')),
+                    DropdownMenuItem(value: 25, child: Text('25')),
+                    DropdownMenuItem(value: 50, child: Text('50')),
+                    DropdownMenuItem(value: 100, child: Text('100')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) onPageSizeChanged(v);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+              ),
+              Text('$currentPage / $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+              ),
+            ],
           ),
         ],
       ),

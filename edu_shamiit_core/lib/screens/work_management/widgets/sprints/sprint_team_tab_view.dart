@@ -639,7 +639,12 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                   items: const [
                     DropdownMenuItem(value: 'NAME_ASC', child: Text('Sort By: Name (A-Z)')),
                     DropdownMenuItem(value: 'NAME_DESC', child: Text('Sort By: Name (Z-A)')),
-                    DropdownMenuItem(value: 'MEMBERS_DESC', child: Text('Sort By: Members Count')),
+                    DropdownMenuItem(value: 'DEPT_ASC', child: Text('Sort By: Department (A-Z)')),
+                    DropdownMenuItem(value: 'DEPT_DESC', child: Text('Sort By: Department (Z-A)')),
+                    DropdownMenuItem(value: 'MEMBERS_DESC', child: Text('Sort By: Members (High-Low)')),
+                    DropdownMenuItem(value: 'MEMBERS_ASC', child: Text('Sort By: Members (Low-High)')),
+                    DropdownMenuItem(value: 'STATUS_ASC', child: Text('Sort By: Status (A-Z)')),
+                    DropdownMenuItem(value: 'STATUS_DESC', child: Text('Sort By: Status (Z-A)')),
                   ],
                   onChanged: (v) => ref.read(workSprintTeamProvider.notifier).setSortBy(v ?? 'NAME_ASC'),
                   isDark: isDark,
@@ -851,21 +856,21 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     flex: 38,
-                    child: Text('Team Name ⇅', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                    child: _buildSortableTeamHeader('Team Name', 'NAME_ASC', 'NAME_DESC', state),
                   ),
-                  const Expanded(
+                  Expanded(
                     flex: 24,
-                    child: Text('Department', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                    child: _buildSortableTeamHeader('Department', 'DEPT_ASC', 'DEPT_DESC', state),
                   ),
-                  const Expanded(
+                  Expanded(
                     flex: 22,
-                    child: Text('Members', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                    child: _buildSortableTeamHeader('Members', 'MEMBERS_DESC', 'MEMBERS_ASC', state),
                   ),
-                  const Expanded(
+                  Expanded(
                     flex: 16,
-                    child: Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                    child: _buildSortableTeamHeader('Status', 'STATUS_ASC', 'STATUS_DESC', state),
                   ),
                   const SizedBox(
                     width: 80,
@@ -1305,6 +1310,47 @@ class _SprintTeamTabViewState extends ConsumerState<SprintTeamTabView> {
   // ============================================================================
   // 3. RIGHT: SELECTED TEAM DETAILS PANEL / DRAWER
   // ============================================================================
+  Widget _buildSortableTeamHeader(
+    String label,
+    String ascKey,
+    String descKey,
+    WorkSprintTeamState state,
+  ) {
+    final isAsc = state.sortBy == ascKey;
+    final isDesc = state.sortBy == descKey;
+    final isActive = isAsc || isDesc;
+    return InkWell(
+      onTap: () {
+        final next = isAsc ? descKey : ascKey;
+        ref.read(workSprintTeamProvider.notifier).setSortBy(next);
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            isActive
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSelectedTeamDrawer(WorkSprintTeamState state, bool isDark) {
     final team = state.selectedTeamDetail!;
     final bgColor = isDark ? const Color(0xFF13182C) : Colors.white;

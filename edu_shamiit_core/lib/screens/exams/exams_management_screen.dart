@@ -57,11 +57,13 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
 
-  // Pagination
+  // Pagination & Sorting
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalCount = 24;
   int _totalPages = 3;
+  String? _sortBy;
+  String _sortOrder = 'asc';
 
   // Lookups
   List<String> _classList = ['All Classes'];
@@ -238,6 +240,8 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
         endDate: _filterEndDate?.toIso8601String().split('T')[0],
         page: _currentPage,
         pageSize: _pageSize,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
       );
 
       if (mounted) {
@@ -1574,15 +1578,70 @@ class _ExamsManagementScreenState extends ConsumerState<ExamsManagementScreen> {
                       }),
                       horizontalMargin: 16,
                       columnSpacing: spacing.clamp(14.0, 48.0),
-                      columns: const [
-                        DataColumn(label: Text('#')),
-                        DataColumn(label: Text('Exam Name')),
-                        DataColumn(label: Text('Class')),
-                        DataColumn(label: Text('Type')),
-                        DataColumn(label: Text('Date')),
-                        DataColumn(label: Text('Time')),
-                        DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Actions')),
+                      sortColumnIndex: const [null, 'title', 'class', 'type', 'date', null, 'status', null]
+                          .indexOf(_sortBy) >= 0
+                          ? const [null, 'title', 'class', 'type', 'date', null, 'status', null].indexOf(_sortBy)
+                          : null,
+                      sortAscending: _sortOrder == 'asc',
+                      columns: [
+                        const DataColumn(label: Text('#')),
+                        DataColumn(
+                          label: const Text('Exam Name'),
+                          onSort: (_, asc) {
+                            setState(() {
+                              _sortBy = 'title';
+                              _sortOrder = asc ? 'asc' : 'desc';
+                              _currentPage = 1;
+                            });
+                            _loadExamsTable();
+                          },
+                        ),
+                        DataColumn(
+                          label: const Text('Class'),
+                          onSort: (_, asc) {
+                            setState(() {
+                              _sortBy = 'class';
+                              _sortOrder = asc ? 'asc' : 'desc';
+                              _currentPage = 1;
+                            });
+                            _loadExamsTable();
+                          },
+                        ),
+                        DataColumn(
+                          label: const Text('Type'),
+                          onSort: (_, asc) {
+                            setState(() {
+                              _sortBy = 'type';
+                              _sortOrder = asc ? 'asc' : 'desc';
+                              _currentPage = 1;
+                            });
+                            _loadExamsTable();
+                          },
+                        ),
+                        DataColumn(
+                          label: const Text('Date'),
+                          onSort: (_, asc) {
+                            setState(() {
+                              _sortBy = 'date';
+                              _sortOrder = asc ? 'asc' : 'desc';
+                              _currentPage = 1;
+                            });
+                            _loadExamsTable();
+                          },
+                        ),
+                        const DataColumn(label: Text('Time')),
+                        DataColumn(
+                          label: const Text('Status'),
+                          onSort: (_, asc) {
+                            setState(() {
+                              _sortBy = 'status';
+                              _sortOrder = asc ? 'asc' : 'desc';
+                              _currentPage = 1;
+                            });
+                            _loadExamsTable();
+                          },
+                        ),
+                        const DataColumn(label: Text('Actions')),
                       ],
                       rows: List.generate(_exams.length, (index) {
                         final ex = _exams[index];

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/role_provider.dart';
@@ -631,6 +632,36 @@ class _ClassesTabViewState extends ConsumerState<ClassesTabView> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Container(
+                          height: 26,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: AppSearchableDropdown<int>.fromMenuItems(
+                              value: [10, 25, 50, 100].contains(state.pageSize) ? state.pageSize : 10,
+                              isDense: true,
+                              isExpanded: false,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                              items: const [10, 25, 50, 100]
+                                  .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) notifier.setPageSize(val);
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
                         IconButton(
                           icon: const Icon(Icons.chevron_left, size: 18),
                           padding: EdgeInsets.zero,

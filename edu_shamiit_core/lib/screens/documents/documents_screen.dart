@@ -1256,7 +1256,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 ),
                 DataColumn(
                   label: Text('File Size', style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary)),
-                  onSort: (_, asc) => ref.read(documentsProvider.notifier).setSort('size', order: asc ? 'asc' : 'desc'),
+                  onSort: (_, asc) => ref.read(documentsProvider.notifier).setSort('file_size', order: asc ? 'asc' : 'desc'),
                 ),
                 DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary))),
                 DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, color: textPrimary))),

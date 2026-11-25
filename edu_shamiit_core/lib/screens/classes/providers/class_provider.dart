@@ -47,6 +47,12 @@ class ClassState {
   final int roomPageSize;
   final int roomTotalCount;
   final int roomTotalPages;
+  final String sectionSortBy;
+  final String sectionSortOrder;
+  final String subjectSortBy;
+  final String subjectSortOrder;
+  final String roomSortBy;
+  final String roomSortOrder;
 
   // Generic Compatibility Getters
   int get page {
@@ -156,6 +162,12 @@ class ClassState {
     this.roomPageSize = 10,
     this.roomTotalCount = 0,
     this.roomTotalPages = 1,
+    this.sectionSortBy = 'class_name',
+    this.sectionSortOrder = 'ASC',
+    this.subjectSortBy = 'name',
+    this.subjectSortOrder = 'ASC',
+    this.roomSortBy = 'name',
+    this.roomSortOrder = 'ASC',
     this.classes = const [],
     this.allClasses = const [],
     this.selectedClass,
@@ -216,6 +228,12 @@ class ClassState {
     int? roomPageSize,
     int? roomTotalCount,
     int? roomTotalPages,
+    String? sectionSortBy,
+    String? sectionSortOrder,
+    String? subjectSortBy,
+    String? subjectSortOrder,
+    String? roomSortBy,
+    String? roomSortOrder,
     List<AcademicClassModel>? classes,
     List<AcademicClassModel>? allClasses,
     AcademicClassModel? selectedClass,
@@ -277,6 +295,12 @@ class ClassState {
       roomPageSize: roomPageSize ?? this.roomPageSize,
       roomTotalCount: roomTotalCount ?? this.roomTotalCount,
       roomTotalPages: roomTotalPages ?? this.roomTotalPages,
+      sectionSortBy: sectionSortBy ?? this.sectionSortBy,
+      sectionSortOrder: sectionSortOrder ?? this.sectionSortOrder,
+      subjectSortBy: subjectSortBy ?? this.subjectSortBy,
+      subjectSortOrder: subjectSortOrder ?? this.subjectSortOrder,
+      roomSortBy: roomSortBy ?? this.roomSortBy,
+      roomSortOrder: roomSortOrder ?? this.roomSortOrder,
       classes: classes ?? this.classes,
       allClasses: allClasses ?? this.allClasses,
       selectedClass: clearSelectedClass ? null : (selectedClass ?? this.selectedClass),
@@ -794,6 +818,8 @@ class ClassNotifier extends StateNotifier<ClassState> {
         floor: state.sectionFloorFilter,
         page: state.sectionPage,
         pageSize: state.sectionPageSize,
+        sortBy: state.sectionSortBy,
+        sortOrder: state.sectionSortOrder,
       );
 
       state = state.copyWith(
@@ -955,6 +981,8 @@ class ClassNotifier extends StateNotifier<ClassState> {
         academicYear: state.academicYear,
         page: state.subjectPage,
         pageSize: state.subjectPageSize,
+        sortBy: state.subjectSortBy,
+        sortOrder: state.subjectSortOrder,
       );
 
       final List<AcademicSubjectModel> subList = res['subjects'] ?? [];
@@ -1304,6 +1332,8 @@ class ClassNotifier extends StateNotifier<ClassState> {
         academicYear: state.academicYear,
         page: state.roomPage,
         pageSize: state.roomPageSize,
+        sortBy: state.roomSortBy,
+        sortOrder: state.roomSortOrder,
       );
 
       final List<AcademicRoomModel> roomList = res['rooms'] ?? [];
@@ -1339,6 +1369,33 @@ class ClassNotifier extends StateNotifier<ClassState> {
   Future<void> selectRoom(AcademicRoomModel room) async {
     state = state.copyWith(selectedRoom: room);
     await fetchRoomDetail(room.id);
+  }
+
+  void setSectionSort(String sortBy, bool ascending) {
+    state = state.copyWith(
+      sectionSortBy: sortBy,
+      sectionSortOrder: ascending ? 'ASC' : 'DESC',
+      sectionPage: 1,
+    );
+    fetchSections();
+  }
+
+  void setSubjectSort(String sortBy, bool ascending) {
+    state = state.copyWith(
+      subjectSortBy: sortBy,
+      subjectSortOrder: ascending ? 'ASC' : 'DESC',
+      subjectPage: 1,
+    );
+    fetchSubjects();
+  }
+
+  void setRoomSort(String sortBy, bool ascending) {
+    state = state.copyWith(
+      roomSortBy: sortBy,
+      roomSortOrder: ascending ? 'ASC' : 'DESC',
+      roomPage: 1,
+    );
+    fetchRooms();
   }
 
   Future<void> fetchRoomDetail(String roomId) async {

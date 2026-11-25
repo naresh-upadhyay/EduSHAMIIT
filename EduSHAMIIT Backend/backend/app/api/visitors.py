@@ -1081,7 +1081,7 @@ async def list_appointments(
         "date_to": date_to,
         "page": page,
         "page_size": page_size,
-        "sort_by": sort_by or "scheduled_start",
+        "sort_by": sort_by or "scheduled_start_at",
         "sort_order": sort_order or "DESC",
     }
     try:

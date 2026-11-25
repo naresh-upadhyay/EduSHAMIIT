@@ -426,6 +426,46 @@ class HostelStudentFeeTable extends ConsumerWidget {
                               ? () => notifier.loadStudentFees(page: pagination.page + 1)
                               : null,
                         ),
+                        const SizedBox(width: 16),
+                        Text(
+                          'Rows:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          height: 28,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: AppSearchableDropdown<int>.fromMenuItems(
+                              value: [10, 25, 50, 100].contains(state.feesPageSize)
+                                  ? state.feesPageSize
+                                  : 10,
+                              isDense: true,
+                              isExpanded: false,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                              items: const [10, 25, 50, 100]
+                                  .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) notifier.setFeesPageSize(val);
+                              },
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -648,6 +688,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
     bool isDark,
   ) {
     final plans = state.feePlans;
+    final plansTotal = state.feePlansPagination['total_records'] as int? ?? plans.length;
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -695,7 +736,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          '${plans.length} configured plans for academic year ${state.selectedAcademicYear}',
+                          '$plansTotal configured plans for academic year ${state.selectedAcademicYear}',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                         ),
                       ],
@@ -747,15 +788,15 @@ class HostelStudentFeeTable extends ConsumerWidget {
                             dataRowMaxHeight: 64,
                             horizontalMargin: 20,
                             columnSpacing: 20,
-                            columns: const [
-                              DataColumn(label: Text('PLAN CODE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('PLAN NAME', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('ROOM TYPE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('BILLING CYCLE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('ANNUAL FEE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('FEE HEADS BREAKDOWN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('STATUS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
-                              DataColumn(label: Text('ACTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
+                            columns: [
+                              _buildGenericSortableColumn('PLAN CODE', 'code', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              _buildGenericSortableColumn('PLAN NAME', 'name', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              _buildGenericSortableColumn('ROOM TYPE', 'room_type', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              _buildGenericSortableColumn('BILLING CYCLE', 'billing_cycle', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              _buildGenericSortableColumn('ANNUAL FEE', 'total_annual_amount', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              const DataColumn(label: Text('FEE HEADS BREAKDOWN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
+                              _buildGenericSortableColumn('STATUS', 'status', state.feePlansSortBy, state.feePlansSortOrder, notifier.setFeePlansSort, isDark: isDark, uppercaseHeader: true),
+                              const DataColumn(label: Text('ACTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF64748B)))),
                             ],
                             rows: plans.map((p) {
                               return DataRow(
@@ -880,6 +921,15 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       ),
                     ),
                   ),
+          _buildSubTabPaginationFooter(
+            pagination: state.feePlansPagination,
+            currentCount: plans.length,
+            pageSize: state.feePlansPageSize,
+            itemLabel: 'plans',
+            onPageChanged: notifier.setFeePlansPage,
+            onPageSizeChanged: notifier.setFeePlansPageSize,
+            isDark: isDark,
+          ),
         ],
       ),
     );
@@ -951,6 +1001,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
     bool isDark,
   ) {
     final invoices = state.invoicesList;
+    final invoicesTotal = state.invoicesPagination['total_records'] as int? ?? invoices.length;
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -983,7 +1034,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hostel Fee Invoices (${invoices.length})',
+                          'Hostel Fee Invoices ($invoicesTotal)',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -1030,14 +1081,14 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 800),
                         child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Billing Period', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Paid', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Balance', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
+                          columns: [
+                            _buildGenericSortableColumn('Invoice #', 'invoice_number', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Student', 'student_name', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Billing Period', 'billing_period', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Total', 'net_amount', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Paid', 'paid_amount', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Balance', 'balance_amount', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
+                            _buildGenericSortableColumn('Status', 'status', state.invoicesSortBy, state.invoicesSortOrder, notifier.setInvoicesSort, isDark: isDark),
                           ],
                           rows: invoices.map((inv) {
                             final isPaid = inv.status.toUpperCase() == 'PAID';
@@ -1074,6 +1125,15 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   ),
           ),
+          _buildSubTabPaginationFooter(
+            pagination: state.invoicesPagination,
+            currentCount: invoices.length,
+            pageSize: state.invoicesPageSize,
+            itemLabel: 'invoices',
+            onPageChanged: notifier.setInvoicesPage,
+            onPageSizeChanged: notifier.setInvoicesPageSize,
+            isDark: isDark,
+          ),
         ],
       ),
     );
@@ -1091,6 +1151,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
     bool isDark,
   ) {
     final payments = state.paymentsList;
+    final paymentsTotal = state.paymentsPagination['total_records'] as int? ?? payments.length;
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1123,7 +1184,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Payment Transactions (${payments.length})',
+                          'Payment Transactions ($paymentsTotal)',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -1170,13 +1231,13 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 750),
                         child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Receipt #', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Method', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
+                          columns: [
+                            _buildGenericSortableColumn('Receipt #', 'receipt_number', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Student', 'student_name', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Amount', 'amount', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Method', 'payment_method', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Date', 'payment_date', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Status', 'status', state.paymentsSortBy, state.paymentsSortOrder, notifier.setPaymentsSort, isDark: isDark),
                           ],
                           rows: payments.map((pmt) {
                             return DataRow(
@@ -1207,6 +1268,15 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   ),
           ),
+          _buildSubTabPaginationFooter(
+            pagination: state.paymentsPagination,
+            currentCount: payments.length,
+            pageSize: state.paymentsPageSize,
+            itemLabel: 'payments',
+            onPageChanged: notifier.setPaymentsPage,
+            onPageSizeChanged: notifier.setPaymentsPageSize,
+            isDark: isDark,
+          ),
         ],
       ),
     );
@@ -1224,6 +1294,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
     bool isDark,
   ) {
     final refunds = state.refundsList;
+    final refundsTotal = state.refundsPagination['total_records'] as int? ?? refunds.length;
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1256,7 +1327,7 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Deposit Refunds & Settlements (${refunds.length})',
+                          'Deposit Refunds & Settlements ($refundsTotal)',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -1292,13 +1363,13 @@ class HostelStudentFeeTable extends ConsumerWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 750),
                         child: DataTable(
-                          columns: const [
-                            DataColumn(label: Text('Student', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Reason', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Requested Date', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700))),
-                            DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.w700))),
+                          columns: [
+                            _buildGenericSortableColumn('Student', 'student_name', state.refundsSortBy, state.refundsSortOrder, notifier.setRefundsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Amount', 'amount', state.refundsSortBy, state.refundsSortOrder, notifier.setRefundsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Reason', 'reason', state.refundsSortBy, state.refundsSortOrder, notifier.setRefundsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Requested Date', 'created_at', state.refundsSortBy, state.refundsSortOrder, notifier.setRefundsSort, isDark: isDark),
+                            _buildGenericSortableColumn('Status', 'status', state.refundsSortBy, state.refundsSortOrder, notifier.setRefundsSort, isDark: isDark),
+                            const DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.w700))),
                           ],
                           rows: refunds.map((rf) {
                             final status = rf['status']?.toString() ?? rf['refund_status']?.toString() ?? 'PENDING';
@@ -1346,7 +1417,177 @@ class HostelStudentFeeTable extends ConsumerWidget {
                     ),
                   ),
           ),
+          _buildSubTabPaginationFooter(
+            pagination: state.refundsPagination,
+            currentCount: refunds.length,
+            pageSize: state.refundsPageSize,
+            itemLabel: 'refunds',
+            onPageChanged: notifier.setRefundsPage,
+            onPageSizeChanged: notifier.setRefundsPageSize,
+            isDark: isDark,
+          ),
         ],
+      ),
+    );
+  }
+
+  DataColumn _buildGenericSortableColumn(
+    String label,
+    String sortKey,
+    String? currentSortBy,
+    String currentSortOrder,
+    void Function(String key, String order) onSort, {
+    required bool isDark,
+    bool uppercaseHeader = false,
+  }) {
+    final isCurrent = currentSortBy == sortKey;
+    final isAsc = currentSortOrder.toUpperCase() == 'ASC';
+    return DataColumn(
+      onSort: (_, asc) => onSort(sortKey, asc ? 'ASC' : 'DESC'),
+      label: InkWell(
+        onTap: () => onSort(sortKey, isCurrent && isAsc ? 'DESC' : 'ASC'),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: uppercaseHeader
+                  ? TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isCurrent
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF64748B),
+                    )
+                  : TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isCurrent
+                          ? const Color(0xFF2563EB)
+                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF0F172A)),
+                    ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isCurrent
+                  ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 14,
+              color: isCurrent ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubTabPaginationFooter({
+    required Map<String, dynamic> pagination,
+    required int currentCount,
+    required int pageSize,
+    required String itemLabel,
+    required void Function(int page) onPageChanged,
+    required void Function(int pageSize) onPageSizeChanged,
+    required bool isDark,
+  }) {
+    final page = pagination['page'] as int? ?? 1;
+    final effectiveSize = pagination['page_size'] as int? ?? pageSize;
+    final total = pagination['total_records'] as int? ?? currentCount;
+    final totalPages = (pagination['total_pages'] as int? ?? 1).clamp(1, 999999);
+    final start = total == 0 ? 0 : (page - 1) * effectiveSize + 1;
+    final end = (page * effectiveSize) > total ? total : (page * effectiveSize);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+        border: Border(
+          top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text(
+                'Showing $start-$end of $total $itemLabel',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Page $page of $totalPages',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: page > 1 ? () => onPageChanged(page - 1) : null,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: page < totalPages ? () => onPageChanged(page + 1) : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Rows:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                      ),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: AppSearchableDropdown<int>.fromMenuItems(
+                        value: [10, 25, 50, 100].contains(pageSize) ? pageSize : 10,
+                        isDense: true,
+                        isExpanded: false,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        items: const [10, 25, 50, 100]
+                            .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) onPageSizeChanged(val);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }

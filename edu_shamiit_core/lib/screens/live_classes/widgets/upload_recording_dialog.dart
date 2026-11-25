@@ -178,11 +178,15 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     // 1. Ingest from Class Management (classProvider - Image 2)
     for (final c in classState.availableClasses) {
       if (c.id.isNotEmpty && c.name.isNotEmpty) {
-        classMap[c.id] = {
+        classMap[c.id] = <String, dynamic>{
           'id': c.id,
           'name': c.name,
-          'sections': c.sections.map((s) => {'id': s.id, 'name': s.name}).toList(),
-          'subjects': c.subjects.map((sub) => {'id': sub.id, 'name': sub.name}).toList(),
+          'sections': c.sections
+              .map<Map<String, dynamic>>((s) => <String, dynamic>{'id': s.id, 'name': s.name})
+              .toList(),
+          'subjects': c.subjects
+              .map<Map<String, dynamic>>((sub) => <String, dynamic>{'id': sub.id, 'name': sub.name})
+              .toList(),
         };
       }
     }
@@ -191,7 +195,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     if (meta != null) {
       for (final c in meta.classes) {
         if (!classMap.containsKey(c.id)) {
-          classMap[c.id] = {
+          classMap[c.id] = <String, dynamic>{
             'id': c.id,
             'name': c.name,
             'sections': <Map<String, dynamic>>[],
@@ -203,7 +207,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
         if (classMap.containsKey(s.classId)) {
           final existing = classMap[s.classId]!['sections'] as List<Map<String, dynamic>>;
           if (!existing.any((e) => e['id'] == s.id || e['name'] == s.name)) {
-            existing.add({'id': s.id, 'name': s.name});
+            existing.add(<String, dynamic>{'id': s.id, 'name': s.name});
           }
         }
       }
@@ -211,7 +215,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
         if (classMap.containsKey(cs.classId)) {
           final existing = classMap[cs.classId]!['subjects'] as List<Map<String, dynamic>>;
           if (!existing.any((e) => e['id'] == cs.subjectId || e['name'] == cs.subjectName)) {
-            existing.add({'id': cs.subjectId, 'name': cs.subjectName});
+            existing.add(<String, dynamic>{'id': cs.subjectId, 'name': cs.subjectName});
           }
         }
       }
@@ -219,31 +223,33 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
 
     // 3. Fallback standard academic classes & sections if API is empty
     if (classMap.isEmpty) {
-      final defaultClasses = [
-        {'id': 'cls_9', 'name': 'Class 9', 'secs': ['9-A', '9-B', '9-C', '9-D']},
-        {'id': 'cls_10', 'name': 'Class 10', 'secs': ['10-A', '10-B', '10-C']},
-        {'id': 'cls_11', 'name': 'Class 11', 'secs': ['11-A', '11-B']},
-        {'id': 'cls_12', 'name': 'Class 12', 'secs': ['12-A', '12-B']},
+      final defaultClasses = <Map<String, dynamic>>[
+        <String, dynamic>{'id': 'cls_9', 'name': 'Class 9', 'secs': <String>['9-A', '9-B', '9-C', '9-D']},
+        <String, dynamic>{'id': 'cls_10', 'name': 'Class 10', 'secs': <String>['10-A', '10-B', '10-C']},
+        <String, dynamic>{'id': 'cls_11', 'name': 'Class 11', 'secs': <String>['11-A', '11-B']},
+        <String, dynamic>{'id': 'cls_12', 'name': 'Class 12', 'secs': <String>['12-A', '12-B']},
       ];
-      final defaultSubs = [
-        {'id': 'sub_comp', 'name': 'Computer Science'},
-        {'id': 'sub_math', 'name': 'Mathematics'},
-        {'id': 'sub_sci', 'name': 'Science'},
-        {'id': 'sub_sst', 'name': 'Social Science'},
-        {'id': 'sub_eng', 'name': 'English'},
-        {'id': 'sub_phy', 'name': 'Physics'},
-        {'id': 'sub_chem', 'name': 'Chemistry'},
+      final defaultSubs = <Map<String, dynamic>>[
+        <String, dynamic>{'id': 'sub_comp', 'name': 'Computer Science'},
+        <String, dynamic>{'id': 'sub_math', 'name': 'Mathematics'},
+        <String, dynamic>{'id': 'sub_sci', 'name': 'Science'},
+        <String, dynamic>{'id': 'sub_sst', 'name': 'Social Science'},
+        <String, dynamic>{'id': 'sub_eng', 'name': 'English'},
+        <String, dynamic>{'id': 'sub_phy', 'name': 'Physics'},
+        <String, dynamic>{'id': 'sub_chem', 'name': 'Chemistry'},
       ];
 
       for (final dc in defaultClasses) {
         final cid = dc['id'] as String;
         final cname = dc['name'] as String;
         final secNames = dc['secs'] as List<String>;
-        classMap[cid] = {
+        classMap[cid] = <String, dynamic>{
           'id': cid,
           'name': cname,
-          'sections': secNames.map((sn) => {'id': 'sec_${cid}_$sn', 'name': sn}).toList(),
-          'subjects': defaultSubs,
+          'sections': secNames
+              .map<Map<String, dynamic>>((sn) => <String, dynamic>{'id': 'sec_${cid}_$sn', 'name': sn})
+              .toList(),
+          'subjects': List<Map<String, dynamic>>.from(defaultSubs),
         };
       }
     }
@@ -261,7 +267,14 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     if (_selectedClassId == null || !classMap.containsKey(_selectedClassId)) {
       final preferredClass = sortedClasses.firstWhere(
         (c) => (c['name'] as String).contains('10'),
-        orElse: () => sortedClasses.isNotEmpty ? sortedClasses.first : {'id': 'cls_10', 'name': 'Class 10', 'sections': [], 'subjects': []},
+        orElse: () => sortedClasses.isNotEmpty
+            ? sortedClasses.first
+            : <String, dynamic>{
+                'id': 'cls_10',
+                'name': 'Class 10',
+                'sections': <Map<String, dynamic>>[],
+                'subjects': <Map<String, dynamic>>[],
+              },
       );
       _selectedClassId = preferredClass['id'] as String;
     }
@@ -269,11 +282,13 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     final currentClassName = currentClass?['name'] as String? ?? 'Class 10';
 
     // 2. Resolve available Sections cascaded from Class
-    final availableSections = (currentClass?['sections'] as List<Map<String, dynamic>>? ?? []).toList();
+    final availableSections = List<Map<String, dynamic>>.from(
+      currentClass?['sections'] as List? ?? const [],
+    );
     if (availableSections.isEmpty) {
-      availableSections.addAll([
-        {'id': 'sec_${_selectedClassId}_a', 'name': '$currentClassName-A'},
-        {'id': 'sec_${_selectedClassId}_b', 'name': '$currentClassName-B'},
+      availableSections.addAll(<Map<String, dynamic>>[
+        <String, dynamic>{'id': 'sec_${_selectedClassId}_a', 'name': '$currentClassName-A'},
+        <String, dynamic>{'id': 'sec_${_selectedClassId}_b', 'name': '$currentClassName-B'},
       ]);
     }
     if (_selectedSectionId == null || !availableSections.any((s) => s['id'] == _selectedSectionId)) {
@@ -281,19 +296,21 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     }
     final currentSection = availableSections.firstWhere(
       (s) => s['id'] == _selectedSectionId,
-      orElse: () => availableSections.isNotEmpty ? availableSections.first : {'id': 'sec_default', 'name': 'A'},
+      orElse: () => availableSections.isNotEmpty ? availableSections.first : <String, dynamic>{'id': 'sec_default', 'name': 'A'},
     );
     final currentSectionName = currentSection['name'] as String? ?? 'A';
 
     // 3. Resolve available Subjects strictly cascaded from Class & Section
-    final availableSubjects = (currentClass?['subjects'] as List<Map<String, dynamic>>? ?? []).toList();
+    final availableSubjects = List<Map<String, dynamic>>.from(
+      currentClass?['subjects'] as List? ?? const [],
+    );
     if (availableSubjects.isEmpty) {
-      availableSubjects.addAll([
-        {'id': 'sub_comp', 'name': 'Computer Science'},
-        {'id': 'sub_math', 'name': 'Mathematics'},
-        {'id': 'sub_sci', 'name': 'Science'},
-        {'id': 'sub_sst', 'name': 'Social Science'},
-        {'id': 'sub_eng', 'name': 'English'},
+      availableSubjects.addAll(<Map<String, dynamic>>[
+        <String, dynamic>{'id': 'sub_comp', 'name': 'Computer Science'},
+        <String, dynamic>{'id': 'sub_math', 'name': 'Mathematics'},
+        <String, dynamic>{'id': 'sub_sci', 'name': 'Science'},
+        <String, dynamic>{'id': 'sub_sst', 'name': 'Social Science'},
+        <String, dynamic>{'id': 'sub_eng', 'name': 'English'},
       ]);
     }
     if (_selectedSubjectId == null || !availableSubjects.any((sub) => sub['id'] == _selectedSubjectId)) {
@@ -301,7 +318,7 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
     }
     final currentSubject = availableSubjects.firstWhere(
       (sub) => sub['id'] == _selectedSubjectId,
-      orElse: () => availableSubjects.isNotEmpty ? availableSubjects.first : {'id': 'sub_default', 'name': 'General'},
+      orElse: () => availableSubjects.isNotEmpty ? availableSubjects.first : <String, dynamic>{'id': 'sub_default', 'name': 'General'},
     );
     final currentSubjectName = currentSubject['name'] as String? ?? 'General';
 
@@ -502,10 +519,10 @@ class _UploadRecordingDialogState extends ConsumerState<UploadRecordingDialog> {
                                             setState(() {
                                               _selectedClassId = v;
                                               final newClass = classMap[v];
-                                              final newSecs = newClass?['sections'] as List<Map<String, dynamic>>? ?? [];
+                                              final newSecs = List<Map<String, dynamic>>.from(newClass?['sections'] as List? ?? const []);
                                               _selectedSectionId = newSecs.isNotEmpty ? newSecs.first['id'] as String : null;
 
-                                              final newSubs = newClass?['subjects'] as List<Map<String, dynamic>>? ?? [];
+                                              final newSubs = List<Map<String, dynamic>>.from(newClass?['subjects'] as List? ?? const []);
                                               _selectedSubjectId = newSubs.isNotEmpty ? newSubs.first['id'] as String : null;
                                             });
                                           }

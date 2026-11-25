@@ -29,7 +29,9 @@ void main() {
       utilizationChangePct: 4.6,
     );
 
-    testWidgets('SpaceBookingKpisBar renders strictly consistent mathematical values', (tester) async {
+    testWidgets(
+        'SpaceBookingKpisBar renders strictly consistent mathematical values',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 300));
 
       await tester.pumpWidget(
@@ -64,7 +66,9 @@ void main() {
       expect(find.text('72.8%'), findsOneWidget);
     });
 
-    testWidgets('SpaceBookingLeftPanel removed unwanted tabs and has Booking Spaces, Requests, Calendar', (tester) async {
+    testWidgets(
+        'SpaceBookingLeftPanel removed unwanted tabs and has Booking Spaces, Requests, Calendar',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 900));
 
       final state = SpaceBookingState(
@@ -78,7 +82,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -94,10 +99,13 @@ void main() {
       // Verify Clean, Consolidated Navigation Items exist
       expect(find.text('Booking Spaces'), findsOneWidget);
       expect(find.text('Booking Requests'), findsOneWidget);
-      expect(find.text('20'), findsOneWidget); // Pending badge on Booking Requests
+      expect(
+          find.text('20'), findsOneWidget); // Pending badge on Booking Requests
       expect(find.text('Usage & Reports'), findsOneWidget);
-      expect(find.text('Booking Calendar'), findsNothing); // Duplicate removed as requested
-      expect(find.text('Recurring Bookings'), findsNothing); // Removed as requested
+      expect(find.text('Booking Calendar'),
+          findsNothing); // Duplicate removed as requested
+      expect(find.text('Recurring Bookings'),
+          findsNothing); // Removed as requested
 
       // Verify unwanted redundant status tabs and Quick Filters are REMOVED from the left panel
       expect(find.text('Approved Bookings'), findsNothing);
@@ -105,10 +113,13 @@ void main() {
       expect(find.text('My Bookings'), findsNothing);
       expect(find.text('Quick Filters'), findsNothing); // Removed as requested
       expect(find.text('Reset'), findsNothing); // Removed as requested
-      expect(find.text('Recurring Series'), findsOneWidget); // Quick shortcut intact
+      expect(find.text('Recurring Series'),
+          findsOneWidget); // Quick shortcut intact
     });
 
-    testWidgets('SpaceBookingCenterPanel renders top navigation tabs and Booking Requests without scrolling', (tester) async {
+    testWidgets(
+        'SpaceBookingCenterPanel renders top navigation tabs and Booking Requests without scrolling',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1200, 2400));
 
       final state = SpaceBookingState(
@@ -155,7 +166,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -171,7 +183,8 @@ void main() {
       // Verify Top Center Navigation Tabs exist (Consolidated 3 Tabs)
       expect(find.text('Booking Spaces'), findsOneWidget);
       expect(find.text('Usage & Reports'), findsOneWidget);
-      expect(find.text('Booking Calendar'), findsNothing); // Duplicate removed as requested
+      expect(find.text('Booking Calendar'),
+          findsNothing); // Duplicate removed as requested
 
       // Verify Table status tabs have consistent numbers
       expect(find.text('All (217)'), findsOneWidget);
@@ -183,13 +196,16 @@ void main() {
       expect(find.text('Booking Requests (20)'), findsOneWidget);
 
       expect(find.byType(CampusPaginationBar), findsOneWidget);
-      final paginationBar = tester.widget<CampusPaginationBar>(find.byType(CampusPaginationBar));
+      final paginationBar =
+          tester.widget<CampusPaginationBar>(find.byType(CampusPaginationBar));
       expect(paginationBar.totalCount, equals(20));
       expect(paginationBar.currentPage, equals(1));
       expect(paginationBar.pageSize, equals(10));
     });
 
-    testWidgets('SpaceBookingTabView dedicates right side full width to calendar and grids, and embeds Today Space Utilization donut into Usage & Reports', (tester) async {
+    testWidgets(
+        'SpaceBookingTabView dedicates right side full width to calendar and grids, and embeds Today Space Utilization donut into Usage & Reports',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
 
       final spacesState = SpaceBookingState(
@@ -197,7 +213,7 @@ void main() {
         selectedNav: 'Booking Spaces',
         kpis: consistentKpis,
         roomsTimeline: [
-          SpaceTimelineRoom(
+          const SpaceTimelineRoom(
             roomId: 'r1',
             roomNumber: '101',
             roomCode: 'G-101',
@@ -207,7 +223,7 @@ void main() {
             buildingId: 'b1',
             buildingName: 'Academic Block',
             buildingCode: 'B1',
-            bookings: const [],
+            bookings: [],
           ),
         ],
       );
@@ -216,7 +232,8 @@ void main() {
         ProviderScope(
           key: const ValueKey('spaces-tab-view-test'),
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(spacesState)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(spacesState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -229,7 +246,8 @@ void main() {
 
       // Verify Booking Spaces view is active and right side form is eliminated
       expect(find.text('Space Availability & Booking'), findsOneWidget);
-      expect(find.text('Submit Booking Request'), findsNothing); // Removed right form
+      expect(find.text('Submit Booking Request'),
+          findsNothing); // Removed right form
 
       // 2. On Usage & Reports tab: Today's Space Utilization donut chart is embedded
       final usageState = SpaceBookingState(
@@ -266,7 +284,8 @@ void main() {
         ProviderScope(
           key: const ValueKey('usage-tab-view-test'),
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(usageState)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(usageState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -283,28 +302,31 @@ void main() {
       expect(find.text('Building-wise Utilization Matrix'), findsOneWidget);
     });
 
-    testWidgets('CreateEditBookingDialog renders 4 modular tabs including Recurrence and Dynamic Requester', (tester) async {
+    testWidgets(
+        'CreateEditBookingDialog renders 4 modular tabs including Recurrence and Dynamic Requester',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(SpaceBookingState(
-              selectedDate: DateTime(2026, 3, 15),
-              bookableRooms: const [
-                BookableRoomItem(
-                  id: 'room-1',
-                  name: 'Auditorium Hall',
-                  roomNumber: 'AUD-1',
-                  roomCode: 'AUD1',
-                  roomType: 'Auditorium',
-                  maxCapacity: 200,
-                  buildingId: 'b1',
-                  buildingName: 'Academic Block',
-                  buildingCode: 'B1',
-                ),
-              ],
-            ))),
+            spaceBookingProvider.overrideWith(
+                (ref) => _FakeSpaceBookingNotifier(SpaceBookingState(
+                      selectedDate: DateTime(2026, 3, 15),
+                      bookableRooms: const [
+                        BookableRoomItem(
+                          id: 'room-1',
+                          name: 'Auditorium Hall',
+                          roomNumber: 'AUD-1',
+                          roomCode: 'AUD1',
+                          roomType: 'Auditorium',
+                          maxCapacity: 200,
+                          buildingId: 'b1',
+                          buildingName: 'Academic Block',
+                          buildingCode: 'B1',
+                        ),
+                      ],
+                    ))),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -335,11 +357,14 @@ void main() {
       await tester.tap(find.text('Requester & Contact'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text('Search & Select Requestor from User Directory'), findsOneWidget);
+      expect(find.text('Search & Select Requestor from User Directory'),
+          findsOneWidget);
       expect(find.text('Organizer Name *'), findsOneWidget);
     });
 
-    test('SpaceAnalyticsReport parses backend payload and provides chart metrics', () {
+    test(
+        'SpaceAnalyticsReport parses backend payload and provides chart metrics',
+        () {
       final json = {
         'summary_kpis': {
           'total_bookings': 224,
@@ -354,18 +379,53 @@ void main() {
           'total_spaces_count': 150,
         },
         'hourly_occupancy': [
-          {'military_hour': 8, 'hour_label': '08:00 AM', 'active_bookings': 3, 'occupancy_pct': 29.0},
-          {'military_hour': 10, 'hour_label': '10:00 AM', 'active_bookings': 178, 'occupancy_pct': 98.5},
+          {
+            'military_hour': 8,
+            'hour_label': '08:00 AM',
+            'active_bookings': 3,
+            'occupancy_pct': 29.0
+          },
+          {
+            'military_hour': 10,
+            'hour_label': '10:00 AM',
+            'active_bookings': 178,
+            'occupancy_pct': 98.5
+          },
         ],
         'day_of_week_traffic': [
-          {'day_index': 1, 'day_name': 'Monday', 'day_short': 'Mon', 'bookings_count': 82, 'utilization_pct': 82.5},
-          {'day_index': 3, 'day_name': 'Wednesday', 'day_short': 'Wed', 'bookings_count': 91, 'utilization_pct': 91.5},
+          {
+            'day_index': 1,
+            'day_name': 'Monday',
+            'day_short': 'Mon',
+            'bookings_count': 82,
+            'utilization_pct': 82.5
+          },
+          {
+            'day_index': 3,
+            'day_name': 'Wednesday',
+            'day_short': 'Wed',
+            'bookings_count': 91,
+            'utilization_pct': 91.5
+          },
         ],
         'space_type_breakdown': [
-          {'code': 'Classroom', 'type_name': 'Classrooms / Lecture Halls', 'count': 67, 'percentage': 44.7, 'color_hex': '#3B82F6'},
+          {
+            'code': 'Classroom',
+            'type_name': 'Classrooms / Lecture Halls',
+            'count': 67,
+            'percentage': 44.7,
+            'color_hex': '#3B82F6'
+          },
         ],
         'building_utilization': [
-          {'building_id': 'b1', 'building_name': 'Academic Block', 'building_code': 'B1', 'total_rooms': 15, 'booked_rooms': 11, 'utilization_pct': 84.5},
+          {
+            'building_id': 'b1',
+            'building_name': 'Academic Block',
+            'building_code': 'B1',
+            'total_rooms': 15,
+            'booked_rooms': 11,
+            'utilization_pct': 84.5
+          },
         ],
       };
 
@@ -382,7 +442,9 @@ void main() {
       expect(report.buildingUtilization.first.buildingCode, 'B1');
     });
 
-    testWidgets('BookingDetailsDrawer renders Edit and Delete actions in header and footer for Approved booking', (tester) async {
+    testWidgets(
+        'BookingDetailsDrawer renders Edit and Delete actions in header and footer for Approved booking',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 900));
 
       const approvedItem = SpaceBookingRequestItem(
@@ -418,7 +480,12 @@ void main() {
         selectedDate: DateTime(2026, 3, 15),
         kpis: consistentKpis,
         roomsTimeline: const [],
-        bookingRequests: const SpaceBookingListResponse(items: [approvedItem], totalCount: 1, page: 1, pageSize: 10, totalPages: 1),
+        bookingRequests: const SpaceBookingListResponse(
+            items: [approvedItem],
+            totalCount: 1,
+            page: 1,
+            pageSize: 10,
+            totalPages: 1),
         utilization: const SpaceUtilizationStats(),
         bookableRooms: const [],
         analyticsReport: const SpaceAnalyticsReport(),
@@ -428,7 +495,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(testState)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(testState)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -463,7 +531,9 @@ void main() {
       expect(deleteTriggered, isTrue);
     });
 
-    testWidgets('CreateEditBookingDialog pre-populates all booking schedule fields when modifying', (tester) async {
+    testWidgets(
+        'CreateEditBookingDialog pre-populates all booking schedule fields when modifying',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(900, 900));
 
       const existingItem = SpaceBookingRequestItem(
@@ -496,7 +566,12 @@ void main() {
         selectedDate: DateTime(2026, 3, 15),
         kpis: consistentKpis,
         roomsTimeline: const [],
-        bookingRequests: const SpaceBookingListResponse(items: [existingItem], totalCount: 1, page: 1, pageSize: 10, totalPages: 1),
+        bookingRequests: const SpaceBookingListResponse(
+            items: [existingItem],
+            totalCount: 1,
+            page: 1,
+            pageSize: 10,
+            totalPages: 1),
         utilization: const SpaceUtilizationStats(),
         bookableRooms: const [
           BookableRoomItem(
@@ -518,7 +593,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(testState)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(testState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -546,12 +622,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(
-        find.byWidgetPredicate((w) => w is TextField && w.controller?.text == 'Dr. Ananya Sharma'),
+        find.byWidgetPredicate(
+            (w) => w is TextField && w.controller?.text == 'Dr. Ananya Sharma'),
         findsWidgets,
       );
     });
 
-    testWidgets('Usage & Reports tab renders analytics and hides right panel form for full width presentation', (tester) async {
+    testWidgets(
+        'Usage & Reports tab renders analytics and hides right panel form for full width presentation',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
 
       const report = SpaceAnalyticsReport(
@@ -577,7 +656,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(usageState)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(usageState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -589,7 +669,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Usage & Reports analytics title is rendered
-      expect(find.text('Space Utilization & Advanced Analytics'), findsOneWidget);
+      expect(
+          find.text('Space Utilization & Advanced Analytics'), findsOneWidget);
 
       // Verify consistent KPI values on Card 4
       expect(find.text('Campus Space Utilization'), findsOneWidget);
@@ -600,7 +681,9 @@ void main() {
       expect(find.byType(SpaceBookingRightPanel), findsNothing);
     });
 
-    testWidgets('Usage & Reports tab renders dynamically for Today with 1 booking for 2 hours (KING)', (tester) async {
+    testWidgets(
+        'Usage & Reports tab renders dynamically for Today with 1 booking for 2 hours (KING)',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
 
       const todayReport = SpaceAnalyticsReport(
@@ -627,7 +710,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(todayUsageState)),
+            spaceBookingProvider.overrideWith(
+                (ref) => _FakeSpaceBookingNotifier(todayUsageState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -647,10 +731,12 @@ void main() {
       expect(find.text('1 Active / 166 Bookable Spaces'), findsOneWidget);
     });
 
-    testWidgets('Clicking on empty grid slot triggers onCreateBooking with pre-selected room, date, and time slot', (tester) async {
+    testWidgets(
+        'Clicking on empty grid slot triggers onCreateBooking with pre-selected room, date, and time slot',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1400, 1000));
 
-      final testRoom = SpaceTimelineRoom(
+      const testRoom = SpaceTimelineRoom(
         roomId: 'r-101',
         roomNumber: '101',
         roomCode: 'G-101',
@@ -678,12 +764,14 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: MaterialApp(
             home: Scaffold(
               body: SpaceBookingCenterPanel(
-                onCreateBooking: ({roomId, roomName, roomType, date, startTime, endTime}) {
+                onCreateBooking: (
+                    {roomId, roomName, roomType, date, startTime, endTime}) {
                   clickedRoomId = roomId;
                   clickedRoomName = roomName;
                   clickedStartTime = startTime;
@@ -697,7 +785,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the interactive grid slot tooltip for 10:00 AM
-      final slotFinder = find.byTooltip('Click to schedule G-101 (10:00 AM - 11:00 AM)');
+      final slotFinder =
+          find.byTooltip('Click to schedule G-101 (10:00 AM - 11:00 AM)');
       expect(slotFinder, findsOneWidget);
 
       // Tap the empty slot
@@ -712,14 +801,17 @@ void main() {
     });
 
     test('Default selected date in SpaceBookingNotifier defaults to today', () {
-      final notifier = _FakeSpaceBookingNotifier(SpaceBookingNotifier(SpaceBookingApiService.instance).state);
+      final notifier = _FakeSpaceBookingNotifier(
+          SpaceBookingNotifier(SpaceBookingApiService.instance).state);
       final now = DateTime.now();
       expect(notifier.state.selectedDate.year, equals(now.year));
       expect(notifier.state.selectedDate.month, equals(now.month));
       expect(notifier.state.selectedDate.day, equals(now.day));
     });
 
-    testWidgets('CreateEditBookingDialog displays Slot Free & Available when no conflict exists', (tester) async {
+    testWidgets(
+        'CreateEditBookingDialog displays Slot Free & Available when no conflict exists',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1000));
 
       const room = BookableRoomItem(
@@ -740,7 +832,7 @@ void main() {
         kpis: consistentKpis,
         bookableRooms: [room],
         roomsTimeline: [
-          SpaceTimelineRoom(
+          const SpaceTimelineRoom(
             roomId: 'r-101',
             roomNumber: '101',
             roomCode: 'G-101',
@@ -750,7 +842,7 @@ void main() {
             buildingId: 'b-1',
             buildingName: 'Academic Block (A)',
             buildingCode: 'B1',
-            bookings: const [], // empty, completely free
+            bookings: [], // empty, completely free
           ),
         ],
       );
@@ -758,7 +850,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -772,10 +865,15 @@ void main() {
       // Verify the Free & Available live card is rendered
       expect(find.text('Slot Free & Available'), findsOneWidget);
       expect(find.text('AVAILABLE'), findsOneWidget);
-      expect(find.text('No conflicts detected. Space is available for the selected schedule.'), findsOneWidget);
+      expect(
+          find.text(
+              'No conflicts detected. Space is available for the selected schedule.'),
+          findsOneWidget);
     });
 
-    testWidgets('CreateEditBookingDialog displays Slot Busy & Conflict Detected when colliding with an approved booking', (tester) async {
+    testWidgets(
+        'CreateEditBookingDialog displays Slot Busy & Conflict Detected when colliding with an approved booking',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1000));
 
       const room = BookableRoomItem(
@@ -796,7 +894,7 @@ void main() {
         kpis: consistentKpis,
         bookableRooms: [room],
         roomsTimeline: [
-          SpaceTimelineRoom(
+          const SpaceTimelineRoom(
             roomId: 'r-101',
             roomNumber: '101',
             roomCode: 'G-101',
@@ -827,7 +925,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -844,10 +943,12 @@ void main() {
       expect(find.textContaining('Math Lecture'), findsWidgets);
     });
 
-    testWidgets('BookingDetailsDrawer renders Approval Conflict Alert when booking is in Conflict status', (tester) async {
+    testWidgets(
+        'BookingDetailsDrawer renders Approval Conflict Alert when booking is in Conflict status',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(600, 1000));
 
-      final conflictItem = SpaceBookingRequestItem(
+      const conflictItem = SpaceBookingRequestItem(
         id: 'req-conflict-1',
         bookingRef: 'BK-CONF-01',
         title: 'Colliding Workshop',
@@ -871,7 +972,8 @@ void main() {
         requestedByDisplay: 'Prof. Test (Faculty)',
         attendeeCount: 30,
         isRecurring: false,
-        rejectionReason: 'Time slot conflict with approved booking Math Lecture (02:00 PM - 04:00 PM)',
+        rejectionReason:
+            'Time slot conflict with approved booking Math Lecture (02:00 PM - 04:00 PM)',
       );
 
       final state = SpaceBookingState(
@@ -883,7 +985,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            spaceBookingProvider.overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
+            spaceBookingProvider
+                .overrideWith((ref) => _FakeSpaceBookingNotifier(state)),
           ],
           child: MaterialApp(
             home: Scaffold(

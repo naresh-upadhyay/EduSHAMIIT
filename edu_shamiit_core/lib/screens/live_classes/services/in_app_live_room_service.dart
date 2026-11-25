@@ -491,7 +491,9 @@ class InAppLiveRoomService extends ChangeNotifier {
         );
       }
       final String token = tokenResponse['token'] ?? '';
-      _isRecording = tokenResponse['is_recording'] ?? false;
+      if (!_isRecording) {
+        _isRecording = tokenResponse['is_recording'] ?? false;
+      }
       String sfuUrl = tokenResponse['livekit_url'] ?? 'ws://localhost:8082';
 
       // Normalize SFU URL for local vs production
@@ -1106,18 +1108,8 @@ class InAppLiveRoomService extends ChangeNotifier {
 
   Future<void> leaveRoom() async {
     _heartbeatTimer?.cancel();
-    try {
-      final apiService = ApiService();
-      final role = currentUserRole.toLowerCase();
-      final isHostOrTeacher = role == 'teacher' || role == 'admin' || role == 'super_admin' || role == 'host';
-      if (isHostOrTeacher) {
-        await apiService.post('/live-classes/$liveClassId/end', {});
-      } else {
-        await apiService.post('/live-classes/$liveClassId/leave', {
-          'user_id': currentUserId,
-        });
-      }
-    } catch (_) {}
+    // Disconnect WebRTC media & room cleanly without force-ending the session
+    // (End vs Leave API calls are orchestrated explicitly by LiveClassNotifier).
 
     // Explicitly release all media stream hardware before disconnecting
     if (_localAudioTrack != null) {

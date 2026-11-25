@@ -6,11 +6,13 @@ import '../../../providers/hostel_provider.dart';
 class AssignComplaintDialog extends ConsumerStatefulWidget {
   final String complaintId;
   final String? currentAssignee;
+  final bool isBulk;
 
   const AssignComplaintDialog({
     super.key,
     required this.complaintId,
     this.currentAssignee,
+    this.isBulk = false,
   });
 
   @override
@@ -114,13 +116,26 @@ class _AssignComplaintDialogState extends ConsumerState<AssignComplaintDialog> {
       orElse: () => staffList.first,
     );
 
-    final success = await ref.read(hostelProvider.notifier).assignComplaint(
-      widget.complaintId,
-      selectedStaff['id']!,
-      userName: selectedStaff['name'],
-      role: selectedStaff['role'],
-      notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
-    );
+    final notifier = ref.read(hostelProvider.notifier);
+    final selectedCount = ref.read(hostelProvider).selectedComplaintIds.length;
+    final notesText = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
+    final bool success;
+    if (widget.isBulk && selectedCount > 1) {
+      success = await notifier.bulkComplaintAction(
+        'ASSIGN',
+        userId: selectedStaff['id']!,
+        userName: selectedStaff['name'],
+        notes: notesText,
+      );
+    } else {
+      success = await notifier.assignComplaint(
+        widget.complaintId,
+        selectedStaff['id']!,
+        userName: selectedStaff['name'],
+        role: selectedStaff['role'],
+        notes: notesText,
+      );
+    }
 
     if (mounted) {
       setState(() => _isSubmitting = false);

@@ -1433,6 +1433,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
+                    showCheckboxColumn: false,
                     horizontalMargin: 16,
                     columnSpacing: 20,
                     columns: [
@@ -2237,6 +2238,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
+                    showCheckboxColumn: false,
                     horizontalMargin: 16,
                     columnSpacing: 24,
                     columns: [
@@ -3144,6 +3146,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
+                    showCheckboxColumn: false,
                     horizontalMargin: 16,
                     columnSpacing: 20,
                     columns: [
@@ -4208,6 +4211,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
+                    showCheckboxColumn: false,
                     horizontalMargin: 16,
                     columnSpacing: 20,
                     columns: [

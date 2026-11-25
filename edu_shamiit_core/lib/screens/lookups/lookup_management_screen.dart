@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/lookup_provider.dart';
@@ -97,7 +98,7 @@ class _LookupManagementScreenState extends ConsumerState<LookupManagementScreen>
                 ),
 
                 // Left Panel Pagination
-                if (state.keysTotalPages > 1)
+                if (state.keysTotalRecords > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
@@ -107,21 +108,57 @@ class _LookupManagementScreenState extends ConsumerState<LookupManagementScreen>
                         ),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         Text(
-                          'Page ${state.keysPage} of ${state.keysTotalPages}',
+                          'Page ${state.keysPage} of ${state.keysTotalPages > 0 ? state.keysTotalPages : 1}',
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
+                            Container(
+                              height: 28,
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: AppSearchableDropdown<int>.fromMenuItems(
+                                  value: [10, 25, 50, 100].contains(state.keysPageSize) ? state.keysPageSize : 10,
+                                  isDense: true,
+                                  isExpanded: false,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                  items: const [10, 25, 50, 100]
+                                      .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) ref.read(lookupProvider.notifier).setKeysPageSize(val);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
                             IconButton(
                               icon: const Icon(Icons.chevron_left_rounded),
                               iconSize: 18,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                               onPressed: state.keysPage > 1
                                   ? () => ref.read(lookupProvider.notifier).setKeysPage(state.keysPage - 1)
                                   : null,
@@ -133,6 +170,8 @@ class _LookupManagementScreenState extends ConsumerState<LookupManagementScreen>
                             IconButton(
                               icon: const Icon(Icons.chevron_right_rounded),
                               iconSize: 18,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                               onPressed: state.keysPage < state.keysTotalPages
                                   ? () => ref.read(lookupProvider.notifier).setKeysPage(state.keysPage + 1)
                                   : null,

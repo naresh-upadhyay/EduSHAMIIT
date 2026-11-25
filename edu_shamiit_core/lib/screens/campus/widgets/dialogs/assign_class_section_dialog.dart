@@ -22,7 +22,8 @@ class AssignClassSectionDialog extends StatefulWidget {
   });
 
   @override
-  State<AssignClassSectionDialog> createState() => _AssignClassSectionDialogState();
+  State<AssignClassSectionDialog> createState() =>
+      _AssignClassSectionDialogState();
 }
 
 class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
@@ -99,12 +100,14 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
       if (mounted) {
         setState(() {
           _classes = List<Map<String, dynamic>>.from(entities['classes'] ?? []);
-          _subjects = List<Map<String, dynamic>>.from(entities['subjects'] ?? []);
+          _subjects =
+              List<Map<String, dynamic>>.from(entities['subjects'] ?? []);
           _staffUsers = staff;
 
           if (_classes.isNotEmpty) {
             _selectedClass = _classes.first;
-            final sections = List<Map<String, dynamic>>.from(_selectedClass!['sections'] ?? []);
+            final sections = List<Map<String, dynamic>>.from(
+                _selectedClass!['sections'] ?? []);
             if (sections.isNotEmpty) {
               _selectedSection = sections.first;
             }
@@ -113,7 +116,8 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
             _selectedSubject = _subjects.first['name']?.toString();
           }
           if (_staffUsers.isNotEmpty) {
-            _teacherName = _staffUsers.first['name']?.toString() ?? 'Faculty Instructor';
+            _teacherName =
+                _staffUsers.first['name']?.toString() ?? 'Faculty Instructor';
             _teacherCtrl.text = _teacherName!;
           }
           _isLoadingEntities = false;
@@ -198,7 +202,8 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
     final startMins = _startTime.hour * 60 + _startTime.minute;
     final endMins = _endTime.hour * 60 + _endTime.minute;
     if (startMins >= endMins) {
-      setState(() => _conflictError = 'Start time must be strictly before end time.');
+      setState(() =>
+          _conflictError = 'Start time must be strictly before end time.');
       return;
     }
 
@@ -213,7 +218,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
       'section_name': _selectedSection!['name']?.toString() ?? 'Section',
       'section_id': _selectedSection!['id']?.toString(),
       'subject': _selectedSubject ?? 'General Lecture',
-      'teacher_name': _teacherCtrl.text.trim().isNotEmpty ? _teacherCtrl.text.trim() : 'Academic Faculty',
+      'teacher_name': _teacherCtrl.text.trim().isNotEmpty
+          ? _teacherCtrl.text.trim()
+          : 'Academic Faculty',
       'booking_date': DateFormat('yyyy-MM-dd').format(_bookingDate),
       'start_time': _formatTimeOfDay(_startTime),
       'end_time': _formatTimeOfDay(_endTime),
@@ -224,7 +231,8 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
       'notes': _notesCtrl.text.trim(),
     };
 
-    final res = await CampusApiService.instance.assignClassSectionToRoom(widget.building.id, payload);
+    final res = await CampusApiService.instance
+        .assignClassSectionToRoom(widget.building.id, payload);
 
     if (!mounted) return;
 
@@ -235,9 +243,12 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.check_circle_rounded,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 10),
-              Expanded(child: Text(res['message'] ?? 'Section successfully assigned to room via Space Booking!')),
+              Expanded(
+                  child: Text(res['message'] ??
+                      'Section successfully assigned to room via Space Booking!')),
             ],
           ),
           backgroundColor: const Color(0xFF059669),
@@ -247,7 +258,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
     } else {
       setState(() {
         _isSubmitting = false;
-        _conflictError = res['message'] ?? res['detail'] ?? 'Failed to assign class/section to room.';
+        _conflictError = res['message'] ??
+            res['detail'] ??
+            'Failed to assign class/section to room.';
       });
     }
   }
@@ -255,11 +268,14 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final roomCap = _currentRoom?.maxCapacity ?? widget.preselectedRoom?.maxCapacity ?? 40;
+    final roomCap =
+        _currentRoom?.maxCapacity ?? widget.preselectedRoom?.maxCapacity ?? 40;
     final sectionCap = (_selectedSection?['capacity'] as num?)?.toInt() ?? 40;
     final isCapacityFit = sectionCap <= roomCap;
 
-    final sections = _selectedClass != null ? List<Map<String, dynamic>>.from(_selectedClass!['sections'] ?? []) : <Map<String, dynamic>>[];
+    final sections = _selectedClass != null
+        ? List<Map<String, dynamic>>.from(_selectedClass!['sections'] ?? [])
+        : <Map<String, dynamic>>[];
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -276,7 +292,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                     children: [
                       CircularProgressIndicator(),
                       SizedBox(height: 12),
-                      Text('Loading academic classes, sections and timetable data...', style: TextStyle(fontSize: 12)),
+                      Text(
+                          'Loading academic classes, sections and timetable data...',
+                          style: TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -287,21 +305,31 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                   children: [
                     // Top Modal Header
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16)),
+                        border: Border(
+                            bottom: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0))),
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                              color: const Color(0xFF4F46E5)
+                                  .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.school_rounded, color: Color(0xFF4F46E5), size: 22),
+                            child: const Icon(Icons.school_rounded,
+                                color: Color(0xFF4F46E5), size: 22),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -313,7 +341,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -321,7 +351,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                   'Allocate academic sessions via dynamic space booking schedule',
                                   style: TextStyle(
                                     fontSize: 11.5,
-                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B),
                                   ),
                                 ),
                               ],
@@ -348,19 +380,26 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFDC2626).withValues(alpha: 0.12),
+                                  color: const Color(0xFFDC2626)
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+                                  border: Border.all(
+                                      color: const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+                                    const Icon(Icons.warning_amber_rounded,
+                                        color: Color(0xFFDC2626), size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
                                         _conflictError!,
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626)),
+                                        style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFFDC2626)),
                                       ),
                                     ),
                                   ],
@@ -370,23 +409,30 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             ],
 
                             // 1. Room Selection Card
-                            Text('1. TARGET PHYSICAL SPACE', style: _sectionHeaderStyle(isDark)),
+                            Text('1. TARGET PHYSICAL SPACE',
+                                style: _sectionHeaderStyle(isDark)),
                             const SizedBox(height: 8),
-                            AppSearchableDropdownFormField<String>.fromMenuItems(
+                            AppSearchableDropdownFormField<
+                                String>.fromMenuItems(
                               value: _selectedRoomId,
-                              decoration: _inputDecoration('Select Room / Hall', isDark, prefixIcon: Icons.meeting_room_outlined),
+                              decoration: _inputDecoration(
+                                  'Select Room / Hall', isDark,
+                                  prefixIcon: Icons.meeting_room_outlined),
                               items: widget.rooms.map((r) {
                                 return DropdownMenuItem(
                                   value: r.id,
-                                  child: Text('${r.roomNumber} - ${r.name} (${r.roomType}, ${r.maxCapacity} seats)'),
+                                  child: Text(
+                                      '${r.roomNumber} - ${r.name} (${r.roomType}, ${r.maxCapacity} seats)'),
                                 );
                               }).toList(),
                               onChanged: (val) {
                                 if (val != null) {
                                   setState(() {
                                     _selectedRoomId = val;
-                                    final match = widget.rooms.where((r) => r.id == val);
-                                    if (match.isNotEmpty) _currentRoom = match.first;
+                                    final match =
+                                        widget.rooms.where((r) => r.id == val);
+                                    if (match.isNotEmpty)
+                                      _currentRoom = match.first;
                                   });
                                 }
                               },
@@ -394,27 +440,36 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             const SizedBox(height: 16),
 
                             // 2. Class & Section Selection
-                            Text('2. ACADEMIC CLASS & SECTION', style: _sectionHeaderStyle(isDark)),
+                            Text('2. ACADEMIC CLASS & SECTION',
+                                style: _sectionHeaderStyle(isDark)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
                                 // Class Dropdown
                                 Expanded(
-                                  child: AppSearchableDropdownFormField<Map<String, dynamic>>.fromMenuItems(
+                                  child: AppSearchableDropdownFormField<
+                                      Map<String, dynamic>>.fromMenuItems(
                                     value: _selectedClass,
-                                    decoration: _inputDecoration('Class / Grade', isDark, prefixIcon: Icons.class_outlined),
+                                    decoration: _inputDecoration(
+                                        'Class / Grade', isDark,
+                                        prefixIcon: Icons.class_outlined),
                                     items: _classes.map((c) {
                                       return DropdownMenuItem(
                                         value: c,
-                                        child: Text(c['name']?.toString() ?? 'Class'),
+                                        child: Text(
+                                            c['name']?.toString() ?? 'Class'),
                                       );
                                     }).toList(),
                                     onChanged: (val) {
                                       if (val != null) {
                                         setState(() {
                                           _selectedClass = val;
-                                          final secs = List<Map<String, dynamic>>.from(val['sections'] ?? []);
-                                          _selectedSection = secs.isNotEmpty ? secs.first : null;
+                                          final secs =
+                                              List<Map<String, dynamic>>.from(
+                                                  val['sections'] ?? []);
+                                          _selectedSection = secs.isNotEmpty
+                                              ? secs.first
+                                              : null;
                                         });
                                       }
                                     },
@@ -423,17 +478,22 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                 const SizedBox(width: 12),
                                 // Section Dropdown
                                 Expanded(
-                                  child: AppSearchableDropdownFormField<Map<String, dynamic>>.fromMenuItems(
+                                  child: AppSearchableDropdownFormField<
+                                      Map<String, dynamic>>.fromMenuItems(
                                     value: _selectedSection,
-                                    decoration: _inputDecoration('Section', isDark, prefixIcon: Icons.grid_view_rounded),
+                                    decoration: _inputDecoration(
+                                        'Section', isDark,
+                                        prefixIcon: Icons.grid_view_rounded),
                                     items: sections.map((s) {
                                       final cap = s['capacity'] ?? 40;
                                       return DropdownMenuItem(
                                         value: s,
-                                        child: Text('${s['name']} ($cap students)'),
+                                        child: Text(
+                                            '${s['name']} ($cap students)'),
                                       );
                                     }).toList(),
-                                    onChanged: (val) => setState(() => _selectedSection = val),
+                                    onChanged: (val) =>
+                                        setState(() => _selectedSection = val),
                                   ),
                                 ),
                               ],
@@ -442,20 +502,33 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
 
                             // Capacity Fit Indicator Card
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: isCapacityFit ? const Color(0xFF059669).withValues(alpha: 0.08) : const Color(0xFFD97706).withValues(alpha: 0.08),
+                                color: isCapacityFit
+                                    ? const Color(0xFF059669)
+                                        .withValues(alpha: 0.08)
+                                    : const Color(0xFFD97706)
+                                        .withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: isCapacityFit ? const Color(0xFF059669).withValues(alpha: 0.25) : const Color(0xFFD97706).withValues(alpha: 0.25),
+                                  color: isCapacityFit
+                                      ? const Color(0xFF059669)
+                                          .withValues(alpha: 0.25)
+                                      : const Color(0xFFD97706)
+                                          .withValues(alpha: 0.25),
                                 ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
-                                    isCapacityFit ? Icons.check_circle_outline : Icons.info_outline,
+                                    isCapacityFit
+                                        ? Icons.check_circle_outline
+                                        : Icons.info_outline,
                                     size: 16,
-                                    color: isCapacityFit ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                    color: isCapacityFit
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFFD97706),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -466,7 +539,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
-                                        color: isCapacityFit ? const Color(0xFF059669) : const Color(0xFFD97706),
+                                        color: isCapacityFit
+                                            ? const Color(0xFF059669)
+                                            : const Color(0xFFD97706),
                                       ),
                                     ),
                                   ),
@@ -476,27 +551,40 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             const SizedBox(height: 16),
 
                             // 3. Subject & Faculty In-Charge
-                            Text('3. CURRICULUM & FACULTY IN-CHARGE', style: _sectionHeaderStyle(isDark)),
+                            Text('3. CURRICULUM & FACULTY IN-CHARGE',
+                                style: _sectionHeaderStyle(isDark)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
                                 Expanded(
-                                  child: AppSearchableDropdownFormField<String>.fromMenuItems(
+                                  child: AppSearchableDropdownFormField<
+                                      String>.fromMenuItems(
                                     value: _selectedSubject,
-                                    decoration: _inputDecoration('Subject', isDark, prefixIcon: Icons.menu_book_rounded),
+                                    decoration: _inputDecoration(
+                                        'Subject', isDark,
+                                        prefixIcon: Icons.menu_book_rounded),
                                     items: _subjects.map((s) {
-                                      final name = s['name']?.toString() ?? 'Subject';
-                                      return DropdownMenuItem(value: name, child: Text(name));
+                                      final name =
+                                          s['name']?.toString() ?? 'Subject';
+                                      return DropdownMenuItem(
+                                          value: name, child: Text(name));
                                     }).toList(),
-                                    onChanged: (val) => setState(() => _selectedSubject = val),
+                                    onChanged: (val) =>
+                                        setState(() => _selectedSubject = val),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: TextFormField(
                                     controller: _teacherCtrl,
-                                    decoration: _inputDecoration('Faculty In-Charge', isDark, prefixIcon: Icons.person_outline_rounded),
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter faculty name' : null,
+                                    decoration: _inputDecoration(
+                                        'Faculty In-Charge', isDark,
+                                        prefixIcon:
+                                            Icons.person_outline_rounded),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                            ? 'Enter faculty name'
+                                            : null,
                                   ),
                                 ),
                               ],
@@ -504,7 +592,8 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             const SizedBox(height: 16),
 
                             // 4. Date, Time Slot & Recurrence
-                            Text('4. DATE & TIME ALLOCATION', style: _sectionHeaderStyle(isDark)),
+                            Text('4. DATE & TIME ALLOCATION',
+                                style: _sectionHeaderStyle(isDark)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -515,10 +604,16 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                     onTap: _pickDate,
                                     borderRadius: BorderRadius.circular(8),
                                     child: InputDecorator(
-                                      decoration: _inputDecoration('Date', isDark, prefixIcon: Icons.calendar_today_rounded),
+                                      decoration: _inputDecoration(
+                                          'Date', isDark,
+                                          prefixIcon:
+                                              Icons.calendar_today_rounded),
                                       child: Text(
-                                        DateFormat('EEE, dd MMM yyyy').format(_bookingDate),
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        DateFormat('EEE, dd MMM yyyy')
+                                            .format(_bookingDate),
+                                        style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ),
@@ -531,10 +626,15 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                     onTap: _pickStartTime,
                                     borderRadius: BorderRadius.circular(8),
                                     child: InputDecorator(
-                                      decoration: _inputDecoration('Start Time', isDark, prefixIcon: Icons.access_time_rounded),
+                                      decoration: _inputDecoration(
+                                          'Start Time', isDark,
+                                          prefixIcon:
+                                              Icons.access_time_rounded),
                                       child: Text(
                                         _formatDisplayTime(_startTime),
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ),
@@ -547,10 +647,15 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                     onTap: _pickEndTime,
                                     borderRadius: BorderRadius.circular(8),
                                     child: InputDecorator(
-                                      decoration: _inputDecoration('End Time', isDark, prefixIcon: Icons.access_time_filled_rounded),
+                                      decoration: _inputDecoration(
+                                          'End Time', isDark,
+                                          prefixIcon:
+                                              Icons.access_time_filled_rounded),
                                       child: Text(
                                         _formatDisplayTime(_endTime),
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                        style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ),
@@ -564,10 +669,26 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                               spacing: 8,
                               runSpacing: 6,
                               children: [
-                                _timePresetChip('08:00 - 09:30 AM', const TimeOfDay(hour: 8, minute: 0), const TimeOfDay(hour: 9, minute: 30), isDark),
-                                _timePresetChip('09:45 - 11:15 AM', const TimeOfDay(hour: 9, minute: 45), const TimeOfDay(hour: 11, minute: 15), isDark),
-                                _timePresetChip('11:30 - 01:00 PM', const TimeOfDay(hour: 11, minute: 30), const TimeOfDay(hour: 13, minute: 0), isDark),
-                                _timePresetChip('02:00 - 03:30 PM', const TimeOfDay(hour: 14, minute: 0), const TimeOfDay(hour: 15, minute: 30), isDark),
+                                _timePresetChip(
+                                    '08:00 - 09:30 AM',
+                                    const TimeOfDay(hour: 8, minute: 0),
+                                    const TimeOfDay(hour: 9, minute: 30),
+                                    isDark),
+                                _timePresetChip(
+                                    '09:45 - 11:15 AM',
+                                    const TimeOfDay(hour: 9, minute: 45),
+                                    const TimeOfDay(hour: 11, minute: 15),
+                                    isDark),
+                                _timePresetChip(
+                                    '11:30 - 01:00 PM',
+                                    const TimeOfDay(hour: 11, minute: 30),
+                                    const TimeOfDay(hour: 13, minute: 0),
+                                    isDark),
+                                _timePresetChip(
+                                    '02:00 - 03:30 PM',
+                                    const TimeOfDay(hour: 14, minute: 0),
+                                    const TimeOfDay(hour: 15, minute: 30),
+                                    isDark),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -576,27 +697,43 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                color: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF334155)
+                                        : const Color(0xFFE2E8F0)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Row(
                                         children: [
-                                          Icon(Icons.repeat_rounded, size: 18, color: _isRecurring ? const Color(0xFF4F46E5) : const Color(0xFF64748B)),
+                                          Icon(Icons.repeat_rounded,
+                                              size: 18,
+                                              color: _isRecurring
+                                                  ? const Color(0xFF4F46E5)
+                                                  : const Color(0xFF64748B)),
                                           const SizedBox(width: 8),
-                                          const Text('Repeat Schedule (Recurring Timetable)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                          const Text(
+                                              'Repeat Schedule (Recurring Timetable)',
+                                              style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w600)),
                                         ],
                                       ),
                                       Switch(
                                         value: _isRecurring,
-                                        activeColor: const Color(0xFF4F46E5),
-                                        onChanged: (val) => setState(() => _isRecurring = val),
+                                        activeThumbColor:
+                                            const Color(0xFF4F46E5),
+                                        onChanged: (val) =>
+                                            setState(() => _isRecurring = val),
                                       ),
                                     ],
                                   ),
@@ -605,29 +742,55 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                                     Row(
                                       children: [
                                         Expanded(
-                                          child: AppSearchableDropdownFormField<String>.fromMenuItems(
+                                          child: AppSearchableDropdownFormField<
+                                              String>.fromMenuItems(
                                             value: _recurrenceFreq,
-                                            decoration: _inputDecoration('Frequency', isDark),
+                                            decoration: _inputDecoration(
+                                                'Frequency', isDark),
                                             items: const [
-                                              DropdownMenuItem(value: 'DAILY', child: Text('Every Day')),
-                                              DropdownMenuItem(value: 'WEEKDAYS', child: Text('Mon - Fri (Weekdays)')),
-                                              DropdownMenuItem(value: 'WEEKLY', child: Text('Weekly (Same Day)')),
+                                              DropdownMenuItem(
+                                                  value: 'DAILY',
+                                                  child: Text('Every Day')),
+                                              DropdownMenuItem(
+                                                  value: 'WEEKDAYS',
+                                                  child: Text(
+                                                      'Mon - Fri (Weekdays)')),
+                                              DropdownMenuItem(
+                                                  value: 'WEEKLY',
+                                                  child: Text(
+                                                      'Weekly (Same Day)')),
                                             ],
-                                            onChanged: (val) => setState(() => _recurrenceFreq = val ?? 'WEEKDAYS'),
+                                            onChanged: (val) => setState(() =>
+                                                _recurrenceFreq =
+                                                    val ?? 'WEEKDAYS'),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: AppSearchableDropdownFormField<int>.fromMenuItems(
+                                          child: AppSearchableDropdownFormField<
+                                              int>.fromMenuItems(
                                             value: _recurrenceCount,
-                                            decoration: _inputDecoration('Occurrences', isDark),
+                                            decoration: _inputDecoration(
+                                                'Occurrences', isDark),
                                             items: const [
-                                              DropdownMenuItem(value: 3, child: Text('3 Sessions')),
-                                              DropdownMenuItem(value: 5, child: Text('5 Sessions (1 Week)')),
-                                              DropdownMenuItem(value: 10, child: Text('10 Sessions (2 Weeks)')),
-                                              DropdownMenuItem(value: 20, child: Text('20 Sessions (1 Month)')),
+                                              DropdownMenuItem(
+                                                  value: 3,
+                                                  child: Text('3 Sessions')),
+                                              DropdownMenuItem(
+                                                  value: 5,
+                                                  child: Text(
+                                                      '5 Sessions (1 Week)')),
+                                              DropdownMenuItem(
+                                                  value: 10,
+                                                  child: Text(
+                                                      '10 Sessions (2 Weeks)')),
+                                              DropdownMenuItem(
+                                                  value: 20,
+                                                  child: Text(
+                                                      '20 Sessions (1 Month)')),
                                             ],
-                                            onChanged: (val) => setState(() => _recurrenceCount = val ?? 5),
+                                            onChanged: (val) => setState(() =>
+                                                _recurrenceCount = val ?? 5),
                                           ),
                                         ),
                                       ],
@@ -642,7 +805,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
                             TextFormField(
                               controller: _notesCtrl,
                               maxLines: 2,
-                              decoration: _inputDecoration('Operational Notes (Optional)', isDark, prefixIcon: Icons.notes_rounded),
+                              decoration: _inputDecoration(
+                                  'Operational Notes (Optional)', isDark,
+                                  prefixIcon: Icons.notes_rounded),
                             ),
                           ],
                         ),
@@ -651,35 +816,60 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
 
                     // Bottom Action Bar
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                        border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(16)),
+                        border: Border(
+                            top: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0))),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton(
-                            onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text('Cancel', style: TextStyle(fontSize: 12.5)),
+                            child: const Text('Cancel',
+                                style: TextStyle(fontSize: 12.5)),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
                             onPressed: _isSubmitting ? null : _submit,
                             icon: _isSubmitting
-                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
                                 : const Icon(Icons.check_rounded, size: 16),
-                            label: Text(_isSubmitting ? 'Allocating...' : 'Confirm Allocation', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                            label: Text(
+                                _isSubmitting
+                                    ? 'Allocating...'
+                                    : 'Confirm Allocation',
+                                style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF4F46E5),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                               elevation: 0,
                             ),
                           ),
@@ -693,8 +883,12 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
     );
   }
 
-  Widget _timePresetChip(String label, TimeOfDay st, TimeOfDay et, bool isDark) {
-    final isSelected = _startTime.hour == st.hour && _startTime.minute == st.minute && _endTime.hour == et.hour && _endTime.minute == et.minute;
+  Widget _timePresetChip(
+      String label, TimeOfDay st, TimeOfDay et, bool isDark) {
+    final isSelected = _startTime.hour == st.hour &&
+        _startTime.minute == st.minute &&
+        _endTime.hour == et.hour &&
+        _endTime.minute == et.minute;
     return InkWell(
       onTap: () => setState(() {
         _startTime = st;
@@ -709,7 +903,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
               : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected ? const Color(0xFF4F46E5) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+            color: isSelected
+                ? const Color(0xFF4F46E5)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
         ),
         child: Text(
@@ -717,7 +913,9 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+            color: isSelected
+                ? Colors.white
+                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
           ),
         ),
       ),
@@ -733,17 +931,32 @@ class _AssignClassSectionDialogState extends State<AssignClassSectionDialog> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, bool isDark, {IconData? prefixIcon}) {
+  InputDecoration _inputDecoration(String label, bool isDark,
+      {IconData? prefixIcon}) {
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-      prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 16, color: const Color(0xFF4F46E5)) : null,
+      labelStyle: TextStyle(
+          fontSize: 12,
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+      prefixIcon: prefixIcon != null
+          ? Icon(prefixIcon, size: 16, color: const Color(0xFF4F46E5))
+          : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       filled: true,
       fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+              color:
+                  isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5)),
       isDense: true,
     );
   }

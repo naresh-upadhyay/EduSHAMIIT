@@ -44,10 +44,10 @@ class JoinConductDashboardData {
     final eng = json['engagement'] as Map<String, dynamic>? ?? {};
 
     return JoinConductDashboardData(
-      liveNow: kpis['live_now'] ?? 1,
-      todaysClasses: kpis['todays_classes'] ?? 1,
-      totalParticipantsLive: kpis['total_participants_live'] ?? 43,
-      recordingInProgress: kpis['recording_in_progress'] ?? 1,
+      liveNow: kpis['live_now'] ?? 0,
+      todaysClasses: kpis['todays_classes'] ?? 0,
+      totalParticipantsLive: kpis['total_participants_live'] ?? 0,
+      recordingInProgress: kpis['recording_in_progress'] ?? 0,
       avgClassDurationMin: kpis['avg_class_duration_min'] ?? 45,
       classQuality: kpis['class_quality'] ?? 'Excellent (98%)',
       systemStatus: kpis['system_status'] ?? 'Online',
@@ -202,8 +202,8 @@ class ActiveLiveSession {
       durationMinutes: json['duration_minutes'] ?? 45,
       status: json['status'] ?? 'live',
       isLive: json['is_live'] ?? true,
-      recordingStatus: json['recording_status'] ?? 'RECORDING',
-      recordingEnabled: json['recording_enabled'] ?? true,
+      recordingStatus: json['recording_status'] ?? 'IDLE',
+      recordingEnabled: json['recording_enabled'] ?? false,
       roomCode: json['room_code'] ?? '12A-CHEM',
       meetingLink: json['meeting_link'] ?? 'https://meet.edushamiit.com/c/12A-chem',
       viewerCount: (json['viewer_count'] as num?)?.toInt() ?? 0,
@@ -2273,8 +2273,8 @@ class MyClassDetails {
       coHostName: json['co_host_name'] ?? 'Assistant',
       status: json['status'] ?? 'Live',
       isLive: json['is_live'] ?? true,
-      isRecording: json['is_recording'] ?? true,
-      recordingStatus: json['recording_status'] ?? 'RECORDING',
+      isRecording: json['is_recording'] ?? false,
+      recordingStatus: json['recording_status'] ?? 'IDLE',
       attendanceStatus: json['attendance_status'] ?? 'Marked (92.7%)',
     );
   }

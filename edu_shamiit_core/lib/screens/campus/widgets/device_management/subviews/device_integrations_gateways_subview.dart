@@ -135,13 +135,19 @@ class _DeviceIntegrationsGatewaysSubviewState
       int cmp = 0;
       switch (_sortColumn) {
         case 'gateway_name':
-          cmp = a.gatewayName.toLowerCase().compareTo(b.gatewayName.toLowerCase());
+          cmp = a.gatewayName
+              .toLowerCase()
+              .compareTo(b.gatewayName.toLowerCase());
           break;
         case 'gateway_code':
-          cmp = a.gatewayCode.toLowerCase().compareTo(b.gatewayCode.toLowerCase());
+          cmp = a.gatewayCode
+              .toLowerCase()
+              .compareTo(b.gatewayCode.toLowerCase());
           break;
         case 'location_path':
-          cmp = a.locationPath.toLowerCase().compareTo(b.locationPath.toLowerCase());
+          cmp = a.locationPath
+              .toLowerCase()
+              .compareTo(b.locationPath.toLowerCase());
           break;
         case 'protocols':
           cmp = a.protocols.toLowerCase().compareTo(b.protocols.toLowerCase());
@@ -156,7 +162,9 @@ class _DeviceIntegrationsGatewaysSubviewState
           cmp = a.lastHeartbeat.compareTo(b.lastHeartbeat);
           break;
         default:
-          cmp = a.gatewayName.toLowerCase().compareTo(b.gatewayName.toLowerCase());
+          cmp = a.gatewayName
+              .toLowerCase()
+              .compareTo(b.gatewayName.toLowerCase());
       }
       return _sortAscending ? cmp : -cmp;
     });
@@ -705,13 +713,22 @@ class _DeviceIntegrationsGatewaysSubviewState
 
           setState(() {
             if (buildings.isNotEmpty) {
-              _availableLocations = ['All Locations', ...buildings.where((b) => b != 'All Locations')].toSet().toList();
+              _availableLocations = {
+                'All Locations',
+                ...buildings.where((b) => b != 'All Locations')
+              }.toList();
             }
             if (protocols.isNotEmpty) {
-              _availableProtocols = ['All Protocols', ...protocols.where((p) => p != 'All Protocols')].toSet().toList();
+              _availableProtocols = {
+                'All Protocols',
+                ...protocols.where((p) => p != 'All Protocols')
+              }.toList();
             }
             if (statuses.isNotEmpty) {
-              _availableStatuses = ['All Status', ...statuses.where((s) => s != 'All Status')].toSet().toList();
+              _availableStatuses = {
+                'All Status',
+                ...statuses.where((s) => s != 'All Status')
+              }.toList();
             }
           });
         }
@@ -1096,7 +1113,8 @@ class _DeviceIntegrationsGatewaysSubviewState
     if (confirmed == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reboot sequence dispatched to $count gateways via MQTT!'),
+          content:
+              Text('Reboot sequence dispatched to $count gateways via MQTT!'),
           backgroundColor: const Color(0xFF1677F2),
         ),
       );
@@ -1167,7 +1185,8 @@ class _DeviceIntegrationsGatewaysSubviewState
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Firmware update to v2.4.0 initiated for $count gateways!'),
+          content:
+              Text('Firmware update to v2.4.0 initiated for $count gateways!'),
           backgroundColor: const Color(0xFF10B981),
         ),
       );
@@ -1259,20 +1278,23 @@ class _DeviceIntegrationsGatewaysSubviewState
   Future<void> _testIntegration(ThirdPartyIntegrationItem integ) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Testing connection to ${integ.name} (${integ.protocol})...'),
+        content:
+            Text('Testing connection to ${integ.name} (${integ.protocol})...'),
         backgroundColor: const Color(0xFF1677F2),
       ),
     );
     try {
       final res = await http.post(
-        Uri.parse('$_baseUrl/integrations-gateways/integrations/${integ.id}/test'),
+        Uri.parse(
+            '$_baseUrl/integrations-gateways/integrations/${integ.id}/test'),
       );
       if (res.statusCode == 200 && mounted) {
         final data = json.decode(res.body);
         final rtt = data['response_time_ms'] ?? 42;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${integ.name} connection test passed! RTT: ${rtt}ms, Status: 200 OK'),
+            content: Text(
+                '${integ.name} connection test passed! RTT: ${rtt}ms, Status: 200 OK'),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -1281,7 +1303,8 @@ class _DeviceIntegrationsGatewaysSubviewState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${integ.name} responded nominal (Simulated RTT: 38ms)'),
+            content:
+                Text('${integ.name} responded nominal (Simulated RTT: 38ms)'),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -2355,7 +2378,8 @@ class _DeviceIntegrationsGatewaysSubviewState
                   label: Checkbox(
                     value: _selectedGatewayIds.isEmpty
                         ? false
-                        : (_selectedGatewayIds.length >= _filteredGateways.length &&
+                        : (_selectedGatewayIds.length >=
+                                    _filteredGateways.length &&
                                 _filteredGateways.isNotEmpty
                             ? true
                             : null),
@@ -2376,8 +2400,7 @@ class _DeviceIntegrationsGatewaysSubviewState
                   label: const Text('Gateway Name',
                       style:
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  onSort: (idx, asc) =>
-                      _applySorting('gateway_name', asc, idx),
+                  onSort: (idx, asc) => _applySorting('gateway_name', asc, idx),
                 ),
                 DataColumn(
                   label: const Text('Location',
@@ -2804,8 +2827,7 @@ class _DeviceIntegrationsGatewaysSubviewState
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1677F2),
                   borderRadius: BorderRadius.circular(6),
@@ -3342,7 +3364,8 @@ class _DeviceIntegrationsGatewaysSubviewState
                               borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: () => _deleteGateway(gw),
-                        icon: const Icon(Icons.delete_outline_rounded, size: 14),
+                        icon:
+                            const Icon(Icons.delete_outline_rounded, size: 14),
                         label: const Text('Decommission Gateway',
                             style: TextStyle(fontSize: 11)),
                       ),

@@ -4053,6 +4053,9 @@ async def bulk_circulation_action(
     action = payload.action.upper()
     count = len(payload.borrow_ids)
 
+    if not payload.borrow_ids:
+        raise HTTPException(status_code=400, detail="No transaction IDs provided.")
+
     if action == "SEND_REMINDER":
         # Log notification / activity for each transaction
         for b_id in payload.borrow_ids:
@@ -4067,7 +4070,21 @@ async def bulk_circulation_action(
             )
         return {"success": True, "message": f"Reminders sent successfully for {count} transaction(s).", "count": count}
 
-    return {"success": True, "message": f"Bulk action '{action}' completed for {count} transaction(s).", "count": count}
+    if action == "MARK_OVERDUE":
+        await exec_sql(
+            """
+            UPDATE public.library_borrows
+            SET status = 'OVERDUE', updated_at = NOW()
+            WHERE school_id = %s AND id = ANY(%s::uuid[])
+              AND UPPER(COALESCE(status, 'ISSUED')) IN ('ISSUED', 'RENEWED')
+              AND (is_returned IS NOT TRUE AND return_date IS NULL);
+            """,
+            (school_id, payload.borrow_ids),
+            fetch=False,
+        )
+        return {"success": True, "message": f"Marked eligible transactions among {count} selected as Overdue.", "count": count}
+
+    raise HTTPException(status_code=400, detail=f"Unsupported bulk action: {payload.action}")
 
 
 @router.get("/requests/kpis")

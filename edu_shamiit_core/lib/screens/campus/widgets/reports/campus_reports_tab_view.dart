@@ -477,7 +477,9 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
           ? allRows
           : allRows.where((r) => r.values.any((v) => v.toString().toLowerCase().contains(searchQuery.toLowerCase()))).toList();
 
-      final pagedRows = rows;
+      final totalPages = (rows.length / pageSize).ceil().clamp(1, 9999);
+      final safePage = page.clamp(1, totalPages);
+      final pagedRows = rows.skip((safePage - 1) * pageSize).take(pageSize).toList();
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -550,6 +552,9 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
       final rows = searchQuery.isEmpty
           ? auditRows
           : auditRows.where((r) => r.values.any((v) => v.toString().toLowerCase().contains(searchQuery.toLowerCase()))).toList();
+      final totalPages = (rows.length / pageSize).ceil().clamp(1, 9999);
+      final safePage = page.clamp(1, totalPages);
+      final pagedRows = rows.skip((safePage - 1) * pageSize).take(pageSize).toList();
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -568,7 +573,7 @@ class _CampusReportsTabViewState extends ConsumerState<CampusReportsTabView> {
                 DataColumn(label: Text('Compliance Rating', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                 DataColumn(label: Text('Audit Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
               ],
-              rows: rows.map((r) => DataRow(
+              rows: pagedRows.map((r) => DataRow(
                 cells: [
                   DataCell(Text(r['id'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
                   DataCell(Text(r['metric'] as String, style: const TextStyle(fontSize: 12))),

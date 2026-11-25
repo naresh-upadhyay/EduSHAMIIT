@@ -1,10 +1,12 @@
 import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
+import 'package:edu_shamiit_core/utils/download_helper.dart';
 import '../../common/campus_pagination_bar.dart';
 
 // ============================================================================
@@ -222,6 +224,8 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalCount = 3482;
+  String _sortBy = 'occurred_at';
+  String _sortOrder = 'desc';
   final Set<String> _selectedEntryIds = {};
   AuditLogEntry? _inspectedEntry;
 
@@ -697,6 +701,44 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
     } catch (_) {}
   }
 
+  void _toggleAuditSort(String colKey) {
+    setState(() {
+      if (_sortBy == colKey) {
+        _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortBy = colKey;
+        _sortOrder = 'asc';
+      }
+      _currentPage = 1;
+    });
+    _fetchLogs();
+  }
+
+  Widget _buildSortableAuditCol(String label, String colKey) {
+    final isActive = _sortBy == colKey;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isActive ? const Color(0xFF2563EB) : null,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Icon(
+          isActive
+              ? (_sortOrder == 'asc' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+              : Icons.unfold_more_rounded,
+          size: 13,
+          color: isActive ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+        ),
+      ],
+    );
+  }
+
   Future<void> _fetchLogs() async {
     setState(() => _isLoading = true);
     try {
@@ -705,6 +747,8 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
       final qParams = {
         'page': '$_currentPage',
         'page_size': '$_pageSize',
+        'sort_by': _sortBy,
+        'sort_order': _sortOrder,
         'category': categoryParam,
         'event_type': _selectedEventType == 'All Event Types' ? '' : _selectedEventType,
         'user': _selectedUser == 'All Users' ? '' : _selectedUser,
@@ -1739,6 +1783,57 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
         if (_isLoading)
           const LinearProgressIndicator(minHeight: 2, color: Color(0xFF2563EB)),
 
+        if (_selectedEntryIds.isNotEmpty) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.25) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isDark ? const Color(0xFF3B82F6).withValues(alpha: 0.4) : const Color(0xFFBFDBFE)),
+            ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '${_selectedEntryIds.length} log(s) selected',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final selected = _auditLogs.where((e) => _selectedEntryIds.contains(e.id)).toList();
+                    final buf = StringBuffer('Timestamp,User,Event Type,Action,Target,Details,Result,Source\n');
+                    for (final e in selected) {
+                      String esc(String v) => '"${v.replaceAll('"', '""')}"';
+                      buf.writeln('${esc(e.timestamp)},${esc(e.user)},${esc(e.eventType)},${esc(e.action)},${esc(e.target)},${esc(e.details)},${esc(e.result)},${esc(e.source)}');
+                    }
+                    getDownloadHelper().downloadBytes(
+                      Uint8List.fromList(utf8.encode(buf.toString())),
+                      'device_audit_logs_selected.csv',
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Exported ${selected.length} audit log(s)'), backgroundColor: const Color(0xFF16A34A)),
+                    );
+                  },
+                  icon: const Icon(Icons.download_rounded, size: 14),
+                  label: const Text('Export Selected CSV', style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _selectedEntryIds.clear()),
+                  child: const Text('Clear', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // Scrollable Table Container
         Container(
           decoration: BoxDecoration(
@@ -1756,16 +1851,37 @@ class _DeviceAuditLogsSubviewState extends State<DeviceAuditLogsSubview> {
               headingRowColor: WidgetStateProperty.all(
                 isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
               ),
-              columns: const [
-                DataColumn(label: Text('Timestamp ↕', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('User', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Event Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Action / Operation', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Target (Device / Group / Location)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Result', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Source', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+              columns: [
+                DataColumn(
+                  label: _buildSortableAuditCol('Timestamp', 'occurred_at'),
+                  onSort: (_, __) => _toggleAuditSort('occurred_at'),
+                ),
+                DataColumn(
+                  label: _buildSortableAuditCol('User', 'actor_name'),
+                  onSort: (_, __) => _toggleAuditSort('actor_name'),
+                ),
+                DataColumn(
+                  label: _buildSortableAuditCol('Event Type', 'event_type'),
+                  onSort: (_, __) => _toggleAuditSort('event_type'),
+                ),
+                DataColumn(
+                  label: _buildSortableAuditCol('Action / Operation', 'action'),
+                  onSort: (_, __) => _toggleAuditSort('action'),
+                ),
+                DataColumn(
+                  label: _buildSortableAuditCol('Target (Device / Group / Location)', 'target_name'),
+                  onSort: (_, __) => _toggleAuditSort('target_name'),
+                ),
+                const DataColumn(label: Text('Details', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+                DataColumn(
+                  label: _buildSortableAuditCol('Result', 'result'),
+                  onSort: (_, __) => _toggleAuditSort('result'),
+                ),
+                DataColumn(
+                  label: _buildSortableAuditCol('Source', 'source'),
+                  onSort: (_, __) => _toggleAuditSort('source'),
+                ),
+                const DataColumn(label: Text('Actions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
               ],
               rows: _auditLogs.map((entry) {
                 final isSelected = _inspectedEntry?.id == entry.id;

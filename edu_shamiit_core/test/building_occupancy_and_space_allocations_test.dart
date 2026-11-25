@@ -10,7 +10,7 @@ void main() {
     late List<BuildingOccupancyModel> sampleAllocations;
 
     setUp(() {
-      testBuilding = BuildingModel(
+      testBuilding = const BuildingModel(
         id: '05ca0d68-e33b-43ee-ac72-b6ebe1e7332d',
         schoolId: '11111111-1111-1111-1111-111111111111',
         name: 'Academic Block (A)',
@@ -32,7 +32,8 @@ void main() {
 
         String mod = 'Academics';
         String purpose = 'Classroom & Lecture Instruction';
-        String name = 'Grade ${(4 + (index ~/ 6))} - Section ${String.fromCharCode(65 + (index % 3))}';
+        String name =
+            'Grade ${(4 + (index ~/ 6))} - Section ${String.fromCharCode(65 + (index % 3))}';
         String incharge = 'Academic Coordinator';
         // Exact sum across 34 allocations = 1578
         // 30 rooms * 47 = 1410, 2 labs * 54 = 108, 2 staff rooms * 30 = 60 => 1578
@@ -110,7 +111,9 @@ void main() {
       expect(model.currentOccupancy, 48);
     });
 
-    testWidgets('OccupancySubtabView renders KPIs and allocations grid with perfect match', (tester) async {
+    testWidgets(
+        'OccupancySubtabView renders KPIs and allocations grid with perfect match',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(2000, 900));
 
       bool addClicked = false;
@@ -171,10 +174,12 @@ void main() {
       expect(addClicked, isTrue);
     });
 
-    testWidgets('OccupancySubtabView shows empty message only when truly no allocations', (tester) async {
+    testWidgets(
+        'OccupancySubtabView shows empty message only when truly no allocations',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
 
-      final emptyBuilding = BuildingModel(
+      const emptyBuilding = BuildingModel(
         id: 'empty-bld',
         schoolId: '11111111-1111-1111-1111-111111111111',
         name: 'Empty Annex',

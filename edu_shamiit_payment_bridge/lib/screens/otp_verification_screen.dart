@@ -100,7 +100,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       if (res['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Authentication successful!', style: TextStyle(fontWeight: FontWeight.w600)),
+            content: Text('Authentication successful!',
+                style: TextStyle(fontWeight: FontWeight.w600)),
             backgroundColor: AppColors.successGreen,
           ),
         );
@@ -136,7 +137,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (res['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('A new OTP has been sent to your email.', style: TextStyle(fontWeight: FontWeight.w600)),
+          content: Text('A new OTP has been sent to your email.',
+              style: TextStyle(fontWeight: FontWeight.w600)),
           backgroundColor: AppColors.successGreen,
         ),
       );
@@ -173,12 +175,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
                   ],
-                  border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -186,8 +189,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     Center(
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEEF2FF),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -221,7 +224,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
                     if (_errorMessage != null) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(10),
@@ -229,7 +233,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                            const Icon(Icons.error_outline,
+                                color: Color(0xFFEF4444), size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -271,11 +276,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               fillColor: const Color(0xFFF8FAFC),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE2E8F0)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF6366F1), width: 1.5),
                               ),
                               contentPadding: EdgeInsets.zero,
                             ),
@@ -303,7 +310,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6366F1),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
                         child: _isLoading
@@ -312,7 +320,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               )
                             : Text(
@@ -334,7 +343,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           _canResend
                               ? "Didn't receive code? "
                               : "Resend available in ",
-                          style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12, color: const Color(0xFF64748B)),
                         ),
                         if (_canResend)
                           GestureDetector(

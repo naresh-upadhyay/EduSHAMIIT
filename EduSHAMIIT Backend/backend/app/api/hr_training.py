@@ -702,6 +702,8 @@ async def list_training_programs(
     allowed_sorts = {
         "title": "title",
         "program_code": "program_code",
+        "mode": "mode",
+        "target_audience": "target_audience",
         "start_date": "start_date",
         "duration_hours": "duration_hours",
         "enrolled_count": "enrolled_count",

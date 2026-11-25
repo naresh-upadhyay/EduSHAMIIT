@@ -197,10 +197,11 @@ class MockFullVisitorsApiService extends VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async => const VisitorKPIs();
 
   @override
-  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo}) async {
+  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo, String? location, String? category, String? search}) async {
     return ScheduledKPIs.fromJson({
       'total_scheduled': 45,
       'today_count': 12,
@@ -211,7 +212,7 @@ class MockFullVisitorsApiService extends VisitorsApiService {
   }
 
   @override
-  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo}) async {
+  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo, String? location, String? reason, String? search}) async {
     return BlacklistKPIs.fromJson({
       'total_blocked': 18,
       'active_blocks': 14,

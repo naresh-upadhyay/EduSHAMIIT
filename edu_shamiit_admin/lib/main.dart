@@ -4,15 +4,14 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_admin/app_router.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 void main() async {
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase
   await SupabaseService.initialize();
-  
+
   // Initialize Cache Service
   await CacheService().init();
 
@@ -32,7 +31,9 @@ void main() async {
   if (authState.role != UserRole.unknown) {
     container.read(roleProvider.notifier).setRole(authState.role);
   } else if (authState.userData?['role'] != null) {
-    container.read(roleProvider.notifier).setRoleFromString(authState.userData!['role'].toString());
+    container
+        .read(roleProvider.notifier)
+        .setRoleFromString(authState.userData!['role'].toString());
   }
 
   // If user is already authenticated on app launch, initialize CallService immediately
@@ -78,7 +79,8 @@ class EduShamiitAdminApp extends ConsumerWidget {
         themeMode = ThemeMode.light;
       } else if (systemConfig.theme == "Dark") {
         themeMode = ThemeMode.dark;
-      } else if (systemConfig.theme == "System Mode" || systemConfig.theme == "System") {
+      } else if (systemConfig.theme == "System Mode" ||
+          systemConfig.theme == "System") {
         themeMode = ThemeMode.system;
       }
     }
@@ -88,8 +90,10 @@ class EduShamiitAdminApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       scrollBehavior: const EduShamiitScrollBehavior(),
-      theme: getStudentTheme(brightness: Brightness.light, primaryColor: customPrimary),
-      darkTheme: getStudentTheme(brightness: Brightness.dark, primaryColor: customPrimary),
+      theme: getStudentTheme(
+          brightness: Brightness.light, primaryColor: customPrimary),
+      darkTheme: getStudentTheme(
+          brightness: Brightness.dark, primaryColor: customPrimary),
       routerConfig: router,
       builder: (context, child) {
         return CallNotificationOverlay(

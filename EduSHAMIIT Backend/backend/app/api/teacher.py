@@ -4060,12 +4060,30 @@ async def teacher_get_question_bank(
         query = query.or_(f"question_text.ilike.%{s}%,question_code.ilike.%{s}%,title.ilike.%{s}%,chapter.ilike.%{s}%,topic.ilike.%{s}%")
 
     # 9. Order
+    allowed_qb_sorts = {
+        "question_text": "question_text",
+        "question_type": "question_type",
+        "class_name": "class_name",
+        "chapter": "chapter",
+        "difficulty": "difficulty",
+        "marks": "marks",
+        "status": "status",
+        "created_at": "created_at",
+    }
     ascending = (sort_order.lower() == "asc")
-    query = query.order(sort_by, ascending=ascending)
-
-    # 10. Execute filtered query
-    res = await query.aexecute()
-    all_filtered = res.data or []
+    if sort_by and sort_by.strip().lower() == "subject":
+        res = await query.order("created_at", ascending=False).aexecute()
+        all_filtered = sorted(
+            res.data or [],
+            key=lambda q: ((q.get("subjects") or {}).get("name") or q.get("subject_name") or "").lower(),
+            reverse=not ascending,
+        )
+    else:
+        db_col = allowed_qb_sorts.get((sort_by or "created_at").strip().lower(), "created_at")
+        query = query.order(db_col, ascending=ascending)
+        # 10. Execute filtered query
+        res = await query.aexecute()
+        all_filtered = res.data or []
     filtered_total = len(all_filtered)
 
     # Pagination slice
@@ -4273,6 +4291,41 @@ async def teacher_delete_question_bank(
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     await sb.table("question_bank").update({"deleted_at": now_iso, "is_active": False}).eq("id", question_id).eq("school_id", school_id).aexecute()
     return {"success": True, "school_id": school_id, "message": "Question deleted"}
+
+
+@router.post("/question-bank/bulk-action")
+async def teacher_bulk_question_bank_action(
+    request: dict,
+    user=Depends(require_exam_access),
+    school_id=Depends(require_school_id),
+):
+    """Bulk approve, set difficulty, set draft, or soft-delete selected question bank items."""
+    import datetime
+    question_ids = [str(qid).strip() for qid in (request.get("question_ids") or []) if str(qid).strip()]
+    action = str(request.get("action") or "").strip().upper()
+    if not question_ids:
+        raise HTTPException(status_code=400, detail="No question IDs provided")
+
+    sb = get_supabase()
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    if action == "BULK_DELETE":
+        await sb.table("question_bank").update({"deleted_at": now_iso, "is_active": False}).in_("id", question_ids).eq("school_id", school_id).aexecute()
+        return {"success": True, "affected_count": len(question_ids), "message": f"Deleted {len(question_ids)} question(s)"}
+    elif action == "BULK_APPROVE":
+        await sb.table("question_bank").update({"status": "approved", "updated_at": now_iso}).in_("id", question_ids).eq("school_id", school_id).aexecute()
+        return {"success": True, "affected_count": len(question_ids), "message": f"Approved {len(question_ids)} question(s)"}
+    elif action == "BULK_DRAFT":
+        await sb.table("question_bank").update({"status": "draft", "updated_at": now_iso}).in_("id", question_ids).eq("school_id", school_id).aexecute()
+        return {"success": True, "affected_count": len(question_ids), "message": f"Moved {len(question_ids)} question(s) to Draft"}
+    elif action == "BULK_CHANGE_DIFFICULTY":
+        difficulty = str(request.get("difficulty") or "").strip()
+        if not difficulty:
+            raise HTTPException(status_code=400, detail="difficulty is required")
+        await sb.table("question_bank").update({"difficulty": difficulty, "updated_at": now_iso}).in_("id", question_ids).eq("school_id", school_id).aexecute()
+        return {"success": True, "affected_count": len(question_ids), "message": f"Updated difficulty for {len(question_ids)} question(s)"}
+
+    raise HTTPException(status_code=400, detail=f"Unsupported bulk action: {action}")
 
 
 @router.post("/question-bank/{question_id}/duplicate")

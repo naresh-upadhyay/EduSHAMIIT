@@ -1308,30 +1308,53 @@ class _WorkListTabViewState extends ConsumerState<WorkListTabView> {
                 fontWeight: FontWeight.w700,
                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
-              columns: const [
+              columns: [
                 DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('item_number'),
                   label: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('ID'),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_downward, size: 14),
+                      Text('ID', style: TextStyle(color: listState.sortCol == 'item_number' ? const Color(0xFF4F46E5) : null)),
+                      const SizedBox(width: 4),
+                      Icon(
+                        listState.sortCol == 'item_number'
+                            ? (listState.sortDir == 'ASC' ? Icons.arrow_upward : Icons.arrow_downward)
+                            : Icons.unfold_more,
+                        size: 14,
+                        color: listState.sortCol == 'item_number' ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                      ),
                     ],
                   ),
                 ),
-                DataColumn(label: Text('Title')),
-                DataColumn(label: Text('Type')),
-                DataColumn(label: Text('Priority')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Assignee(s)')),
                 DataColumn(
-                  label: SizedBox(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('title'),
+                  label: const Text('Title'),
+                ),
+                DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('work_type'),
+                  label: const Text('Type'),
+                ),
+                DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('priority'),
+                  label: const Text('Priority'),
+                ),
+                DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('status'),
+                  label: const Text('Status'),
+                ),
+                const DataColumn(label: Text('Assignee(s)')),
+                DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('due_date'),
+                  label: const SizedBox(
                     width: 105,
                     child: Text('Due Date'),
                   ),
                 ),
-                DataColumn(label: Text('Progress')),
-                DataColumn(label: Text('')),
+                DataColumn(
+                  onSort: (_, __) => ref.read(workListProvider.notifier).setSort('progress'),
+                  label: const Text('Progress'),
+                ),
+                const DataColumn(label: Text('')),
               ],
               rows: items.map((item) {
           final isSelected = _selectedItemIds.contains(item.id);

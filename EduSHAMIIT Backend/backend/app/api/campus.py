@@ -2511,6 +2511,8 @@ async def list_campus_facilities(
     category: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     building_id: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     user: dict = Depends(get_current_user),
@@ -2522,10 +2524,23 @@ async def list_campus_facilities(
         stat = status if (isinstance(status, str) and status != 'All Statuses') else None
         b_id = building_id if (isinstance(building_id, str) and building_id != 'all') else None
 
+        fac_sort_map = {
+            "name": "f.name",
+            "code": "f.code",
+            "category": "f.category",
+            "building": "b.name",
+            "capacity": "f.capacity",
+            "manager_name": "f.manager_name",
+            "status": "f.status",
+            "created_at": "f.created_at",
+        }
+        fac_order_col = fac_sort_map.get((sort_by or "created_at").lower(), "f.created_at")
+        fac_order_dir = "ASC" if (sort_order or "desc").lower() == "asc" else "DESC"
+
         p_num = page if isinstance(page, int) else 1
         p_sz = page_size if isinstance(page_size, int) else 20
         offset = (p_num - 1) * p_sz
-        sql = """
+        sql = f"""
             SELECT 
                 f.id, f.name, f.code, f.category, f.building_id, f.floor_id,
                 f.capacity, f.area, f.manager_name, f.manager_phone, f.status,
@@ -2540,7 +2555,7 @@ async def list_campus_facilities(
               AND (%s::VARCHAR IS NULL OR f.category = %s::VARCHAR)
               AND (%s::VARCHAR IS NULL OR f.status = %s::VARCHAR)
               AND (%s::UUID IS NULL OR f.building_id = %s::UUID)
-            ORDER BY f.created_at DESC
+            ORDER BY {fac_order_col} {fac_order_dir} NULLS LAST, f.id ASC
             LIMIT %s OFFSET %s;
         """
         params = (
@@ -2711,6 +2726,8 @@ async def get_utilities_kpis(
 async def list_utility_readings(
     utility_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("recorded_at"),
+    sort_order: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     user: dict = Depends(get_current_user),
@@ -2723,7 +2740,19 @@ async def list_utility_readings(
         p_sz = page_size if isinstance(page_size, int) else 20
         offset = (p_num - 1) * p_sz
 
-        sql = """
+        util_sort_map = {
+            "timestamp": "recorded_at",
+            "recorded_at": "recorded_at",
+            "utility_name": "utility_name",
+            "reading_value": "reading_value",
+            "location": "location",
+            "recorded_by": "recorded_by",
+            "status": "status",
+        }
+        util_order_col = util_sort_map.get((sort_by or "recorded_at").lower(), "recorded_at")
+        util_order_dir = "ASC" if (sort_order or "desc").lower() == "asc" else "DESC"
+
+        sql = f"""
             SELECT 
                 id, utility_name, utility_type, reading_value, metric_units,
                 location, recorded_by, status, notes,
@@ -2733,7 +2762,7 @@ async def list_utility_readings(
             WHERE school_id = %s::UUID AND deleted_at IS NULL
               AND (%s::VARCHAR IS NULL OR utility_type = %s::VARCHAR)
               AND (%s::VARCHAR IS NULL OR LOWER(utility_name) LIKE %s::VARCHAR OR LOWER(location) LIKE %s::VARCHAR)
-            ORDER BY recorded_at DESC
+            ORDER BY {util_order_col} {util_order_dir} NULLS LAST, id ASC
             LIMIT %s OFFSET %s;
         """
         rows = await exec_sql(sql, (school_id, u_type, u_type, search_term, search_term, search_term, p_sz, offset))

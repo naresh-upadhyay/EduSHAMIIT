@@ -1957,13 +1957,15 @@ async def list_all_student_invoices(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(15, ge=1, le=100),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """Sub-tab 5: Master list of all student invoices via Stored Procedure."""
     school_id = _get_school_id(current_user)
     rows = await exec_sql(
-        "SELECT public.fn_list_all_student_invoices(%s::UUID, %s, %s, %s, %s) AS result;",
-        (school_id, search or None, status if status not in ("All Status", "All", "") else None, page, page_size)
+        "SELECT public.fn_list_all_student_invoices(%s::UUID, %s, %s, %s, %s, %s, %s) AS result;",
+        (school_id, search or None, status if status not in ("All Status", "All", "") else None, page, page_size, sort_by, sort_order)
     )
     if rows and rows[0].get("result"):
         return rows[0]["result"]
@@ -1975,13 +1977,15 @@ async def list_all_student_payments(
     search: Optional[str] = Query(""),
     page: int = Query(1, ge=1),
     page_size: int = Query(15, ge=1, le=100),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("DESC"),
     current_user: dict = Depends(get_current_user)
 ):
     """Sub-tab 6: Master list of all payment receipts via Stored Procedure."""
     school_id = _get_school_id(current_user)
     rows = await exec_sql(
-        "SELECT public.fn_list_all_student_payments(%s::UUID, %s, %s, %s) AS result;",
-        (school_id, search or None, page, page_size)
+        "SELECT public.fn_list_all_student_payments(%s::UUID, %s, %s, %s, %s, %s) AS result;",
+        (school_id, search or None, page, page_size, sort_by, sort_order)
     )
     if rows and rows[0].get("result"):
         return rows[0]["result"]

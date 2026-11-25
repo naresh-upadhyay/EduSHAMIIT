@@ -603,11 +603,18 @@ class CampusApiService {
   Future<Map<String, dynamic>> getUtilityReadings({
     String? utilityType,
     String? search,
+    String sortBy = 'recorded_at',
+    String sortOrder = 'desc',
     int page = 1,
     int pageSize = 20,
   }) async {
     try {
-      final query = <String, dynamic>{'page': page, 'page_size': pageSize};
+      final query = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+        'sort_by': sortBy,
+        'sort_order': sortOrder,
+      };
       if (utilityType != null && utilityType.isNotEmpty && utilityType != 'All') {
         query['utility_type'] = utilityType;
       }

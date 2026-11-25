@@ -20,7 +20,12 @@ void main() {
       locationDisplay: 'Academic Block (A) > Ground Floor > Room CR-1',
       isOnline: true,
       powerState: true,
-      currentState: {'power': 'ON', 'temperature': 23, 'mode': 'Cool', 'fan_speed': 'Medium'},
+      currentState: {
+        'power': 'ON',
+        'temperature': 23,
+        'mode': 'Cool',
+        'fan_speed': 'Medium'
+      },
     ),
     const DeviceItemModel(
       id: 'dev-2',
@@ -54,7 +59,7 @@ void main() {
     ),
   ];
 
-  final sampleTree = LocationTreeNode(
+  const sampleTree = LocationTreeNode(
     id: 'entire_campus',
     code: 'entire_campus',
     name: 'Entire Campus',
@@ -92,7 +97,9 @@ void main() {
   );
 
   group('Control Dashboard: DeviceLiveControlTable Tests', () {
-    testWidgets('renders single checkbox per row and exactly one in header (no double checkboxes)', (tester) async {
+    testWidgets(
+        'renders single checkbox per row and exactly one in header (no double checkboxes)',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -141,7 +148,8 @@ void main() {
       expect(find.text('CL-1 Ceiling Fan 1'), findsOneWidget);
     });
 
-    testWidgets('sticky multi-select toolbar appears when items are checked', (tester) async {
+    testWidgets('sticky multi-select toolbar appears when items are checked',
+        (tester) async {
       bool bulkTurnOnCalled = false;
       bool bulkDeleteCalled = false;
 
@@ -251,7 +259,9 @@ void main() {
       expect(sortedColumn, equals('type_name'));
     });
 
-    testWidgets('pagination footer displays correct bounds and page size selector', (tester) async {
+    testWidgets(
+        'pagination footer displays correct bounds and page size selector',
+        (tester) async {
       int? newPageSize;
 
       await tester.pumpWidget(
@@ -299,7 +309,9 @@ void main() {
   });
 
   group('Control Dashboard: DeviceLocationExplorerCard Tests', () {
-    testWidgets('renders tree nodes and triggers onLocationSelected when tapped', (tester) async {
+    testWidgets(
+        'renders tree nodes and triggers onLocationSelected when tapped',
+        (tester) async {
       String? selectedNode;
       String? breadcrumb;
 
@@ -334,7 +346,9 @@ void main() {
       }
     });
 
-    testWidgets('shows active filter banner with Reset button when selectedNodeId is set', (tester) async {
+    testWidgets(
+        'shows active filter banner with Reset button when selectedNodeId is set',
+        (tester) async {
       bool resetCalled = false;
 
       await tester.pumpWidget(
@@ -346,7 +360,8 @@ void main() {
               child: DeviceLocationExplorerCard(
                 tree: sampleTree,
                 selectedNodeId: 'CR-1',
-                selectedBreadcrumb: 'Academic Block (A) > Ground Floor > Room CR-1',
+                selectedBreadcrumb:
+                    'Academic Block (A) > Ground Floor > Room CR-1',
                 onLocationSelected: (_, __, ___, ____, _____) {},
                 onClearLocation: () => resetCalled = true,
               ),
@@ -357,7 +372,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Academic Block (A) > Ground Floor > Room CR-1'), findsOneWidget);
+      expect(find.text('Academic Block (A) > Ground Floor > Room CR-1'),
+          findsOneWidget);
       expect(find.text('Reset'), findsOneWidget);
 
       await tester.tap(find.text('Reset'));
@@ -366,15 +382,37 @@ void main() {
   });
 
   group('Control Dashboard: DeviceFilterDialog Dynamic Dropdowns Tests', () {
-    testWidgets('renders dynamic buildings and device types in dropdown options', (tester) async {
+    testWidgets(
+        'renders dynamic buildings and device types in dropdown options',
+        (tester) async {
       final sampleBuildings = [
-        const BuildingDeviceBreakdown(code: 'B1', name: 'Academic Block', totalDevices: 120, onlineDevices: 110, onlinePct: 91.6),
-        const BuildingDeviceBreakdown(code: 'B2', name: 'Science Block', totalDevices: 80, onlineDevices: 75, onlinePct: 93.7),
+        const BuildingDeviceBreakdown(
+            code: 'B1',
+            name: 'Academic Block',
+            totalDevices: 120,
+            onlineDevices: 110,
+            onlinePct: 91.6),
+        const BuildingDeviceBreakdown(
+            code: 'B2',
+            name: 'Science Block',
+            totalDevices: 80,
+            onlineDevices: 75,
+            onlinePct: 93.7),
       ];
 
       final sampleTypes = [
-        const DeviceTypeBreakdown(type: 'HVAC', count: 40, percentage: 50.0, colorHex: '#0284C7', icon: 'ac_unit'),
-        const DeviceTypeBreakdown(type: 'Lighting', count: 60, percentage: 50.0, colorHex: '#EAB308', icon: 'lightbulb'),
+        const DeviceTypeBreakdown(
+            type: 'HVAC',
+            count: 40,
+            percentage: 50.0,
+            colorHex: '#0284C7',
+            icon: 'ac_unit'),
+        const DeviceTypeBreakdown(
+            type: 'Lighting',
+            count: 60,
+            percentage: 50.0,
+            colorHex: '#EAB308',
+            icon: 'lightbulb'),
       ];
 
       await tester.pumpWidget(
@@ -399,7 +437,9 @@ void main() {
   });
 
   group('Control Dashboard: Responsive Layout Tests', () {
-    testWidgets('renders cleanly on mobile viewport (400x800) with zero overflow', (tester) async {
+    testWidgets(
+        'renders cleanly on mobile viewport (400x800) with zero overflow',
+        (tester) async {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -459,7 +499,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('renders cleanly on tablet viewport (900x800) with zero overflow', (tester) async {
+    testWidgets(
+        'renders cleanly on tablet viewport (900x800) with zero overflow',
+        (tester) async {
       tester.view.physicalSize = const Size(900, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());

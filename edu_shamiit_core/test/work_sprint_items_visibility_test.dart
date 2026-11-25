@@ -8,7 +8,7 @@ import 'package:edu_shamiit_core/screens/work_management/utils/work_filter_helpe
 void main() {
   group('Work Sprint Items Visibility & Filter Tests', () {
     test('matchesAdvancedFilters respects All Boards and specific boards', () {
-      final item1 = const WorkItemModel(
+      const item1 = WorkItemModel(
         id: 'w1',
         itemNumber: 'WM-1050',
         title: 'Collect and verify project',
@@ -20,7 +20,7 @@ void main() {
         teamName: 'Infrastructure & Maintenance Team',
       );
 
-      final item2 = const WorkItemModel(
+      const item2 = WorkItemModel(
         id: 'w2',
         itemNumber: 'BG-1081',
         title: 'Copy of Library login issue',
@@ -101,7 +101,9 @@ void main() {
       );
     });
 
-    test('Sprint state metrics correctly reflect live items when rawMetrics is zero/empty', () {
+    test(
+        'Sprint state metrics correctly reflect live items when rawMetrics is zero/empty',
+        () {
       final items = [
         const WorkItemModel(
           id: 'w1',
@@ -139,15 +141,23 @@ void main() {
 
       if (allItems.isNotEmpty) {
         totalItems = allItems.length;
-        completedItems = allItems.where((i) => i.status == 'COMPLETED' || i.status == 'RESOLVED').length;
-        inProgressItems = allItems.where((i) => i.status == 'ACTIVE' || i.status == 'IN PROGRESS').length;
-        notStartedItems = allItems.where((i) => i.status == 'NEW' || i.status == 'PLANNED').length;
+        completedItems = allItems
+            .where((i) => i.status == 'COMPLETED' || i.status == 'RESOLVED')
+            .length;
+        inProgressItems = allItems
+            .where((i) => i.status == 'ACTIVE' || i.status == 'IN PROGRESS')
+            .length;
+        notStartedItems = allItems
+            .where((i) => i.status == 'NEW' || i.status == 'PLANNED')
+            .length;
         blockedItems = allItems.where((i) => i.status == 'BLOCKED').length;
       } else {
         totalItems = (rawMetrics['total_items'] as num?)?.toInt() ?? 0;
         completedItems = (rawMetrics['completed_items'] as num?)?.toInt() ?? 0;
-        inProgressItems = (rawMetrics['in_progress_items'] as num?)?.toInt() ?? 0;
-        notStartedItems = (rawMetrics['not_started_items'] as num?)?.toInt() ?? 0;
+        inProgressItems =
+            (rawMetrics['in_progress_items'] as num?)?.toInt() ?? 0;
+        notStartedItems =
+            (rawMetrics['not_started_items'] as num?)?.toInt() ?? 0;
         blockedItems = (rawMetrics['blocked_items'] as num?)?.toInt() ?? 0;
       }
 

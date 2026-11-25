@@ -626,12 +626,12 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
                             ),
                             _buildSortableHeaderCell(
                               title: 'ID Type & Number',
-                              sortKey: 'id_type',
+                              sortKey: 'id_number_masked',
                               width: idWidth,
                               currentSortBy: state.restrictionsSortBy,
                               currentSortOrder: state.restrictionsSortOrder,
                               isDark: isDark,
-                              onTap: () => notifier.sortRestrictions('id_type'),
+                              onTap: () => notifier.sortRestrictions('id_number_masked'),
                             ),
                             _buildSortableHeaderCell(
                               title: 'Mobile No.',
@@ -662,12 +662,12 @@ class _BlacklistedVisitorsTabState extends ConsumerState<BlacklistedVisitorsTab>
                             ),
                             _buildSortableHeaderCell(
                               title: 'Blocked On',
-                              sortKey: 'created_at',
+                              sortKey: 'blocked_on',
                               width: 95,
                               currentSortBy: state.restrictionsSortBy,
                               currentSortOrder: state.restrictionsSortOrder,
                               isDark: isDark,
-                              onTap: () => notifier.sortRestrictions('created_at'),
+                              onTap: () => notifier.sortRestrictions('blocked_on'),
                             ),
                             _buildSortableHeaderCell(
                               title: 'Valid Till',

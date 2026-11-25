@@ -376,12 +376,25 @@ class HostelApiService {
     return await _api.post('/hostel/students/checkout', payload);
   }
 
+  Future<Map<String, dynamic>> bulkStudentsAction({
+    required List<String> admissionIds,
+    required String action,
+    String? reason,
+  }) async {
+    return await _api.post('/hostel/students/bulk-action', {
+      'admission_ids': admissionIds,
+      'action': action,
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    });
+  }
+
   Future<List<int>?> exportStudentsCsv({
     required String academicYear,
     String? search,
     String? hostelId,
     String? status,
     String? feeStatus,
+    List<String>? admissionIds,
   }) async {
     final query = <String, String>{
       'academic_year': academicYear,
@@ -389,6 +402,7 @@ class HostelApiService {
       if (hostelId != null && hostelId.isNotEmpty) 'hostel_id': hostelId,
       if (status != null && status != 'ALL') 'status': status,
       if (feeStatus != null && feeStatus != 'ALL') 'fee_status': feeStatus,
+      if (admissionIds != null && admissionIds.isNotEmpty) 'admission_ids': admissionIds.join(','),
     };
     final uri = Uri(path: '/hostel/students/export', queryParameters: query);
     return await _api.getRawBytes(uri.toString());

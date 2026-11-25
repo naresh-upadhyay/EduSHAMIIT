@@ -23,9 +23,9 @@ class MockWorkApiService extends WorkApiService {
     String? teamId,
   }) async {
     return workspaceToReturn ??
-        SprintRetroWorkspaceModel(
-          sprintOverview: const SprintRetroOverviewModel(sprintId: 'sprint-1'),
-          retrospective: const SprintRetroHeaderModel(
+        const SprintRetroWorkspaceModel(
+          sprintOverview: SprintRetroOverviewModel(sprintId: 'sprint-1'),
+          retrospective: SprintRetroHeaderModel(
             id: 'retro-1',
             sprintId: 'sprint-1',
             title: 'Sprint 9 Retrospective',
@@ -39,7 +39,7 @@ class MockWorkApiService extends WorkApiService {
             sprintGoal: 'Faculty management modules',
             summary: 'Great delivery',
           ),
-          wentWell: const SprintRetroCategoryColumnModel(
+          wentWell: SprintRetroCategoryColumnModel(
             title: 'What Went Well? (1)',
             key: 'WENT_WELL',
             count: 1,
@@ -54,19 +54,19 @@ class MockWorkApiService extends WorkApiService {
               ),
             ],
           ),
-          didNotGoWell: const SprintRetroCategoryColumnModel(
+          didNotGoWell: SprintRetroCategoryColumnModel(
             title: "What Didn't Go Well? (0)",
             key: 'DID_NOT_GO_WELL',
             count: 0,
             entries: [],
           ),
-          shouldImprove: const SprintRetroCategoryColumnModel(
+          shouldImprove: SprintRetroCategoryColumnModel(
             title: 'What Should Improve? (0)',
             key: 'TO_IMPROVE',
             count: 0,
             entries: [],
           ),
-          actionItems: const [
+          actionItems: [
             SprintRetroActionItemModel(
               id: 'a1',
               itemKey: 'RA-002',
@@ -77,7 +77,7 @@ class MockWorkApiService extends WorkApiService {
               progressPercentage: 25,
             ),
           ],
-          history: const [
+          history: [
             SprintRetroHistoryItemModel(
               id: 'h1',
               milestone: 'Action item created',
@@ -93,7 +93,7 @@ class MockWorkApiService extends WorkApiService {
               createdAt: 'Nov 24, 2026, 09:20 AM',
             ),
           ],
-          feedback: const [
+          feedback: [
             SprintRetroFeedbackItemModel(
               id: 'f1',
               userId: 'user-king',
@@ -116,8 +116,8 @@ class MockWorkApiService extends WorkApiService {
               createdAt: 'Nov 24, 2026',
             ),
           ],
-          participants: const [],
-          feedbackStats: const SprintRetroFeedbackStatsModel(
+          participants: [],
+          feedbackStats: SprintRetroFeedbackStatsModel(
             totalFeedback: 2,
             avgRating: 4.5,
             sentimentPct: 90,
@@ -126,7 +126,8 @@ class MockWorkApiService extends WorkApiService {
   }
 
   @override
-  Future<bool> updateActionItem(String sprintId, String actionItemId, Map<String, dynamic> data) async {
+  Future<bool> updateActionItem(
+      String sprintId, String actionItemId, Map<String, dynamic> data) async {
     actionItemUpdates.add({'sprintId': sprintId, 'id': actionItemId, ...data});
     return true;
   }
@@ -199,7 +200,9 @@ class MockWorkApiService extends WorkApiService {
 
 void main() {
   group('Sprint Retrospective Full CRUD, Ownership & History Tests', () {
-    test('SprintRetroFeedbackItemModel correctly parses userId and ownership fields', () {
+    test(
+        'SprintRetroFeedbackItemModel correctly parses userId and ownership fields',
+        () {
       final json = {
         'id': 'fb-123',
         'user_id': 'user-king',
@@ -223,7 +226,8 @@ void main() {
       expect(model.userName, equals('Anonymous Contributor'));
     });
 
-    test('Feedback ownership logic allows owner and super admin, blocks others', () {
+    test('Feedback ownership logic allows owner and super admin, blocks others',
+        () {
       const myFeedback = SprintRetroFeedbackItemModel(
         id: 'fb-mine',
         userId: 'user-king',
@@ -252,11 +256,14 @@ void main() {
 
       // 3. Super Admin override
       const bool isSuperAdmin = true;
-      bool superAdminCanModifyOther = (otherFeedback.userId == currentUserId) || isSuperAdmin;
+      bool superAdminCanModifyOther =
+          (otherFeedback.userId == currentUserId) || isSuperAdmin;
       expect(superAdminCanModifyOther, isTrue);
     });
 
-    test('WorkSprintRetroNotifier handles action item edit, convert, and delete', () async {
+    test(
+        'WorkSprintRetroNotifier handles action item edit, convert, and delete',
+        () async {
       final mockApi = MockWorkApiService();
       final container = ProviderContainer(
         overrides: [
@@ -296,7 +303,8 @@ void main() {
       expect(mockApi.actionItemDeletes, contains('a1'));
     });
 
-    test('WorkSprintRetroNotifier handles feedback update and delete', () async {
+    test('WorkSprintRetroNotifier handles feedback update and delete',
+        () async {
       final mockApi = MockWorkApiService();
       final container = ProviderContainer(
         overrides: [

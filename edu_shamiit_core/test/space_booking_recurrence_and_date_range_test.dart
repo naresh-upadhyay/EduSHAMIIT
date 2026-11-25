@@ -9,7 +9,8 @@ void main() {
   group('Space Booking Date Range Calculations', () {
     (DateTime, DateTime) getTimelineRangeFor(DateTime date, String mode) {
       if (mode == 'Week') {
-        final startOfWeek = date.subtract(Duration(days: (date.weekday - 1) % 7));
+        final startOfWeek =
+            date.subtract(Duration(days: (date.weekday - 1) % 7));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         return (startOfWeek, endOfWeek);
       } else if (mode == 'Month') {
@@ -39,10 +40,12 @@ void main() {
         final range = getTimelineRangeFor(testDate, 'Week');
         expect(range.$1.year, equals(2026));
         expect(range.$1.month, equals(11));
-        expect(range.$1.day, equals(16), reason: 'Week start must be Monday 16 Nov');
+        expect(range.$1.day, equals(16),
+            reason: 'Week start must be Monday 16 Nov');
         expect(range.$2.year, equals(2026));
         expect(range.$2.month, equals(11));
-        expect(range.$2.day, equals(22), reason: 'Week end must be Sunday 22 Nov');
+        expect(range.$2.day, equals(22),
+            reason: 'Week end must be Sunday 22 Nov');
         expect(range.$2.difference(range.$1).inDays, equals(6));
       }
     });
@@ -62,7 +65,8 @@ void main() {
   });
 
   group('SpaceTimelineBooking Model & Recurrence Deserialization', () {
-    test('SpaceTimelineBooking correctly parses booking_date and is_recurring', () {
+    test('SpaceTimelineBooking correctly parses booking_date and is_recurring',
+        () {
       final json1 = {
         'id': 'sb-101',
         'booking_ref': 'BK-REC-261116-001',
@@ -110,7 +114,15 @@ void main() {
 
   group('Recurrence Payload Engine for all scenarios', () {
     List<int> convertDaysToIntegers(List<String> days) {
-      const map = {'MO': 1, 'TU': 2, 'WE': 3, 'TH': 4, 'FR': 5, 'SA': 6, 'SU': 7};
+      const map = {
+        'MO': 1,
+        'TU': 2,
+        'WE': 3,
+        'TH': 4,
+        'FR': 5,
+        'SA': 6,
+        'SU': 7
+      };
       return days.map((d) => map[d] ?? 1).toList()..sort();
     }
 
@@ -128,10 +140,13 @@ void main() {
         'interval': interval,
         'days_of_week': frequency == 'daily'
             ? [1, 2, 3, 4, 5, 6, 7]
-            : (frequency == 'weekdays' ? [1, 2, 3, 4, 5] : convertDaysToIntegers(days)),
+            : (frequency == 'weekdays'
+                ? [1, 2, 3, 4, 5]
+                : convertDaysToIntegers(days)),
         'end_type': endType,
         'count': count,
-        'until_date': DateFormat('yyyy-MM-dd').format(untilDate ?? DateTime(2027, 1, 19)),
+        'until_date':
+            DateFormat('yyyy-MM-dd').format(untilDate ?? DateTime(2027, 1, 19)),
       };
     }
 
@@ -200,10 +215,12 @@ void main() {
   });
 
   group('SpaceBookingWeekView Multi-Day Occurrence Rendering', () {
-    testWidgets('renders all 3 occurrences on Mon 16, Tue 17, and Wed 18 at 08:00 AM', (tester) async {
+    testWidgets(
+        'renders all 3 occurrences on Mon 16, Tue 17, and Wed 18 at 08:00 AM',
+        (tester) async {
       final nov16 = DateTime(2026, 11, 16);
 
-      final room = SpaceTimelineRoom(
+      const room = SpaceTimelineRoom(
         roomId: 'room-201',
         roomName: 'Grade 4 - Section A',
         roomNumber: '201',
@@ -276,10 +293,11 @@ void main() {
   });
 
   group('SpaceBookingMonthView Multi-Day Occurrence Rendering', () {
-    testWidgets('renders bookings on their corresponding month grid dates', (tester) async {
+    testWidgets('renders bookings on their corresponding month grid dates',
+        (tester) async {
       final nov16 = DateTime(2026, 11, 16);
 
-      final room = SpaceTimelineRoom(
+      const room = SpaceTimelineRoom(
         roomId: 'room-201',
         roomName: 'Grade 4 - Section A',
         roomNumber: '201',

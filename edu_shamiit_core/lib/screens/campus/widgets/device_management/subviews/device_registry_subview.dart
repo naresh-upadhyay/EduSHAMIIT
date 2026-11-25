@@ -154,9 +154,13 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
   Future<void> _loadDevices() async {
     setState(() => _isLoading = true);
     try {
-      final bldFilter = (_selectedBuilding == 'All Buildings') ? null : _selectedBuilding;
-      final typeFilter = (_selectedType == 'All Device Types') ? null : _selectedType;
-      final statusFilter = (_selectedStatus == 'All Status') ? null : _selectedStatus.toLowerCase();
+      final bldFilter =
+          (_selectedBuilding == 'All Buildings') ? null : _selectedBuilding;
+      final typeFilter =
+          (_selectedType == 'All Device Types') ? null : _selectedType;
+      final statusFilter = (_selectedStatus == 'All Status')
+          ? null
+          : _selectedStatus.toLowerCase();
 
       final res = await _api.listDevices(
         search: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
@@ -172,7 +176,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
       if (mounted) {
         final rawList = res['devices'] as List? ?? [];
         final list = rawList
-            .map((e) => DeviceItemModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map((e) =>
+                DeviceItemModel.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
 
         setState(() {
@@ -382,7 +387,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           _loadKpis();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Device "${device.deviceName}" deleted successfully.'),
+              content:
+                  Text('Device "${device.deviceName}" deleted successfully.'),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -443,7 +449,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(res['message'] ?? 'Failed to delete selected devices.'),
+              content:
+                  Text(res['message'] ?? 'Failed to delete selected devices.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -453,11 +460,13 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
   }
 
   // --- Bulk Commands (Turn ON / Turn OFF / Reboot) ---
-  Future<void> _executeBulkCommand(String commandType, Map<String, dynamic> payload) async {
+  Future<void> _executeBulkCommand(
+      String commandType, Map<String, dynamic> payload) async {
     final count = _selectedDeviceIds.length;
     if (count == 0) return;
 
-    final res = await _api.executeBulkCommand(_selectedDeviceIds.toList(), commandType, payload);
+    final res = await _api.executeBulkCommand(
+        _selectedDeviceIds.toList(), commandType, payload);
     if (mounted) {
       if (res['success'] == true) {
         _loadDevices();
@@ -523,7 +532,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
         LayoutBuilder(
           builder: (context, constraints) {
             final isMobile = constraints.maxWidth < 768;
-            final isTablet = constraints.maxWidth >= 768 && constraints.maxWidth < 1150;
+            final isTablet =
+                constraints.maxWidth >= 768 && constraints.maxWidth < 1150;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -574,7 +584,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                 child: GestureDetector(
                   onTap: () {}, // Prevent tap through
                   child: SizedBox(
-                    width: math.min(MediaQuery.of(context).size.width * 0.85, 480),
+                    width:
+                        math.min(MediaQuery.of(context).size.width * 0.85, 480),
                     height: double.infinity,
                     child: DeviceDetailsDrawer(
                       device: _activeDrawerDevice!,
@@ -642,7 +653,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                 'Full registry of all $_totalDevices connected campus devices across all blocks and floors',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -668,8 +681,10 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2563EB),
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 18, vertical: 12),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
       ],
@@ -708,9 +723,12 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
       _buildKpiCard(
         title: 'Offline / Attention',
         value: '${_kpis.offline}',
-        subtitle: _kpis.offline > 0 ? 'Requires inspection' : 'All systems active',
+        subtitle:
+            _kpis.offline > 0 ? 'Requires inspection' : 'All systems active',
         icon: Icons.wifi_off_rounded,
-        color: _kpis.offline > 0 ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+        color: _kpis.offline > 0
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF64748B),
         isDark: isDark,
       ),
       _buildKpiCard(
@@ -738,7 +756,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           scrollDirection: Axis.horizontal,
           itemCount: kpiCards.length,
           separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (_, index) => SizedBox(width: 170, child: kpiCards[index]),
+          itemBuilder: (_, index) =>
+              SizedBox(width: 170, child: kpiCards[index]),
         ),
       );
     } else if (isTablet) {
@@ -750,10 +769,13 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
     }
 
     return Row(
-      children: kpiCards.map((c) => Expanded(child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: c,
-      ))).toList(),
+      children: kpiCards
+          .map((c) => Expanded(
+                  child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: c,
+              )))
+          .toList(),
     );
   }
 
@@ -775,7 +797,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -786,7 +808,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -802,7 +824,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -862,7 +886,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   },
                 )
               : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           filled: true,
           fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
           border: OutlineInputBorder(
@@ -914,7 +939,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
       icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
       label: const Text('Clear', style: TextStyle(fontSize: 12)),
       style: OutlinedButton.styleFrom(
-        foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        foregroundColor:
+            isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
         side: BorderSide(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
         ),
@@ -1006,7 +1032,11 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               value: opt,
               child: Row(
                 children: [
-                  Icon(icon, size: 14, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  Icon(icon,
+                      size: 14,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1055,11 +1085,14 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               _onSearchChanged('');
             }, isDark),
           if (_selectedBuilding != 'All Buildings')
-            _buildFilterChip('Building: $_selectedBuilding', () => _onBuildingChanged('All Buildings'), isDark),
+            _buildFilterChip('Building: $_selectedBuilding',
+                () => _onBuildingChanged('All Buildings'), isDark),
           if (_selectedType != 'All Device Types')
-            _buildFilterChip('Type: $_selectedType', () => _onTypeChanged('All Device Types'), isDark),
+            _buildFilterChip('Type: $_selectedType',
+                () => _onTypeChanged('All Device Types'), isDark),
           if (_selectedStatus != 'All Status')
-            _buildFilterChip('Status: $_selectedStatus', () => _onStatusChanged('All Status'), isDark),
+            _buildFilterChip('Status: $_selectedStatus',
+                () => _onStatusChanged('All Status'), isDark),
           const SizedBox(width: 4),
           InkWell(
             onTap: _clearAllFilters,
@@ -1085,9 +1118,10 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
       margin: const EdgeInsets.only(right: 6),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF2563EB).withOpacity(0.12),
+        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.3)),
+        border:
+            Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1103,7 +1137,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           const SizedBox(width: 4),
           InkWell(
             onTap: onDeleted,
-            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF2563EB)),
+            child: const Icon(Icons.close_rounded,
+                size: 14, color: Color(0xFF2563EB)),
           ),
         ],
       ),
@@ -1119,13 +1154,16 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E3A8A).withOpacity(0.4) : const Color(0xFFEFF6FF),
+        color: isDark
+            ? const Color(0xFF1E3A8A).withValues(alpha: 0.4)
+            : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF3B82F6)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 18),
+          const Icon(Icons.check_circle_rounded,
+              color: Color(0xFF2563EB), size: 18),
           const SizedBox(width: 8),
           Text(
             '$count Selected',
@@ -1141,42 +1179,56 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
             child: Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: () => _executeBulkCommand('turn_on', {'power': true}),
-                  icon: const Icon(Icons.power_settings_new_rounded, size: 14, color: Color(0xFF10B981)),
-                  label: const Text('Turn ON', style: TextStyle(fontSize: 12, color: Color(0xFF10B981))),
+                  onPressed: () =>
+                      _executeBulkCommand('turn_on', {'power': true}),
+                  icon: const Icon(Icons.power_settings_new_rounded,
+                      size: 14, color: Color(0xFF10B981)),
+                  label: const Text('Turn ON',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF10B981))),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF10B981)),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
-                  onPressed: () => _executeBulkCommand('turn_off', {'power': false}),
-                  icon: const Icon(Icons.power_off_rounded, size: 14, color: Color(0xFFEF4444)),
-                  label: const Text('Turn OFF', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                  onPressed: () =>
+                      _executeBulkCommand('turn_off', {'power': false}),
+                  icon: const Icon(Icons.power_off_rounded,
+                      size: 14, color: Color(0xFFEF4444)),
+                  label: const Text('Turn OFF',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFEF4444)),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: () => _executeBulkCommand('reboot', {}),
-                  icon: const Icon(Icons.restart_alt_rounded, size: 14, color: Color(0xFFF59E0B)),
-                  label: const Text('Reboot', style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B))),
+                  icon: const Icon(Icons.restart_alt_rounded,
+                      size: 14, color: Color(0xFFF59E0B)),
+                  label: const Text('Reboot',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B))),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFF59E0B)),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: _confirmBulkDelete,
-                  icon: const Icon(Icons.delete_forever_rounded, size: 14, color: Colors.white),
-                  label: const Text('Delete Selected', style: TextStyle(fontSize: 12, color: Colors.white)),
+                  icon: const Icon(Icons.delete_forever_rounded,
+                      size: 14, color: Colors.white),
+                  label: const Text('Delete Selected',
+                      style: TextStyle(fontSize: 12, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFDC2626),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1196,7 +1248,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
   // DATA GRID CARD
   // ============================================================================
   Widget _buildGridCard(bool isDark, double maxWidth) {
-    final isAllSelected = _devices.isNotEmpty && _devices.every((d) => _selectedDeviceIds.contains(d.id));
+    final isAllSelected = _devices.isNotEmpty &&
+        _devices.every((d) => _selectedDeviceIds.contains(d.id));
 
     return Container(
       decoration: BoxDecoration(
@@ -1207,7 +1260,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1228,7 +1281,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   : SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(minWidth: math.max(maxWidth - 32, 1100)),
+                        constraints: BoxConstraints(
+                            minWidth: math.max(maxWidth - 32, 1100)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1293,14 +1347,16 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           // Device Name (Width: 190, sortable)
           SizedBox(
             width: 190,
-            child: _buildSortableHeaderCell('Device Name', 'device_name', isDark),
+            child:
+                _buildSortableHeaderCell('Device Name', 'device_name', isDark),
           ),
           const SizedBox(width: 8),
 
           // Device Code (Width: 140, sortable)
           SizedBox(
             width: 140,
-            child: _buildSortableHeaderCell('Device Code', 'device_code', isDark),
+            child:
+                _buildSortableHeaderCell('Device Code', 'device_code', isDark),
           ),
           const SizedBox(width: 8),
 
@@ -1314,7 +1370,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           // Location (Width: 230, sortable)
           SizedBox(
             width: 230,
-            child: _buildSortableHeaderCell('Location', 'location_path', isDark),
+            child:
+                _buildSortableHeaderCell('Location', 'location_path', isDark),
           ),
           const SizedBox(width: 8),
 
@@ -1333,7 +1390,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
               ),
             ),
           ),
@@ -1354,7 +1412,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
               ),
             ),
           ),
@@ -1378,7 +1437,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                 fontWeight: FontWeight.w700,
                 color: isSelected
                     ? const Color(0xFF2563EB)
-                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF475569)),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1386,7 +1447,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           const SizedBox(width: 4),
           Icon(
             isSelected
-                ? (_sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                ? (_sortAscending
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded)
                 : Icons.unfold_more_rounded,
             size: 14,
             color: isSelected
@@ -1401,7 +1464,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
   Widget _buildDeviceRow(DeviceItemModel d, bool isDark) {
     final isSelected = _selectedDeviceIds.contains(d.id);
     final rowBg = isSelected
-        ? (isDark ? const Color(0xFF1E3A8A).withOpacity(0.3) : const Color(0xFFEFF6FF))
+        ? (isDark
+            ? const Color(0xFF1E3A8A).withValues(alpha: 0.3)
+            : const Color(0xFFEFF6FF))
         : (isDark ? const Color(0xFF1E293B) : Colors.white);
 
     return Container(
@@ -1439,7 +1504,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: _getTypeColor(d.typeCode).withOpacity(0.12),
+                      color: _getTypeColor(d.typeCode).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
@@ -1459,7 +1524,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1469,7 +1535,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
-                            color: d.isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            color: d.isOnline
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFEF4444),
                           ),
                         ),
                       ],
@@ -1489,10 +1557,14 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFCBD5E1),
                   ),
                 ),
                 child: Text(
@@ -1501,7 +1573,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                     fontFamily: 'monospace',
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF334155),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1519,7 +1593,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _getTypeColor(d.typeCode).withOpacity(0.1),
+                  color: _getTypeColor(d.typeCode).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -1541,10 +1615,13 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
           SizedBox(
             width: 230,
             child: Text(
-              d.locationDisplay.isNotEmpty ? d.locationDisplay : 'Unmapped Location',
+              d.locationDisplay.isNotEmpty
+                  ? d.locationDisplay
+                  : 'Unmapped Location',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                color:
+                    isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1575,7 +1652,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 9,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1596,7 +1675,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1607,7 +1688,7 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   child: Switch(
                     value: d.powerState,
                     onChanged: (_) => _togglePower(d),
-                    activeColor: const Color(0xFF10B981),
+                    activeThumbColor: const Color(0xFF10B981),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
@@ -1625,8 +1706,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: d.isOnline
-                      ? const Color(0xFF10B981).withOpacity(0.12)
-                      : const Color(0xFF64748B).withOpacity(0.12),
+                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                      : const Color(0xFF64748B).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -1637,7 +1718,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                       height: 6,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: d.isOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                        color: d.isOnline
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -1646,7 +1729,9 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: d.isOnline ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                        color: d.isOnline
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -1667,7 +1752,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   tooltip: 'Control & Telemetry',
                   color: const Color(0xFF2563EB),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                   onPressed: () => setState(() => _activeDrawerDevice = d),
                 ),
                 const SizedBox(width: 4),
@@ -1675,7 +1761,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                   icon: const Icon(Icons.more_vert_rounded, size: 18),
                   tooltip: 'Options',
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                   onSelected: (val) {
                     if (val == 'details') {
                       setState(() => _activeDrawerDevice = d);
@@ -1700,7 +1787,8 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                       value: 'reboot',
                       child: Row(
                         children: [
-                          Icon(Icons.restart_alt_rounded, size: 16, color: Color(0xFFF59E0B)),
+                          Icon(Icons.restart_alt_rounded,
+                              size: 16, color: Color(0xFFF59E0B)),
                           SizedBox(width: 8),
                           Text('Reboot Hardware'),
                         ],
@@ -1710,9 +1798,11 @@ class _DeviceRegistrySubviewState extends State<DeviceRegistrySubview> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                          Icon(Icons.delete_outline_rounded,
+                              size: 16, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Delete Device', style: TextStyle(color: Colors.red)),
+                          Text('Delete Device',
+                              style: TextStyle(color: Colors.red)),
                         ],
                       ),
                     ),

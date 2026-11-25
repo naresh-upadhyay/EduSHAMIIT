@@ -965,6 +965,7 @@ class FakeVisitorsApiService extends VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async {
     return const VisitorKPIs();
   }
@@ -973,9 +974,9 @@ class FakeVisitorsApiService extends VisitorsApiService {
   Future<ScheduledKPIs> getScheduledKPIs({
     String? dateFrom,
     String? dateTo,
-    String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async {
     return const ScheduledKPIs();
   }

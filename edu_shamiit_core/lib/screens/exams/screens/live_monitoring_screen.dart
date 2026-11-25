@@ -133,6 +133,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
   int _pageSize = 8;
   int _totalCandidates = 0;
   int _totalPages = 1;
+  String _sortBy = 'status_priority';
+  String _sortDir = 'asc';
 
   List<Map<String, dynamic>> _candidates = [];
   final Set<String> _selectedCandidateIds = {};
@@ -374,6 +376,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         search: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
         page: _currentPage,
         pageSize: _pageSize,
+        sortBy: _sortBy,
+        sortDir: _sortDir,
       );
       if (!mounted) return;
       final list = List<dynamic>.from(res['candidates'] as List? ?? [])
@@ -2509,6 +2513,11 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                 headingRowColor: WidgetStateProperty.all(palette.subtleBg),
                 horizontalMargin: 10,
                 columnSpacing: 16,
+                sortColumnIndex: const [null, null, 'roll', 'name', 'status', 'violations', 'activity', null]
+                    .indexOf(_sortBy) >= 0
+                    ? const [null, null, 'roll', 'name', 'status', 'violations', 'activity', null].indexOf(_sortBy)
+                    : null,
+                sortAscending: _sortDir == 'asc',
                 columns: [
                   DataColumn(
                     label: Checkbox(
@@ -2528,11 +2537,61 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                     ),
                   ),
                   const DataColumn(label: Text('#')),
-                  const DataColumn(label: Text('Roll No.')),
-                  const DataColumn(label: Text('Student Name')),
-                  const DataColumn(label: Text('Status')),
-                  const DataColumn(label: Text('Violations')),
-                  const DataColumn(label: Text('Last Activity')),
+                  DataColumn(
+                    label: const Text('Roll No.'),
+                    onSort: (_, asc) {
+                      setState(() {
+                        _sortBy = 'roll';
+                        _sortDir = asc ? 'asc' : 'desc';
+                        _currentPage = 1;
+                      });
+                      _loadCandidates();
+                    },
+                  ),
+                  DataColumn(
+                    label: const Text('Student Name'),
+                    onSort: (_, asc) {
+                      setState(() {
+                        _sortBy = 'name';
+                        _sortDir = asc ? 'asc' : 'desc';
+                        _currentPage = 1;
+                      });
+                      _loadCandidates();
+                    },
+                  ),
+                  DataColumn(
+                    label: const Text('Status'),
+                    onSort: (_, asc) {
+                      setState(() {
+                        _sortBy = 'status';
+                        _sortDir = asc ? 'asc' : 'desc';
+                        _currentPage = 1;
+                      });
+                      _loadCandidates();
+                    },
+                  ),
+                  DataColumn(
+                    label: const Text('Violations'),
+                    onSort: (_, asc) {
+                      setState(() {
+                        _sortBy = 'violations';
+                        _sortDir = asc ? 'asc' : 'desc';
+                        _currentPage = 1;
+                      });
+                      _loadCandidates();
+                    },
+                  ),
+                  DataColumn(
+                    label: const Text('Last Activity'),
+                    onSort: (_, asc) {
+                      setState(() {
+                        _sortBy = 'activity';
+                        _sortDir = asc ? 'asc' : 'desc';
+                        _currentPage = 1;
+                      });
+                      _loadCandidates();
+                    },
+                  ),
                   const DataColumn(label: Text('Action')),
                 ],
                 rows: List.generate(_candidates.length, (i) {

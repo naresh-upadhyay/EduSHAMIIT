@@ -1352,6 +1352,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minWidth: constraints.maxWidth),
                       child: DataTable(
+                        showCheckboxColumn: false,
                         horizontalMargin: 12,
                         columnSpacing: 12,
                         columns: [

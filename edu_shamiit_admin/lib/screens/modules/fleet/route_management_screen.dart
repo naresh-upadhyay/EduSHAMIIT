@@ -5373,6 +5373,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       child: SizedBox(
                                         width: tableWidth,
                                         child: DataTable(
+                                          showCheckboxColumn: false,
                                           headingRowColor: WidgetStateProperty.all(_isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                                           dataRowMinHeight: 56,
                                           dataRowMaxHeight: 64,

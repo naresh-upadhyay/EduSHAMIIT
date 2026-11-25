@@ -29,24 +29,33 @@ class FakeWorkApiService extends WorkApiService {
     int limit = 100,
   }) async {
     return const [
-      WorkAssigneeModel(id: '1', userId: 'u1', fullName: 'King Doe', role: 'Super Admin'),
-      WorkAssigneeModel(id: '2', userId: 'u2', fullName: 'Dr. Neha Sharma', role: 'Teacher'),
-      WorkAssigneeModel(id: '3', userId: 'u3', fullName: 'Amit Kumar', role: 'Teacher'),
+      WorkAssigneeModel(
+          id: '1', userId: 'u1', fullName: 'King Doe', role: 'Super Admin'),
+      WorkAssigneeModel(
+          id: '2', userId: 'u2', fullName: 'Dr. Neha Sharma', role: 'Teacher'),
+      WorkAssigneeModel(
+          id: '3', userId: 'u3', fullName: 'Amit Kumar', role: 'Teacher'),
     ];
   }
 
   @override
-  Future<List<WorkSprintModel>> getSprints({String? boardId, bool forceRefresh = false}) async {
+  Future<List<WorkSprintModel>> getSprints(
+      {String? boardId, bool forceRefresh = false}) async {
     return const [
-      WorkSprintModel(id: 's8', name: 'Sprint 8', status: 'ACTIVE', sprintNumber: 8),
-      WorkSprintModel(id: 's9', name: 'Sprint 9', status: 'PLANNED', sprintNumber: 9),
+      WorkSprintModel(
+          id: 's8', name: 'Sprint 8', status: 'ACTIVE', sprintNumber: 8),
+      WorkSprintModel(
+          id: 's9', name: 'Sprint 9', status: 'PLANNED', sprintNumber: 9),
     ];
   }
 
   @override
   Future<List<WorkBoardModel>> getBoards({bool forceRefresh = false}) async {
     return const [
-      WorkBoardModel(id: '31dacd93-15ee-4eed-8994-56973fd81245', name: 'Institute Work Board', code: 'IWB'),
+      WorkBoardModel(
+          id: '31dacd93-15ee-4eed-8994-56973fd81245',
+          name: 'Institute Work Board',
+          code: 'IWB'),
       WorkBoardModel(id: 'b2', name: 'Academic Board', code: 'AB'),
     ];
   }
@@ -60,7 +69,11 @@ class MockWorkBacklogNotifier extends WorkBacklogNotifier {
   WorkBacklogState get state => initialState;
 
   @override
-  Future<void> loadBacklog({String? boardId, String? epicId, String? search, bool forceRefresh = false}) async {}
+  Future<void> loadBacklog(
+      {String? boardId,
+      String? epicId,
+      String? search,
+      bool forceRefresh = false}) async {}
 }
 
 class MockWorkListNotifier extends WorkListNotifier {
@@ -71,7 +84,8 @@ class MockWorkListNotifier extends WorkListNotifier {
   WorkListState get state => initialState;
 
   @override
-  Future<void> loadPagedItems({String? boardId, bool forceRefresh = false}) async {}
+  Future<void> loadPagedItems(
+      {String? boardId, bool forceRefresh = false}) async {}
 }
 
 class MockWorkBoardNotifier extends WorkBoardNotifier {
@@ -102,7 +116,8 @@ void main() {
     itemNumber: 'EP-001',
     title: '1 Campus Digital Transformation and Modernization Project',
     count: 15,
-    description: 'End-to-end digital transformation of campus operations, services and user experience.',
+    description:
+        'End-to-end digital transformation of campus operations, services and user experience.',
   );
 
   const testStory = WorkItemModel(
@@ -136,7 +151,7 @@ void main() {
     ],
   );
 
-  final mockBacklogState = WorkBacklogState(
+  const mockBacklogState = WorkBacklogState(
     stories: [testStory],
     selectedEpic: testEpic,
     epics: [testEpic],
@@ -152,14 +167,14 @@ void main() {
     isLoading: false,
   );
 
-  final mockListState = WorkListState(
+  const mockListState = WorkListState(
     items: [testStory],
     totalCount: 1,
     boardId: '31dacd93-15ee-4eed-8994-56973fd81245',
     isLoading: false,
   );
 
-  final mockBoardState = WorkBoardState(
+  const mockBoardState = WorkBoardState(
     columns: [
       const KanbanColumnModel(
         statusKey: 'NEW',
@@ -203,12 +218,14 @@ void main() {
     'Desktop Full HD (1920x1080)': const Size(1920, 1080),
   };
 
-  group('Work Management Multi-Device Responsiveness - Zero Overflow Guarantee', () {
+  group('Work Management Multi-Device Responsiveness - Zero Overflow Guarantee',
+      () {
     for (final entry in targetViewports.entries) {
       final deviceName = entry.key;
       final viewportSize = entry.value;
 
-      testWidgets('HeaderBar renders cleanly on $deviceName without overflow', (tester) async {
+      testWidgets('HeaderBar renders cleanly on $deviceName without overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
@@ -237,7 +254,9 @@ void main() {
         expect(find.text('Work Management'), findsOneWidget);
       });
 
-      testWidgets('BacklogTabView renders cleanly on $deviceName with zero overflow', (tester) async {
+      testWidgets(
+          'BacklogTabView renders cleanly on $deviceName with zero overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
@@ -245,7 +264,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              workBacklogProvider.overrideWith((ref) => MockWorkBacklogNotifier(mockBacklogState)),
+              workBacklogProvider.overrideWith(
+                  (ref) => MockWorkBacklogNotifier(mockBacklogState)),
             ],
             child: MaterialApp(
               theme: ThemeData.dark(),
@@ -274,7 +294,9 @@ void main() {
         expect(find.textContaining('EP-001'), findsWidgets);
       });
 
-      testWidgets('ListTabView renders cleanly on $deviceName with zero overflow', (tester) async {
+      testWidgets(
+          'ListTabView renders cleanly on $deviceName with zero overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
@@ -282,7 +304,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              workListProvider.overrideWith((ref) => MockWorkListNotifier(mockListState)),
+              workListProvider
+                  .overrideWith((ref) => MockWorkListNotifier(mockListState)),
             ],
             child: MaterialApp(
               theme: ThemeData.dark(),
@@ -310,7 +333,9 @@ void main() {
         expect(find.text('Total Work Items'), findsOneWidget);
       });
 
-      testWidgets('BoardTabView renders cleanly on $deviceName with zero overflow', (tester) async {
+      testWidgets(
+          'BoardTabView renders cleanly on $deviceName with zero overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
@@ -318,7 +343,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              workBoardProvider.overrideWith((ref) => MockWorkBoardNotifier(mockBoardState)),
+              workBoardProvider
+                  .overrideWith((ref) => MockWorkBoardNotifier(mockBoardState)),
             ],
             child: MaterialApp(
               theme: ThemeData.dark(),
@@ -345,7 +371,9 @@ void main() {
         expect(exc, isNull);
       });
 
-      testWidgets('SprintsTabView renders cleanly on $deviceName with zero overflow', (tester) async {
+      testWidgets(
+          'SprintsTabView renders cleanly on $deviceName with zero overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());
@@ -379,7 +407,9 @@ void main() {
         expect(find.text('All Sprints (Grid)'), findsOneWidget);
       });
 
-      testWidgets('SprintTeamTabView renders cleanly on $deviceName with zero overflow', (tester) async {
+      testWidgets(
+          'SprintTeamTabView renders cleanly on $deviceName with zero overflow',
+          (tester) async {
         tester.view.physicalSize = viewportSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(() => tester.view.resetPhysicalSize());

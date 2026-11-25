@@ -67,7 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      debugPrint('[PaymentBridgeLogin] Error loading remembered credentials: $e');
+      debugPrint(
+          '[PaymentBridgeLogin] Error loading remembered credentials: $e');
     }
   }
 
@@ -132,7 +133,8 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const MainNavigationShell()),
         );
       } else {
-        final err = res['detail']?.toString() ?? 'Login failed. Please check credentials.';
+        final err = res['detail']?.toString() ??
+            'Login failed. Please check credentials.';
         setState(() => _warningMessage = err);
         _showSnackBar(err, AppColors.errorRed);
       }
@@ -154,9 +156,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+    final emailRegex =
+        RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
     if (!emailRegex.hasMatch(email)) {
-      _showSnackBar('Please enter a valid email address', AppColors.warningOrange);
+      _showSnackBar(
+          'Please enter a valid email address', AppColors.warningOrange);
       return;
     }
 
@@ -167,7 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (res['success'] == true) {
-        _showSnackBar('Verification code sent to your email!', AppColors.successGreen);
+        _showSnackBar(
+            'Verification code sent to your email!', AppColors.successGreen);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -194,7 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
@@ -236,7 +242,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF1E3A8A).withValues(alpha: 0.25),
+                                color: const Color(0xFF1E3A8A)
+                                    .withValues(alpha: 0.25),
                                 blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),
@@ -249,7 +256,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 64,
                               height: 64,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
                                 Icons.account_balance_wallet_rounded,
                                 color: Colors.white,
                                 size: 36,
@@ -294,7 +302,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           offset: const Offset(0, 8),
                         ),
                       ],
-                      border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+                      border: Border.all(
+                          color: const Color(0xFFF1F5F9), width: 1.5),
                     ),
                     child: Form(
                       key: _formKey,
@@ -317,19 +326,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: const Color(0xFF64748B),
                             ),
                           ),
-
                           if (_warningMessage != null) ...[
                             const SizedBox(height: 14),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                                border:
+                                    Border.all(color: const Color(0xFFFCA5A5)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                                  const Icon(Icons.error_outline,
+                                      color: Color(0xFFEF4444), size: 18),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -345,19 +356,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ],
-
                           if (_otpErrorText != null) ...[
                             const SizedBox(height: 14),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                                border:
+                                    Border.all(color: const Color(0xFFFCA5A5)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                                  const Icon(Icons.error_outline,
+                                      color: Color(0xFFEF4444), size: 18),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -373,7 +386,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ],
-
                           const SizedBox(height: 20),
                           _buildInputLabel('Email Address'),
                           const SizedBox(height: 8),
@@ -383,8 +395,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             hint: 'Enter your email address',
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
-                            textInputAction: _activeTab == 0 ? TextInputAction.next : TextInputAction.done,
-                            autofillHints: const [AutofillHints.email, AutofillHints.username],
+                            textInputAction: _activeTab == 0
+                                ? TextInputAction.next
+                                : TextInputAction.done,
+                            autofillHints: const [
+                              AutofillHints.email,
+                              AutofillHints.username
+                            ],
                             onFieldSubmitted: (_) {
                               if (_activeTab == 0) {
                                 if (_passwordController.text.isNotEmpty) {
@@ -400,18 +417,17 @@ class _LoginScreenState extends State<LoginScreen> {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Email is required';
                               }
-                              final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+                              final emailRegex = RegExp(
+                                  r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
                               if (!emailRegex.hasMatch(value.trim())) {
                                 return 'Please enter a valid email';
                               }
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 20),
                           _buildMethodSelector(),
                           const SizedBox(height: 20),
-
                           if (_activeTab == 0) ...[
                             _buildInputLabel('Password'),
                             const SizedBox(height: 8),
@@ -434,10 +450,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   size: 18,
                                   color: const Color(0xFF94A3B8),
                                 ),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
                               validator: (value) {
-                                if (_activeTab == 0 && (value == null || value.isEmpty)) {
+                                if (_activeTab == 0 &&
+                                    (value == null || value.isEmpty)) {
                                   return 'Password is required';
                                 }
                                 return null;
@@ -452,17 +470,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                     final newVal = !_rememberMe;
                                     setState(() => _rememberMe = newVal);
                                     try {
-                                      final prefs = await SharedPreferences.getInstance();
-                                      await prefs.setBool('remember_me_state', newVal);
+                                      final prefs =
+                                          await SharedPreferences.getInstance();
+                                      await prefs.setBool(
+                                          'remember_me_state', newVal);
                                       if (!newVal) {
                                         await prefs.remove('remembered_email');
-                                        await prefs.remove('remembered_password');
+                                        await prefs
+                                            .remove('remembered_password');
                                       }
                                     } catch (_) {}
                                   },
                                   borderRadius: BorderRadius.circular(4),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 4, horizontal: 2),
                                     child: Row(
                                       children: [
                                         SizedBox(
@@ -470,19 +492,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                           height: 22,
                                           child: Checkbox(
                                             value: _rememberMe,
-                                            activeColor: const Color(0xFF6366F1),
+                                            activeColor:
+                                                const Color(0xFF6366F1),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             onChanged: (val) async {
                                               final newVal = val ?? false;
-                                              setState(() => _rememberMe = newVal);
+                                              setState(
+                                                  () => _rememberMe = newVal);
                                               try {
-                                                final prefs = await SharedPreferences.getInstance();
-                                                await prefs.setBool('remember_me_state', newVal);
+                                                final prefs =
+                                                    await SharedPreferences
+                                                        .getInstance();
+                                                await prefs.setBool(
+                                                    'remember_me_state',
+                                                    newVal);
                                                 if (!newVal) {
-                                                  await prefs.remove('remembered_email');
-                                                  await prefs.remove('remembered_password');
+                                                  await prefs.remove(
+                                                      'remembered_email');
+                                                  await prefs.remove(
+                                                      'remembered_password');
                                                 }
                                               } catch (_) {}
                                             },
@@ -504,13 +535,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onPressed: () {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const ForgotPasswordScreen()),
                                     );
                                   },
                                   style: TextButton.styleFrom(
                                     padding: EdgeInsets.zero,
                                     minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: Text(
                                     'Forgot Password?',
@@ -547,7 +581,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: _handleSendOtp,
                             ),
                           ],
-
                           const SizedBox(height: 22),
                           Center(
                             child: Column(
@@ -578,7 +611,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       AppColors.primaryNavy,
                                     );
                                   },
-                                  icon: const Icon(Icons.mail_outline, size: 14, color: Color(0xFF4F46E5)),
+                                  icon: const Icon(Icons.mail_outline,
+                                      size: 14, color: Color(0xFF4F46E5)),
                                   label: Text(
                                     'Contact Us / Submit Query',
                                     style: GoogleFonts.dmSans(
@@ -588,11 +622,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    side: const BorderSide(
+                                        color: Color(0xFFE2E8F0)),
                                   ),
                                 ),
                               ],
@@ -667,7 +703,8 @@ class _LoginScreenState extends State<LoginScreen> {
       style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
+        hintStyle:
+            GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
         prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 18),
         suffixIcon: suffixIcon,
         filled: true,
@@ -685,7 +722,8 @@ class _LoginScreenState extends State<LoginScreen> {
           borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
         ),
         errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
@@ -720,10 +758,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Container(
                   height: 48,
                   decoration: BoxDecoration(
-                    color: _activeTab == 0 ? const Color(0xFFEEF2FF) : Colors.white,
+                    color: _activeTab == 0
+                        ? const Color(0xFFEEF2FF)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _activeTab == 0 ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                      color: _activeTab == 0
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFFE2E8F0),
                       width: 1.5,
                     ),
                   ),
@@ -733,7 +775,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Icon(
                         Icons.lock_outline,
                         size: 16,
-                        color: _activeTab == 0 ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+                        color: _activeTab == 0
+                            ? const Color(0xFF6366F1)
+                            : const Color(0xFF64748B),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -741,7 +785,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: _activeTab == 0 ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+                          color: _activeTab == 0
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -756,10 +802,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Container(
                   height: 48,
                   decoration: BoxDecoration(
-                    color: _activeTab == 1 ? const Color(0xFFEEF2FF) : Colors.white,
+                    color: _activeTab == 1
+                        ? const Color(0xFFEEF2FF)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _activeTab == 1 ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                      color: _activeTab == 1
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFFE2E8F0),
                       width: 1.5,
                     ),
                   ),
@@ -769,7 +819,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Icon(
                         Icons.mail_outline,
                         size: 16,
-                        color: _activeTab == 1 ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+                        color: _activeTab == 1
+                            ? const Color(0xFF6366F1)
+                            : const Color(0xFF64748B),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -777,7 +829,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: _activeTab == 1 ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+                          color: _activeTab == 1
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -805,7 +859,8 @@ class _LoginScreenState extends State<LoginScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF6366F1),
           foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF6366F1).withOpacity(0.6),
+          disabledBackgroundColor:
+              const Color(0xFF6366F1).withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

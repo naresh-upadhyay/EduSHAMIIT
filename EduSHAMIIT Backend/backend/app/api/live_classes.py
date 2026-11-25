@@ -212,7 +212,14 @@ async def get_join_conduct_dashboard(
     )
     if not rows or not rows[0].get("data"):
         raise HTTPException(status_code=500, detail="Failed to load Join & Conduct dashboard")
-    return {"success": True, "data": rows[0]["data"]}
+    data = rows[0]["data"]
+    if isinstance(data, dict):
+        active_sess = data.get("active_session")
+        if isinstance(active_sess, dict):
+            is_really_live = bool(active_sess.get("is_live")) or str(active_sess.get("status", "")).lower() == "live"
+            if not is_really_live:
+                data["active_session"] = None
+    return {"success": True, "data": data}
 
 
 @router.get("/live-classes/dashboard/recordings")
@@ -529,25 +536,101 @@ async def start_live_class(
     return {"success": True, "message": "Class started successfully", "session_id": live_class_id}
 
 
-@router.post("/live-classes/{live_class_id}/end")
-async def end_live_class(
+async def _count_livekit_other_participants(room_name: str, exclude_user_id: Optional[str] = None) -> int:
+    """Count non-egress active WebRTC participants currently connected in the LiveKit room."""
+    livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
+    api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
+    now = int(time.time())
+    admin_claims = {
+        "iss": api_key,
+        "sub": "admin_backend",
+        "video": {"roomCreate": True, "roomAdmin": True, "roomList": True},
+        "exp": now + 120,
+    }
+    admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{livekit_url}/twirp/livekit.RoomService/ListParticipants",
+                headers=headers,
+                json={"room": room_name},
+                timeout=2.5,
+            )
+            if resp.status_code != 200:
+                return 0
+            items = resp.json().get("participants", []) or []
+            count = 0
+            for p in items:
+                ident = str(p.get("identity") or "")
+                if not ident or ident.startswith("EG_"):
+                    continue
+                if exclude_user_id and ident == str(exclude_user_id):
+                    continue
+                count += 1
+            return count
+    except Exception:
+        return 0
+
+
+async def _count_remaining_active_participants(
     live_class_id: str,
-    background_tasks: BackgroundTasks,
-    user=Depends(require_live_class_host),
-    school_id=Depends(require_school_id),
-):
-    """End a live class session, calculate attendance, and finalize egress."""
-    # Check recording state & start timestamp before finalizing status
+    exclude_user_id: Optional[str] = None,
+) -> int:
+    """Count remaining active participants across DB and LiveKit SFU."""
+    if exclude_user_id:
+        db_rows = await exec_sql(
+            """
+            SELECT COUNT(*)::INT AS cnt
+            FROM public.live_class_participants
+            WHERE live_class_id = %s AND leave_time IS NULL AND user_id::TEXT != %s;
+            """,
+            (live_class_id, str(exclude_user_id)),
+        )
+    else:
+        db_rows = await exec_sql(
+            """
+            SELECT COUNT(*)::INT AS cnt
+            FROM public.live_class_participants
+            WHERE live_class_id = %s AND leave_time IS NULL;
+            """,
+            (live_class_id,),
+        )
+    db_cnt = int((db_rows[0].get("cnt") if db_rows else 0) or 0)
+
+    guest_rows = await exec_sql(
+        """
+        SELECT COUNT(*)::INT AS cnt
+        FROM public.live_class_guest_participants
+        WHERE session_id = %s AND approval_status = 'APPROVED'
+          AND first_join_at IS NOT NULL AND last_leave_at IS NULL;
+        """,
+        (live_class_id,),
+    )
+    guest_cnt = int((guest_rows[0].get("cnt") if guest_rows else 0) or 0)
+    lk_cnt = await _count_livekit_other_participants(live_class_id, exclude_user_id=exclude_user_id)
+    return max(db_cnt + guest_cnt, lk_cnt)
+
+
+async def _finalize_end_live_class(
+    live_class_id: str,
+    school_id: Optional[str],
+    background_tasks: Optional[BackgroundTasks] = None,
+    reason: str = "ended_by_host",
+) -> None:
+    """End a live class session cleanly, close open attendees, compute attendance, and destroy room."""
     session_meta = await exec_sql(
         """
-        SELECT actual_start_at, scheduled_at, COALESCE(recording_enabled, FALSE) AS recording_enabled,
+        SELECT school_id, actual_start_at, scheduled_at, COALESCE(recording_enabled, FALSE) AS recording_enabled,
                COALESCE(recording_status, 'IDLE') AS recording_status
         FROM public.live_classes
-        WHERE id = %s AND school_id = %s;
+        WHERE id = %s;
         """,
-        (live_class_id, school_id),
+        (live_class_id,),
     )
     meta_row = session_meta[0] if session_meta else {}
+    resolved_school_id = school_id or (str(meta_row.get("school_id")) if meta_row.get("school_id") else None)
     was_recording = bool(meta_row.get("recording_enabled")) or str(meta_row.get("recording_status", "")).upper() in ("RECORDING", "ACTIVE", "COMPLETED")
     start_ts = meta_row.get("actual_start_at") or meta_row.get("scheduled_at")
     elapsed_sec = 0
@@ -560,31 +643,38 @@ async def end_live_class(
         except Exception:
             elapsed_sec = 60
 
-    # 1. Update session status in DB and reset active viewer_count
     await exec_sql(
         """
         UPDATE public.live_classes
-        SET status = 'recorded', is_live = FALSE, actual_end_at = NOW(),
+        SET status = 'recorded', is_live = FALSE, actual_end_at = COALESCE(actual_end_at, NOW()),
             recording_status = CASE WHEN COALESCE(recording_enabled, FALSE) OR UPPER(COALESCE(recording_status, '')) IN ('RECORDING','ACTIVE') THEN 'COMPLETED' ELSE COALESCE(recording_status, 'IDLE') END,
             viewer_count = 0, updated_at = NOW()
-        WHERE id = %s AND school_id = %s;
+        WHERE id = %s;
         """,
-        (live_class_id, school_id),
-        fetch=False
+        (live_class_id,),
+        fetch=False,
     )
 
-    # 1b. Close all open live_class_participants rows for this session
     await exec_sql(
         """
         UPDATE public.live_class_participants
-        SET leave_time = NOW(), last_leave_at = NOW(), updated_at = NOW()
+        SET leave_time = COALESCE(leave_time, NOW()), last_leave_at = NOW(), updated_at = NOW()
         WHERE live_class_id = %s AND leave_time IS NULL;
         """,
         (live_class_id,),
-        fetch=False
+        fetch=False,
     )
 
-    # 2. Close active connection segments
+    await exec_sql(
+        """
+        UPDATE public.live_class_guest_participants
+        SET last_leave_at = COALESCE(last_leave_at, NOW()), updated_at = NOW()
+        WHERE session_id = %s AND last_leave_at IS NULL AND first_join_at IS NOT NULL;
+        """,
+        (live_class_id,),
+        fetch=False,
+    )
+
     await exec_sql(
         """
         UPDATE public.live_class_connection_segments
@@ -593,39 +683,93 @@ async def end_live_class(
         WHERE session_id = %s AND left_at IS NULL;
         """,
         (live_class_id,),
-        fetch=False
+        fetch=False,
     )
 
-    # 3. Calculate attendance and link to institutional attendance system
-    await exec_sql(
-        "SELECT public.sp_auto_calculate_live_class_attendance(%s::UUID, %s::UUID);",
-        (live_class_id, school_id),
-        fetch=False
-    )
+    if resolved_school_id:
+        await exec_sql(
+            "SELECT public.sp_auto_calculate_live_class_attendance(%s::UUID, %s::UUID);",
+            (live_class_id, resolved_school_id),
+            fetch=False,
+        )
 
-    # 4. Finalize Egress recording synchronously/safely if recording was enabled or active
     if was_recording:
         await cleanup_room_egress_and_delete(live_class_id, elapsed_sec or 60)
-    else:
+    elif background_tasks is not None:
         background_tasks.add_task(cleanup_room_egress_and_delete, live_class_id, elapsed_sec or 60, False)
+    else:
+        await cleanup_room_egress_and_delete(live_class_id, elapsed_sec or 60, False)
 
-    return {"success": True, "message": "Class ended and attendance calculated successfully"}
+    if live_class_id in _active_connections:
+        event = {"type": "meeting.ended", "session_id": live_class_id, "reason": reason}
+        for peer in list(_active_connections[live_class_id]):
+            try:
+                await peer.send_json(event)
+            except Exception:
+                pass
+
+
+@router.post("/live-classes/{live_class_id}/end")
+async def end_live_class(
+    live_class_id: str,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_live_class_host),
+    school_id=Depends(require_school_id),
+):
+    """End a live class session for all participants, calculate attendance, and finalize egress."""
+    await _finalize_end_live_class(live_class_id, school_id, background_tasks, reason="ended_by_host")
+    return {"success": True, "auto_ended": False, "ended": True, "message": "Class ended for all participants and attendance calculated successfully"}
 
 
 @router.post("/live-classes/{live_class_id}/leave")
 async def student_leave_live_class(
     live_class_id: str,
+    background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
-    """Cleanly disconnect a student from a live session without ending the class for others."""
+    """Disconnect a host or student cleanly; auto-end the class if nobody remains in the meeting."""
     rows = await exec_sql(
         "SELECT public.sp_student_leave_live_class(%s::UUID, %s::UUID, %s::UUID) AS data;",
-        (live_class_id, user["id"], school_id)
+        (live_class_id, user["id"], school_id),
     )
-    if not rows or not rows[0].get("data"):
-        return {"success": True, "message": "Left session"}
-    return rows[0]["data"]
+    # Also ensure leave_time is closed if SP or race missed it
+    await exec_sql(
+        """
+        UPDATE public.live_class_participants
+        SET leave_time = COALESCE(leave_time, NOW()), last_leave_at = NOW(), updated_at = NOW()
+        WHERE live_class_id = %s AND user_id = %s AND leave_time IS NULL;
+        """,
+        (live_class_id, user["id"]),
+        fetch=False,
+    )
+
+    remaining = await _count_remaining_active_participants(live_class_id, exclude_user_id=str(user["id"]))
+
+    if remaining <= 0:
+        # Nobody left in the meeting -> auto-end cleanly
+        await _finalize_end_live_class(live_class_id, school_id, background_tasks, reason="empty_room")
+        return {
+            "success": True,
+            "auto_ended": True,
+            "remaining_participants": 0,
+            "message": "No other participants remained. Meeting ended automatically.",
+        }
+
+    # Keep session alive cleanly for remaining participants
+    await exec_sql(
+        "UPDATE public.live_classes SET viewer_count = %s, updated_at = NOW() WHERE id = %s;",
+        (remaining, live_class_id),
+        fetch=False,
+    )
+    base_data = rows[0]["data"] if rows and isinstance(rows[0].get("data"), dict) else {}
+    return {
+        **base_data,
+        "success": True,
+        "auto_ended": False,
+        "remaining_participants": remaining,
+        "message": f"Left meeting. Class continues live with {remaining} participant(s).",
+    }
 
 
 @router.post("/live-classes/watchdog/clean-stale")
@@ -764,13 +908,15 @@ async def list_recordings(
     status_filter: Optional[str] = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(8, ge=1, le=50),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("DESC"),
     user=Depends(get_current_user),
     school_id=Depends(require_school_id),
 ):
     """Paginated recordings table."""
     rows = await exec_sql(
-        "SELECT public.sp_get_live_class_recordings_list(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT) AS data;",
-        (school_id, _safe_uuid(class_id), _safe_uuid(subject_id), _safe_uuid(teacher_id), search, status_filter, page, page_size)
+        "SELECT public.sp_get_live_class_recordings_list(%s::UUID, %s::UUID, %s::UUID, %s::UUID, %s::TEXT, %s::TEXT, %s::INT, %s::INT, %s::TEXT, %s::TEXT) AS data;",
+        (school_id, _safe_uuid(class_id), _safe_uuid(subject_id), _safe_uuid(teacher_id), search, status_filter, page, page_size, sort_by, sort_order)
     )
     if not rows or not rows[0].get("data"):
         return {"success": True, "data": {"items": [], "total_count": 0, "page": page}}
@@ -1776,18 +1922,18 @@ async def initiate_room_egress(room_name: str):
     livekit_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
     api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretkey_edushamiit_livekit_2026_secure")
-    
+
     print(f"[Egress] Starting room composite egress for room: {room_name}")
-    await asyncio.sleep(8)
-    
     now = int(time.time())
     admin_claims = {
         "iss": api_key,
         "sub": "admin_backend",
-        "video": {"roomRecord": True, "roomAdmin": True},
+        "video": {"roomCreate": True, "roomRecord": True, "roomAdmin": True},
         "exp": now + 600
     }
     admin_token = jwt.encode(admin_claims, api_secret, algorithm="HS256")
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+
     payload = {
         "room_name": room_name,
         "layout": "speaker",
@@ -1809,13 +1955,20 @@ async def initiate_room_egress(room_name: str):
     }
     try:
         async with httpx.AsyncClient() as client:
+            # Ensure room exists in LiveKit before starting egress
+            await client.post(
+                f"{livekit_url}/twirp/livekit.RoomService/CreateRoom",
+                headers=headers,
+                json={"name": room_name, "empty_timeout": 600, "max_participants": 200},
+                timeout=5.0,
+            )
             resp = await client.post(
                 f"{livekit_url}/twirp/livekit.Egress/StartRoomCompositeEgress",
-                headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"},
+                headers=headers,
                 json=payload,
                 timeout=15.0
             )
-            print(f"[Egress] Start egress status: {resp.status_code}")
+            print(f"[Egress] Start egress status: {resp.status_code} {resp.text[:200]}")
     except Exception as e:
         print(f"[Egress] Exception starting egress: {e}")
 
@@ -1938,35 +2091,58 @@ async def cleanup_room_egress_and_delete(
         computed_dur = 60
 
     exists, real_size = minio_client.check_file_exists_and_get_size(live_class_id)
-    storage_base = os.environ.get("STORAGE_PUBLIC_URL", "http://localhost:8000/storage/v1/object/public").rstrip("/")
     storage_key = f"{live_class_id}.mp4" if exists else None
     file_size = real_size if (exists and real_size > 0) else 0
 
     existing_rec = await exec_sql(
-        "SELECT id::TEXT AS id FROM public.live_class_recordings WHERE live_class_id = %s::UUID AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1;",
+        """
+        SELECT id::TEXT AS id, COALESCE(file_size, 0) AS file_size, storage_key, recording_url
+        FROM public.live_class_recordings
+        WHERE live_class_id = %s::UUID AND deleted_at IS NULL
+        ORDER BY created_at DESC LIMIT 1;
+        """,
         (live_class_id,),
     )
     if existing_rec:
         rec_id = existing_rec[0]["id"]
-        recording_url = f"/api/live-classes/recordings/{rec_id}/stream" if exists else f"{storage_base}/live-classes/{live_class_id}.mp4"
-        await exec_sql(
-            """
-            UPDATE public.live_class_recordings
-            SET title = %s,
-                duration = %s,
-                file_size = CASE WHEN %s > 0 THEN %s ELSE file_size END,
-                storage_key = COALESCE(storage_key, %s),
-                recording_url = %s,
-                processing_status = 'Processed',
-                updated_at = NOW()
-            WHERE id = %s::UUID;
-            """,
-            (resolved_title, computed_dur, file_size, file_size, storage_key, recording_url, rec_id),
-            fetch=False,
-        )
-    else:
+        existing_size = int(existing_rec[0].get("file_size") or 0)
+        # Preserve browser-captured recording bytes & stream URL if already uploaded
+        if existing_size > 0:
+            await exec_sql(
+                """
+                UPDATE public.live_class_recordings
+                SET title = %s,
+                    processing_status = 'Processed',
+                    updated_at = NOW()
+                WHERE id = %s::UUID;
+                """,
+                (resolved_title, rec_id),
+                fetch=False,
+            )
+            return
+        if exists and file_size > 0:
+            recording_url = f"/api/live-classes/recordings/{rec_id}/stream"
+            await exec_sql(
+                """
+                UPDATE public.live_class_recordings
+                SET title = %s,
+                    duration = %s,
+                    file_size = %s,
+                    storage_key = %s,
+                    recording_url = %s,
+                    processing_status = 'Processed',
+                    updated_at = NOW()
+                WHERE id = %s::UUID;
+                """,
+                (resolved_title, computed_dur, file_size, storage_key, recording_url, rec_id),
+                fetch=False,
+            )
+        return
+
+    # Only persist Egress recording row if actual media bytes were produced
+    if exists and file_size > 0:
         rec_id = str(uuid.uuid4())
-        recording_url = f"/api/live-classes/recordings/{rec_id}/stream" if exists else f"{storage_base}/live-classes/{live_class_id}.mp4"
+        recording_url = f"/api/live-classes/recordings/{rec_id}/stream"
         await exec_sql(
             """
             INSERT INTO public.live_class_recordings (
@@ -2032,6 +2208,28 @@ async def live_class_websocket(websocket: WebSocket, session_id: str):
     except WebSocketDisconnect:
         if session_id in _active_connections and websocket in _active_connections[session_id]:
             _active_connections[session_id].remove(websocket)
+        if not _active_connections.get(session_id):
+            async def _auto_end_empty_after_grace(sid: str):
+                await asyncio.sleep(4.0)
+                if _active_connections.get(sid):
+                    return
+                try:
+                    live_rows = await exec_sql(
+                        "SELECT id, status, is_live FROM public.live_classes WHERE id = %s;",
+                        (sid,),
+                    )
+                    if not live_rows:
+                        return
+                    row = live_rows[0]
+                    if not (row.get("is_live") or str(row.get("status", "")).lower() == "live"):
+                        return
+                    rem = await _count_remaining_active_participants(sid)
+                    if rem <= 0:
+                        await _finalize_end_live_class(sid, None, reason="empty_room")
+                except Exception as exc:
+                    print(f"[LiveClassWS] Auto-end empty room notice: {exc}")
+
+            asyncio.create_task(_auto_end_empty_after_grace(session_id))
 
 
 # ============================================================================
@@ -2341,9 +2539,11 @@ async def remove_participant(
 async def toggle_recording(
     session_id: str,
     background_tasks: BackgroundTasks,
+    action: Optional[str] = Query(default=None),
+    payload: Optional[Dict[str, Any]] = Body(default=None),
     user=Depends(require_live_class_host),
 ):
-    """Toggle Egress recording on or off during active class."""
+    """Start, stop, or toggle Egress recording during active class (supports explicit action='start'|'stop')."""
     rows = await exec_sql(
         "SELECT recording_status, actual_start_at, updated_at FROM public.live_classes WHERE id = %s;",
         (session_id,),
@@ -2352,7 +2552,19 @@ async def toggle_recording(
         raise HTTPException(status_code=404, detail="Session not found")
 
     current_status = rows[0].get("recording_status", "IDLE")
-    if current_status in ("RECORDING", "ACTIVE"):
+    requested_action = (
+        (action or "")
+        or (str(payload.get("action") or "") if isinstance(payload, dict) else "")
+    ).strip().lower()
+
+    if requested_action == "start":
+        want_stop = False
+    elif requested_action == "stop":
+        want_stop = True
+    else:
+        want_stop = current_status in ("RECORDING", "ACTIVE")
+
+    if want_stop:
         new_status = "COMPLETED"
         start_ts = rows[0].get("updated_at") or rows[0].get("actual_start_at")
         elapsed_sec = 60
@@ -2369,7 +2581,8 @@ async def toggle_recording(
     else:
         new_status = "RECORDING"
         await exec_sql("UPDATE public.live_classes SET recording_status = 'RECORDING', recording_enabled = TRUE, updated_at = NOW() WHERE id = %s;", (session_id,))
-        background_tasks.add_task(initiate_room_egress, session_id)
+        if current_status not in ("RECORDING", "ACTIVE"):
+            background_tasks.add_task(initiate_room_egress, session_id)
 
     if session_id in _active_connections:
         event = {"type": "recording.status_changed", "recording_status": new_status}

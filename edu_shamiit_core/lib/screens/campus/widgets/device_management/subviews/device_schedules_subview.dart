@@ -78,9 +78,11 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
   bool _isDependenciesExpanded = false;
   bool _isAuditLogsExpanded = false;
 
-  // Pagination
+  // Pagination & Sort
   int _currentPage = 1;
   int _rowsPerPage = 10;
+  String _sortBy = 'created_at';
+  String _sortDir = 'desc';
 
   @override
   void initState() {
@@ -145,11 +147,51 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
     }
   }
 
+  void _toggleScheduleSort(String colKey) {
+    setState(() {
+      if (_sortBy == colKey) {
+        _sortDir = _sortDir == 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortBy = colKey;
+        _sortDir = 'asc';
+      }
+      _currentPage = 1;
+    });
+    _loadSchedules();
+  }
+
+  Widget _buildScheduleSortLabel(String label, String colKey) {
+    final isActive = _sortBy == colKey;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: isActive ? const Color(0xFF2563EB) : null,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Icon(
+          isActive
+              ? (_sortDir == 'asc' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+              : Icons.unfold_more_rounded,
+          size: 13,
+          color: isActive ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+        ),
+      ],
+    );
+  }
+
   Future<void> _loadSchedules() async {
     try {
       final queryParams = <String, String>{
         'limit': '100',
         'offset': '0',
+        'sort_by': _sortBy,
+        'sort_dir': _sortDir,
       };
       if (_searchController.text.trim().isNotEmpty) {
         queryParams['search'] = _searchController.text.trim();
@@ -1308,7 +1350,11 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
       );
     }
 
-    final allSelected = schedules.isNotEmpty && schedules.every((s) => _selectedScheduleIds.contains(s.id));
+    final totalPages = (schedules.length / _rowsPerPage).ceil().clamp(1, 9999);
+    final safePage = _currentPage.clamp(1, totalPages);
+    final startIdx = (safePage - 1) * _rowsPerPage;
+    final pagedSchedules = schedules.skip(startIdx).take(_rowsPerPage).toList();
+    final allSelected = pagedSchedules.isNotEmpty && pagedSchedules.every((s) => _selectedScheduleIds.contains(s.id));
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1333,7 +1379,7 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
                   onChanged: (val) {
                     setState(() {
                       if (val == true) {
-                        for (final s in schedules) {
+                        for (final s in pagedSchedules) {
                           _selectedScheduleIds.add(s.id);
                         }
                       } else {
@@ -1344,15 +1390,30 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
                 ),
               ),
             ),
-            const DataColumn(label: Text('SCHEDULE NAME', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-            const DataColumn(label: Text('TARGET', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-            const DataColumn(label: Text('OPERATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+            DataColumn(
+              label: _buildScheduleSortLabel('SCHEDULE NAME', 'name'),
+              onSort: (_, __) => _toggleScheduleSort('name'),
+            ),
+            DataColumn(
+              label: _buildScheduleSortLabel('TARGET', 'target'),
+              onSort: (_, __) => _toggleScheduleSort('target'),
+            ),
+            DataColumn(
+              label: _buildScheduleSortLabel('OPERATION', 'operation'),
+              onSort: (_, __) => _toggleScheduleSort('operation'),
+            ),
             const DataColumn(label: Text('SCHEDULE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-            const DataColumn(label: Text('NEXT RUN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
-            const DataColumn(label: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
+            DataColumn(
+              label: _buildScheduleSortLabel('NEXT RUN', 'next_run_at'),
+              onSort: (_, __) => _toggleScheduleSort('next_run_at'),
+            ),
+            DataColumn(
+              label: _buildScheduleSortLabel('STATUS', 'status'),
+              onSort: (_, __) => _toggleScheduleSort('status'),
+            ),
             const DataColumn(label: Text('ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))),
           ],
-          rows: schedules.map((schedule) {
+          rows: pagedSchedules.map((schedule) {
             final isRowSelected = _selectedSchedule?.id == schedule.id;
             final isChecked = _selectedScheduleIds.contains(schedule.id);
 
@@ -1752,8 +1813,15 @@ class _DeviceSchedulesSubviewState extends State<DeviceSchedulesSubview> {
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
-                items: const [10, 25, 50].map((n) => DropdownMenuItem(value: n, child: Text('$n'))).toList(),
-                onChanged: (v) => setState(() => _rowsPerPage = v!),
+                items: const [10, 25, 50, 100].map((n) => DropdownMenuItem(value: n, child: Text('$n'))).toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      _rowsPerPage = v;
+                      _currentPage = 1;
+                    });
+                  }
+                },
               ),
               const SizedBox(width: 8),
               IconButton(

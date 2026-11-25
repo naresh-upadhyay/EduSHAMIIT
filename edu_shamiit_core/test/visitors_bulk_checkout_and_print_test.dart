@@ -88,6 +88,7 @@ class MockBulkVisitorsApiService extends VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async {
     return VisitorKPIs.fromJson({
       'total_month': 200,

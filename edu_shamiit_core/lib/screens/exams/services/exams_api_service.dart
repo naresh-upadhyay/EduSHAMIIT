@@ -147,13 +147,17 @@ class ExamsApiService {
     String? endDate,
     int page = 1,
     int pageSize = 10,
+    String? sortBy,
+    String sortOrder = 'asc',
   }) async {
     try {
       final params = <String, String>{
         'status_tab': statusTab,
         'page': page.toString(),
         'page_size': pageSize.toString(),
+        'sort_order': sortOrder,
       };
+      if (sortBy != null && sortBy.trim().isNotEmpty) params['sort_by'] = sortBy.trim();
       if (search != null && search.trim().isNotEmpty) params['search'] = search.trim();
       if (className != null && className != 'All' && className != 'All Classes') params['class_name'] = className;
       if (type != null && type != 'All' && type != 'All Types') params['type'] = type;
@@ -1505,11 +1509,15 @@ class ExamsApiService {
     String? tab,
     int page = 1,
     int pageSize = 10,
+    String sortBy = 'created_at',
+    String sortOrder = 'desc',
   }) async {
     try {
       final params = <String, String>{
         'page': page.toString(),
         'page_size': pageSize.toString(),
+        'sort_by': sortBy,
+        'sort_order': sortOrder,
       };
       if (search != null && search.isNotEmpty) params['search'] = search;
       if (subject != null && subject != 'All') params['subject'] = subject;
@@ -1566,6 +1574,32 @@ class ExamsApiService {
     } catch (e) {
       return {'questions': <QuestionBankItem>[], 'total_count': 0, 'page': 1, 'page_size': pageSize, 'kpis': {}};
     }
+  }
+
+  /// Perform bulk actions on selected Question Bank items
+  Future<Map<String, dynamic>> bulkQuestionBankAction({
+    required List<String> questionIds,
+    required String action,
+    String? difficulty,
+  }) async {
+    final endpoints = [
+      '$baseUrl/exams/question-bank/bulk-action',
+      '$baseUrl/question-bank/bulk-action',
+    ];
+    final body = json.encode({
+      'question_ids': questionIds,
+      'action': action,
+      if (difficulty != null && difficulty.isNotEmpty) 'difficulty': difficulty,
+    });
+    for (final ep in endpoints) {
+      try {
+        final res = await _client.post(Uri.parse(ep), headers: await _getHeaders(), body: body);
+        if (res.statusCode == 200) {
+          return _toMap(json.decode(res.body));
+        }
+      } catch (_) {}
+    }
+    return {'success': false, 'message': 'Bulk operation failed'};
   }
 
   /// Get sections and assigned questions for an exam paper

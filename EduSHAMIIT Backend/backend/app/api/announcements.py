@@ -75,6 +75,8 @@ async def list_announcements(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc"),
     user=Depends(require_super_admin_or_director)
 ):
     sb = get_supabase()
@@ -92,7 +94,17 @@ async def list_announcements(
 
     offset = (page - 1) * page_size
 
-    q = q.order("created_at", ascending=False).limit(page_size).offset(offset)
+    sort_col_map = {
+        "title": "title",
+        "priority": "priority",
+        "status": "status",
+        "school_id": "school_id",
+        "created_at": "created_at",
+    }
+    sort_col = sort_col_map.get(sort_by or "created_at", "created_at")
+    sort_asc = (sort_order or "desc").lower() == "asc"
+
+    q = q.order(sort_col, ascending=sort_asc).limit(page_size).offset(offset)
 
     try:
         res = await q.aexecute()

@@ -285,33 +285,6 @@ class _UtilitiesServicesTabViewState extends ConsumerState<UtilitiesServicesTabV
                       ],
                       rows: (() {
                         final list = List<Map<String, dynamic>>.from(readingLogs);
-                        if (sortCol != null) {
-                          list.sort((a, b) {
-                            int cmp = 0;
-                            switch (sortCol) {
-                              case 0:
-                                cmp = (a['timestamp'] ?? a['recorded_at'] ?? '').toString().compareTo((b['timestamp'] ?? b['recorded_at'] ?? '').toString());
-                                break;
-                              case 1:
-                                cmp = (a['utility_name'] ?? a['utility'] ?? '').toString().compareTo((b['utility_name'] ?? b['utility'] ?? '').toString());
-                                break;
-                              case 2:
-                                cmp = (a['reading_value'] ?? a['reading'] ?? '').toString().compareTo((b['reading_value'] ?? b['reading'] ?? '').toString());
-                                break;
-                              case 3:
-                                cmp = (a['location'] ?? '').toString().compareTo((b['location'] ?? '').toString());
-                                break;
-                              case 4:
-                                cmp = (a['recorded_by'] ?? '').toString().compareTo((b['recorded_by'] ?? '').toString());
-                                break;
-                              case 5:
-                                cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
-                                break;
-                            }
-                            return sortAsc ? cmp : -cmp;
-                          });
-                        }
-
                         return list.map((log) {
                           final status = log['status']?.toString() ?? 'Normal';
                           final isNormal = status == 'Normal' || status == 'Optimal' || status == 'Adequate' || status == 'Healthy' || status == 'Certified Pure' || status == 'Standby Ready';

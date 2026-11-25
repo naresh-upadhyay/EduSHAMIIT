@@ -36,6 +36,7 @@ class MockDynamicKpiApiService extends VisitorsApiService {
     String? dateRangeLabel,
     String? location,
     String? category,
+    String? search,
   }) async {
     lastDateFrom = dateFrom;
     lastDateTo = dateTo;
@@ -46,9 +47,9 @@ class MockDynamicKpiApiService extends VisitorsApiService {
   }
 
   @override
-  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo}) async => const ScheduledKPIs();
+  Future<ScheduledKPIs> getScheduledKPIs({String? dateFrom, String? dateTo, String? location, String? category, String? search}) async => const ScheduledKPIs();
   @override
-  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo}) async => const BlacklistKPIs();
+  Future<BlacklistKPIs> getBlacklistKPIs({String? dateFrom, String? dateTo, String? location, String? reason, String? search}) async => const BlacklistKPIs();
   @override
   Future<Map<String, dynamic>> getVisits({
     String search = '',

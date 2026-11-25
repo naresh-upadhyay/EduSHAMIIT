@@ -677,6 +677,7 @@ class _OccupancySubtabViewState extends ConsumerState<OccupancySubtabView> {
     Widget tableWidget = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+              showCheckboxColumn: false,
               headingRowHeight: 40,
               dataRowMinHeight: 48,
               dataRowMaxHeight: 56,

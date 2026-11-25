@@ -21,7 +21,7 @@ void registerRecordingVideoElement(
       ..src = url
       ..controls = showNativeControls
       ..autoplay = autoplay
-      ..preload = 'metadata'
+      ..preload = 'auto'
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.backgroundColor = '#0B1120'
@@ -32,6 +32,30 @@ void registerRecordingVideoElement(
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.setAttribute('controlsList', '');
+    try {
+      js.JsObject.fromBrowserObject(video)['disablePictureInPicture'] = false;
+    } catch (_) {}
+
+    // If an orphaned detached video is still stuck in Picture-in-Picture, exit it cleanly
+    try {
+      js.context.callMethod('eval', [
+        '''
+        try {
+          if (document.pictureInPictureElement && !document.pictureInPictureElement.isConnected) {
+            document.exitPictureInPicture();
+          }
+        } catch (_) {}
+        '''
+      ]);
+    } catch (_) {}
+
+    video.addEventListener('enterpictureinpicture', (_) {
+      try {
+        if (video.ended) {
+          video.currentTime = 0;
+        }
+      } catch (_) {}
+    });
 
     _videoRegistry[viewType] = video;
 
@@ -145,10 +169,48 @@ bool requestRecordingFullscreen(String viewType) {
 bool requestRecordingPiP(String viewType) {
   final v = _findVideo(viewType);
   if (v == null) return false;
+  final targetId = 'rec-video-$viewType';
   try {
-    js.JsObject.fromBrowserObject(v).callMethod('requestPictureInPicture', []);
+    js.context.callMethod('eval', [
+      '''
+      (function() {
+        try {
+          const el = document.getElementById('$targetId');
+          if (!el) return;
+          if (document.pictureInPictureElement === el) {
+            document.exitPictureInPicture();
+          } else {
+            if (el.ended) el.currentTime = 0;
+            el.requestPictureInPicture();
+          }
+        } catch (_) {}
+      })();
+      '''
+    ]);
     return true;
   } catch (_) {
     return false;
   }
+}
+
+void disposeRecordingVideoElement(String viewType) {
+  final v = _videoRegistry.remove(viewType);
+  if (v == null) return;
+  final targetId = 'rec-video-$viewType';
+  try {
+    js.context.callMethod('eval', [
+      '''
+      try {
+        if (document.pictureInPictureElement && document.pictureInPictureElement.id === '$targetId') {
+          document.exitPictureInPicture();
+        }
+      } catch (_) {}
+      '''
+    ]);
+  } catch (_) {}
+  try {
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+  } catch (_) {}
 }

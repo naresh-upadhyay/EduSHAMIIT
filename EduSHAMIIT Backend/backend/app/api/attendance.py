@@ -599,6 +599,8 @@ async def get_staff_attendance(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     manager_id: Optional[str] = Query(None, description="Optional manager UUID or 'MY_REPORTS'"),
+    sort_by: str = Query("full_name"),
+    sort_order: str = Query("ASC"),
     current_user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
@@ -616,8 +618,8 @@ async def get_staff_attendance(
         scoped_manager = user_id
 
     rows = await exec_sql(
-        "SELECT public.fn_get_staff_attendance_roster(%s::UUID, %s::DATE, %s, %s, %s, %s, %s, %s, %s::UUID) AS result;",
-        (school_id, attendance_date, department, role, status, search.strip(), page, page_size, scoped_manager)
+        "SELECT public.fn_get_staff_attendance_roster(%s::UUID, %s::DATE, %s, %s, %s, %s, %s, %s, %s::UUID, %s, %s) AS result;",
+        (school_id, attendance_date, department, role, status, search.strip(), page, page_size, scoped_manager, sort_by, sort_order)
     )
     if not rows or not rows[0].get("result"):
         return {"success": True, "data": {"staff": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 0}}

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../utils/download_helper.dart';
 import '../../models/inventory_models.dart';
 import '../../providers/inventory_provider.dart';
 import '../../services/inventory_api_service.dart';
@@ -817,7 +819,11 @@ class _StockOverviewTabState extends ConsumerState<StockOverviewTab> {
                     label: const Text('Export Selected'),
                     onPressed: () async {
                       try {
-                        await ref.read(inventoryApiServiceProvider).exportCsv('items', selectedIds: _selectedItemIds.toList());
+                        final csvContent = await ref.read(inventoryApiServiceProvider).exportCsv('items', selectedIds: _selectedItemIds.toList());
+                        await getDownloadHelper().downloadBytes(
+                          utf8.encode(csvContent),
+                          'inventory_selected_items.csv',
+                        );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Exported ${_selectedItemIds.length} items successfully.')),

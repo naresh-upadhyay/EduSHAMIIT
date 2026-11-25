@@ -10,12 +10,14 @@ class AzureGridColumn<T> {
   final Widget Function(T item) cellBuilder;
   final double width;
   final int Function(T a, T b)? compare;
+  final String? sortKey;
 
   AzureGridColumn({
     required this.label,
     required this.cellBuilder,
     this.width = 150.0,
     this.compare,
+    this.sortKey,
   });
 }
 
@@ -61,6 +63,13 @@ class AzureGrid<T> extends StatefulWidget {
   final bool disableVerticalScroll;
   final bool loading;
   final void Function(String label, String value)? onFilterChanged;
+  final int? totalItemsOverride;
+  final int? currentPageOverride;
+  final int? pageSizeOverride;
+  final void Function(int colIndex, String? sortKey, bool ascending)?
+      onSortChanged;
+  final void Function(int page)? onPageChanged;
+  final void Function(int pageSize)? onPageSizeChanged;
 
   const AzureGrid({
     super.key,
@@ -80,6 +89,12 @@ class AzureGrid<T> extends StatefulWidget {
     this.disableVerticalScroll = false,
     this.loading = false,
     this.onFilterChanged,
+    this.totalItemsOverride,
+    this.currentPageOverride,
+    this.pageSizeOverride,
+    this.onSortChanged,
+    this.onPageChanged,
+    this.onPageSizeChanged,
   });
 
   @override
@@ -138,8 +153,10 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
       }
     }
 
-    // 3. Apply Sorting
-    if (_sortColumnIndex != null && _sortColumnIndex! < widget.columns.length) {
+    // 3. Apply Sorting (skip local sort when server-side sorting is active)
+    if (widget.onSortChanged == null &&
+        _sortColumnIndex != null &&
+        _sortColumnIndex! < widget.columns.length) {
       final col = widget.columns[_sortColumnIndex!];
       if (col.compare != null) {
         results.sort((a, b) {
@@ -152,24 +169,45 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     return results;
   }
 
+  void _goToPage(int targetPage) {
+    setState(() => _currentPage = targetPage);
+    widget.onPageChanged?.call(targetPage);
+  }
+
   @override
   Widget build(BuildContext context) {
     final processed = _processedItems;
     final isMobile = Responsive.isMobile(context);
 
-    // Compute paginated subset
-    final totalItems = processed.length;
-    final totalPages = (totalItems / _pageSize).ceil();
-    if (_currentPage >= totalPages && totalPages > 0) {
-      _currentPage = totalPages - 1;
-    } else if (totalPages == 0) {
-      _currentPage = 0;
-    }
+    // Compute paginated subset (supports both local and server-driven pagination)
+    final activePageSize = widget.pageSizeOverride ?? _pageSize;
+    final isServerPaged =
+        widget.totalItemsOverride != null || widget.onPageChanged != null;
+    final totalItems = widget.totalItemsOverride ?? processed.length;
+    final totalPages = (totalItems / activePageSize).ceil();
 
-    final startIndex = _currentPage * _pageSize;
-    final endIndex = min(startIndex + _pageSize, totalItems);
-    final pagedItems =
-        totalItems > 0 ? processed.sublist(startIndex, endIndex) : <T>[];
+    int activePage;
+    int startIndex;
+    int endIndex;
+    List<T> pagedItems;
+    if (isServerPaged) {
+      final maxPageIdx = max(0, totalPages - 1);
+      activePage = (widget.currentPageOverride ?? _currentPage).clamp(0, maxPageIdx);
+      startIndex = totalItems == 0 ? 0 : activePage * activePageSize;
+      endIndex = min(startIndex + processed.length, totalItems);
+      pagedItems = processed;
+    } else {
+      if (_currentPage >= totalPages && totalPages > 0) {
+        _currentPage = totalPages - 1;
+      } else if (totalPages == 0) {
+        _currentPage = 0;
+      }
+      activePage = _currentPage;
+      startIndex = activePage * activePageSize;
+      endIndex = min(startIndex + activePageSize, totalItems);
+      pagedItems =
+          totalItems > 0 ? processed.sublist(startIndex, endIndex) : <T>[];
+    }
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -219,8 +257,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
           const Divider(height: 1, thickness: 1),
 
           // 3. Pagination Controls (Footer)
-          _buildPaginationFooter(
-              totalItems, startIndex, endIndex, totalPages, isDark),
+          _buildPaginationFooter(totalItems, startIndex, endIndex, totalPages,
+              isDark, activePage, activePageSize),
         ],
       ),
     );
@@ -680,6 +718,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             final colWidth = col.width * scale;
 
             final isSorted = _sortColumnIndex == idx;
+            final isSortable = col.compare != null || col.sortKey != null;
 
             Widget headerCell = Row(
               mainAxisSize: MainAxisSize.min,
@@ -692,7 +731,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                     maxLines: 1,
                   ),
                 ),
-                if (col.compare != null) ...[
+                if (isSortable) ...[
                   const SizedBox(width: 4),
                   Icon(
                     isSorted
@@ -711,21 +750,32 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               ],
             );
 
-            if (col.compare != null) {
+            if (isSortable) {
               headerCell = InkWell(
                 onTap: () {
-                  setState(() {
-                    if (_sortColumnIndex == idx) {
-                      if (_sortAscending) {
-                        _sortAscending = false;
-                      } else {
-                        _sortColumnIndex = null; // reset sort
-                      }
-                    } else {
+                  if (widget.onSortChanged != null) {
+                    final bool nextAsc =
+                        (_sortColumnIndex == idx) ? !_sortAscending : true;
+                    setState(() {
                       _sortColumnIndex = idx;
-                      _sortAscending = true;
-                    }
-                  });
+                      _sortAscending = nextAsc;
+                      _currentPage = 0;
+                    });
+                    widget.onSortChanged!(idx, col.sortKey, nextAsc);
+                  } else {
+                    setState(() {
+                      if (_sortColumnIndex == idx) {
+                        if (_sortAscending) {
+                          _sortAscending = false;
+                        } else {
+                          _sortColumnIndex = null; // reset sort
+                        }
+                      } else {
+                        _sortColumnIndex = idx;
+                        _sortAscending = true;
+                      }
+                    });
+                  }
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -963,8 +1013,11 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
 
   // ─── FOOTER & PAGINATION BUILDER ──────────────────────────────────
   Widget _buildPaginationFooter(int totalItems, int startIndex, int endIndex,
-      int totalPages, bool isDark) {
+      int totalPages, bool isDark, int activePage, int activePageSize) {
     final footerBg = isDark ? const Color(0xFF18181F) : const Color(0xFFF8F9FA);
+    final pageSizes = [5, 10, 25, 50, 100];
+    final dropdownValue =
+        pageSizes.contains(activePageSize) ? activePageSize : 10;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -990,7 +1043,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               SizedBox(
                 height: 28,
                 child: AppSearchableDropdown<int>.fromMenuItems(
-                  value: _pageSize,
+                  value: dropdownValue,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: isDark ? Colors.white : Colors.black87,
@@ -998,7 +1051,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                   dropdownColor:
                       isDark ? const Color(0xFF262633) : Colors.white,
                   underline: const SizedBox(),
-                  items: [5, 10, 25, 50, 100].map((size) {
+                  items: pageSizes.map((size) {
                     return DropdownMenuItem<int>(
                       value: size,
                       child: Text('$size'),
@@ -1010,6 +1063,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                         _pageSize = val;
                         _currentPage = 0; // reset
                       });
+                      widget.onPageSizeChanged?.call(val);
                     }
                   },
                 ),
@@ -1034,22 +1088,19 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             children: [
               IconButton(
                 icon: const Icon(Icons.first_page, size: 18),
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage = 0)
-                    : null,
+                onPressed: activePage > 0 ? () => _goToPage(0) : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_left, size: 18),
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
+                onPressed:
+                    activePage > 0 ? () => _goToPage(activePage - 1) : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
               Text(
-                'Page ${_currentPage + 1} of ${max(1, totalPages)}',
+                'Page ${activePage + 1} of ${max(1, totalPages)}',
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -1058,16 +1109,16 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right, size: 18),
-                onPressed: _currentPage < totalPages - 1
-                    ? () => setState(() => _currentPage++)
+                onPressed: activePage < totalPages - 1
+                    ? () => _goToPage(activePage + 1)
                     : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
               IconButton(
                 icon: const Icon(Icons.last_page, size: 18),
-                onPressed: _currentPage < totalPages - 1
-                    ? () => setState(() => _currentPage = totalPages - 1)
+                onPressed: activePage < totalPages - 1
+                    ? () => _goToPage(totalPages - 1)
                     : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),

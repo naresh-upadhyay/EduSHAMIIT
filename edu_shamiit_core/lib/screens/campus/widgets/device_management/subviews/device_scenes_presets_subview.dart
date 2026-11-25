@@ -74,9 +74,11 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
   bool _isAutomationsExpanded = false;
   bool _isDependentScenesExpanded = false;
 
-  // Pagination
+  // Pagination & Sort
   int _currentPage = 1;
   int _rowsPerPage = 10;
+  String _sortBy = 'name';
+  bool _sortAsc = true;
 
   @override
   void initState() {
@@ -1531,11 +1533,23 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
                       },
                     ),
                   ),
-                  const DataColumn(label: Text('Scene Name ⇅')),
-                  const DataColumn(label: Text('Type')),
-                  const DataColumn(label: Text('Targets')),
+                  DataColumn(
+                    onSort: (_, __) => _toggleSceneSort('name'),
+                    label: _buildSceneSortLabel('Scene Name', 'name'),
+                  ),
+                  DataColumn(
+                    onSort: (_, __) => _toggleSceneSort('type'),
+                    label: _buildSceneSortLabel('Type', 'type'),
+                  ),
+                  DataColumn(
+                    onSort: (_, __) => _toggleSceneSort('targets'),
+                    label: _buildSceneSortLabel('Targets', 'targets'),
+                  ),
                   const DataColumn(label: Text('Description')),
-                  const DataColumn(label: Text('Status')),
+                  DataColumn(
+                    onSort: (_, __) => _toggleSceneSort('status'),
+                    label: _buildSceneSortLabel('Status', 'status'),
+                  ),
                   const DataColumn(label: Text('Actions')),
                 ],
                 rows: pageItems.map((scene) {
@@ -2679,7 +2693,59 @@ class _DeviceScenesPresetsSubviewState extends State<DeviceScenesPresetsSubview>
       }).toList();
     }
 
+    result.sort((a, b) {
+      int cmp;
+      switch (_sortBy) {
+        case 'type':
+          cmp = a.sceneType.compareTo(b.sceneType);
+          break;
+        case 'targets':
+          cmp = a.targetCount.compareTo(b.targetCount);
+          break;
+        case 'status':
+          cmp = a.status.compareTo(b.status);
+          break;
+        case 'name':
+        default:
+          cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+
     return result;
+  }
+
+  void _toggleSceneSort(String colKey) {
+    setState(() {
+      if (_sortBy == colKey) {
+        _sortAsc = !_sortAsc;
+      } else {
+        _sortBy = colKey;
+        _sortAsc = true;
+      }
+      _currentPage = 1;
+    });
+  }
+
+  Widget _buildSceneSortLabel(String label, String colKey) {
+    final isActive = _sortBy == colKey;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(color: isActive ? const Color(0xFF2563EB) : null),
+        ),
+        const SizedBox(width: 3),
+        Icon(
+          isActive
+              ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+              : Icons.unfold_more_rounded,
+          size: 13,
+          color: isActive ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+        ),
+      ],
+    );
   }
 
   Color _parseColor(String? colorStr) {

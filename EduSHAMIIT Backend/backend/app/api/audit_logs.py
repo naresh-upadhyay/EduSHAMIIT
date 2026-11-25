@@ -103,6 +103,8 @@ async def list_audit_logs(
     school_id: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     user=Depends(require_super_admin_or_director)
@@ -134,7 +136,21 @@ async def list_audit_logs(
         q = q.or_(or_cond)
 
     offset = (page - 1) * page_size
-    q = q.order("created_at", ascending=False).limit(page_size).offset(offset)
+    sort_map = {
+        "created_at": "created_at",
+        "time": "created_at",
+        "user": "user_name",
+        "user_name": "user_name",
+        "event_type": "event_type",
+        "module": "module",
+        "action": "action",
+        "resource": "resource",
+        "ip_address": "ip_address",
+        "status": "status",
+    }
+    order_col = sort_map.get((sort_by or "created_at").lower(), "created_at")
+    is_asc = (sort_order or "desc").lower() == "asc"
+    q = q.order(order_col, ascending=is_asc).order("id", ascending=True).limit(page_size).offset(offset)
 
     res = await q.aexecute()
     logs = res.data or []

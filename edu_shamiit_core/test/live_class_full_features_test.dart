@@ -11,6 +11,7 @@ import 'package:edu_shamiit_core/screens/live_classes/whiteboard/widgets/whitebo
 import 'package:edu_shamiit_core/screens/live_classes/whiteboard/widgets/whiteboard_workspace.dart';
 import 'package:edu_shamiit_core/screens/live_classes/widgets/live_class_chat_panel.dart';
 import 'package:edu_shamiit_core/screens/live_classes/widgets/live_classroom_stage.dart';
+import 'package:edu_shamiit_core/screens/live_classes/utils/live_class_recorder_helper.dart';
 import 'package:edu_shamiit_core/screens/live_classes/utils/live_class_theme.dart';
 import 'package:edu_shamiit_core/screens/live_classes/services/live_class_api_service.dart';
 
@@ -18,14 +19,19 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Live Class Full Features & Edge Cases Test Suite', () {
-    test('LiveClassPollOption calculates accurate percentages and protects against division by zero', () {
+    test(
+        'LiveClassPollOption calculates accurate percentages and protects against division by zero',
+        () {
       double computePct(int optionVotes, int totalVotes) {
         if (totalVotes <= 0) return 0.0;
-        return double.parse((optionVotes / totalVotes * 100).toStringAsFixed(1));
+        return double.parse(
+            (optionVotes / totalVotes * 100).toStringAsFixed(1));
       }
 
-      final opt1 = LiveClassPollOption(id: 'opt1', text: 'Option A', votes: 0, percentage: 0.0);
-      final opt2 = LiveClassPollOption(id: 'opt2', text: 'Option B', votes: 0, percentage: 0.0);
+      final opt1 = LiveClassPollOption(
+          id: 'opt1', text: 'Option A', votes: 0, percentage: 0.0);
+      final opt2 = LiveClassPollOption(
+          id: 'opt2', text: 'Option B', votes: 0, percentage: 0.0);
 
       // 0 total votes -> 0.0%
       expect(computePct(opt1.votes, 0), 0.0);
@@ -41,16 +47,25 @@ void main() {
       expect(computePct(1, 3), 33.3);
     });
 
-    test('Financial Year resolver identifies current academic year dynamically from lookup values', () {
-      final sessions = ['2023 - 2024', '2024 - 2025', '2025 - 2026', '2026 - 2027'];
-      final resolved = LiveClassApiService.resolveCurrentFinancialYear(sessions);
+    test(
+        'Financial Year resolver identifies current academic year dynamically from lookup values',
+        () {
+      final sessions = [
+        '2023 - 2024',
+        '2024 - 2025',
+        '2025 - 2026',
+        '2026 - 2027'
+      ];
+      final resolved =
+          LiveClassApiService.resolveCurrentFinancialYear(sessions);
 
       final now = DateTime.now();
       final startYear = now.month >= 4 ? now.year : now.year - 1;
       expect(resolved.contains('$startYear'), isTrue);
     });
 
-    test('LiveClassPollItem maintains active state and history aggregation', () {
+    test('LiveClassPollItem maintains active state and history aggregation',
+        () {
       final poll1 = LiveClassPollItem(
         id: 'poll-1',
         question: 'Active Poll 1',
@@ -58,8 +73,10 @@ void main() {
         pollType: 'SINGLE_CHOICE',
         status: 'ACTIVE',
         options: [
-          LiveClassPollOption(id: 'o1', text: 'WAW', votes: 2, percentage: 50.0),
-          LiveClassPollOption(id: 'o2', text: 'KING', votes: 2, percentage: 50.0),
+          LiveClassPollOption(
+              id: 'o1', text: 'WAW', votes: 2, percentage: 50.0),
+          LiveClassPollOption(
+              id: 'o2', text: 'KING', votes: 2, percentage: 50.0),
         ],
         totalVotes: 4,
       );
@@ -71,8 +88,10 @@ void main() {
         pollType: 'SINGLE_CHOICE',
         status: 'COMPLETED',
         options: [
-          LiveClassPollOption(id: 'o3', text: 'JI', votes: 5, percentage: 100.0),
-          LiveClassPollOption(id: 'o4', text: 'READY', votes: 0, percentage: 0.0),
+          LiveClassPollOption(
+              id: 'o3', text: 'JI', votes: 5, percentage: 100.0),
+          LiveClassPollOption(
+              id: 'o4', text: 'READY', votes: 0, percentage: 0.0),
         ],
         totalVotes: 5,
       );
@@ -86,7 +105,9 @@ void main() {
       expect(history.last.options[1].text, 'READY');
     });
 
-    testWidgets('LiveClassTheme adapts colors dynamically from context ThemeData', (WidgetTester tester) async {
+    testWidgets(
+        'LiveClassTheme adapts colors dynamically from context ThemeData',
+        (WidgetTester tester) async {
       const customPrimary = Color(0xFF6366F1); // Indigo theme
 
       await tester.pumpWidget(
@@ -108,7 +129,9 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('LiveClassChatPanel renders Participants, Chat, and Q&A / Polls tabs without errors', (WidgetTester tester) async {
+    testWidgets(
+        'LiveClassChatPanel renders Participants, Chat, and Q&A / Polls tabs without errors',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(500, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -136,7 +159,9 @@ void main() {
       expect(find.text('Q&A (0)'), findsOneWidget);
     });
 
-    test('resolveUnifiedParticipants deduplicates local host and DB participants into one synced list', () {
+    test(
+        'resolveUnifiedParticipants deduplicates local host and DB participants into one synced list',
+        () {
       final roomService = InAppLiveRoomService();
       final dbParticipants = [
         LiveParticipant(
@@ -189,7 +214,9 @@ void main() {
       expect(unified.last.name, 'Aarav Verma');
     });
 
-    test('resolveTargetedMaxCapacity uses DB targeted capacity instead of hardcoded 45', () {
+    test(
+        'resolveTargetedMaxCapacity uses DB targeted capacity instead of hardcoded 45',
+        () {
       final session = ActiveLiveSession(
         id: 'sess-10b',
         title: 'Mathematics',
@@ -215,12 +242,17 @@ void main() {
         recordingElapsedStr: '00:00:00',
       );
 
-      expect(resolveTargetedMaxCapacity(activeSession: session, activeCount: 1), 37);
-      expect(resolveTargetedMaxCapacity(activeSession: null, activeCount: 1), 1);
-      expect(resolveTargetedMaxCapacity(activeSession: null, activeCount: 4), 4);
+      expect(resolveTargetedMaxCapacity(activeSession: session, activeCount: 1),
+          37);
+      expect(
+          resolveTargetedMaxCapacity(activeSession: null, activeCount: 1), 1);
+      expect(
+          resolveTargetedMaxCapacity(activeSession: null, activeCount: 4), 4);
     });
 
-    test('MyClassItem.fromJson and ActiveLiveSession.fromJson preserve DB viewer_count and max_participants', () {
+    test(
+        'MyClassItem.fromJson and ActiveLiveSession.fromJson preserve DB viewer_count and max_participants',
+        () {
       final classJson = {
         'id': 'cls-10b',
         'class_section': 'Class 10 - 10-B',
@@ -252,7 +284,9 @@ void main() {
       expect(session.maxParticipants, 37);
     });
 
-    testWidgets('LiveClassroomStage starts fresh like Zoom/Meet without fake slides or smartboard text', (WidgetTester tester) async {
+    testWidgets(
+        'LiveClassroomStage starts fresh like Zoom/Meet without fake slides or smartboard text',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -305,12 +339,84 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 5));
 
-      expect(find.textContaining('Quadratic_Equations_Masterclass.pdf'), findsNothing);
+      expect(find.textContaining('Quadratic_Equations_Masterclass.pdf'),
+          findsNothing);
       expect(find.textContaining('Organic Compounds'), findsNothing);
       expect(find.textContaining('1/37'), findsOneWidget);
     });
 
-    testWidgets('LiveClassManagementScreen replaces Attendance tab with standalone White Board tab on right of Recordings', (WidgetTester tester) async {
+    testWidgets(
+        'LiveClassroomStage in Whiteboard mode wraps stage in RepaintBoundary and registers recorder frame provider cleanly',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final session = ActiveLiveSession(
+        id: 'sess-wb-rec',
+        title: 'Chemical Kinetics Board',
+        description: '',
+        className: 'Class 12',
+        sectionName: '12-A',
+        classSection: 'Class 12 - 12-A',
+        subject: 'Chemistry',
+        subjectIcon: 'science',
+        teacherName: 'King Doe',
+        teacherRole: 'Super Admin',
+        durationMinutes: 45,
+        status: 'live',
+        isLive: true,
+        recordingStatus: 'idle',
+        recordingEnabled: true,
+        roomCode: '12A-CHEM',
+        meetingLink: '',
+        viewerCount: 1,
+        maxParticipants: 40,
+        dateStr: '25 Nov 2026',
+        timeStr: '11:00 AM',
+        recordingElapsedStr: '00:00:00',
+      );
+
+      final wbNotifier = WhiteboardNotifier();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            whiteboardProvider.overrideWith((ref) => wbNotifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 1000,
+                height: 680,
+                child: LiveClassroomStage(
+                  session: session,
+                  participants: const [],
+                  initialStageMode: StageMode.interactiveWhiteboard,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
+
+      expect(find.byType(WhiteboardWorkspace), findsOneWidget);
+      expect(find.byType(RepaintBoundary), findsAtLeastNWidgets(1));
+      expect(LiveClassBrowserRecorder.instance.isRecording, isFalse);
+
+      // Verify disposal unregisters stage frame provider without error
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      await tester.pump();
+    });
+
+    testWidgets(
+        'LiveClassManagementScreen replaces Attendance tab with standalone White Board tab on right of Recordings',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -342,7 +448,9 @@ void main() {
       expect(find.text('Participants (1)'), findsNothing);
     });
 
-    testWidgets('WhiteboardWorkspace left Work History & Sessions drawer toggles Hide/Show and displays CRUD & Share actions cleanly', (WidgetTester tester) async {
+    testWidgets(
+        'WhiteboardWorkspace left Work History & Sessions drawer toggles Hide/Show and displays CRUD & Share actions cleanly',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -351,7 +459,7 @@ void main() {
       });
 
       final wbNotifier = WhiteboardNotifier();
-      wbNotifier.state = WhiteboardState(
+      wbNotifier.state = const WhiteboardState(
         document: WhiteboardDocument(
           id: 'wb-1',
           sessionId: null,
@@ -361,9 +469,13 @@ void main() {
           teacherOnlyMode: false,
           collaborationEnabled: false,
           presentationMode: false,
-          defaultPermissions: const {},
+          defaultPermissions: {},
           templateType: 'blank',
-          myPermission: const WhiteboardPermissionInfo(permission: 'OWNER', canEdit: true, canManagePermissions: true, canManagePages: true),
+          myPermission: WhiteboardPermissionInfo(
+              permission: 'OWNER',
+              canEdit: true,
+              canManagePermissions: true,
+              canManagePages: true),
           pages: [
             WhiteboardPage(
               id: 'pg-1',
@@ -371,14 +483,14 @@ void main() {
               title: '1. Main Board',
               pageOrder: 1,
               backgroundType: WhiteboardBackgroundType.plain,
-              objects: const [],
+              objects: [],
             ),
           ],
-          versions: const [],
-          activeCollaborators: const [],
+          versions: [],
+          activeCollaborators: [],
         ),
         activePageId: 'pg-1',
-        sessionBoards: const [
+        sessionBoards: [
           {
             'id': 'wb-1',
             'session_id': null,
@@ -446,7 +558,9 @@ void main() {
       expect(find.text('Work History & Sessions'), findsNothing);
     });
 
-    testWidgets('WhiteboardShareDialog supports Class -> multi-Section cascading, Search Individuals multi-select, and Access Level presets without overflow', (WidgetTester tester) async {
+    testWidgets(
+        'WhiteboardShareDialog supports Class -> multi-Section cascading, Search Individuals multi-select, and Access Level presets without overflow',
+        (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -514,8 +628,18 @@ class _ShareTestWhiteboardNotifier extends WhiteboardNotifier {
         'name': 'Class 10',
         'students_count': 73,
         'sections': [
-          {'id': 'sec-10a', 'name': '10-A', 'students_count': 36, 'teachers_count': 2},
-          {'id': 'sec-10b', 'name': '10-B', 'students_count': 37, 'teachers_count': 2},
+          {
+            'id': 'sec-10a',
+            'name': '10-A',
+            'students_count': 36,
+            'teachers_count': 2
+          },
+          {
+            'id': 'sec-10b',
+            'name': '10-B',
+            'students_count': 37,
+            'teachers_count': 2
+          },
         ],
       },
     ];
@@ -528,10 +652,24 @@ class _ShareTestWhiteboardNotifier extends WhiteboardNotifier {
   }) async {
     return {
       'students': [
-        {'id': 'stu-1', 'full_name': 'Aarav Student', 'email': 'aarav@shamiit.edu', 'role': 'student', 'section_name': '10-A', 'roll_number': '101'},
+        {
+          'id': 'stu-1',
+          'full_name': 'Aarav Student',
+          'email': 'aarav@shamiit.edu',
+          'role': 'student',
+          'section_name': '10-A',
+          'roll_number': '101'
+        },
       ],
       'teachers': [
-        {'id': 'tch-1', 'full_name': 'Meera Teacher', 'email': 'meera@shamiit.edu', 'role': 'teacher', 'section_name': '10-A', 'assignment_label': 'Class Teacher'},
+        {
+          'id': 'tch-1',
+          'full_name': 'Meera Teacher',
+          'email': 'meera@shamiit.edu',
+          'role': 'teacher',
+          'section_name': '10-A',
+          'assignment_label': 'Class Teacher'
+        },
       ],
     };
   }
@@ -543,11 +681,26 @@ class _ShareTestWhiteboardNotifier extends WhiteboardNotifier {
     int limit = 60,
   }) async {
     return [
-      {'id': 'stu-2', 'full_name': 'Rohan Verma', 'email': 'rohan@shamiit.edu', 'role': 'student', 'class_name': 'Class 10', 'section_name': '10-B'},
-      {'id': 'tch-1', 'full_name': 'Meera Teacher', 'email': 'meera@shamiit.edu', 'role': 'teacher', 'department': 'Physics'},
+      {
+        'id': 'stu-2',
+        'full_name': 'Rohan Verma',
+        'email': 'rohan@shamiit.edu',
+        'role': 'student',
+        'class_name': 'Class 10',
+        'section_name': '10-B'
+      },
+      {
+        'id': 'tch-1',
+        'full_name': 'Meera Teacher',
+        'email': 'meera@shamiit.edu',
+        'role': 'teacher',
+        'department': 'Physics'
+      },
     ];
   }
 
   @override
-  Future<List<WhiteboardShareItem>> listBoardShares([String? whiteboardId]) async => [];
+  Future<List<WhiteboardShareItem>> listBoardShares(
+          [String? whiteboardId]) async =>
+      [];
 }

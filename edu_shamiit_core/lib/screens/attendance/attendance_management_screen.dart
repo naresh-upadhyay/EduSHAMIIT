@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../constants/app_fonts.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/role_provider.dart';
 import '../../utils/responsive.dart';
 import 'providers/attendance_provider.dart';
 import 'widgets/daily_attendance_tab.dart';
@@ -128,13 +126,6 @@ class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagemen
     ThemeData theme,
   ) {
     final dateStr = DateFormat('dd MMM yyyy, EEE').format(state.selectedDate);
-    final authState = ref.watch(authProvider);
-    final userName = authState.userData?['full_name']?.toString() ??
-        authState.userData?['name']?.toString() ??
-        'Administrator';
-    final userRole = authState.userData?['role_name']?.toString() ??
-        authState.userData?['role']?.toString() ??
-        (authState.role != UserRole.unknown ? authState.role.name : 'Staff');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -211,74 +202,8 @@ class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagemen
             ),
           );
 
-          // User Profile Widget (Adaptive Avatar + Name)
-          final profileWidget = isCompact
-              ? Tooltip(
-                  message: '$userName ($userRole)',
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3), width: 1.5),
-                      color: const Color(0xFFEEF2FF),
-                    ),
-                    child: Center(
-                      child: Text(
-                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                        style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), fontSize: 13),
-                      ),
-                    ),
-                  ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3), width: 1.5),
-                        color: const Color(0xFFEEF2FF),
-                      ),
-                      child: Center(
-                        child: Text(
-                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF4F46E5), fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          userName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        Text(
-                          userRole,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-
-          // Action Buttons: Take Attendance & Reports
-          final actionButtons = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PopupMenuButton<String>(
+          // Action Button: Take Attendance
+          final actionButtons = PopupMenuButton<String>(
                 tooltip: 'Take Attendance Options',
                 onSelected: (val) {
                   if (val == 'daily') notifier.setTab(0);
@@ -347,28 +272,6 @@ class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagemen
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () => notifier.setTab(4),
-                icon: const Icon(Icons.bar_chart_rounded, size: 15, color: Color(0xFF4F46E5)),
-                label: isCompact
-                    ? const SizedBox.shrink()
-                    : Text(
-                        'Reports',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                        ),
-                      ),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 12, vertical: 7),
-                  side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ],
           );
 
           if (isVeryCompact) {
@@ -398,7 +301,6 @@ class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagemen
                         ),
                       ),
                     ),
-                    profileWidget,
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -457,8 +359,6 @@ class _AttendanceManagementScreenState extends ConsumerState<AttendanceManagemen
               ),
               const SizedBox(width: 10),
               datePickerPill,
-              const SizedBox(width: 10),
-              profileWidget,
               const SizedBox(width: 10),
               actionButtons,
             ],

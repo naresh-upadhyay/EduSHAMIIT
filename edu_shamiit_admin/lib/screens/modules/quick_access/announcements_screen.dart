@@ -56,6 +56,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalRecords = 0;
+  String _sortBy = 'created_at';
+  bool _sortAsc = false;
   String _searchQuery = "";
   String _selectedStatus = "All Status";
   String _selectedPriority = "All Priority";
@@ -156,7 +158,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       _isLoading = true;
     });
 
-    String queryPath = '/admin/announcements?page=$_currentPage&page_size=$_pageSize';
+    String queryPath = '/admin/announcements?page=$_currentPage&page_size=$_pageSize&sort_by=$_sortBy&sort_order=${_sortAsc ? 'asc' : 'desc'}';
     if (_searchQuery.trim().isNotEmpty) {
       queryPath += '&search=${Uri.encodeComponent(_searchQuery.trim())}';
     }
@@ -658,14 +660,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                               decoration: BoxDecoration(
                                 border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9))),
                               ),
-                              children: const [
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Title", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Audience", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Institution", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Priority", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Published / Scheduled On", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                                Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Actions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                              children: [
+                                _buildSortableHeader("Title", "title"),
+                                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Audience", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                                _buildSortableHeader("Institution", "school_id"),
+                                _buildSortableHeader("Priority", "priority"),
+                                _buildSortableHeader("Status", "status"),
+                                _buildSortableHeader("Published / Scheduled On", "created_at"),
+                                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text("Actions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
                               ],
                             ),
                             ...filteredAnnouncements.map((ann) {
@@ -892,6 +894,51 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               child: Text(displayMapper != null ? displayMapper(item) : item),
             );
           }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortableHeader(String label, String colKey) {
+    final isActive = _sortBy == colKey;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_sortBy == colKey) {
+            _sortAsc = !_sortAsc;
+          } else {
+            _sortBy = colKey;
+            _sortAsc = colKey != 'created_at';
+          }
+          _currentPage = 1;
+        });
+        _fetchAnnouncements();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isActive
+                  ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                  : Icons.unfold_more_rounded,
+              size: 13,
+              color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+            ),
+          ],
         ),
       ),
     );

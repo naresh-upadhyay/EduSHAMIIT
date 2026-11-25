@@ -7,7 +7,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Live Class Critic Features & RBAC Edge Cases Test Suite', () {
-    test('RBAC role detection cleanly isolates students/guests from hosts/teachers', () {
+    test(
+        'RBAC role detection cleanly isolates students/guests from hosts/teachers',
+        () {
       bool isStudentParticipant(String role) {
         final r = role.toLowerCase().trim();
         return r != 'teacher' &&
@@ -32,7 +34,9 @@ void main() {
       expect(isStudentParticipant('admin'), isFalse);
     });
 
-    test('Network Quality HUD accurately maps RTT and packet loss into telemetry bands', () {
+    test(
+        'Network Quality HUD accurately maps RTT and packet loss into telemetry bands',
+        () {
       String computeStatusLabel(int rttMs, double packetLossPct) {
         if (rttMs > 200 || packetLossPct > 2.0) return 'Poor';
         if (rttMs > 80 || packetLossPct > 0.5) return 'Good';
@@ -52,7 +56,9 @@ void main() {
       expect(computeStatusLabel(45, 3.5), 'Poor');
     });
 
-    test('Push-to-Talk state machine transitions correctly and preserves initial mic state', () {
+    test(
+        'Push-to-Talk state machine transitions correctly and preserves initial mic state',
+        () {
       // Simulate state machine
       bool isMicMuted = true;
       bool isPushToTalkActive = false;
@@ -95,7 +101,9 @@ void main() {
       expect(isMicMuted, isFalse); // Stays unmuted! Not forced to mute
     });
 
-    test('Subject title resolver correctly selects whiteboard template matching curriculum', () {
+    test(
+        'Subject title resolver correctly selects whiteboard template matching curriculum',
+        () {
       String resolveTemplate(String subject) {
         final subLower = subject.toLowerCase();
         if (subLower.contains('chem')) {
@@ -121,8 +129,10 @@ void main() {
       expect(resolveTemplate('Computer Science'), 'concept_mind_map');
     });
 
-    test('Mindmap connector objects support edge label modification and styling', () {
-      final connector = WhiteboardObject(
+    test(
+        'Mindmap connector objects support edge label modification and styling',
+        () {
+      const connector = WhiteboardObject(
         id: 'conn-1',
         type: 'connector',
         pageId: 'page-1',
@@ -144,7 +154,8 @@ void main() {
 
       // Modify edge label
       final updated = connector.copyWith(
-        data: Map<String, dynamic>.from(connector.data)..['label'] = 'yields reactant',
+        data: Map<String, dynamic>.from(connector.data)
+          ..['label'] = 'yields reactant',
       );
 
       expect(updated.data['label'], 'yields reactant');
@@ -153,7 +164,9 @@ void main() {
       expect(updated.data['toId'], 'node-2');
     });
 
-    test('ActiveLiveSession preserves session identity across stage and whiteboard transitions', () {
+    test(
+        'ActiveLiveSession preserves session identity across stage and whiteboard transitions',
+        () {
       final session = ActiveLiveSession(
         id: 'sess-chem-12a',
         title: 'Organic Compounds – Introduction',
@@ -180,7 +193,8 @@ void main() {
       );
 
       expect(session.classSection, 'Class 12 - A');
-      expect('${session.classSection} : ${session.subject}', 'Class 12 - A : Chemistry');
+      expect('${session.classSection} : ${session.subject}',
+          'Class 12 - A : Chemistry');
       expect(session.isLive, isTrue);
       expect(session.roomCode, '12A-CHEM');
     });

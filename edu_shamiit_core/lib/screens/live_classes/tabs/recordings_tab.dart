@@ -95,7 +95,10 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
           .replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]+'), '')
           .trim()
           .replaceAll(RegExp(r'\s+'), '_');
-      final filename = '${cleanName.isNotEmpty ? cleanName : 'recording'}.mp4';
+      final isWebm = (item.mimeType ?? '').toLowerCase().contains('webm') ||
+          (item.storageKey ?? '').toLowerCase().endsWith('.webm');
+      final ext = isWebm ? 'webm' : 'mp4';
+      final filename = '${cleanName.isNotEmpty ? cleanName : 'recording'}.$ext';
       await getDownloadHelper().downloadFile(url, filename);
       await ref.read(liveClassManagementProvider.notifier).refreshRecordings(selectRecordingId: item.id);
       if (mounted) {
@@ -1093,23 +1096,23 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                SizedBox(width: titleWidth, child: Text('Recording Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: titleWidth, child: _buildSortableRecHeader('Recording Title', 'title', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 95, child: Text('Class / Section', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 95, child: _buildSortableRecHeader('Class / Section', 'class_section', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 100, child: Text('Subject', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 100, child: _buildSortableRecHeader('Subject', 'subject_name', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 130, child: Text('Date & Time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 130, child: _buildSortableRecHeader('Date & Time', 'created_at', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 65, child: Text('Duration', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 65, child: _buildSortableRecHeader('Duration', 'duration', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 50, child: Text('Views', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 50, child: _buildSortableRecHeader('Views', 'views', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 60, child: Text('Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 60, child: _buildSortableRecHeader('Size', 'file_size', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 90, child: Text('Audience', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 90, child: _buildSortableRecHeader('Audience', 'visibility', state)),
                                 const SizedBox(width: 8),
-                                SizedBox(width: 70, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
+                                SizedBox(width: 70, child: _buildSortableRecHeader('Status', 'status', state)),
                                 const SizedBox(width: 8),
                                 SizedBox(width: 65, child: Text('Actions', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textSecondary))),
                               ],
@@ -1414,6 +1417,38 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
     );
   }
 
+  Widget _buildSortableRecHeader(String label, String sortKey, LiveClassState state) {
+    final isActive = state.recordingsSortBy == sortKey;
+    final isAsc = state.recordingsSortOrder == 'ASC';
+    return InkWell(
+      onTap: () => ref.read(liveClassManagementProvider.notifier).toggleRecordingsSort(sortKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isActive ? const Color(0xFF3B82F6) : textSecondary,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isActive
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 12,
+            color: isActive ? const Color(0xFF3B82F6) : textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterDropdown({
     required String value,
     required List<String> items,
@@ -1595,6 +1630,7 @@ class _RecordingsTabState extends ConsumerState<RecordingsTab> {
 
           // Real Playable Video Player Box (Web HTML5 Video with Range Streaming, Seek, Speed, Volume, PiP & Fullscreen)
           RecordingPlayerWidget(
+            key: ValueKey('rec-preview-${item.id}'),
             item: item,
             resolvedStreamUrl: _resolvedStreamUrls[item.id],
             height: 190,

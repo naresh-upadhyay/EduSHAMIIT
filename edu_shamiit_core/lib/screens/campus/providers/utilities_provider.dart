@@ -98,8 +98,15 @@ class UtilitiesNotifier extends StateNotifier<UtilitiesState> {
           break;
       }
 
+      const colKeys = ['recorded_at', 'utility_name', 'reading_value', 'location', 'recorded_by', 'status'];
+      final sortColKey = (state.sortCol != null && state.sortCol! >= 0 && state.sortCol! < colKeys.length)
+          ? colKeys[state.sortCol!]
+          : 'recorded_at';
+
       final res = await _apiService.getUtilityReadings(
         utilityType: uType,
+        sortBy: sortColKey,
+        sortOrder: state.sortAsc ? 'asc' : 'desc',
         page: state.currentPage,
         pageSize: state.pageSize,
       );
@@ -144,7 +151,8 @@ class UtilitiesNotifier extends StateNotifier<UtilitiesState> {
   }
 
   void setSorting(int? col, bool asc) {
-    state = state.copyWith(sortCol: col, sortAsc: asc);
+    state = state.copyWith(sortCol: col, sortAsc: asc, currentPage: 1);
+    loadData();
   }
 
   Future<bool> logReading(Map<String, dynamic> payload) async {

@@ -348,6 +348,8 @@ async def list_onboarding_records(
     joining_date: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    sort_by: Optional[str] = Query("joining_date"),
+    sort_order: Optional[str] = Query("asc"),
     user: dict = Depends(get_current_user),
     school_id: str = Depends(require_school_id)
 ):
@@ -393,6 +395,19 @@ async def list_onboarding_records(
     total_records = total_res[0]["total"] if total_res else 0
 
     # 2. Paginated Query with progress calculation
+    sort_column_map = {
+        "onboarding_code": "o.onboarding_code",
+        "candidate_name": "c.full_name",
+        "department": "o.department",
+        "designation": "o.designation",
+        "stage": "o.stage",
+        "joining_date": "o.joining_date",
+        "status": "o.status",
+        "created_at": "o.created_at",
+    }
+    sort_col_sql = sort_column_map.get(sort_by or "joining_date", "o.joining_date")
+    sort_dir_sql = "DESC" if (sort_order or "").lower() == "desc" else "ASC"
+    order_clause = f"{sort_col_sql} {sort_dir_sql} NULLS LAST, o.created_at DESC"
     offset = (page - 1) * page_size
     query_sql = f"""
         SELECT
@@ -442,7 +457,7 @@ async def list_onboarding_records(
             GROUP BY onboarding_id
         ) task_stats ON o.id = task_stats.onboarding_id
         WHERE {where_str}
-        ORDER BY o.joining_date ASC, o.created_at DESC
+        ORDER BY {order_clause}
         LIMIT %s OFFSET %s;
     """
     params.extend([page_size, offset])

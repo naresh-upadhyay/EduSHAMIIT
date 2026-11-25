@@ -723,9 +723,13 @@ class HostelComplaintsTable extends ConsumerWidget {
   void _handleBulkAction(BuildContext context, WidgetRef ref, String action) {
     final notifier = ref.read(hostelProvider.notifier);
     if (action == 'ASSIGN') {
+      final selectedIds = ref.read(hostelProvider).selectedComplaintIds;
       showDialog(
         context: context,
-        builder: (ctx) => AssignComplaintDialog(complaintId: ref.read(hostelProvider).selectedComplaintIds.first),
+        builder: (ctx) => AssignComplaintDialog(
+          complaintId: selectedIds.first,
+          isBulk: selectedIds.length > 1,
+        ),
       );
     } else if (action == 'MARK_ACTIVE') {
       notifier.bulkComplaintAction('MARK_ACTIVE');

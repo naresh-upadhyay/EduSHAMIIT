@@ -1068,8 +1068,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
             const SizedBox(width: 8),
             Builder(
               builder: (context) {
-                final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
-                    ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
+                final activeSession = ref.watch(liveClassManagementProvider).trulyLiveSession;
                 final isStageActive = _selectedSubnav == 'Conduct Class';
                 if (activeSession != null) {
                   return Padding(
@@ -1131,26 +1130,42 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
           onOpenWhiteboard: _openWhiteboardWorkspace,
           onLeaveClass: () async {
+            final messenger = ScaffoldMessenger.of(context);
             setState(() {
               _isStageFullscreen = false;
               _selectedSubnav = 'My Classes (Today)';
             });
             leaveBrowserFullscreen();
             if (activeSess != null) {
-              await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+              final res = await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+              if (mounted) {
+                final autoEnded = res['auto_ended'] == true;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      autoEnded
+                          ? 'No participants remained — meeting ended automatically.'
+                          : 'Left meeting. Class remains live for other participants.',
+                    ),
+                  ),
+                );
+              }
             }
           },
-          onEndClass: () {
+          onEndClass: () async {
+            final messenger = ScaffoldMessenger.of(context);
             setState(() {
               _isStageFullscreen = false;
               _selectedSubnav = 'My Classes (Today)';
             });
             leaveBrowserFullscreen();
             if (activeSess != null) {
-              ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
-              );
+              await ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
+              if (mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Live class ended for all participants. Attendance synced.')),
+                );
+              }
             }
           },
         ),
@@ -1171,11 +1186,11 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           if ((_selectedSubnav == 'Conduct Class' && (state.conductSessionData != null || activeSess != null)) || _selectedSubnav == 'My Classes (Today)')
             const SizedBox(height: 16),
 
-          // Persistent Live Class in progress top banner (when host navigates to other subnav tabs)
-          if ((state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession) != null && _selectedSubnav != 'Conduct Class') ...[
+          // Persistent Live Class in progress top banner (only when a session is genuinely LIVE)
+          if (state.trulyLiveSession != null && _selectedSubnav != 'Conduct Class') ...[
             Builder(
               builder: (context) {
-                final activeS = state.conductSessionData?.activeSession ?? state.joinDashboard?.activeSession;
+                final activeS = state.trulyLiveSession;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1256,19 +1271,35 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
                             onOpenWhiteboard: _openWhiteboardWorkspace,
                             onLeaveClass: () async {
-                              if (activeSess != null) {
-                                await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
-                              }
+                              final messenger = ScaffoldMessenger.of(context);
                               setState(() => _selectedSubnav = 'My Classes (Today)');
+                              if (activeSess != null) {
+                                final res = await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                                if (mounted) {
+                                  final autoEnded = res['auto_ended'] == true;
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        autoEnded
+                                            ? 'No participants remained — meeting ended automatically.'
+                                            : 'Left meeting. Class remains live for other participants.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             },
-                            onEndClass: () {
-                              if (activeSess != null) {
-                                ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
-                                );
-                              }
+                            onEndClass: () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               setState(() => _selectedSubnav = 'My Classes (Today)');
+                              if (activeSess != null) {
+                                await ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Live class ended for all participants. Attendance synced.')),
+                                  );
+                                }
+                              }
                             },
                           ),
                         ),
@@ -1329,19 +1360,35 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                             onOpenQA: () => _chatPanelKey.currentState?.selectTab(2),
                             onOpenWhiteboard: _openWhiteboardWorkspace,
                             onLeaveClass: () async {
-                              if (activeSess != null) {
-                                await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
-                              }
+                              final messenger = ScaffoldMessenger.of(context);
                               setState(() => _selectedSubnav = 'My Classes (Today)');
+                              if (activeSess != null) {
+                                final res = await ref.read(liveClassManagementProvider.notifier).leaveClass(activeSess.id);
+                                if (mounted) {
+                                  final autoEnded = res['auto_ended'] == true;
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        autoEnded
+                                            ? 'No participants remained — meeting ended automatically.'
+                                            : 'Left meeting. Class remains live for other participants.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             },
-                            onEndClass: () {
-                              if (activeSess != null) {
-                                ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Live class ended successfully. Attendance synced.')),
-                                );
-                              }
+                            onEndClass: () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               setState(() => _selectedSubnav = 'My Classes (Today)');
+                              if (activeSess != null) {
+                                await ref.read(liveClassManagementProvider.notifier).endClass(activeSess.id);
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Live class ended for all participants. Attendance synced.')),
+                                  );
+                                }
+                              }
                             },
                           ),
                         ),
@@ -1687,8 +1734,7 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
           // Live Class Active Indicator / Quick Switcher
           Builder(
             builder: (context) {
-              final activeSession = ref.watch(liveClassManagementProvider).conductSessionData?.activeSession ??
-                  ref.watch(liveClassManagementProvider).joinDashboard?.activeSession;
+              final activeSession = ref.watch(liveClassManagementProvider).trulyLiveSession;
               final isStageActive = _selectedSubnav == 'Conduct Class';
 
               if (activeSession != null) {
@@ -6219,10 +6265,14 @@ class _JoinAndConductTabState extends ConsumerState<JoinAndConductTab> {
                 'Recording',
                 dotColor: Colors.red,
                 onTap: () async {
-                  final ok = await ref.read(liveClassManagementProvider.notifier).toggleRecording();
+                  final result = await ref.read(liveClassManagementProvider.notifier).toggleRecordingWithCapture();
                   if (mounted) {
+                    final ok = result['success'] == true;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(ok ? 'Live class recording state updated' : 'Recording toggled')),
+                      SnackBar(
+                        content: Text(result['message']?.toString() ?? (ok ? 'Live class recording state updated' : 'Could not toggle recording')),
+                        backgroundColor: ok ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                      ),
                     );
                   }
                 },

@@ -33,6 +33,9 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
   int _pageSize = 5;
   int _totalPrograms = 28;
   int _totalPages = 6;
+  String _sortBy = 'created_at';
+  bool _sortAsc = false;
+  int? _sortColumnIndex;
 
   // Filters
   String _filterCategory = 'All';
@@ -305,6 +308,8 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
         'tab=$_selectedTab',
         'page=$_currentPage',
         'page_size=$_pageSize',
+        'sort_by=$_sortBy',
+        'sort_order=${_sortAsc ? 'asc' : 'desc'}',
       ];
       if (_searchQuery.isNotEmpty) params.add('search=$_searchQuery');
       if (_filterCategory != 'All') params.add('category_name=$_filterCategory');
@@ -1666,18 +1671,87 @@ class _HRTrainingScreenState extends State<HRTrainingScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: tableWidth),
                   child: DataTable(
+                    showCheckboxColumn: false,
                     columnSpacing: colSpacing,
                     horizontalMargin: horizMargin,
                     headingRowHeight: 40,
                     dataRowMinHeight: 52,
                     dataRowMaxHeight: 60,
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _sortAsc,
                     columns: [
-                      DataColumn(label: SizedBox(width: courseNameWidth, child: const Text('Course Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                      const DataColumn(label: SizedBox(width: typeWidth, child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                      DataColumn(label: SizedBox(width: deptWidth, child: const Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                      const DataColumn(label: SizedBox(width: durationWidth, child: Text('Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                      const DataColumn(label: SizedBox(width: participantsWidth, child: Text('Participants', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                      const DataColumn(label: SizedBox(width: statusWidth, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                      DataColumn(
+                        label: SizedBox(width: courseNameWidth, child: const Text('Course Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'title';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
+                      DataColumn(
+                        label: const SizedBox(width: typeWidth, child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'mode';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
+                      DataColumn(
+                        label: SizedBox(width: deptWidth, child: const Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'target_audience';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
+                      DataColumn(
+                        label: const SizedBox(width: durationWidth, child: Text('Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'duration_hours';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
+                      DataColumn(
+                        label: const SizedBox(width: participantsWidth, child: Text('Participants', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'enrolled_count';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
+                      DataColumn(
+                        label: const SizedBox(width: statusWidth, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                        onSort: (idx, asc) {
+                          setState(() {
+                            _sortColumnIndex = idx;
+                            _sortBy = 'status';
+                            _sortAsc = asc;
+                            _currentPage = 1;
+                          });
+                          _fetchPrograms();
+                        },
+                      ),
                       const DataColumn(label: SizedBox(width: actionsWidth, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                     ],
                     rows: _programs.map((p) {

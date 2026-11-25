@@ -133,114 +133,206 @@ class NoticeTableView extends ConsumerWidget {
         const double tableMinWidth = 1060.0;
         final double effectiveWidth = constraints.maxWidth > tableMinWidth ? constraints.maxWidth : tableMinWidth;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: SizedBox(
-                width: effectiveWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (isAdmin && state.selectedNoticeIds.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE),
+                  ),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    // --- 1. TABLE HEADER ---
-                    Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                            width: 1,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF4F46E5)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${state.selectedNoticeIds.length} notice(s) selected',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF312E81),
                           ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Selection Checkbox
-                          SizedBox(
-                            width: 44,
-                            child: Checkbox(
-                              value: allSelected,
-                              onChanged: (val) => notifier.selectAllNotices(val == true),
-                              activeColor: const Color(0xFF4F46E5),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                          // Title & Content
-                          const Expanded(
-                            flex: 30,
-                            child: Text(
-                              'Title & Content',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Audience
-                          const Expanded(
-                            flex: 14,
-                            child: Text(
-                              'Audience',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Category
-                          const Expanded(
-                            flex: 13,
-                            child: Text(
-                              'Category',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Priority
-                          const Expanded(
-                            flex: 10,
-                            child: Text(
-                              'Priority',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Published / Status
-                          const Expanded(
-                            flex: 16,
-                            child: Text(
-                              'Published / Status',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Engagement
-                          const Expanded(
-                            flex: 12,
-                            child: Text(
-                              'Engagement',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          // Actions
-                          const SizedBox(
-                            width: 90,
-                            child: Text(
-                              'Actions',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await notifier.performBulkAction('publish');
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Selected notices published')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.publish_rounded, size: 16),
+                          label: const Text('Publish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await notifier.performBulkAction('archive');
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Selected notices archived')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.archive_outlined, size: 16),
+                          label: const Text('Archive', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete Selected Notices?'),
+                                content: Text('Delete ${state.selectedNoticeIds.length} selected notice(s)?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              await notifier.performBulkAction('delete');
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Selected notices deleted')),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                          label: const Text('Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                        ),
+                        TextButton(
+                          onPressed: () => notifier.selectAllNotices(false),
+                          child: const Text('Clear Selection'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: effectiveWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // --- 1. TABLE HEADER ---
+                        Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            border: Border(
+                              bottom: BorderSide(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // Selection Checkbox
+                              SizedBox(
+                                width: 44,
+                                child: Checkbox(
+                                  value: allSelected,
+                                  onChanged: (val) => notifier.selectAllNotices(val == true),
+                                  activeColor: const Color(0xFF4F46E5),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              // Title & Content
+                              Expanded(
+                                flex: 30,
+                                child: _buildSortableHeader('Title & Content', 'title', state, notifier),
+                              ),
+                              // Audience
+                              const Expanded(
+                                flex: 14,
+                                child: Text(
+                                  'Audience',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
+                                ),
+                              ),
+                              // Category
+                              Expanded(
+                                flex: 13,
+                                child: _buildSortableHeader('Category', 'category', state, notifier),
+                              ),
+                              // Priority
+                              Expanded(
+                                flex: 10,
+                                child: _buildSortableHeader('Priority', 'priority', state, notifier),
+                              ),
+                              // Published / Status
+                              Expanded(
+                                flex: 16,
+                                child: _buildSortableHeader('Published / Status', 'published_at', state, notifier),
+                              ),
+                              // Engagement
+                              Expanded(
+                                flex: 12,
+                                child: _buildSortableHeader('Engagement', 'view_count', state, notifier),
+                              ),
+                              // Actions
+                              const SizedBox(
+                                width: 90,
+                                child: Text(
+                                  'Actions',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF64748B)),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
                     // --- 2. TABLE BODY ROWS ---
                     ListView.separated(
@@ -769,8 +861,48 @@ class NoticeTableView extends ConsumerWidget {
               ),
             ),
           ),
-        );
-      },
+        ),
+      ],
+    );
+    },
+    );
+  }
+
+  Widget _buildSortableHeader(
+    String label,
+    String sortKey,
+    NoticeState state,
+    NoticeNotifier notifier,
+  ) {
+    final isCurrent = state.sortBy == sortKey;
+    final isAsc = state.sortOrder.toUpperCase() == 'ASC';
+    return InkWell(
+      onTap: () => notifier.setSorting(sortKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: isCurrent ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isCurrent
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isCurrent ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
     );
   }
 

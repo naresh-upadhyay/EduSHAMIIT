@@ -240,8 +240,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     _ws.onConnectionChanged = _handleWsConnection;
     _laserCleanupTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (state.laserPoints.isEmpty) return;
-      final cutoff = DateTime.now().subtract(const Duration(milliseconds: 1600));
-      final kept = state.laserPoints.where((pt) => pt.createdAt.isAfter(cutoff)).toList();
+      final cutoff =
+          DateTime.now().subtract(const Duration(milliseconds: 1600));
+      final kept = state.laserPoints
+          .where((pt) => pt.createdAt.isAfter(cutoff))
+          .toList();
       if (kept.length != state.laserPoints.length) {
         state = state.copyWith(laserPoints: kept);
       }
@@ -260,7 +263,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     state = state.copyWith(
       wsConnected: connected,
       saveState: connected
-          ? (state.saveState == WhiteboardSaveState.offline ? WhiteboardSaveState.syncing : state.saveState)
+          ? (state.saveState == WhiteboardSaveState.offline
+              ? WhiteboardSaveState.syncing
+              : state.saveState)
           : WhiteboardSaveState.offline,
     );
     if (connected) {
@@ -296,7 +301,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       if (ops.isNotEmpty) {
         final refreshed = await _api.fetchWhiteboard(doc.id);
         if (refreshed != null) {
-          state = state.copyWith(document: refreshed, saveState: WhiteboardSaveState.saved);
+          state = state.copyWith(
+              document: refreshed, saveState: WhiteboardSaveState.saved);
           return;
         }
       }
@@ -327,7 +333,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           ? WhiteboardPermissionInfo.fromJson(payload['permission'])
           : doc.myPermission;
       state = state.copyWith(
-        document: doc.copyWith(activeCollaborators: collabList, myPermission: perm),
+        document:
+            doc.copyWith(activeCollaborators: collabList, myPermission: perm),
       );
       return;
     }
@@ -337,18 +344,21 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           .whereType<Map<String, dynamic>>()
           .map(WhiteboardCollaborator.fromJson)
           .toList();
-      state = state.copyWith(document: doc.copyWith(activeCollaborators: collabList));
+      state = state.copyWith(
+          document: doc.copyWith(activeCollaborators: collabList));
       return;
     }
 
     if (evType == 'cursor.moved') {
       final uid = (payload['user_id'] ?? event['user_id'] ?? '').toString();
       if (uid.isEmpty) return;
-      final cursors = Map<String, WhiteboardRemoteCursor>.from(state.remoteCursors);
+      final cursors =
+          Map<String, WhiteboardRemoteCursor>.from(state.remoteCursors);
       cursors[uid] = WhiteboardRemoteCursor(
         userId: uid,
         name: (payload['name'] ?? 'User').toString(),
-        color: WhiteboardColorHelper.parse(payload['color']?.toString(), fallback: const Color(0xFF2563EB)),
+        color: WhiteboardColorHelper.parse(payload['color']?.toString(),
+            fallback: const Color(0xFF2563EB)),
         x: (payload['x'] as num?)?.toDouble() ?? 0,
         y: (payload['y'] as num?)?.toDouble() ?? 0,
         tool: (payload['tool'] ?? 'pen').toString(),
@@ -376,7 +386,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       final tempId = (payload['id'] ?? '').toString();
       final pageId = (event['page_id'] ?? state.activePageId ?? '').toString();
       if (tempId.isNotEmpty) {
-        final previews = Map<String, WhiteboardObject>.from(state.remotePreviewStrokes);
+        final previews =
+            Map<String, WhiteboardObject>.from(state.remotePreviewStrokes);
         previews[tempId] = WhiteboardObject(
           id: tempId,
           pageId: pageId,
@@ -407,7 +418,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
 
     if (evType == 'page.changed') {
       final pid = event['page_id']?.toString();
-      if (pid != null && state.followTeacherPage && doc.myPermission.permission != 'OWNER') {
+      if (pid != null &&
+          state.followTeacherPage &&
+          doc.myPermission.permission != 'OWNER') {
         state = state.copyWith(activePageId: pid);
       }
       return;
@@ -444,14 +457,17 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
         : <String, dynamic>{};
 
     // Clear ephemeral preview if matching
-    final previews = Map<String, WhiteboardObject>.from(state.remotePreviewStrokes);
+    final previews =
+        Map<String, WhiteboardObject>.from(state.remotePreviewStrokes);
     if (objId != null) previews.remove(objId);
 
     final updatedPages = doc.pages.map((p) {
       if (p.id != pageId) return p;
       final objs = List<WhiteboardObject>.from(p.objects);
       if (opType == 'object.create' || opType == 'object.update') {
-        final objData = opData['data'] is Map<String, dynamic> ? opData['data'] as Map<String, dynamic> : opData;
+        final objData = opData['data'] is Map<String, dynamic>
+            ? opData['data'] as Map<String, dynamic>
+            : opData;
         final newObj = WhiteboardObject(
           id: objId ?? _uuid.v4(),
           pageId: pageId,
@@ -515,23 +531,30 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     final templates = await _api.fetchTemplates();
 
     // Dynamically determine appropriate title and template matching the active live class curriculum
-    final resolvedTitle = defaultTitle ?? (standaloneOnly ? 'Offline Class Whiteboard' : 'Whiteboard - Class 12 - A – Chemistry');
-    String resolvedTemplate = (defaultTemplate != null && defaultTemplate.isNotEmpty)
-        ? defaultTemplate
-        : (standaloneOnly ? 'blank' : 'chemistry');
+    final resolvedTitle = defaultTitle ??
+        (standaloneOnly
+            ? 'Offline Class Whiteboard'
+            : 'Whiteboard - Class 12 - A – Chemistry');
+    String resolvedTemplate =
+        (defaultTemplate != null && defaultTemplate.isNotEmpty)
+            ? defaultTemplate
+            : (standaloneOnly ? 'blank' : 'chemistry');
     final titleLower = resolvedTitle.toLowerCase();
     if (defaultTemplate == null || defaultTemplate.isEmpty) {
       if (standaloneOnly) {
         resolvedTemplate = 'blank';
       } else if (titleLower.contains('chem')) {
         resolvedTemplate = 'chemistry';
-      } else if (titleLower.contains('math') || titleLower.contains('algebra') || titleLower.contains('calc')) {
+      } else if (titleLower.contains('math') ||
+          titleLower.contains('algebra') ||
+          titleLower.contains('calc')) {
         resolvedTemplate = 'mathematics';
       } else if (titleLower.contains('phys')) {
         resolvedTemplate = 'physics';
       } else if (titleLower.contains('bio') || titleLower.contains('life')) {
         resolvedTemplate = 'biology';
-      } else if (titleLower.contains('mind') || titleLower.contains('concept')) {
+      } else if (titleLower.contains('mind') ||
+          titleLower.contains('concept')) {
         resolvedTemplate = 'concept_mind_map';
       } else {
         resolvedTemplate = 'chemistry';
@@ -539,9 +562,13 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     }
 
     // Query whiteboards for active session, or school whiteboards for standalone offline mode
-    var boards = await _api.listWhiteboards(sessionId: standaloneOnly ? null : sessionId);
+    var boards = await _api.listWhiteboards(
+        sessionId: standaloneOnly ? null : sessionId);
     final candidateBoards = standaloneOnly
-        ? boards.where((b) => b['session_id'] == null || b['session_id'].toString().isEmpty).toList()
+        ? boards
+            .where((b) =>
+                b['session_id'] == null || b['session_id'].toString().isEmpty)
+            .toList()
         : boards;
 
     WhiteboardDocument? doc;
@@ -557,7 +584,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
         collaborationEnabled: !standaloneOnly,
       );
       if (doc != null) {
-        boards = await _api.listWhiteboards(sessionId: standaloneOnly ? null : sessionId);
+        boards = await _api.listWhiteboards(
+            sessionId: standaloneOnly ? null : sessionId);
       }
     }
 
@@ -587,7 +615,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
         document: localDoc,
         sessionBoards: boards,
         templates: templates,
-        activePageId: localDoc.pages.isNotEmpty ? localDoc.pages.first.id : null,
+        activePageId:
+            localDoc.pages.isNotEmpty ? localDoc.pages.first.id : null,
         isLoading: false,
         saveState: WhiteboardSaveState.offline,
         undoStack: [],
@@ -603,11 +632,14 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (doc == null) return;
     final boards = await _api.listWhiteboards();
     final currentActive = switchingBoard ? null : state.activePageId;
-    final hasCurrent = currentActive != null && doc.pages.any((p) => p.id == currentActive);
+    final hasCurrent =
+        currentActive != null && doc.pages.any((p) => p.id == currentActive);
     state = state.copyWith(
       document: doc,
       sessionBoards: boards.isNotEmpty ? boards : state.sessionBoards,
-      activePageId: hasCurrent ? currentActive : (doc.pages.isNotEmpty ? doc.pages.first.id : null),
+      activePageId: hasCurrent
+          ? currentActive
+          : (doc.pages.isNotEmpty ? doc.pages.first.id : null),
       saveState: WhiteboardSaveState.saved,
       undoStack: switchingBoard ? [] : state.undoStack,
       redoStack: switchingBoard ? [] : state.redoStack,
@@ -635,23 +667,22 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     state = state.copyWith(isLoading: true);
     WhiteboardDocument? created;
     try {
-      created = await _api.createWhiteboard(
-        sessionId: sessionId,
-        title: title,
-        templateType: templateType,
-        collaborationEnabled: collaborationEnabled,
-      ).timeout(const Duration(milliseconds: 2200));
+      created = await _api
+          .createWhiteboard(
+            sessionId: sessionId,
+            title: title,
+            templateType: templateType,
+            collaborationEnabled: collaborationEnabled,
+          )
+          .timeout(const Duration(milliseconds: 2200));
     } catch (_) {}
 
-    if (created == null) {
-      // Instant authentic local template fallback with rich interactive objects
-      created = _buildLocalTemplateDocument(
-        title: title,
-        templateType: templateType,
-        sessionId: sessionId,
-        collab: collaborationEnabled,
-      );
-    }
+    created ??= _buildLocalTemplateDocument(
+      title: title,
+      templateType: templateType,
+      sessionId: sessionId,
+      collab: collaborationEnabled,
+    );
 
     final newBoardEntry = {
       'id': created.id,
@@ -891,49 +922,116 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           pageId: pageId,
           type: 'circle',
           zIndex: 1,
-          data: {'x': 140.0, 'y': 220.0, 'width': 100.0, 'height': 60.0, 'color': '#059669', 'bgColor': '#10B981', 'textColor': '#FFFFFF', 'text': 'Start', 'bold': true},
+          data: {
+            'x': 140.0,
+            'y': 220.0,
+            'width': 100.0,
+            'height': 60.0,
+            'color': '#059669',
+            'bgColor': '#10B981',
+            'textColor': '#FFFFFF',
+            'text': 'Start',
+            'bold': true
+          },
         ),
         WhiteboardObject(
           id: procId,
           pageId: pageId,
           type: 'rectangle',
           zIndex: 2,
-          data: {'x': 320.0, 'y': 210.0, 'width': 160.0, 'height': 80.0, 'color': '#1D4ED8', 'bgColor': '#3B82F6', 'textColor': '#FFFFFF', 'text': 'Process Input\n& Validate', 'rounded': true},
+          data: {
+            'x': 320.0,
+            'y': 210.0,
+            'width': 160.0,
+            'height': 80.0,
+            'color': '#1D4ED8',
+            'bgColor': '#3B82F6',
+            'textColor': '#FFFFFF',
+            'text': 'Process Input\n& Validate',
+            'rounded': true
+          },
         ),
         WhiteboardObject(
           id: decId,
           pageId: pageId,
           type: 'diamond',
           zIndex: 3,
-          data: {'x': 560.0, 'y': 190.0, 'width': 140.0, 'height': 120.0, 'color': '#D97706', 'bgColor': '#F59E0B', 'textColor': '#FFFFFF', 'text': 'Valid?'},
+          data: {
+            'x': 560.0,
+            'y': 190.0,
+            'width': 140.0,
+            'height': 120.0,
+            'color': '#D97706',
+            'bgColor': '#F59E0B',
+            'textColor': '#FFFFFF',
+            'text': 'Valid?'
+          },
         ),
         WhiteboardObject(
           id: endId,
           pageId: pageId,
           type: 'circle',
           zIndex: 4,
-          data: {'x': 780.0, 'y': 220.0, 'width': 100.0, 'height': 60.0, 'color': '#DC2626', 'bgColor': '#EF4444', 'textColor': '#FFFFFF', 'text': 'End', 'bold': true},
+          data: {
+            'x': 780.0,
+            'y': 220.0,
+            'width': 100.0,
+            'height': 60.0,
+            'color': '#DC2626',
+            'bgColor': '#EF4444',
+            'textColor': '#FFFFFF',
+            'text': 'End',
+            'bold': true
+          },
         ),
         WhiteboardObject(
           id: 'con1_${DateTime.now().millisecondsSinceEpoch}',
           pageId: pageId,
           type: 'connector',
           zIndex: 5,
-          data: {'x1': 240.0, 'y1': 250.0, 'x2': 320.0, 'y2': 250.0, 'color': '#3B82F6', 'strokeWidth': 2.5, 'startNodeId': startId, 'endNodeId': procId},
+          data: {
+            'x1': 240.0,
+            'y1': 250.0,
+            'x2': 320.0,
+            'y2': 250.0,
+            'color': '#3B82F6',
+            'strokeWidth': 2.5,
+            'startNodeId': startId,
+            'endNodeId': procId
+          },
         ),
         WhiteboardObject(
           id: 'con2_${DateTime.now().millisecondsSinceEpoch}',
           pageId: pageId,
           type: 'connector',
           zIndex: 6,
-          data: {'x1': 480.0, 'y1': 250.0, 'x2': 560.0, 'y2': 250.0, 'color': '#F59E0B', 'strokeWidth': 2.5, 'startNodeId': procId, 'endNodeId': decId},
+          data: {
+            'x1': 480.0,
+            'y1': 250.0,
+            'x2': 560.0,
+            'y2': 250.0,
+            'color': '#F59E0B',
+            'strokeWidth': 2.5,
+            'startNodeId': procId,
+            'endNodeId': decId
+          },
         ),
         WhiteboardObject(
           id: 'con3_${DateTime.now().millisecondsSinceEpoch}',
           pageId: pageId,
           type: 'connector',
           zIndex: 7,
-          data: {'x1': 700.0, 'y1': 250.0, 'x2': 780.0, 'y2': 250.0, 'color': '#10B981', 'strokeWidth': 2.5, 'label': 'Yes', 'startNodeId': decId, 'endNodeId': endId},
+          data: {
+            'x1': 700.0,
+            'y1': 250.0,
+            'x2': 780.0,
+            'y2': 250.0,
+            'color': '#10B981',
+            'strokeWidth': 2.5,
+            'label': 'Yes',
+            'startNodeId': decId,
+            'endNodeId': endId
+          },
         ),
       ]);
     } else if (norm.contains('chem')) {
@@ -953,7 +1051,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 100.0,
             'width': 360.0,
             'height': 75.0,
-            'latex': r'P \cdot V = n \cdot R \cdot T \quad | \quad \Delta G^\circ = \Delta H^\circ - T\Delta S^\circ',
+            'latex':
+                r'P \cdot V = n \cdot R \cdot T \quad | \quad \Delta G^\circ = \Delta H^\circ - T\Delta S^\circ',
             'color': '#1E3A8A',
             'fontSize': 22.0,
           },
@@ -968,7 +1067,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 90.0,
             'width': 280.0,
             'height': 150.0,
-            'text': '🧪 Organic Chemistry Foundations:\n• Hybridization: sp³ (109.5°), sp² (120°), sp (180°)\n• Functional Groups: -OH (Alcohol), -CHO (Aldehyde)\n• Electrophiles (E⁺) vs Nucleophiles (Nu⁻)\n• Benzene Ring: 6 Delocalized π Electrons',
+            'text':
+                '🧪 Organic Chemistry Foundations:\n• Hybridization: sp³ (109.5°), sp² (120°), sp (180°)\n• Functional Groups: -OH (Alcohol), -CHO (Aldehyde)\n• Electrophiles (E⁺) vs Nucleophiles (Nu⁻)\n• Benzene Ring: 6 Delocalized π Electrons',
             'bgColor': '#EFF6FF',
             'color': '#1E293B',
           },
@@ -1084,7 +1184,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 100.0,
             'width': 440.0,
             'height': 75.0,
-            'latex': r'6\text{CO}_2 + 6\text{H}_2\text{O} + \text{Light} \longrightarrow \text{C}_6\text{H}_{12}\text{O}_6 + 6\text{O}_2',
+            'latex':
+                r'6\text{CO}_2 + 6\text{H}_2\text{O} + \text{Light} \longrightarrow \text{C}_6\text{H}_{12}\text{O}_6 + 6\text{O}_2',
             'color': '#065F46',
             'fontSize': 20.0,
           },
@@ -1099,7 +1200,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 90.0,
             'width': 260.0,
             'height': 150.0,
-            'text': '🧬 Biological Principles:\n• Cell Theory: Basic unit of life\n• DNA Base Pairing: A = T, G ≡ C\n• Mitosis: 2n somatic division\n• Meiosis: n gamete production\n• Cellular Respiration: 36-38 ATP',
+            'text':
+                '🧬 Biological Principles:\n• Cell Theory: Basic unit of life\n• DNA Base Pairing: A = T, G ≡ C\n• Mitosis: 2n somatic division\n• Meiosis: n gamete production\n• Cellular Respiration: 36-38 ATP',
             'bgColor': '#DCFCE7',
             'color': '#1E293B',
           },
@@ -1119,7 +1221,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 100.0,
             'width': 400.0,
             'height': 75.0,
-            'latex': r'F = m \cdot a \quad | \quad v^2 = u^2 + 2as \quad | \quad E = mc^2',
+            'latex':
+                r'F = m \cdot a \quad | \quad v^2 = u^2 + 2as \quad | \quad E = mc^2',
             'color': '#1E3A8A',
             'fontSize': 22.0,
           },
@@ -1134,7 +1237,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 90.0,
             'width': 260.0,
             'height': 150.0,
-            'text': '⚡ Laws of Motion:\n• 1st: Inertia (ΣF = 0)\n• 2nd: F = dp/dt = ma\n• 3rd: Action = -Reaction\n• Momentum Conservation: p₁ + p₂ = const\n• Kinetic Energy: KE = ½mv²',
+            'text':
+                '⚡ Laws of Motion:\n• 1st: Inertia (ΣF = 0)\n• 2nd: F = dp/dt = ma\n• 3rd: Action = -Reaction\n• Momentum Conservation: p₁ + p₂ = const\n• Kinetic Energy: KE = ½mv²',
             'bgColor': '#FEF3C7',
             'color': '#1E293B',
           },
@@ -1154,7 +1258,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 120.0,
             'width': 260.0,
             'height': 130.0,
-            'text': '📐 Technical Specifications:\n• Scale: 1:50 Standard Metric\n• Tolerance: ±0.05 mm\n• Material: High-Grade Aluminum Alloy\n• Approved by Academic Engineering Hub',
+            'text':
+                '📐 Technical Specifications:\n• Scale: 1:50 Standard Metric\n• Tolerance: ±0.05 mm\n• Material: High-Grade Aluminum Alloy\n• Approved by Academic Engineering Hub',
             'bgColor': '#1E293B',
             'textColor': '#38BDF8',
             'color': '#38BDF8',
@@ -1178,7 +1283,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             'y': 100.0,
             'width': 300.0,
             'height': 140.0,
-            'text': '📝 Lecture Summary & Key Takeaways:\n• Core definitions & formulas covered\n• Homework exercises & practice problems\n• Next lecture preparation topic',
+            'text':
+                '📝 Lecture Summary & Key Takeaways:\n• Core definitions & formulas covered\n• Homework exercises & practice problems\n• Next lecture preparation topic',
             'bgColor': '#FEF9C3',
             'color': '#1E293B',
           },
@@ -1193,14 +1299,31 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
           pageId: pageId,
           type: 'equation',
           zIndex: 1,
-          data: {'x': 180.0, 'y': 140.0, 'width': 340.0, 'height': 80.0, 'latex': r'x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}', 'color': '#1E3A8A', 'fontSize': 24.0},
+          data: {
+            'x': 180.0,
+            'y': 140.0,
+            'width': 340.0,
+            'height': 80.0,
+            'latex': r'x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}',
+            'color': '#1E3A8A',
+            'fontSize': 24.0
+          },
         ),
         WhiteboardObject(
           id: 'note1_${DateTime.now().millisecondsSinceEpoch}',
           pageId: pageId,
           type: 'sticky_note',
           zIndex: 2,
-          data: {'x': 600.0, 'y': 140.0, 'width': 220.0, 'height': 140.0, 'text': 'Discriminant:\nΔ = b² - 4ac\n• Δ > 0: 2 real roots\n• Δ = 0: 1 real root\n• Δ < 0: Complex roots', 'bgColor': '#FEF3C7', 'color': '#1E293B'},
+          data: {
+            'x': 600.0,
+            'y': 140.0,
+            'width': 220.0,
+            'height': 140.0,
+            'text':
+                'Discriminant:\nΔ = b² - 4ac\n• Δ > 0: 2 real roots\n• Δ = 0: 1 real root\n• Δ < 0: Complex roots',
+            'bgColor': '#FEF3C7',
+            'color': '#1E293B'
+          },
         ),
       ]);
     }
@@ -1225,7 +1348,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       presentationMode: false,
       defaultPermissions: const {'can_edit': true},
       templateType: templateType,
-      myPermission: const WhiteboardPermissionInfo(permission: 'OWNER', canEdit: true, canManagePermissions: true, canManagePages: true),
+      myPermission: const WhiteboardPermissionInfo(
+          permission: 'OWNER',
+          canEdit: true,
+          canManagePermissions: true,
+          canManagePages: true),
       pages: [page],
       versions: const [],
       activeCollaborators: const [],
@@ -1279,11 +1406,18 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       final localUpdated = doc.copyWith(title: title ?? doc.title);
       final updatedList = state.sessionBoards.map((b) {
         if (b['id']?.toString() == wbId) {
-          return {...b, 'title': localUpdated.title, 'updated_at': DateTime.now().toIso8601String()};
+          return {
+            ...b,
+            'title': localUpdated.title,
+            'updated_at': DateTime.now().toIso8601String()
+          };
         }
         return b;
       }).toList();
-      state = state.copyWith(document: localUpdated, sessionBoards: updatedList, saveState: WhiteboardSaveState.saved);
+      state = state.copyWith(
+          document: localUpdated,
+          sessionBoards: updatedList,
+          saveState: WhiteboardSaveState.saved);
       return true;
     } else if (isTargetActive) {
       state = state.copyWith(saveState: WhiteboardSaveState.syncFailed);
@@ -1291,8 +1425,10 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     return false;
   }
 
-  Future<bool> duplicateBoard(String sourceWhiteboardId, {String? title, bool openAfter = true}) async {
-    final dup = await _api.duplicateWhiteboard(sourceWhiteboardId, title: title);
+  Future<bool> duplicateBoard(String sourceWhiteboardId,
+      {String? title, bool openAfter = true}) async {
+    final dup =
+        await _api.duplicateWhiteboard(sourceWhiteboardId, title: title);
     if (dup != null) {
       final entry = {
         'id': dup.id,
@@ -1300,10 +1436,14 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
         'title': dup.title,
         'template_type': dup.templateType,
         'page_count': dup.pages.length,
-        'object_count': dup.pages.fold<int>(0, (sum, p) => sum + p.objects.length),
+        'object_count':
+            dup.pages.fold<int>(0, (sum, p) => sum + p.objects.length),
         'updated_at': DateTime.now().toIso8601String(),
       };
-      final boards = [entry, ...state.sessionBoards.where((b) => b['id']?.toString() != dup.id)];
+      final boards = [
+        entry,
+        ...state.sessionBoards.where((b) => b['id']?.toString() != dup.id)
+      ];
       if (openAfter) {
         state = state.copyWith(
           document: dup,
@@ -1328,7 +1468,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     final ok = isLocalOnly ? true : await _api.deleteWhiteboard(whiteboardId);
     if (!ok) return false;
 
-    final remaining = state.sessionBoards.where((b) => b['id']?.toString() != whiteboardId).toList();
+    final remaining = state.sessionBoards
+        .where((b) => b['id']?.toString() != whiteboardId)
+        .toList();
     final deletingActive = state.document?.id == whiteboardId;
 
     if (deletingActive) {
@@ -1348,7 +1490,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
         forceStandalone: true,
       );
       state = state.copyWith(
-        sessionBoards: state.sessionBoards.where((b) => b['id']?.toString() != whiteboardId).toList(),
+        sessionBoards: state.sessionBoards
+            .where((b) => b['id']?.toString() != whiteboardId)
+            .toList(),
       );
       return true;
     }
@@ -1362,9 +1506,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (state.activePageId == pageId) return;
     // Persist any dirty draft / snapshot safely when switching pages
     if (state.saveState == WhiteboardSaveState.unsaved) {
-      saveManual(versionName: 'Auto Checkpoint on Page Switch', isCheckpoint: false);
+      saveManual(
+          versionName: 'Auto Checkpoint on Page Switch', isCheckpoint: false);
     }
-    final pageIdx = state.document?.pages.indexWhere((p) => p.id == pageId) ?? 0;
+    final pageIdx =
+        state.document?.pages.indexWhere((p) => p.id == pageId) ?? 0;
     state = state.copyWith(
       activePageId: pageId,
       selectedObjectIds: {},
@@ -1390,7 +1536,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     }
   }
 
-  Future<void> addPage({String? title, WhiteboardBackgroundType? background}) async {
+  Future<void> addPage(
+      {String? title, WhiteboardBackgroundType? background}) async {
     final doc = state.document;
     if (doc == null || !doc.myPermission.canManagePages) return;
     final nextNum = doc.pages.length + 1;
@@ -1429,7 +1576,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (doc == null || !doc.myPermission.canManagePages) return;
     final updated = await _api.updatePage(doc.id, pageId, title: newTitle);
     if (updated != null) {
-      final nextPages = doc.pages.map((p) => p.id == pageId ? p.copyWith(title: updated.title) : p).toList();
+      final nextPages = doc.pages
+          .map((p) => p.id == pageId ? p.copyWith(title: updated.title) : p)
+          .toList();
       state = state.copyWith(document: doc.copyWith(pages: nextPages));
     }
   }
@@ -1438,29 +1587,44 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     final doc = state.document;
     final pid = state.activePageId;
     if (doc == null || pid == null || !doc.myPermission.canManagePages) return;
-    final nextPages = doc.pages.map((p) => p.id == pid ? p.copyWith(backgroundType: bgType) : p).toList();
-    state = state.copyWith(document: doc.copyWith(pages: nextPages), saveState: WhiteboardSaveState.saving);
-    final updated = await _api.updatePage(doc.id, pid, backgroundType: bgType.apiValue);
-    state = state.copyWith(saveState: updated != null ? WhiteboardSaveState.saved : WhiteboardSaveState.syncFailed);
+    final nextPages = doc.pages
+        .map((p) => p.id == pid ? p.copyWith(backgroundType: bgType) : p)
+        .toList();
+    state = state.copyWith(
+        document: doc.copyWith(pages: nextPages),
+        saveState: WhiteboardSaveState.saving);
+    final updated =
+        await _api.updatePage(doc.id, pid, backgroundType: bgType.apiValue);
+    state = state.copyWith(
+        saveState: updated != null
+            ? WhiteboardSaveState.saved
+            : WhiteboardSaveState.syncFailed);
   }
 
   Future<void> togglePageLock(String pageId) async {
     final doc = state.document;
     if (doc == null || !doc.myPermission.canManagePages) return;
-    final page = doc.pages.firstWhere((p) => p.id == pageId, orElse: () => doc.pages.first);
+    final page = doc.pages
+        .firstWhere((p) => p.id == pageId, orElse: () => doc.pages.first);
     final nextLock = !page.isLocked;
-    final nextPages = doc.pages.map((p) => p.id == pageId ? p.copyWith(isLocked: nextLock) : p).toList();
+    final nextPages = doc.pages
+        .map((p) => p.id == pageId ? p.copyWith(isLocked: nextLock) : p)
+        .toList();
     state = state.copyWith(document: doc.copyWith(pages: nextPages));
     await _api.updatePage(doc.id, pageId, isLocked: nextLock);
   }
 
   Future<bool> deletePage(String pageId) async {
     final doc = state.document;
-    if (doc == null || doc.pages.length <= 1 || !doc.myPermission.canManagePages) return false;
+    if (doc == null ||
+        doc.pages.length <= 1 ||
+        !doc.myPermission.canManagePages) return false;
     final ok = await _api.deletePage(doc.id, pageId);
     if (ok) {
       final remaining = doc.pages.where((p) => p.id != pageId).toList();
-      final nextActive = state.activePageId == pageId ? remaining.first.id : state.activePageId;
+      final nextActive = state.activePageId == pageId
+          ? remaining.first.id
+          : state.activePageId;
       state = state.copyWith(
         document: doc.copyWith(pages: remaining),
         activePageId: nextActive,
@@ -1474,7 +1638,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   void setTool(WhiteboardTool tool) {
     state = state.copyWith(
       activeTool: tool,
-      selectedObjectIds: tool == WhiteboardTool.select ? state.selectedObjectIds : {},
+      selectedObjectIds:
+          tool == WhiteboardTool.select ? state.selectedObjectIds : {},
     );
   }
 
@@ -1505,25 +1670,35 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     _updateSelectedStyle({'strokeStyle': style});
   }
 
-  void setEraserMode(EraserMode mode) => state = state.copyWith(eraserMode: mode);
+  void setEraserMode(EraserMode mode) =>
+      state = state.copyWith(eraserMode: mode);
   void setEraserSize(double size) => state = state.copyWith(eraserSize: size);
   void setRoundedCorners(bool v) => state = state.copyWith(roundedCorners: v);
   void setFontFamily(String f) => state = state.copyWith(fontFamily: f);
   void setFontSize(double s) => state = state.copyWith(fontSize: s);
   void toggleBold() => state = state.copyWith(isBold: !state.isBold);
   void toggleItalic() => state = state.copyWith(isItalic: !state.isItalic);
-  void toggleUnderline() => state = state.copyWith(isUnderline: !state.isUnderline);
-  void setTextAlign(TextAlign align) => state = state.copyWith(textAlign: align);
+  void toggleUnderline() =>
+      state = state.copyWith(isUnderline: !state.isUnderline);
+  void setTextAlign(TextAlign align) =>
+      state = state.copyWith(textAlign: align);
   void setStickyBgColor(Color c) => state = state.copyWith(stickyBgColor: c);
-  void toggleSpotlight() => state = state.copyWith(spotlightEnabled: !state.spotlightEnabled);
-  void updateSpotlightCenter(Offset c) => state = state.copyWith(spotlightCenter: c);
-  void toggleMinimap() => state = state.copyWith(showMinimap: !state.showMinimap);
-  void toggleFullscreen() => state = state.copyWith(isFullscreen: !state.isFullscreen);
-  void setFollowTeacherPage(bool v) => state = state.copyWith(followTeacherPage: v);
+  void toggleSpotlight() =>
+      state = state.copyWith(spotlightEnabled: !state.spotlightEnabled);
+  void updateSpotlightCenter(Offset c) =>
+      state = state.copyWith(spotlightCenter: c);
+  void toggleMinimap() =>
+      state = state.copyWith(showMinimap: !state.showMinimap);
+  void toggleFullscreen() =>
+      state = state.copyWith(isFullscreen: !state.isFullscreen);
+  void setFollowTeacherPage(bool v) =>
+      state = state.copyWith(followTeacherPage: v);
 
   // Zoom & Pan
-  void zoomIn() => state = state.copyWith(zoom: (state.zoom + 0.15).clamp(0.25, 4.0));
-  void zoomOut() => state = state.copyWith(zoom: (state.zoom - 0.15).clamp(0.25, 4.0));
+  void zoomIn() =>
+      state = state.copyWith(zoom: (state.zoom + 0.15).clamp(0.25, 4.0));
+  void zoomOut() =>
+      state = state.copyWith(zoom: (state.zoom - 0.15).clamp(0.25, 4.0));
   void setZoom(double z) => state = state.copyWith(zoom: z.clamp(0.25, 4.0));
   void setPanOffset(Offset offset) => state = state.copyWith(panOffset: offset);
   void resetView() => state = state.copyWith(zoom: 1.0, panOffset: Offset.zero);
@@ -1537,7 +1712,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   }
 
   // Selection, Clipboard & Layer Order
-  void selectObjects(Set<String> ids) => state = state.copyWith(selectedObjectIds: ids);
+  void selectObjects(Set<String> ids) =>
+      state = state.copyWith(selectedObjectIds: ids);
 
   void selectAllOnPage() {
     final page = state.activePage;
@@ -1551,8 +1727,12 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   void copySelected() {
     final page = state.activePage;
     if (page == null || state.selectedObjectIds.isEmpty) return;
-    final copied = page.objects.where((o) => state.selectedObjectIds.contains(o.id)).toList();
-    state = state.copyWith(clipboardObjects: copied, statusMessage: '${copied.length} object(s) copied');
+    final copied = page.objects
+        .where((o) => state.selectedObjectIds.contains(o.id))
+        .toList();
+    state = state.copyWith(
+        clipboardObjects: copied,
+        statusMessage: '${copied.length} object(s) copied');
   }
 
   Future<void> cutSelected() async {
@@ -1587,8 +1767,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
 
   Future<void> bringForwardSelected() async {
     final page = state.activePage;
-    if (page == null || state.selectedObjectIds.isEmpty || !state.canCurrentUserEdit) return;
-    final maxZ = page.objects.fold<int>(0, (prev, o) => o.zIndex > prev ? o.zIndex : prev);
+    if (page == null ||
+        state.selectedObjectIds.isEmpty ||
+        !state.canCurrentUserEdit) return;
+    final maxZ = page.objects
+        .fold<int>(0, (prev, o) => o.zIndex > prev ? o.zIndex : prev);
     for (final id in state.selectedObjectIds) {
       final obj = page.objects.firstWhere((o) => o.id == id);
       await updateObject(obj.copyWith(zIndex: maxZ + 1));
@@ -1597,8 +1780,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
 
   Future<void> sendBackwardSelected() async {
     final page = state.activePage;
-    if (page == null || state.selectedObjectIds.isEmpty || !state.canCurrentUserEdit) return;
-    final minZ = page.objects.fold<int>(0, (prev, o) => o.zIndex < prev ? o.zIndex : prev);
+    if (page == null ||
+        state.selectedObjectIds.isEmpty ||
+        !state.canCurrentUserEdit) return;
+    final minZ = page.objects
+        .fold<int>(0, (prev, o) => o.zIndex < prev ? o.zIndex : prev);
     for (final id in state.selectedObjectIds) {
       final obj = page.objects.firstWhere((o) => o.id == id);
       await updateObject(obj.copyWith(zIndex: minZ - 1));
@@ -1625,7 +1811,10 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     final isLaser = state.activeTool == WhiteboardTool.laser;
     if (isLaser) {
       final pts = List<WhiteboardLaserPoint>.from(state.laserPoints)
-        ..add(WhiteboardLaserPoint(position: Offset(x, y), color: const Color(0xFFEF4444), createdAt: DateTime.now()));
+        ..add(WhiteboardLaserPoint(
+            position: Offset(x, y),
+            color: const Color(0xFFEF4444),
+            createdAt: DateTime.now()));
       state = state.copyWith(laserPoints: pts);
     }
     _ws.sendCursorMoved(
@@ -1637,7 +1826,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  void emitStrokePreview(String tempId, List<List<double>> points, String eventType) {
+  void emitStrokePreview(
+      String tempId, List<List<double>> points, String eventType) {
     final pid = state.activePageId;
     if (pid == null || !state.canCurrentUserEdit) return;
     _ws.sendStrokePreview(
@@ -1658,7 +1848,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (doc == null || page == null || !state.canCurrentUserEdit) return;
 
     final nextObjs = List<WhiteboardObject>.from(page.objects)..add(obj);
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p).toList();
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p)
+        .toList();
     final undo = recordUndo
         ? (List<WhiteboardUndoEntry>.from(state.undoStack)
           ..add(WhiteboardUndoEntry(
@@ -1692,7 +1884,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  Future<void> updateObject(WhiteboardObject updated, {bool recordUndo = true}) async {
+  Future<void> updateObject(WhiteboardObject updated,
+      {bool recordUndo = true}) async {
     final doc = state.document;
     final page = state.activePage;
     if (doc == null || page == null || !state.canCurrentUserEdit) return;
@@ -1703,7 +1896,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
 
     final nextObjs = List<WhiteboardObject>.from(page.objects);
     nextObjs[existingIdx] = updated;
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p).toList();
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p)
+        .toList();
 
     final undo = recordUndo
         ? (List<WhiteboardUndoEntry>.from(state.undoStack)
@@ -1738,10 +1933,14 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  Future<void> updateMultipleObjects(List<WhiteboardObject> updatedList, {bool recordUndo = true}) async {
+  Future<void> updateMultipleObjects(List<WhiteboardObject> updatedList,
+      {bool recordUndo = true}) async {
     final doc = state.document;
     final page = state.activePage;
-    if (doc == null || page == null || updatedList.isEmpty || !state.canCurrentUserEdit) return;
+    if (doc == null ||
+        page == null ||
+        updatedList.isEmpty ||
+        !state.canCurrentUserEdit) return;
 
     final nextObjs = List<WhiteboardObject>.from(page.objects);
     final beforeList = <WhiteboardObject>[];
@@ -1757,7 +1956,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     }
     if (validUpdated.isEmpty) return;
 
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p).toList();
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p)
+        .toList();
 
     final undo = recordUndo
         ? (List<WhiteboardUndoEntry>.from(state.undoStack)
@@ -1794,13 +1995,20 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     }
   }
 
-  Future<void> addMultipleObjects(List<WhiteboardObject> newObjects, {bool recordUndo = true}) async {
+  Future<void> addMultipleObjects(List<WhiteboardObject> newObjects,
+      {bool recordUndo = true}) async {
     final doc = state.document;
     final page = state.activePage;
-    if (doc == null || page == null || newObjects.isEmpty || !state.canCurrentUserEdit) return;
+    if (doc == null ||
+        page == null ||
+        newObjects.isEmpty ||
+        !state.canCurrentUserEdit) return;
 
-    final nextObjs = List<WhiteboardObject>.from(page.objects)..addAll(newObjects);
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p).toList();
+    final nextObjs = List<WhiteboardObject>.from(page.objects)
+      ..addAll(newObjects);
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p)
+        .toList();
 
     final undo = recordUndo
         ? (List<WhiteboardUndoEntry>.from(state.undoStack)
@@ -1837,7 +2045,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     }
   }
 
-  Future<void> deleteObjectById(String objectId, {bool recordUndo = true}) async {
+  Future<void> deleteObjectById(String objectId,
+      {bool recordUndo = true}) async {
     final doc = state.document;
     final page = state.activePage;
     if (doc == null || page == null || !state.canCurrentUserEdit) return;
@@ -1848,8 +2057,11 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (beforeObj.isLocked && doc.myPermission.permission != 'OWNER') return;
 
     final nextObjs = page.objects.where((o) => o.id != objectId).toList();
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p).toList();
-    final nextSelected = Set<String>.from(state.selectedObjectIds)..remove(objectId);
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: nextObjs) : p)
+        .toList();
+    final nextSelected = Set<String>.from(state.selectedObjectIds)
+      ..remove(objectId);
 
     final undo = recordUndo
         ? (List<WhiteboardUndoEntry>.from(state.undoStack)
@@ -1889,7 +2101,10 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   Future<void> eraseAreaRect(Rect area) async {
     final page = state.activePage;
     if (page == null || !state.canCurrentUserEdit) return;
-    final toRemove = page.objects.where((o) => !o.isLocked && o.getBounds().overlaps(area)).map((o) => o.id).toList();
+    final toRemove = page.objects
+        .where((o) => !o.isLocked && o.getBounds().overlaps(area))
+        .map((o) => o.id)
+        .toList();
     for (final id in toRemove) {
       await deleteObjectById(id);
     }
@@ -1902,7 +2117,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     if (page.objects.isEmpty) return;
 
     final before = List<WhiteboardObject>.from(page.objects);
-    final nextPages = doc.pages.map((p) => p.id == page.id ? p.copyWith(objects: const []) : p).toList();
+    final nextPages = doc.pages
+        .map((p) => p.id == page.id ? p.copyWith(objects: const []) : p)
+        .toList();
     final undo = List<WhiteboardUndoEntry>.from(state.undoStack)
       ..add(WhiteboardUndoEntry(
         pageId: page.id,
@@ -1932,15 +2149,18 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   Future<void> undo() async {
     if (state.undoStack.isEmpty || !state.canCurrentUserEdit) return;
     final entry = state.undoStack.last;
-    final nextUndo = List<WhiteboardUndoEntry>.from(state.undoStack)..removeLast();
-    final nextRedo = List<WhiteboardUndoEntry>.from(state.redoStack)..add(entry);
+    final nextUndo = List<WhiteboardUndoEntry>.from(state.undoStack)
+      ..removeLast();
+    final nextRedo = List<WhiteboardUndoEntry>.from(state.redoStack)
+      ..add(entry);
     state = state.copyWith(undoStack: nextUndo, redoStack: nextRedo);
 
     if (entry.actionType == 'create') {
       for (final o in entry.afterObjects) {
         await deleteObjectById(o.id, recordUndo: false);
       }
-    } else if (entry.actionType == 'delete' || entry.actionType == 'clear_page') {
+    } else if (entry.actionType == 'delete' ||
+        entry.actionType == 'clear_page') {
       for (final o in entry.beforeObjects) {
         await addObject(o, recordUndo: false);
       }
@@ -1954,8 +2174,10 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   Future<void> redo() async {
     if (state.redoStack.isEmpty || !state.canCurrentUserEdit) return;
     final entry = state.redoStack.last;
-    final nextRedo = List<WhiteboardUndoEntry>.from(state.redoStack)..removeLast();
-    final nextUndo = List<WhiteboardUndoEntry>.from(state.undoStack)..add(entry);
+    final nextRedo = List<WhiteboardUndoEntry>.from(state.redoStack)
+      ..removeLast();
+    final nextUndo = List<WhiteboardUndoEntry>.from(state.undoStack)
+      ..add(entry);
     state = state.copyWith(undoStack: nextUndo, redoStack: nextRedo);
 
     if (entry.actionType == 'create') {
@@ -2014,7 +2236,9 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       final rev = (res['revision'] as num?)?.toInt();
       state = state.copyWith(
         saveState: WhiteboardSaveState.saved,
-        document: rev != null ? state.document?.copyWith(currentRevision: rev) : state.document,
+        document: rev != null
+            ? state.document?.copyWith(currentRevision: rev)
+            : state.document,
       );
       _scheduleAutosaveCheckpoint();
     } else {
@@ -2048,7 +2272,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   Future<void> _persistPendingQueue(String whiteboardId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('wb_pending_$whiteboardId', jsonEncode(_pendingOfflineOps));
+      await prefs.setString(
+          'wb_pending_$whiteboardId', jsonEncode(_pendingOfflineOps));
     } catch (_) {}
   }
 
@@ -2057,23 +2282,29 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('wb_pending_$whiteboardId');
       if (raw != null && raw.isNotEmpty) {
-        final list = (jsonDecode(raw) as List).whereType<Map<String, dynamic>>().toList();
+        final list = (jsonDecode(raw) as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
         _pendingOfflineOps.clear();
         _pendingOfflineOps.addAll(list);
       }
     } catch (_) {}
   }
 
-  Future<bool> saveManual({String versionName = 'Manual Save Checkpoint', bool isCheckpoint = true}) async {
+  Future<bool> saveManual(
+      {String versionName = 'Manual Save Checkpoint',
+      bool isCheckpoint = true}) async {
     final doc = state.document;
     if (doc == null) return false;
     state = state.copyWith(saveState: WhiteboardSaveState.saving);
     if (_pendingOfflineOps.isNotEmpty) {
       await _reconcileMissedOperations();
     }
-    final ver = await _api.createCheckpoint(doc.id, versionName: versionName, isCheckpoint: isCheckpoint);
+    final ver = await _api.createCheckpoint(doc.id,
+        versionName: versionName, isCheckpoint: isCheckpoint);
     if (ver != null) {
-      final nextVersions = List<WhiteboardVersionItem>.from(doc.versions)..insert(0, ver);
+      final nextVersions = List<WhiteboardVersionItem>.from(doc.versions)
+        ..insert(0, ver);
       state = state.copyWith(
         document: doc.copyWith(versions: nextVersions),
         saveState: WhiteboardSaveState.saved,
@@ -2087,19 +2318,22 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   Future<bool> restoreVersion(String versionId) async {
     final doc = state.document;
     if (doc == null) return false;
-    state = state.copyWith(isLoading: true, saveState: WhiteboardSaveState.syncing);
+    state =
+        state.copyWith(isLoading: true, saveState: WhiteboardSaveState.syncing);
     final restored = await _api.restoreVersion(doc.id, versionId);
     if (restored != null) {
       state = state.copyWith(
         document: restored,
-        activePageId: restored.pages.isNotEmpty ? restored.pages.first.id : null,
+        activePageId:
+            restored.pages.isNotEmpty ? restored.pages.first.id : null,
         isLoading: false,
         saveState: WhiteboardSaveState.saved,
         selectedObjectIds: {},
       );
       return true;
     }
-    state = state.copyWith(isLoading: false, saveState: WhiteboardSaveState.syncFailed);
+    state = state.copyWith(
+        isLoading: false, saveState: WhiteboardSaveState.syncFailed);
     return false;
   }
 
@@ -2188,7 +2422,8 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
     );
   }
 
-  Future<List<WhiteboardShareItem>> listBoardShares([String? whiteboardId]) async {
+  Future<List<WhiteboardShareItem>> listBoardShares(
+      [String? whiteboardId]) async {
     final wbId = whiteboardId ?? state.document?.id;
     if (wbId == null) return [];
     return await _api.listShares(wbId);
@@ -2253,14 +2488,21 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
             operationType: 'object.create',
             objectId: pdfObj.id,
             objectType: 'pdf_page',
-            operationData: {'id': pdfObj.id, 'type': 'pdf_page', 'z_index': 0, 'data': pdfObj.data},
+            operationData: {
+              'id': pdfObj.id,
+              'type': 'pdf_page',
+              'z_index': 0,
+              'data': pdfObj.data
+            },
           );
         }
       }
       await loadWhiteboard(doc.id);
     } else if (mime.startsWith('image/')) {
-      final w = ((asset['width'] as num?)?.toDouble() ?? 340).clamp(120.0, 560.0);
-      final h = ((asset['height'] as num?)?.toDouble() ?? 240).clamp(90.0, 420.0);
+      final w =
+          ((asset['width'] as num?)?.toDouble() ?? 340).clamp(120.0, 560.0);
+      final h =
+          ((asset['height'] as num?)?.toDouble() ?? 240).clamp(90.0, 420.0);
       final newImg = WhiteboardObject(
         id: 'img_${_uuid.v4().substring(0, 8)}',
         pageId: page.id,
@@ -2353,6 +2595,7 @@ class WhiteboardNotifier extends StateNotifier<WhiteboardState> {
   }
 }
 
-final whiteboardProvider = StateNotifierProvider<WhiteboardNotifier, WhiteboardState>((ref) {
+final whiteboardProvider =
+    StateNotifierProvider<WhiteboardNotifier, WhiteboardState>((ref) {
   return WhiteboardNotifier();
 });

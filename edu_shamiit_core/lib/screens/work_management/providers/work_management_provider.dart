@@ -280,6 +280,8 @@ class WorkListState {
   final String status;
   final String? assigneeId;
   final String? boardId;
+  final String sortCol;
+  final String sortDir;
 
   const WorkListState({
     this.isLoading = false,
@@ -293,6 +295,8 @@ class WorkListState {
     this.status = 'All',
     this.assigneeId,
     this.boardId,
+    this.sortCol = 'created_at',
+    this.sortDir = 'DESC',
   });
 
   WorkListState copyWith({
@@ -307,6 +311,8 @@ class WorkListState {
     String? status,
     String? assigneeId,
     String? boardId,
+    String? sortCol,
+    String? sortDir,
     bool clearBoard = false,
     bool clearAssignee = false,
   }) {
@@ -322,6 +328,8 @@ class WorkListState {
       status: status ?? this.status,
       assigneeId: clearAssignee ? null : (assigneeId ?? this.assigneeId),
       boardId: clearBoard ? null : (boardId ?? this.boardId),
+      sortCol: sortCol ?? this.sortCol,
+      sortDir: sortDir ?? this.sortDir,
     );
   }
 }
@@ -346,6 +354,8 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
         type: state.workType,
         status: state.status,
         assigneeId: state.assigneeId,
+        sortCol: state.sortCol,
+        sortDir: state.sortDir,
         page: state.page,
         pageSize: state.pageSize,
         forceRefresh: forceRefresh,
@@ -396,6 +406,13 @@ class WorkListNotifier extends StateNotifier<WorkListState> {
       pageSize: pageSize ?? state.pageSize,
     );
     loadPagedItems();
+  }
+
+  void setSort(String columnKey) {
+    final isSame = state.sortCol == columnKey;
+    final nextDir = isSame ? (state.sortDir == 'ASC' ? 'DESC' : 'ASC') : 'ASC';
+    state = state.copyWith(sortCol: columnKey, sortDir: nextDir, page: 1);
+    loadPagedItems(forceRefresh: true);
   }
 
   Future<bool> bulkUpdate({

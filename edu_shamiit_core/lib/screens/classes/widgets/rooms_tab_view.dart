@@ -695,6 +695,7 @@ class RoomsTabView extends ConsumerWidget {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
+                      sortAscending: state.roomSortOrder.toUpperCase() == 'ASC',
                       headingRowColor: WidgetStateProperty.all(
                         isDark
                             ? const Color(0xFF0F172A)
@@ -711,13 +712,13 @@ class RoomsTabView extends ConsumerWidget {
                       dataRowMaxHeight: 64,
                       horizontalMargin: 20,
                       columnSpacing: 24,
-                      columns: const [
-                        DataColumn(label: Text('ROOM NAME & CODE')),
-                        DataColumn(label: Text('TYPE')),
-                        DataColumn(label: Text('LOCATION')),
-                        DataColumn(label: Text('CAPACITY & FACILITIES')),
-                        DataColumn(label: Text('CURRENT STATUS')),
-                        DataColumn(label: Text('ACTIONS')),
+                      columns: [
+                        DataColumn(label: const Text('ROOM NAME & CODE'), onSort: (_, asc) => notifier.setRoomSort('name', asc)),
+                        DataColumn(label: const Text('TYPE'), onSort: (_, asc) => notifier.setRoomSort('type', asc)),
+                        DataColumn(label: const Text('LOCATION'), onSort: (_, asc) => notifier.setRoomSort('building', asc)),
+                        DataColumn(label: const Text('CAPACITY & FACILITIES'), onSort: (_, asc) => notifier.setRoomSort('capacity', asc)),
+                        DataColumn(label: const Text('CURRENT STATUS'), onSort: (_, asc) => notifier.setRoomSort('status', asc)),
+                        const DataColumn(label: Text('ACTIONS')),
                       ],
                       rows: state.rooms.map((room) {
                         final isSelected = state.selectedRoom?.id == room.id;

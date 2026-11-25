@@ -53,6 +53,8 @@ async def get_system_alerts(
     category: Optional[str] = None,
     priority: Optional[str] = None,
     status: Optional[str] = None,
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc"),
     user=Depends(require_super_admin)
 ):
     sb = get_supabase()
@@ -77,7 +79,17 @@ async def get_system_alerts(
                 q = q.or_(f"title.ilike.%{clean_search}%,message.ilike.%{clean_search}%")
 
         
-        q = q.order("created_at", ascending=False)
+        sort_col_map = {
+            "title": "title",
+            "category": "category",
+            "priority": "priority",
+            "status": "status",
+            "created_at": "created_at",
+        }
+        sort_col = sort_col_map.get(sort_by or "created_at", "created_at")
+        sort_asc = (sort_order or "desc").lower() == "asc"
+
+        q = q.order(sort_col, ascending=sort_asc)
         offset = (page - 1) * page_size
         q = q.limit(page_size).offset(offset)
         

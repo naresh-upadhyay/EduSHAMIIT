@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_core/widgets/dropdowns/dropdowns.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -363,7 +364,7 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
             _buildStandardTable(context, isDark, isMobile),
 
           // Pagination Footer
-          if (!_isReorderMode && state.valuesTotalPages > 1)
+          if (!_isReorderMode && state.valuesTotalRecords > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -375,11 +376,14 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                   ),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   Text(
-                    'Page ${state.valuesPage} of ${state.valuesTotalPages} (${state.valuesTotalRecords} total)',
+                    'Page ${state.valuesPage} of ${state.valuesTotalPages > 0 ? state.valuesTotalPages : 1} (${state.valuesTotalRecords} total)',
                     style: TextStyle(
                       fontSize: 12,
                       color: isDark
@@ -388,7 +392,46 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                     ),
                   ),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      Text(
+                        'Rows:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: AppSearchableDropdown<int>.fromMenuItems(
+                            value: [10, 25, 50, 100].contains(state.valuesPageSize) ? state.valuesPageSize : 10,
+                            isDense: true,
+                            isExpanded: false,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            items: const [10, 25, 50, 100]
+                                .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) ref.read(lookupProvider.notifier).setValuesPageSize(val);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
                         iconSize: 18,
@@ -745,59 +788,19 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text(
-                      'VALUE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
+                    child: _buildSortableValHeader('VALUE', 'value_name', isDark),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(
-                      'CODE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
+                    child: _buildSortableValHeader('CODE', 'value_code', isDark),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(
-                      'STATUS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
+                    child: _buildSortableValHeader('STATUS', 'status', isDark),
                   ),
                   Expanded(
                     flex: 1,
-                    child: Text(
-                      'SORT',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: isDark
-                            ? const Color(0xFF94A3B8)
-                            : const Color(0xFF64748B),
-                      ),
-                    ),
+                    child: _buildSortableValHeader('SORT', 'sort_order', isDark),
                   ),
                   Expanded(
                     flex: 2,
@@ -1122,6 +1125,43 @@ class _LookupValuesTableState extends ConsumerState<LookupValuesTable> {
 
         return tableContent;
       },
+    );
+  }
+
+  Widget _buildSortableValHeader(String label, String sortKey, bool isDark) {
+    final state = ref.watch(lookupProvider);
+    final isCurrent = state.valuesSortBy == sortKey;
+    final isAsc = state.valuesSortOrder.toUpperCase() == 'ASC';
+    return InkWell(
+      onTap: () => ref.read(lookupProvider.notifier).setValuesSort(sortKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: isCurrent
+                    ? const Color(0xFF4F46E5)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(
+            isCurrent
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 12,
+            color: isCurrent ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -54,6 +54,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   // Sorting
+  String _sortBy = 'created_at';
   bool _sortAscending = false;
 
   // Constant Dropdown Options
@@ -130,6 +131,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       final queryParams = {
         'page': _currentPage,
         'page_size': _pageSize,
+        'sort_by': _sortBy,
+        'sort_order': _sortAscending ? 'asc' : 'desc',
         if (_searchController.text.isNotEmpty) 'search': _searchController.text,
         if (_selectedEventType != 'All Event Types') 'event_type': _selectedEventType,
         if (_selectedModule != 'All Modules') 'module': _selectedModule,
@@ -166,6 +169,48 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         });
       }
     }
+  }
+
+  Widget _buildSortableAuditHeader(String label, String colKey) {
+    final isActive = _sortBy == colKey;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_sortBy == colKey) {
+            _sortAscending = !_sortAscending;
+          } else {
+            _sortBy = colKey;
+            _sortAscending = colKey != 'created_at';
+          }
+          _currentPage = 1;
+        });
+        _fetchLogs();
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isActive ? const Color(0xFF6366F1) : _textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            isActive
+                ? (_sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 11,
+            color: isActive ? const Color(0xFF6366F1) : _textFaded,
+          ),
+        ],
+      ),
+    );
   }
 
   // Export logs to CSV or Excel
@@ -833,40 +878,18 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _sortAscending = !_sortAscending;
-                  _currentPage = 1;
-                });
-                _fetchLogs();
-              },
-              child: Row(
-                children: [
-                  Text('Time', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                    size: 11,
-                    color: _textFaded,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(flex: 3, child: Text('User', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: _buildSortableAuditHeader('Time', 'created_at')),
+          Expanded(flex: 3, child: _buildSortableAuditHeader('User', 'user_name')),
           if (!isMobile) ...[
-            Expanded(flex: 2, child: Text('Event Type', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
-            Expanded(flex: 2, child: Text('Module', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 2, child: _buildSortableAuditHeader('Event Type', 'event_type')),
+            Expanded(flex: 2, child: _buildSortableAuditHeader('Module', 'module')),
           ],
-          Expanded(flex: 2, child: Text('Action', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: _buildSortableAuditHeader('Action', 'action')),
           if (!isMobile) ...[
-            Expanded(flex: 3, child: Text('Resource', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
-            Expanded(flex: 2, child: Text('IP Address', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 3, child: _buildSortableAuditHeader('Resource', 'resource')),
+            Expanded(flex: 2, child: _buildSortableAuditHeader('IP Address', 'ip_address')),
           ],
-          Expanded(flex: 2, child: Text('Status', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: _buildSortableAuditHeader('Status', 'status')),
         ],
       ),
     );

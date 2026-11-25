@@ -21,50 +21,6 @@ class HostelCenterTable extends ConsumerStatefulWidget {
 class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
   bool _isGridView = false;
   final Set<String> _selectedRoomIds = <String>{};
-  String _sortColumn = 'room_number';
-  bool _sortAscending = true;
-
-  void _onSort(String column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = column;
-        _sortAscending = true;
-      }
-    });
-  }
-
-  List<HostelRoomItem> _applySort(List<HostelRoomItem> list) {
-    final sorted = List<HostelRoomItem>.from(list);
-    sorted.sort((a, b) {
-      int cmp = 0;
-      switch (_sortColumn) {
-        case 'room_number':
-          cmp = a.roomNumber.compareTo(b.roomNumber);
-          break;
-        case 'room_type':
-          cmp = a.roomType.compareTo(b.roomType);
-          break;
-        case 'capacity':
-          cmp = (a.capacity ?? 0).compareTo(b.capacity ?? 0);
-          break;
-        case 'occupied':
-          cmp = (a.occupied ?? 0).compareTo(b.occupied ?? 0);
-          break;
-        case 'status':
-          cmp = a.status.compareTo(b.status);
-          break;
-        case 'facilities':
-          cmp = a.facilities.length.compareTo(b.facilities.length);
-          break;
-        default:
-          cmp = 0;
-      }
-      return _sortAscending ? cmp : -cmp;
-    });
-    return sorted;
-  }
 
   Future<void> _exportToCsv(List<HostelRoomItem> rooms) async {
     try {
@@ -226,7 +182,7 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
     final state = ref.watch(hostelProvider);
     final notifier = ref.read(hostelProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rooms = _applySort(state.rooms);
+    final rooms = state.rooms;
     final pagination = state.pagination;
 
     return Container(
@@ -697,16 +653,61 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
                           : null,
                     ),
                     const SizedBox(width: 14),
-                    const Text('Rows: 20', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    Text(
+                      'Rows:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      height: 28,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: AppSearchableDropdown<int>.fromMenuItems(
+                          value: [10, 25, 50, 100].contains(state.roomsPageSize)
+                              ? state.roomsPageSize
+                              : 10,
+                          isDense: true,
+                          isExpanded: false,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          items: const [10, 25, 50, 100]
+                              .map((s) => DropdownMenuItem<int>(value: s, child: Text('$s')))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) notifier.setRoomsPageSize(val);
+                          },
+                        ),
+                      ),
+                    ),
                   ],
                 );
+
+                final int curPage = (pagination['page'] as num?)?.toInt() ?? 1;
+                final int curPageSize = (pagination['page_size'] as num?)?.toInt() ?? state.roomsPageSize;
+                final int totalRecs = (pagination['total_records'] as num?)?.toInt() ?? rooms.length;
+                final int startIdx = rooms.isEmpty ? 0 : ((curPage - 1) * curPageSize + 1);
+                final int endIdx = rooms.isEmpty ? 0 : (startIdx + rooms.length - 1).clamp(startIdx, totalRecs);
+                final summaryText = 'Showing $startIdx - $endIdx of $totalRecs rooms';
 
                 if (isNarrow) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Showing 1 - ${rooms.length} of ${pagination['total_records'] ?? rooms.length} rooms',
+                        summaryText,
                         style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 8),
@@ -722,7 +723,7 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Showing 1 - ${rooms.length} of ${pagination['total_records'] ?? rooms.length} rooms',
+                      summaryText,
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                     pageControls,
@@ -737,9 +738,11 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
   }
 
   Widget _buildSortableHeader(String title, String column, double? width, {bool isExpanded = false}) {
-    final isSelected = _sortColumn == column;
+    final state = ref.watch(hostelProvider);
+    final isSelected = state.roomsSortBy == column;
+    final isAsc = state.roomsSortOrder == 'ASC';
     final content = InkWell(
-      onTap: () => _onSort(column),
+      onTap: () => ref.read(hostelProvider.notifier).setRoomsSort(column),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -754,7 +757,7 @@ class _HostelCenterTableState extends ConsumerState<HostelCenterTable> {
           const SizedBox(width: 4),
           Icon(
             isSelected
-                ? (_sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
                 : Icons.unfold_more_rounded,
             size: 14,
             color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),

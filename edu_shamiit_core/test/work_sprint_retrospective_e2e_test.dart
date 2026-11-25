@@ -24,8 +24,10 @@ class FakeWorkApiService extends WorkApiService {
     int limit = 100,
   }) async {
     return const [
-      WorkAssigneeModel(id: '1', userId: 'u1', fullName: 'Neha Sharma', role: 'Teacher'),
-      WorkAssigneeModel(id: '2', userId: 'u2', fullName: 'Amit Kumar', role: 'Teacher'),
+      WorkAssigneeModel(
+          id: '1', userId: 'u1', fullName: 'Neha Sharma', role: 'Teacher'),
+      WorkAssigneeModel(
+          id: '2', userId: 'u2', fullName: 'Amit Kumar', role: 'Teacher'),
     ];
   }
 }
@@ -61,7 +63,8 @@ void main() {
   HttpOverrides.global = _TestHttpOverrides();
 
   group('Enterprise Sprint Retrospective Management E2E Tests', () {
-    test('Sprint Retro Models parse JSON accurately matching reference design', () {
+    test('Sprint Retro Models parse JSON accurately matching reference design',
+        () {
       final json = {
         'retrospective': {
           'id': 'retro-8-id',
@@ -74,8 +77,10 @@ void main() {
           'total_participants': 7,
           'participation_pct': 100,
           'duration_minutes': 60,
-          'sprint_goal': 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
-          'summary': 'The team delivered key improvements, maintained good collaboration, and achieved 68% completion. Focus for the next sprint is on better requirement clarity, dependency management and scope stability.',
+          'sprint_goal':
+              'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
+          'summary':
+              'The team delivered key improvements, maintained good collaboration, and achieved 68% completion. Focus for the next sprint is on better requirement clarity, dependency management and scope stability.',
         },
         'sprint_overview': {
           'sprint_id': 'sprint-8-id',
@@ -84,7 +89,8 @@ void main() {
           'date_range': 'Jan 01 – Jan 14, 2025 (14 days)',
           'team_name': 'Digital Campus Team',
           'completed_work': '29 of 42 (68%)',
-          'sprint_goal': 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
+          'sprint_goal':
+              'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
         },
         'categories': {
           'went_well': {
@@ -95,7 +101,8 @@ void main() {
               {
                 'id': 'e1',
                 'category': 'WENT_WELL',
-                'content': 'Team collaboration was excellent, especially between academic and IT teams.',
+                'content':
+                    'Team collaboration was excellent, especially between academic and IT teams.',
                 'votes': 3,
                 'comments_count': 1,
                 'author_name': 'Neha Sharma',
@@ -110,7 +117,8 @@ void main() {
               {
                 'id': 'e7',
                 'category': 'DID_NOT_GO_WELL',
-                'content': 'Some requirements were not clearly defined in the initial planning.',
+                'content':
+                    'Some requirements were not clearly defined in the initial planning.',
                 'votes': 3,
                 'comments_count': 2,
                 'author_name': 'Rahul Mehta',
@@ -125,7 +133,8 @@ void main() {
               {
                 'id': 'e11',
                 'category': 'TO_IMPROVE',
-                'content': 'Improve requirement grooming before sprint planning.',
+                'content':
+                    'Improve requirement grooming before sprint planning.',
                 'votes': 5,
                 'comments_count': 0,
                 'author_name': 'Amit Kumar',
@@ -137,7 +146,8 @@ void main() {
           {
             'id': 'a1',
             'item_key': 'RA-001',
-            'title': 'Conduct detailed requirement grooming session before next sprint.',
+            'title':
+                'Conduct detailed requirement grooming session before next sprint.',
             'owner_name': 'Amit Kumar',
             'priority': 'HIGH',
             'due_date': 'Jan 20, 2025',
@@ -196,7 +206,9 @@ void main() {
       expect(ws.feedbackStats.avgRating, 4.5);
     });
 
-    testWidgets('SprintRetrospectiveTabView renders session header, 3 agile columns, action items, and sidebar', (tester) async {
+    testWidgets(
+        'SprintRetrospectiveTabView renders session header, 3 agile columns, action items, and sidebar',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -214,8 +226,10 @@ void main() {
           totalParticipants: 7,
           participationPct: 100,
           durationMinutes: 60,
-          sprintGoal: 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
-          summary: 'The team delivered key improvements, maintained good collaboration, and achieved 68% completion. Focus for the next sprint is on better requirement clarity, dependency management and scope stability.',
+          sprintGoal:
+              'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
+          summary:
+              'The team delivered key improvements, maintained good collaboration, and achieved 68% completion. Focus for the next sprint is on better requirement clarity, dependency management and scope stability.',
         ),
         sprintOverview: const SprintRetroOverviewModel(
           sprintId: 'sprint-8-id',
@@ -224,7 +238,8 @@ void main() {
           dateRange: 'Jan 01 – Jan 14, 2025 (14 days)',
           teamName: 'Digital Campus Team',
           completedWork: '29 of 42 (68%)',
-          sprintGoal: 'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
+          sprintGoal:
+              'Deliver student portal enhancement, examination notifications and key infrastructure fixes.',
         ),
         wentWell: const SprintRetroCategoryColumnModel(
           title: 'What Went Well? (6)',
@@ -234,7 +249,8 @@ void main() {
             SprintRetroEntryItemModel(
               id: 'e1',
               category: 'WENT_WELL',
-              content: 'Team collaboration was excellent, especially between academic and IT teams.',
+              content:
+                  'Team collaboration was excellent, especially between academic and IT teams.',
               votes: 3,
               commentsCount: 1,
               authorName: 'Neha Sharma',
@@ -242,7 +258,8 @@ void main() {
             SprintRetroEntryItemModel(
               id: 'e2',
               category: 'WENT_WELL',
-              content: 'Student portal performance improved significantly after the optimization.',
+              content:
+                  'Student portal performance improved significantly after the optimization.',
               votes: 4,
               commentsCount: 0,
               authorName: 'Amit Kumar',
@@ -265,7 +282,8 @@ void main() {
             SprintRetroEntryItemModel(
               id: 'e7',
               category: 'DID_NOT_GO_WELL',
-              content: 'Some requirements were not clearly defined in the initial planning.',
+              content:
+                  'Some requirements were not clearly defined in the initial planning.',
               votes: 3,
               commentsCount: 2,
               authorName: 'Rahul Mehta',
@@ -273,7 +291,8 @@ void main() {
             SprintRetroEntryItemModel(
               id: 'e8',
               category: 'DID_NOT_GO_WELL',
-              content: 'Dependency on the external verification API caused delays.',
+              content:
+                  'Dependency on the external verification API caused delays.',
               votes: 2,
               commentsCount: 1,
               authorName: 'Vikas Gupta',
@@ -323,7 +342,8 @@ void main() {
           SprintRetroActionItemModel(
             id: 'a1',
             itemKey: 'RA-001',
-            title: 'Conduct detailed requirement grooming session before next sprint.',
+            title:
+                'Conduct detailed requirement grooming session before next sprint.',
             ownerName: 'Amit Kumar',
             priority: 'HIGH',
             dueDate: 'Jan 20, 2025',
@@ -333,7 +353,8 @@ void main() {
           SprintRetroActionItemModel(
             id: 'a2',
             itemKey: 'RA-002',
-            title: 'Define and document acceptance criteria for all user stories.',
+            title:
+                'Define and document acceptance criteria for all user stories.',
             ownerName: 'Priya Singh',
             priority: 'MEDIUM',
             dueDate: 'Jan 22, 2025',
@@ -371,13 +392,35 @@ void main() {
           ),
         ],
         participants: const [
-          SprintRetroParticipantModel(id: 'p1', userId: 'u1', name: 'Neha Sharma', role: 'Facilitator'),
-          SprintRetroParticipantModel(id: 'p2', userId: 'u2', name: 'Amit Kumar', role: 'Senior Developer'),
-          SprintRetroParticipantModel(id: 'p3', userId: 'u3', name: 'Priya Singh', role: 'UI/UX Designer'),
-          SprintRetroParticipantModel(id: 'p4', userId: 'u4', name: 'Rahul Mehta', role: 'Backend Developer'),
-          SprintRetroParticipantModel(id: 'p5', userId: 'u5', name: 'Sneha Verma', role: 'QA Engineer'),
-          SprintRetroParticipantModel(id: 'p6', userId: 'u6', name: 'Vikas Gupta', role: 'DevOps Engineer'),
-          SprintRetroParticipantModel(id: 'p7', userId: 'u7', name: 'Karan Jain', role: 'System Analyst'),
+          SprintRetroParticipantModel(
+              id: 'p1', userId: 'u1', name: 'Neha Sharma', role: 'Facilitator'),
+          SprintRetroParticipantModel(
+              id: 'p2',
+              userId: 'u2',
+              name: 'Amit Kumar',
+              role: 'Senior Developer'),
+          SprintRetroParticipantModel(
+              id: 'p3',
+              userId: 'u3',
+              name: 'Priya Singh',
+              role: 'UI/UX Designer'),
+          SprintRetroParticipantModel(
+              id: 'p4',
+              userId: 'u4',
+              name: 'Rahul Mehta',
+              role: 'Backend Developer'),
+          SprintRetroParticipantModel(
+              id: 'p5', userId: 'u5', name: 'Sneha Verma', role: 'QA Engineer'),
+          SprintRetroParticipantModel(
+              id: 'p6',
+              userId: 'u6',
+              name: 'Vikas Gupta',
+              role: 'DevOps Engineer'),
+          SprintRetroParticipantModel(
+              id: 'p7',
+              userId: 'u7',
+              name: 'Karan Jain',
+              role: 'System Analyst'),
         ],
         history: const [
           SprintRetroHistoryItemModel(
@@ -435,7 +478,8 @@ void main() {
         ProviderScope(
           overrides: [
             workApiServiceProvider.overrideWithValue(FakeWorkApiService()),
-            workSprintRetroProvider.overrideWith((ref) => MockWorkSprintRetroNotifier(testState)),
+            workSprintRetroProvider
+                .overrideWith((ref) => MockWorkSprintRetroNotifier(testState)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -476,9 +520,16 @@ void main() {
       expect(find.text('What Went Well? (6)'), findsOneWidget);
       expect(find.text("What Didn't Go Well? (4)"), findsOneWidget);
       expect(find.text('What Should Improve? (5)'), findsOneWidget);
-      expect(find.text('Team collaboration was excellent, especially between academic and IT teams.'), findsOneWidget);
-      expect(find.text('Some requirements were not clearly defined in the initial planning.'), findsOneWidget);
-      expect(find.text('Improve requirement grooming before sprint planning.'), findsOneWidget);
+      expect(
+          find.text(
+              'Team collaboration was excellent, especially between academic and IT teams.'),
+          findsOneWidget);
+      expect(
+          find.text(
+              'Some requirements were not clearly defined in the initial planning.'),
+          findsOneWidget);
+      expect(find.text('Improve requirement grooming before sprint planning.'),
+          findsOneWidget);
 
       // 4. Retrospective Action Items Table Verification
       expect(find.text('Retrospective Action Items (5)'), findsOneWidget);
@@ -507,7 +558,9 @@ void main() {
       expect(find.text('Retrospective closed'), findsOneWidget);
     });
 
-    testWidgets('SprintRetrospectiveTabView switches internal tabs and opens action item drawer', (tester) async {
+    testWidgets(
+        'SprintRetrospectiveTabView switches internal tabs and opens action item drawer',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -559,7 +612,8 @@ void main() {
           SprintRetroActionItemModel(
             id: 'a1',
             itemKey: 'RA-001',
-            title: 'Conduct detailed requirement grooming session before next sprint.',
+            title:
+                'Conduct detailed requirement grooming session before next sprint.',
             ownerName: 'Amit Kumar',
             priority: 'HIGH',
             dueDate: 'Jan 20, 2025',
@@ -568,7 +622,8 @@ void main() {
           ),
         ],
         participants: const [
-          SprintRetroParticipantModel(id: 'p1', userId: 'u1', name: 'Neha Sharma', role: 'Facilitator'),
+          SprintRetroParticipantModel(
+              id: 'p1', userId: 'u1', name: 'Neha Sharma', role: 'Facilitator'),
         ],
         history: const [
           SprintRetroHistoryItemModel(
@@ -622,7 +677,8 @@ void main() {
       // Switch to Notes & Summary
       await tester.tap(find.text('Notes & Summary'));
       await tester.pump();
-      expect(find.text('Retrospective Summary & Key Decisions'), findsOneWidget);
+      expect(
+          find.text('Retrospective Summary & Key Decisions'), findsOneWidget);
 
       // Switch to Feedback
       await tester.tap(find.text('Feedback'));
@@ -634,10 +690,13 @@ void main() {
       // Switch to History
       await tester.tap(find.text('History'));
       await tester.pump();
-      expect(find.text('Retrospective Session History & Milestone Audit'), findsOneWidget);
+      expect(find.text('Retrospective Session History & Milestone Audit'),
+          findsOneWidget);
     });
 
-    testWidgets('Inline View All expansion shows all remaining cards and collapses back to 3', (tester) async {
+    testWidgets(
+        'Inline View All expansion shows all remaining cards and collapses back to 3',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -744,7 +803,9 @@ void main() {
       expect(find.text('View All (6)'), findsOneWidget);
     });
 
-    testWidgets('Retrospective Action Items table has no double checkboxes and filters work', (tester) async {
+    testWidgets(
+        'Retrospective Action Items table has no double checkboxes and filters work',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -770,11 +831,17 @@ void main() {
           key: 'WENT_WELL',
           count: 1,
           entries: [
-            SprintRetroEntryItemModel(id: 'c1', category: 'WENT_WELL', content: 'Database performance is fast', authorName: 'Alice'),
+            SprintRetroEntryItemModel(
+                id: 'c1',
+                category: 'WENT_WELL',
+                content: 'Database performance is fast',
+                authorName: 'Alice'),
           ],
         ),
-        didNotGoWell: SprintRetroCategoryColumnModel(title: '', key: 'DID_NOT_GO_WELL', count: 0, entries: []),
-        shouldImprove: SprintRetroCategoryColumnModel(title: '', key: 'TO_IMPROVE', count: 0, entries: []),
+        didNotGoWell: SprintRetroCategoryColumnModel(
+            title: '', key: 'DID_NOT_GO_WELL', count: 0, entries: []),
+        shouldImprove: SprintRetroCategoryColumnModel(
+            title: '', key: 'TO_IMPROVE', count: 0, entries: []),
         actionItems: [
           SprintRetroActionItemModel(
             id: 'a1',
@@ -837,12 +904,14 @@ void main() {
       expect(find.byType(Checkbox), findsNWidgets(2));
     });
 
-    testWidgets('Clicking retrospective discussion card opens detail dialog with observation, upvotes, and conversion', (tester) async {
+    testWidgets(
+        'Clicking retrospective discussion card opens detail dialog with observation, upvotes, and conversion',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final mockWs = SprintRetroWorkspaceModel(
+      const mockWs = SprintRetroWorkspaceModel(
         retrospective: const SprintRetroHeaderModel(
           id: 'retro-8-id',
           sprintId: 'sprint-8-id',
@@ -862,7 +931,8 @@ void main() {
             SprintRetroEntryItemModel(
               id: 'e1',
               category: 'WENT_WELL',
-              content: 'Some requirements were not clearly defined in the initial planning.',
+              content:
+                  'Some requirements were not clearly defined in the initial planning.',
               authorName: 'Rahul Mehta',
               votes: 3,
               commentsCount: 2,
@@ -915,7 +985,8 @@ void main() {
       await tester.pump();
 
       // Card is displayed on the board
-      final cardFinder = find.text('Some requirements were not clearly defined in the initial planning.');
+      final cardFinder = find.text(
+          'Some requirements were not clearly defined in the initial planning.');
       expect(cardFinder, findsOneWidget);
 
       // Tap on the card
@@ -939,7 +1010,9 @@ void main() {
       expect(find.byType(Dialog), findsNothing);
     });
 
-    testWidgets('Sprint Retro dynamic available teams, participation and clearTeamId work accurately', (tester) async {
+    testWidgets(
+        'Sprint Retro dynamic available teams, participation and clearTeamId work accurately',
+        (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -963,9 +1036,24 @@ void main() {
           'completed_work': '0 of 15 (0%)',
         },
         'categories': {
-          'went_well': {'title': 'What Went Well?', 'key': 'WENT_WELL', 'count': 0, 'entries': []},
-          'did_not_go_well': {'title': "What Didn't Go Well?", 'key': 'DID_NOT_GO_WELL', 'count': 0, 'entries': []},
-          'should_improve': {'title': 'What Should Improve?', 'key': 'TO_IMPROVE', 'count': 0, 'entries': []},
+          'went_well': {
+            'title': 'What Went Well?',
+            'key': 'WENT_WELL',
+            'count': 0,
+            'entries': []
+          },
+          'did_not_go_well': {
+            'title': "What Didn't Go Well?",
+            'key': 'DID_NOT_GO_WELL',
+            'count': 0,
+            'entries': []
+          },
+          'should_improve': {
+            'title': 'What Should Improve?',
+            'key': 'TO_IMPROVE',
+            'count': 0,
+            'entries': []
+          },
         },
         'action_items': [
           {
@@ -1000,14 +1088,44 @@ void main() {
           },
         ],
         'available_teams': [
-          {'id': 'team-1', 'name': 'Academic Systems Team', 'members_count': 8, 'is_selected': false},
-          {'id': 'team-2', 'name': 'Digital Campus Team', 'members_count': 7, 'is_selected': false},
-          {'id': 'team-3', 'name': 'Examination Team', 'members_count': 6, 'is_selected': false},
-          {'id': 'king-team-id', 'name': 'KING', 'members_count': 2, 'is_selected': true},
+          {
+            'id': 'team-1',
+            'name': 'Academic Systems Team',
+            'members_count': 8,
+            'is_selected': false
+          },
+          {
+            'id': 'team-2',
+            'name': 'Digital Campus Team',
+            'members_count': 7,
+            'is_selected': false
+          },
+          {
+            'id': 'team-3',
+            'name': 'Examination Team',
+            'members_count': 6,
+            'is_selected': false
+          },
+          {
+            'id': 'king-team-id',
+            'name': 'KING',
+            'members_count': 2,
+            'is_selected': true
+          },
         ],
         'available_sprints': [
-          {'id': 'sprint-1', 'name': 'Sprint 9', 'status': 'PLANNED', 'is_current': true},
-          {'id': 'sprint-2', 'name': 'Sprint 8', 'status': 'COMPLETED', 'is_current': false},
+          {
+            'id': 'sprint-1',
+            'name': 'Sprint 9',
+            'status': 'PLANNED',
+            'is_current': true
+          },
+          {
+            'id': 'sprint-2',
+            'name': 'Sprint 8',
+            'status': 'COMPLETED',
+            'is_current': false
+          },
         ],
       };
 
@@ -1022,7 +1140,8 @@ void main() {
       expect(ws.participants.first.email, 'archana@edushamiit.com');
 
       // Test WorkSprintRetroState clearTeamId functionality
-      var retroState = WorkSprintRetroState(sprintId: 'sprint-1', teamId: 'KING', workspace: ws);
+      var retroState = WorkSprintRetroState(
+          sprintId: 'sprint-1', teamId: 'KING', workspace: ws);
       expect(retroState.teamId, 'KING');
 
       // Clearing teamId via clearTeamId
@@ -1062,7 +1181,8 @@ void main() {
       expect(find.text('100%'), findsWidgets);
 
       // Verify Duration displays Jan 15, 2025 - Jan 28, 2025 (not suppressed)
-      expect(find.text('Jan 15, 2025 - Jan 28, 2025 (14 days)'), findsOneWidget);
+      expect(
+          find.text('Jan 15, 2025 - Jan 28, 2025 (14 days)'), findsOneWidget);
     });
   });
 }

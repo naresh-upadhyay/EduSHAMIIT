@@ -79,13 +79,17 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
 
   Future<void> _fetchCalendars() async {
     if (widget.calendars.isNotEmpty) {
-      if (mounted) setState(() => _dynamicCalendars = List.from(widget.calendars));
+      if (mounted)
+        setState(() => _dynamicCalendars = List.from(widget.calendars));
       return;
     }
     try {
-      final res = await ApiService().get('/calendar/calendars', useCache: false);
+      final res =
+          await ApiService().get('/calendar/calendars', useCache: false);
       if (res['success'] == true && res['data'] is List && mounted) {
-        final list = (res['data'] as List).map((c) => CalendarModel.fromJson(c)).toList();
+        final list = (res['data'] as List)
+            .map((c) => CalendarModel.fromJson(c))
+            .toList();
         setState(() {
           _dynamicCalendars = list;
           if (_selectedCalendarId.isEmpty && list.isNotEmpty) {
@@ -108,8 +112,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             parsedRoles.add(Map<String, dynamic>.from(item));
           } else if (item != null) {
             final str = item.toString().trim();
-            if (str.isNotEmpty)
+            if (str.isNotEmpty) {
               parsedRoles.add({'name': str, 'display_name': str});
+            }
           }
         }
         if (parsedRoles.isNotEmpty && mounted) {
@@ -418,13 +423,18 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
     _buildingController.text = init?.building ?? '';
     _virtualUrlController.text = init?.virtualMeetingUrl ?? '';
 
-    _selectedType =
-        init?.scheduleType ?? widget.defaultScheduleType ?? (widget.isLiveClass ? 'Class' : 'Meeting');
+    _selectedType = init?.scheduleType ??
+        widget.defaultScheduleType ??
+        (widget.isLiveClass ? 'Class' : 'Meeting');
     _selectedCalendarId = init?.calendarId ??
         (_effectiveCalendars.isNotEmpty ? _effectiveCalendars.first.id : '');
-    _selectedColor = init?.color ?? (widget.isLiveClass ? const Color(0xFF2563EB) : const Color(0xFF4F46E5));
+    _selectedColor = init?.color ??
+        (widget.isLiveClass
+            ? const Color(0xFF2563EB)
+            : const Color(0xFF4F46E5));
     _selectedPriority = init?.priority ?? 'normal';
-    _virtualProvider = init?.virtualMeetingProvider ?? (widget.isLiveClass ? 'edushamiit' : 'google_meet');
+    _virtualProvider = init?.virtualMeetingProvider ??
+        (widget.isLiveClass ? 'edushamiit' : 'google_meet');
 
     if (widget.isLiveClass && _virtualUrlController.text.trim().isEmpty) {
       final randomId =
@@ -621,7 +631,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
         DateTime.now().millisecondsSinceEpoch.toString().substring(7);
     setState(() {
       if (_virtualProvider == 'edushamiit' || _virtualProvider == 'livekit') {
-        _virtualUrlController.text = 'https://meet.edushamiit.com/cls/$randomId';
+        _virtualUrlController.text =
+            'https://meet.edushamiit.com/cls/$randomId';
       } else if (_virtualProvider == 'google_meet') {
         _virtualUrlController.text =
             'https://meet.google.com/edu-$randomId-shm';
@@ -631,7 +642,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
         _virtualUrlController.text =
             'https://teams.microsoft.com/l/meetup-join/$randomId';
       } else {
-        _virtualUrlController.text = 'https://meet.edushamiit.com/cls/$randomId';
+        _virtualUrlController.text =
+            'https://meet.edushamiit.com/cls/$randomId';
       }
     });
   }
@@ -673,8 +685,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
           final subList = (cObj['subjects'] as List).whereType<Map>().toList();
           final subMatches =
               subList.where((s) => s['id']?.toString() == subId).toList();
-          if (subMatches.isNotEmpty)
+          if (subMatches.isNotEmpty) {
             selectedSub = Map<String, dynamic>.from(subMatches.first);
+          }
         }
 
         targetClassSections.add({
@@ -1246,8 +1259,16 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                     ),
                     child: Text(
                       widget.initialSchedule != null
-                          ? (isMobile ? 'Update' : (widget.isLiveClass ? 'Update Live Class' : 'Update Schedule'))
-                          : (isMobile ? (widget.isLiveClass ? 'Schedule' : 'Create') : (widget.isLiveClass ? 'Schedule Live Class' : 'Create Schedule')),
+                          ? (isMobile
+                              ? 'Update'
+                              : (widget.isLiveClass
+                                  ? 'Update Live Class'
+                                  : 'Update Schedule'))
+                          : (isMobile
+                              ? (widget.isLiveClass ? 'Schedule' : 'Create')
+                              : (widget.isLiveClass
+                                  ? 'Schedule Live Class'
+                                  : 'Create Schedule')),
                       style: TextStyle(
                           fontSize: (11.5 * ts).roundToDouble(),
                           fontWeight: FontWeight.w800),
@@ -1447,11 +1468,13 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
               }
 
               // Ensure the schedule's current calendar exists in calendarMap so assertion never fails
-              if (_selectedCalendarId.isNotEmpty && !calendarMap.containsKey(_selectedCalendarId)) {
+              if (_selectedCalendarId.isNotEmpty &&
+                  !calendarMap.containsKey(_selectedCalendarId)) {
                 calendarMap[_selectedCalendarId] = 'Associated Calendar';
               }
 
-              final effectiveCalendarId = calendarMap.containsKey(_selectedCalendarId)
+              final effectiveCalendarId = calendarMap
+                      .containsKey(_selectedCalendarId)
                   ? _selectedCalendarId
                   : (calendarMap.isNotEmpty ? calendarMap.keys.first : null);
 
@@ -1473,7 +1496,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                   Text('Calendar', style: labelStyle),
                   const SizedBox(height: 3),
                   AppSearchableDropdownFormField<String>.fromMenuItems(
-                    key: ValueKey('cal_dropdown_${effectiveCalendarId ?? "none"}_${calendarMap.length}'),
+                    key: ValueKey(
+                        'cal_dropdown_${effectiveCalendarId ?? "none"}_${calendarMap.length}'),
                     initialValue: effectiveCalendarId,
                     isExpanded: true,
                     isDense: true,
@@ -1499,7 +1523,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                     ),
                     items: calendarDropdownItems,
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedCalendarId = val);
+                      if (val != null)
+                        setState(() => _selectedCalendarId = val);
                     },
                   ),
                 ],
@@ -1582,8 +1607,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             builder: (ctx) {
               const validPriorities = {'low', 'normal', 'high', 'urgent'};
               final normPriority = _selectedPriority.toLowerCase().trim();
-              final effectivePriority =
-                  validPriorities.contains(normPriority) ? normPriority : 'normal';
+              final effectivePriority = validPriorities.contains(normPriority)
+                  ? normPriority
+                  : 'normal';
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1922,8 +1948,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
             if (_timezone.isNotEmpty && !timezonesMap.containsKey(_timezone)) {
               timezonesMap[_timezone] = _timezone;
             }
-            final effectiveTimezone =
-                timezonesMap.containsKey(_timezone) ? _timezone : 'Asia/Kolkata';
+            final effectiveTimezone = timezonesMap.containsKey(_timezone)
+                ? _timezone
+                : 'Asia/Kolkata';
 
             return AppSearchableDropdownFormField<String>.fromMenuItems(
               key: ValueKey('tz_dropdown_$effectiveTimezone'),
@@ -1962,12 +1989,17 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
               }).toList(),
               onChanged: (newTz) {
                 if (newTz != null && newTz != _timezone) {
-                  final oldStartNaive = DateTime(_startDate.year, _startDate.month,
-                      _startDate.day, _startTime.hour, _startTime.minute);
+                  final oldStartNaive = DateTime(
+                      _startDate.year,
+                      _startDate.month,
+                      _startDate.day,
+                      _startTime.hour,
+                      _startTime.minute);
                   final oldEndNaive = DateTime(_endDate.year, _endDate.month,
                       _endDate.day, _endTime.hour, _endTime.minute);
 
-                  final utcStart = _convertTimezoneToUtc(oldStartNaive, _timezone);
+                  final utcStart =
+                      _convertTimezoneToUtc(oldStartNaive, _timezone);
                   final utcEnd = _convertTimezoneToUtc(oldEndNaive, _timezone);
 
                   final newStartInTz = _convertUtcToTimezone(utcStart, newTz);
@@ -1975,14 +2007,14 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
 
                   setState(() {
                     _timezone = newTz;
-                    _startDate = DateTime(
-                        newStartInTz.year, newStartInTz.month, newStartInTz.day);
+                    _startDate = DateTime(newStartInTz.year, newStartInTz.month,
+                        newStartInTz.day);
                     _startTime = TimeOfDay(
                         hour: newStartInTz.hour, minute: newStartInTz.minute);
-                    _endDate =
-                        DateTime(newEndInTz.year, newEndInTz.month, newEndInTz.day);
-                    _endTime =
-                        TimeOfDay(hour: newEndInTz.hour, minute: newEndInTz.minute);
+                    _endDate = DateTime(
+                        newEndInTz.year, newEndInTz.month, newEndInTz.day);
+                    _endTime = TimeOfDay(
+                        hour: newEndInTz.hour, minute: newEndInTz.minute);
                   });
                 }
               },
@@ -2161,7 +2193,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                           6: 'SA',
                           7: 'SU'
                         };
-                        _recurrenceDays = [dayNames[_startDate.weekday] ?? 'MO'];
+                        _recurrenceDays = [
+                          dayNames[_startDate.weekday] ?? 'MO'
+                        ];
                       }
                     }
                   });
@@ -2790,10 +2824,19 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
               const SizedBox(height: 2),
               Builder(
                 builder: (ctx) {
-                  const validProviders = {'edushamiit', 'livekit', 'google_meet', 'zoom', 'teams', 'custom'};
+                  const validProviders = {
+                    'edushamiit',
+                    'livekit',
+                    'google_meet',
+                    'zoom',
+                    'teams',
+                    'custom'
+                  };
                   final effectiveProvider =
                       validProviders.contains(_virtualProvider)
-                          ? (_virtualProvider == 'livekit' ? 'edushamiit' : _virtualProvider)
+                          ? (_virtualProvider == 'livekit'
+                              ? 'edushamiit'
+                              : _virtualProvider)
                           : (widget.isLiveClass ? 'edushamiit' : 'google_meet');
 
                   return AppSearchableDropdownFormField<String>.fromMenuItems(
@@ -2804,7 +2847,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                     decoration: InputDecoration(
                       isDense: true,
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                      fillColor:
+                          isDark ? const Color(0xFF0F172A) : Colors.white,
                       contentPadding: inputPad,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6),
@@ -3395,7 +3439,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                           ? currentSubjectId
                           : null;
 
-                      return AppSearchableDropdownFormField<String?>.fromMenuItems(
+                      return AppSearchableDropdownFormField<
+                          String?>.fromMenuItems(
                         key: ValueKey(
                             'sub_dropdown_${key}_${effectiveSubId ?? "none"}_${uniqueSubjects.length}'),
                         initialValue: effectiveSubId,
@@ -3765,9 +3810,10 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                       final subMatches = subList
                           .where((s) => s['id']?.toString() == subId)
                           .toList();
-                      if (subMatches.isNotEmpty)
+                      if (subMatches.isNotEmpty) {
                         selectedSub =
                             Map<String, dynamic>.from(subMatches.first);
+                      }
                     }
 
                     final bool hasSub = selectedSub != null;
@@ -3960,14 +4006,23 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                                 ),
                                 child: Builder(
                                   builder: (context) {
-                                    final rawRole = (u['participation_role'] ?? 'required').toString().toLowerCase();
-                                    final effectiveRole = (rawRole == 'required' || rawRole == 'mandatory')
-                                        ? 'required'
-                                        : (rawRole == 'optional'
-                                            ? 'optional'
-                                            : (rawRole == 'fyi' ? 'fyi' : 'required'));
-                                    return AppSearchableDropdown<String>.fromMenuItems(
-                                      key: ValueKey('user_role_${u['user_id'] ?? u['id']}_$effectiveRole'),
+                                    final rawRole =
+                                        (u['participation_role'] ?? 'required')
+                                            .toString()
+                                            .toLowerCase();
+                                    final effectiveRole =
+                                        (rawRole == 'required' ||
+                                                rawRole == 'mandatory')
+                                            ? 'required'
+                                            : (rawRole == 'optional'
+                                                ? 'optional'
+                                                : (rawRole == 'fyi'
+                                                    ? 'fyi'
+                                                    : 'required'));
+                                    return AppSearchableDropdown<
+                                        String>.fromMenuItems(
+                                      key: ValueKey(
+                                          'user_role_${u['user_id'] ?? u['id']}_$effectiveRole'),
                                       value: effectiveRole,
                                       underline: const SizedBox(),
                                       isDense: true,
@@ -4001,8 +4056,9 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                                                         ? Colors.white70
                                                         : Colors.black87))),
                                       ],
-                                      onChanged: (val) => setState(
-                                          () => u['participation_role'] = val ?? 'required'),
+                                      onChanged: (val) => setState(() =>
+                                          u['participation_role'] =
+                                              val ?? 'required'),
                                     );
                                   },
                                 ),
@@ -4020,7 +4076,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
                                           ? const Color(0xFF334155)
                                           : const Color(0xFFCBD5E1)),
                                 ),
-                                child: AppSearchableDropdown<String>.fromMenuItems(
+                                child:
+                                    AppSearchableDropdown<String>.fromMenuItems(
                                   value: (u['permission'] == 'read_write' ||
                                           u['permission'] == 'can_edit' ||
                                           u['permission'] == 'can_manage')
@@ -4104,10 +4161,10 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
         uniqueRoutes.putIfAbsent(rId, () => r);
       }
     }
-    final effectiveRouteId = (_selectedRouteId != null &&
-            uniqueRoutes.containsKey(_selectedRouteId))
-        ? _selectedRouteId
-        : null;
+    final effectiveRouteId =
+        (_selectedRouteId != null && uniqueRoutes.containsKey(_selectedRouteId))
+            ? _selectedRouteId
+            : null;
 
     return ListView(
       padding: EdgeInsets.all(isMob ? 6 : 14),
@@ -4429,9 +4486,8 @@ class _CreateEditScheduleDialogState extends State<CreateEditScheduleDialog>
         Builder(
           builder: (context) {
             const validMinutes = {0, 5, 10, 15, 30, 60, 1440};
-            final effectiveMinutes = validMinutes.contains(_reminderMinutes)
-                ? _reminderMinutes
-                : 15;
+            final effectiveMinutes =
+                validMinutes.contains(_reminderMinutes) ? _reminderMinutes : 15;
             return AppSearchableDropdownFormField<int>.fromMenuItems(
               key: ValueKey('reminder_min_$effectiveMinutes'),
               initialValue: effectiveMinutes,

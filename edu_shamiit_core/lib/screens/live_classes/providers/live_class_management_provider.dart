@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/live_class_models.dart';
 import '../services/live_class_api_service.dart';
 import '../services/in_app_live_room_service.dart';
+import '../utils/live_class_recorder_helper.dart';
 
 final liveClassApiServiceProvider = Provider<LiveClassApiService>((ref) {
   return LiveClassApiService();
@@ -118,6 +120,8 @@ class LiveClassState {
   final List<RecordingItem> recordingsList;
   final int recordingsPage;
   final int recordingsPageSize;
+  final String recordingsSortBy;
+  final String recordingsSortOrder;
   final int recordingsTotalPages;
   final int recordingsTotalCount;
   final String? recordingClassFilter;
@@ -197,6 +201,8 @@ class LiveClassState {
     this.recordingsList = const [],
     this.recordingsPage = 1,
     this.recordingsPageSize = 8,
+    this.recordingsSortBy = 'created_at',
+    this.recordingsSortOrder = 'DESC',
     this.recordingsTotalPages = 1,
     this.recordingsTotalCount = 0,
     this.recordingClassFilter,
@@ -261,6 +267,17 @@ class LiveClassState {
   RecordingsDashboardData? get recordingsDashboard => recordingsData;
   AttendanceDashboardData? get attendanceDashboard => attendanceData;
   MetaDropdownsData? get dropdownMeta => dropdownsData;
+
+  /// Only returns a session if it is genuinely live right now (never ended/recorded sessions).
+  ActiveLiveSession? get trulyLiveSession {
+    final candidate = conductSessionData?.activeSession ?? joinConductData?.activeSession;
+    if (candidate == null) return null;
+    final st = candidate.status.toLowerCase().trim();
+    if (candidate.isLive || st == 'live' || st == 'ongoing') {
+      return candidate;
+    }
+    return null;
+  }
   List<RecordingItem> get recordings => recordingsList;
   List<MyClassItem> get myClasses => myClassesList;
   MyClassesDashboardData? get myDashboard => myClassesDashboard;
@@ -276,6 +293,8 @@ class LiveClassState {
     List<RecordingItem>? recordingsList,
     int? recordingsPage,
     int? recordingsPageSize,
+    String? recordingsSortBy,
+    String? recordingsSortOrder,
     int? recordingsTotalPages,
     int? recordingsTotalCount,
     String? recordingClassFilter,
@@ -340,18 +359,39 @@ class LiveClassState {
     bool? isScreenSharing,
     bool clearSelectedMyClass = false,
     bool clearConductSession = false,
+    bool clearJoinActiveSession = false,
   }) {
+    final nextJoinConduct = clearJoinActiveSession && (joinConductData != null || this.joinConductData != null)
+        ? (() {
+            final base = joinConductData ?? this.joinConductData!;
+            return JoinConductDashboardData(
+              liveNow: 0,
+              todaysClasses: base.todaysClasses,
+              totalParticipantsLive: 0,
+              recordingInProgress: 0,
+              avgClassDurationMin: base.avgClassDurationMin,
+              classQuality: base.classQuality,
+              systemStatus: base.systemStatus,
+              activeSession: null,
+              participants: const [],
+              upcomingClasses: base.upcomingClasses,
+              engagement: base.engagement,
+            );
+          })()
+        : (joinConductData ?? this.joinConductData);
     return LiveClassState(
       selectedTabIndex: selectedTabIndex ?? this.selectedTabIndex,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
-      joinConductData: joinConductData ?? this.joinConductData,
+      joinConductData: nextJoinConduct,
       recordingsData: recordingsData ?? this.recordingsData,
       attendanceData: attendanceData ?? this.attendanceData,
       dropdownsData: dropdownsData ?? this.dropdownsData,
       recordingsList: recordingsList ?? this.recordingsList,
       recordingsPage: recordingsPage ?? this.recordingsPage,
       recordingsPageSize: recordingsPageSize ?? this.recordingsPageSize,
+      recordingsSortBy: recordingsSortBy ?? this.recordingsSortBy,
+      recordingsSortOrder: recordingsSortOrder ?? this.recordingsSortOrder,
       recordingsTotalPages: recordingsTotalPages ?? this.recordingsTotalPages,
       recordingsTotalCount: recordingsTotalCount ?? this.recordingsTotalCount,
       recordingClassFilter: clearRecordingClassFilter ? null : (recordingClassFilter ?? this.recordingClassFilter),
@@ -503,6 +543,8 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
         search: state.recordingSearchQuery,
         page: state.recordingsPage,
         pageSize: state.recordingsPageSize,
+        sortBy: state.recordingsSortBy,
+        sortOrder: state.recordingsSortOrder,
       );
       final recs = (recsRes['items'] as List<RecordingItem>?) ?? [];
       RecordingItem? nextSelected;
@@ -589,6 +631,17 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     refreshRecordings();
   }
 
+  void toggleRecordingsSort(String columnKey) {
+    final isSame = state.recordingsSortBy == columnKey;
+    final nextOrder = isSame ? (state.recordingsSortOrder == 'ASC' ? 'DESC' : 'ASC') : 'ASC';
+    state = state.copyWith(
+      recordingsSortBy: columnKey,
+      recordingsSortOrder: nextOrder,
+      recordingsPage: 1,
+    );
+    refreshRecordings();
+  }
+
   void selectRecordingForPreview(RecordingItem item) {
     state = state.copyWith(selectedRecordingForPreview: item);
   }
@@ -626,9 +679,32 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
   }
 
   Future<void> endClass(String sessionId) async {
+    if (LiveClassBrowserRecorder.instance.isRecording) {
+      try {
+        final capture = await LiveClassBrowserRecorder.instance.stopAndCollect();
+        if (capture.bytes != null && capture.bytes!.isNotEmpty) {
+          await uploadRecordedLiveClassBytes(
+            sessionId: sessionId,
+            bytes: capture.bytes!,
+            fileName: capture.fileName,
+            durationSeconds: capture.durationSeconds,
+          );
+        }
+      } catch (e) {
+        debugPrint('[LiveClassNotifier] endClass finalize recording error: $e');
+      }
+    }
     InAppLiveRoomService.instance.setIsRecording(false);
+    try {
+      await InAppLiveRoomService.instance.leaveRoom();
+    } catch (_) {}
+    // Clear live stage & active banner immediately before awaiting backend refresh
+    state = state.copyWith(
+      clearConductSession: true,
+      clearSelectedMyClass: true,
+      clearJoinActiveSession: true,
+    );
     await _api.endLiveClass(sessionId);
-    state = state.copyWith(clearConductSession: true, clearSelectedMyClass: true);
     await refreshJoinConduct();
     await refreshRecordings();
     await refreshAttendance();
@@ -679,10 +755,36 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     );
   }
 
-  Future<void> leaveClass(String sessionId) async {
-    await _api.leaveLiveClass(sessionId);
-    state = state.copyWith(clearConductSession: true, clearSelectedMyClass: true);
+  Future<Map<String, dynamic>> leaveClass(String sessionId) async {
+    if (LiveClassBrowserRecorder.instance.isRecording) {
+      try {
+        final capture = await LiveClassBrowserRecorder.instance.stopAndCollect();
+        if (capture.bytes != null && capture.bytes!.isNotEmpty) {
+          await uploadRecordedLiveClassBytes(
+            sessionId: sessionId,
+            bytes: capture.bytes!,
+            fileName: capture.fileName,
+            durationSeconds: capture.durationSeconds,
+          );
+        }
+      } catch (e) {
+        debugPrint('[LiveClassNotifier] leaveClass recording finalize notice: $e');
+      }
+    }
+    InAppLiveRoomService.instance.setIsRecording(false);
+    try {
+      await InAppLiveRoomService.instance.leaveRoom();
+    } catch (_) {}
+    final res = await _api.leaveLiveClass(sessionId);
+    final autoEnded = res['auto_ended'] == true;
+    state = state.copyWith(
+      clearConductSession: true,
+      clearSelectedMyClass: true,
+      clearJoinActiveSession: autoEnded,
+    );
+    await refreshJoinConduct();
     await refreshMyClasses();
+    return res;
   }
 
   void clearActiveSession() {
@@ -1545,33 +1647,188 @@ class LiveClassNotifier extends StateNotifier<LiveClassState> {
     return await _api.saveWhiteboard(sessId, canvasData, teacherOnlyMode: teacherOnlyMode);
   }
 
-  Future<bool> toggleRecording({int? recordedDurationSeconds}) async {
-    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
-    if (sessId == null) return false;
-    final res = await _api.toggleRecording(sessId);
-    if (res['success'] == true) {
-      final isRec = res['recording_status'] == 'RECORDING' || res['data']?['is_recording'] == true;
-      final wasRec = InAppLiveRoomService.instance.isRecording;
-      InAppLiveRoomService.instance.setIsRecording(isRec);
-
-      // If recording transitioned from recording -> stopped, add to recordings tab!
-      if (wasRec && !isRec) {
-        final activeSess = state.conductSessionData?.activeSession;
-        addLiveMeetingRecording(
-          sessionId: sessId,
-          title: activeSess?.title ?? 'Live Class',
-          classSection: activeSess != null ? '${activeSess.className} - ${activeSess.sectionName}' : 'Class 10 - 10-A',
-          subject: activeSess?.subject ?? 'General',
-          teacherName: activeSess?.teacherName ?? 'Teacher',
-          durationSeconds: recordedDurationSeconds ?? 2700,
-        );
+  Future<bool> uploadRecordedLiveClassBytes({
+    required String sessionId,
+    required List<int> bytes,
+    required String fileName,
+    required int durationSeconds,
+  }) async {
+    try {
+      final activeSess = state.conductSessionData?.activeSession;
+      final meta = state.dropdownMeta;
+      final classSection = activeSess != null
+          ? [activeSess.className, activeSess.sectionName].where((s) => s.trim().isNotEmpty).join(' - ')
+          : '';
+      final rawTitle = (activeSess?.title ?? '').trim();
+      String resolvedTitle;
+      if (rawTitle.isNotEmpty &&
+          rawTitle.toLowerCase() != 'live class' &&
+          rawTitle.toLowerCase() != 'live class recording') {
+        resolvedTitle = (classSection.isNotEmpty && !rawTitle.toLowerCase().contains(classSection.toLowerCase()))
+            ? '$rawTitle ($classSection)'
+            : rawTitle;
+      } else if (classSection.isNotEmpty && (activeSess?.subject ?? '').isNotEmpty) {
+        resolvedTitle = '$classSection • ${activeSess!.subject} Lecture';
+      } else {
+        resolvedTitle = classSection.isNotEmpty ? '$classSection Lecture' : 'Recorded Class Session';
       }
 
-      await loadConductSession(sessId);
-      await refreshRecordings();
-      return true;
+      String? classId;
+      String? sectionId;
+      String? subjectId;
+      if (meta != null && activeSess != null) {
+        classId = meta.classes.where((c) => c.name.toLowerCase() == activeSess.className.toLowerCase()).firstOrNull?.id;
+        sectionId = meta.sections.where((s) => s.name.toLowerCase() == activeSess.sectionName.toLowerCase() && (classId == null || s.classId == classId)).firstOrNull?.id;
+        subjectId = meta.subjects.where((s) => s.name.toLowerCase() == activeSess.subject.toLowerCase()).firstOrNull?.id;
+      }
+
+      final res = await _api.uploadRecordingFile(
+        fileBytes: bytes,
+        fileName: fileName,
+        title: resolvedTitle,
+        description: 'Recorded live class lecture (${activeSess?.subject ?? 'General'}) with whiteboard & video sync.',
+        classId: classId,
+        sectionId: sectionId,
+        subjectId: subjectId,
+        teacherName: activeSess?.teacherName ?? 'Teacher',
+        liveClassId: sessionId,
+        recordingType: 'Live Class',
+        durationMinutes: math.max(1, (durationSeconds / 60).round()),
+        durationSeconds: math.max(1, durationSeconds),
+        visibility: 'CLASS',
+      );
+      final newId = (res['data'] is Map) ? res['data']['id']?.toString() : null;
+      await refreshRecordings(selectRecordingId: newId);
+      return res['success'] == true || newId != null;
+    } catch (e) {
+      debugPrint('[LiveClassNotifier] uploadRecordedLiveClassBytes error: $e');
+      return false;
     }
-    return false;
+  }
+
+  /// Explicitly start recording (idempotent; never toggles OFF if backend row was stale).
+  Future<Map<String, dynamic>> startRecordingWithCapture() async {
+    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
+    if (sessId == null) {
+      return {'success': false, 'is_recording': false, 'message': 'No active class session'};
+    }
+
+    final recorder = LiveClassBrowserRecorder.instance;
+    if (kIsWeb && recorder.isRecording) {
+      InAppLiveRoomService.instance.setIsRecording(true);
+      return {
+        'success': true,
+        'is_recording': true,
+        'source': recorder.sourceLabel,
+        'message': 'Recording is already running (${recorder.sourceLabel}).',
+      };
+    }
+
+    LiveClassCaptureStartResult captureStart = const LiveClassCaptureStartResult(started: false);
+    if (kIsWeb) {
+      captureStart = await recorder.startCapture();
+    }
+    if (!kIsWeb || captureStart.started) {
+      InAppLiveRoomService.instance.setIsRecording(true);
+    }
+
+    final res = await _api.toggleRecording(sessId, action: 'start');
+    final serverStarted = res['success'] == true &&
+        (res['recording_status'] == 'RECORDING' || res['data']?['is_recording'] == true);
+
+    if (!captureStart.started && !kIsWeb && !serverStarted) {
+      InAppLiveRoomService.instance.setIsRecording(false);
+      return {
+        'success': false,
+        'is_recording': false,
+        'message': 'Could not start recording.',
+      };
+    }
+    if (kIsWeb && !captureStart.started) {
+      InAppLiveRoomService.instance.setIsRecording(false);
+      if (serverStarted) {
+        unawaited(_api.toggleRecording(sessId, action: 'stop'));
+      }
+      return {
+        'success': false,
+        'is_recording': false,
+        'message': captureStart.errorMessage ?? 'Capture initialization failed.',
+      };
+    }
+
+    unawaited(loadConductSession(sessId));
+    return {
+      'success': true,
+      'is_recording': true,
+      'source': captureStart.sourceLabel,
+      'message': captureStart.sourceLabel.isNotEmpty
+          ? 'Recording started (${captureStart.sourceLabel}). Click Rec badge to Pause or Stop.'
+          : 'Live recording started.',
+    };
+  }
+
+  /// Explicitly stop recording, upload captured WebM, and sync Recordings tab.
+  Future<Map<String, dynamic>> stopRecordingWithCapture({int? recordedDurationSeconds}) async {
+    final sessId = state.currentConductSessionId ?? state.conductSessionData?.activeSession.id;
+    if (sessId == null) {
+      return {'success': false, 'is_recording': false, 'message': 'No active class session'};
+    }
+
+    final recorder = LiveClassBrowserRecorder.instance;
+    InAppLiveRoomService.instance.setIsRecording(false);
+
+    LiveClassCaptureStopResult? captureStop;
+    if (recorder.isRecording) {
+      captureStop = await recorder.stopAndCollect();
+    }
+
+    await _api.toggleRecording(sessId, action: 'stop');
+
+    bool uploaded = false;
+    if (captureStop?.bytes != null && captureStop!.bytes!.isNotEmpty) {
+      uploaded = await uploadRecordedLiveClassBytes(
+        sessionId: sessId,
+        bytes: captureStop.bytes!,
+        fileName: captureStop.fileName,
+        durationSeconds: recordedDurationSeconds ?? captureStop.durationSeconds,
+      );
+    }
+
+    unawaited(loadConductSession(sessId));
+    unawaited(refreshRecordings());
+    return {
+      'success': true,
+      'is_recording': false,
+      'uploaded': uploaded,
+      'message': uploaded
+          ? 'Live class recording captured and saved to Recordings tab!'
+          : 'Recording stopped.',
+    };
+  }
+
+  Future<Map<String, dynamic>> toggleRecordingWithCapture({
+    bool? forceStart,
+    int? recordedDurationSeconds,
+  }) async {
+    if (forceStart == true) {
+      return startRecordingWithCapture();
+    }
+    if (forceStart == false) {
+      return stopRecordingWithCapture(recordedDurationSeconds: recordedDurationSeconds);
+    }
+    final recorder = LiveClassBrowserRecorder.instance;
+    // Never infer active recording from stale DB field; check live recorder / room state only
+    final isCurrentlyActive = kIsWeb
+        ? recorder.isRecording
+        : InAppLiveRoomService.instance.isRecording;
+    return isCurrentlyActive
+        ? stopRecordingWithCapture(recordedDurationSeconds: recordedDurationSeconds)
+        : startRecordingWithCapture();
+  }
+
+  Future<bool> toggleRecording({int? recordedDurationSeconds}) async {
+    final out = await toggleRecordingWithCapture(recordedDurationSeconds: recordedDurationSeconds);
+    return out['success'] == true;
   }
 
   Future<bool> muteParticipant(String participantId, bool isMuted) async {

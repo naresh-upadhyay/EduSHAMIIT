@@ -247,7 +247,7 @@ class _HRPoliciesScreenState extends State<HRPoliciesScreen> {
 
         setState(() {
           _items = List.from(data);
-          if (_sortColumnIndex != null) {
+          if (_sortColumnIndex != null && _activeWorkspaceTab > 2) {
             _sortItemsList(_items, _sortColumnIndex!, _sortAscending);
           }
           _totalRecords = meta['total'] ?? data.length;
@@ -457,11 +457,21 @@ class _HRPoliciesScreenState extends State<HRPoliciesScreen> {
   }
 
   void _sortGrid(int columnIndex, bool ascending) {
+    final ascMap = {
+      1: ascending ? 'name_asc' : 'name_desc',
+      2: ascending ? 'category_asc' : 'category_desc',
+      3: ascending ? 'type_asc' : 'type_desc',
+      4: ascending ? 'version_asc' : 'version_desc',
+      5: ascending ? 'updated_asc' : 'updated_desc',
+      6: ascending ? 'status_asc' : 'status_desc',
+    };
     setState(() {
       _sortColumnIndex = columnIndex;
       _sortAscending = ascending;
-      _sortItemsList(_items, columnIndex, ascending);
+      _sortBy = ascMap[columnIndex] ?? (ascending ? 'oldest' : 'newest');
+      _currentPage = 1;
     });
+    _fetchTableData();
   }
 
   void _sortItemsList(List<dynamic> list, int columnIndex, bool ascending) {

@@ -61,6 +61,86 @@ class _CirculationTableState extends ConsumerState<CirculationTable> {
           // 1. Subtabs Row + Export & Columns Buttons
           _buildSubtabsHeader(context, state, notifier, isDark),
 
+          // Bulk Operations Bar
+          if (isLibraryAdmin && state.selectedBorrowIds.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+                border: Border(
+                  top: BorderSide(color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE)),
+                  bottom: BorderSide(color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE)),
+                ),
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF4F46E5)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${state.selectedBorrowIds.length} transaction(s) selected',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF312E81),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: state.isActionLoading
+                            ? null
+                            : () async {
+                                final ok = await notifier.bulkAction('SEND_REMINDER');
+                                if (context.mounted && ok) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Reminders dispatched for selected transactions.')),
+                                  );
+                                }
+                              },
+                        icon: const Icon(Icons.notifications_active_outlined, size: 16),
+                        label: const Text('Send Reminders', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: state.isActionLoading
+                            ? null
+                            : () async {
+                                final ok = await notifier.bulkAction('MARK_OVERDUE');
+                                if (context.mounted && ok) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Eligible selected loans marked as Overdue.')),
+                                  );
+                                }
+                              },
+                        icon: const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFD97706)),
+                        label: const Text('Mark Overdue', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      ),
+                      TextButton(
+                        onPressed: () => notifier.selectAll(false),
+                        child: const Text('Clear Selection'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
           // 2. Table or Loader/Empty State
           if (state.isLoading && state.transactions.isEmpty)
             const Padding(

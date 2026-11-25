@@ -289,19 +289,41 @@ async def test_all_recordings_scenarios_end_to_end():
 
         assert client.post(f"/api/live-classes/{sess_id}/start", headers=host_headers).status_code == 200
         assert client.post(f"/api/live-classes/sessions/{sess_id}/recordings/toggle", headers=host_headers).status_code == 200
-        # Stop recording
+
+        # Simulate browser MediaRecorder uploading real captured bytes linked to the live class session
+        live_class_title = f"{session_topic} ({ctx['class_name']} - {ctx['section_name']})"
+        live_upload_resp = client.post(
+            "/api/live-classes/recordings/upload",
+            headers=host_headers,
+            data={
+                "title": live_class_title,
+                "description": "Recorded live class lecture with whiteboard & video.",
+                "class_id": ctx["class_id"] or "",
+                "section_id": ctx["section_id"] or "",
+                "subject_id": ctx["subject_id"] or "",
+                "live_class_id": sess_id,
+                "recording_type": "Live Class",
+                "duration_seconds": "125",
+                "visibility": "CLASS",
+            },
+            files={"file": ("live_class_capture.webm", SAMPLE_MP4_BYTES, "video/webm")},
+        )
+        assert live_upload_resp.status_code == 200, live_upload_resp.text
+
+        # Stop recording & End live class -> must preserve real uploaded recording without overwriting or creating 0 B duplicate
         toggle_off = client.post(f"/api/live-classes/sessions/{sess_id}/recordings/toggle", headers=host_headers)
         assert toggle_off.status_code == 200
-        # End live class
         assert client.post(f"/api/live-classes/{sess_id}/end", headers=host_headers).status_code == 200
 
         live_rec_rows = await exec_sql(
-            "SELECT id::TEXT AS id, title FROM public.live_class_recordings WHERE live_class_id = %s::UUID AND deleted_at IS NULL;",
+            "SELECT id::TEXT AS id, title, file_size, recording_url FROM public.live_class_recordings WHERE live_class_id = %s::UUID AND deleted_at IS NULL;",
             (sess_id,),
         )
         assert len(live_rec_rows) == 1, f"Expected exactly 1 recording, got {live_rec_rows}"
         live_rec_id = live_rec_rows[0]["id"]
         created_recording_ids.append(live_rec_id)
+        assert int(live_rec_rows[0]["file_size"] or 0) == len(SAMPLE_MP4_BYTES)
+        assert "/stream" in (live_rec_rows[0]["recording_url"] or "")
         assert live_rec_rows[0]["title"].lower() != "live class recording"
         assert session_topic in live_rec_rows[0]["title"]
 

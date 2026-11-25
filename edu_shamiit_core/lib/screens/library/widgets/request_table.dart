@@ -138,10 +138,92 @@ class RequestTable extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (isLibraryAdmin && state.selectedIds.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isDark ? const Color(0xFF312E81) : const Color(0xFFC7D2FE),
+              ),
+            ),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${state.selectedIds.length} request(s) selected',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                      ),
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: state.isProcessing
+                          ? null
+                          : () async {
+                              final res = await notifier.performBulkAction(action: 'ACTIVATE');
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(res['message']?.toString() ?? 'Selected requests accepted.')),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                      label: const Text('Accept Selected', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: state.isProcessing
+                          ? null
+                          : () async {
+                              final res = await notifier.performBulkAction(
+                                action: 'REJECT',
+                                reason: 'Bulk rejected by librarian',
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(res['message']?.toString() ?? 'Selected requests rejected.')),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFDC2626)),
+                      label: const Text('Reject Selected', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                    ),
+                    TextButton(
+                      onPressed: () => notifier.toggleSelectAll(false),
+                      child: const Text('Clear Selection'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         // Main Responsive Data Table
         LayoutBuilder(
           builder: (context, constraints) {
-            const minTableWidth = 1020.0;
+            const minTableWidth = 1060.0;
             final tableWidth = constraints.maxWidth > minTableWidth
                 ? constraints.maxWidth
                 : minTableWidth;
@@ -153,7 +235,7 @@ class RequestTable extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildTableHeader(isDark),
+                    _buildTableHeader(state, notifier, isDark, isLibraryAdmin),
                     Divider(
                         height: 1,
                         thickness: 1,
@@ -181,7 +263,10 @@ class RequestTable extends ConsumerWidget {
     );
   }
 
-  Widget _buildTableHeader(bool isDark) {
+  Widget _buildTableHeader(
+      RequestState state, RequestNotifier notifier, bool isDark, bool isLibraryAdmin) {
+    final allSelected = state.items.isNotEmpty &&
+        state.items.every((item) => state.selectedIds.contains(item.id));
     final headerStyle = TextStyle(
       fontSize: 12,
       fontWeight: FontWeight.w600,
@@ -195,22 +280,31 @@ class RequestTable extends ConsumerWidget {
           : const Color(0xFFF8FAFC),
       child: Row(
         children: [
-          Expanded(flex: 12, child: Text('Request ID', style: headerStyle)),
+          if (isLibraryAdmin) ...[
+            SizedBox(
+              width: 28,
+              child: Checkbox(
+                value: allSelected,
+                onChanged: (val) => notifier.toggleSelectAll(val ?? false),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(flex: 12, child: _buildSortHeaderCell('Request ID', 'request_number', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 22, child: Text('Title / Item', style: headerStyle)),
+          Expanded(flex: 22, child: _buildSortHeaderCell('Title / Item', 'title', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 12, child: Text('Request Type', style: headerStyle)),
+          Expanded(flex: 12, child: _buildSortHeaderCell('Request Type', 'request_type', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 18, child: Text('Requested By', style: headerStyle)),
+          Expanded(flex: 18, child: _buildSortHeaderCell('Requested By', 'requester_name', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 10, child: Text('Priority', style: headerStyle)),
+          Expanded(flex: 10, child: _buildSortHeaderCell('Priority', 'priority', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 11, child: Text('Status', style: headerStyle)),
+          Expanded(flex: 11, child: _buildSortHeaderCell('Status', 'status', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(
-              flex: 14, child: Text('Date Requested', style: headerStyle)),
+          Expanded(flex: 14, child: _buildSortHeaderCell('Date Requested', 'created_at', state, notifier, isDark)),
           const SizedBox(width: 10),
-          Expanded(flex: 14, child: Text('Last Updated', style: headerStyle)),
+          Expanded(flex: 14, child: _buildSortHeaderCell('Last Updated', 'updated_at', state, notifier, isDark)),
           const SizedBox(width: 10),
           SizedBox(
             width: 145,
@@ -218,6 +312,47 @@ class RequestTable extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: Text('Actions', style: headerStyle),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortHeaderCell(
+    String label,
+    String sortKey,
+    RequestState state,
+    RequestNotifier notifier,
+    bool isDark,
+  ) {
+    final isCurrent = state.sortBy == sortKey;
+    final isAsc = state.sortOrder.toUpperCase() == 'ASC';
+    return InkWell(
+      onTap: () => notifier.toggleSort(sortKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isCurrent
+                    ? const Color(0xFF2563EB)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 3),
+          Icon(
+            isCurrent
+                ? (isAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isCurrent ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
           ),
         ],
       ),
@@ -240,12 +375,13 @@ class RequestTable extends ConsumerWidget {
         currentUserId.trim().isNotEmpty &&
         item.requesterId!.trim().toLowerCase() == currentUserId.trim().toLowerCase();
     final canDelete = isPendingWithoutAction && isCreator;
-
-
+    final isSelected = ref.watch(requestProvider).selectedIds.contains(item.id);
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
+        color: isSelected
+            ? const Color(0xFF2563EB).withValues(alpha: isDark ? 0.14 : 0.05)
+            : (isDark ? const Color(0xFF131B2E) : Colors.white),
         border: Border(
           bottom: BorderSide(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
@@ -257,6 +393,16 @@ class RequestTable extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
+              if (isLibraryAdmin) ...[
+                SizedBox(
+                  width: 28,
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => notifier.toggleSelectId(item.id),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               // 1. Request ID (flex: 12)
               Expanded(
                 flex: 12,

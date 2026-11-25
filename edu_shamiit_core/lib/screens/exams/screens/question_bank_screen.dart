@@ -48,11 +48,13 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
   String _selectedDifficulty = 'All';
   String _selectedTab = 'all'; // all, mcq, short_answer, long_answer, others
 
-  // Pagination State
+  // Pagination & Sort State
   int _currentPage = 1;
   int _pageSize = 10;
   int _totalQuestions = 0;
   int _totalPages = 1;
+  String _sortBy = 'created_at';
+  String _sortOrder = 'desc';
 
   // Selection & Active Item
   final Set<String> _selectedQuestionIds = {};
@@ -152,6 +154,8 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
         questionType: qTypeParam,
         page: _currentPage,
         pageSize: _pageSize,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
       );
 
       final list = pagedResult['questions'] as List<QuestionBankItem>? ?? [];
@@ -190,6 +194,66 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  void _toggleSort(String columnKey) {
+    setState(() {
+      if (_sortBy == columnKey) {
+        _sortOrder = _sortOrder == 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortBy = columnKey;
+        _sortOrder = 'asc';
+      }
+      _currentPage = 1;
+    });
+    _fetchQuestions();
+  }
+
+  Future<void> _performBulkAction(String action, {String? difficulty}) async {
+    if (_selectedQuestionIds.isEmpty) return;
+    final ids = _selectedQuestionIds.toList();
+    if (action == 'BULK_DELETE') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Selected Questions'),
+          content: Text('Delete ${ids.length} selected question(s)? This cannot be undone.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    try {
+      await _apiService.bulkQuestionBankAction(
+        questionIds: ids,
+        action: action,
+        difficulty: difficulty,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Updated ${ids.length} question(s)'),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
+      await _fetchQuestions();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bulk action failed: $e'),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
     }
   }
 
@@ -1103,15 +1167,90 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_selectedQuestionIds.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1E3A8A).withValues(alpha: 0.25)
+                    : const Color(0xFFEFF6FF),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10),
+                  topRight: Radius.circular(10),
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? const Color(0xFF3B82F6).withValues(alpha: 0.3) : const Color(0xFFBFDBFE),
+                  ),
+                ),
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '${_selectedQuestionIds.length} selected',
+                    style: _font(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2563EB),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _performBulkAction('BULK_APPROVE'),
+                    icon: const Icon(Icons.check_circle_outline, size: 15, color: Color(0xFF16A34A)),
+                    label: const Text('Approve Selected', style: TextStyle(fontSize: 12, color: Color(0xFF16A34A))),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _performBulkAction('BULK_DRAFT'),
+                    icon: const Icon(Icons.edit_note, size: 15, color: Color(0xFFD97706)),
+                    label: const Text('Move to Draft', style: TextStyle(fontSize: 12, color: Color(0xFFD97706))),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Set Difficulty',
+                    onSelected: (diff) => _performBulkAction('BULK_CHANGE_DIFFICULTY', difficulty: diff),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'easy', child: Text('Easy')),
+                      PopupMenuItem(value: 'medium', child: Text('Medium')),
+                      PopupMenuItem(value: 'hard', child: Text('Hard')),
+                    ],
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.tune, size: 15, color: Color(0xFF2563EB)),
+                          SizedBox(width: 4),
+                          Text('Set Difficulty', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w500)),
+                          Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF2563EB)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _performBulkAction('BULK_DELETE'),
+                    icon: const Icon(Icons.delete_outline, size: 15, color: Color(0xFFDC2626)),
+                    label: const Text('Delete Selected', style: TextStyle(fontSize: 12, color: Color(0xFFDC2626))),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedQuestionIds.clear()),
+                    child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
           // Table Header Row
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
+              borderRadius: _selectedQuestionIds.isEmpty
+                  ? const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    )
+                  : BorderRadius.zero,
               border: Border(
                 bottom: BorderSide(
                   color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
@@ -1141,19 +1280,19 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
                 const SizedBox(width: 6),
                 _buildHeaderCell('#', width: 34),
                 const SizedBox(width: 6),
-                Expanded(flex: 30, child: _buildHeaderCell('Question')),
+                Expanded(flex: 30, child: _buildSortableHeaderCell('Question', 'question_text')),
                 const SizedBox(width: 8),
-                SizedBox(width: 64, child: _buildHeaderCell('Type')),
+                SizedBox(width: 64, child: _buildSortableHeaderCell('Type', 'question_type')),
                 const SizedBox(width: 8),
-                SizedBox(width: 68, child: _buildHeaderCell('Class')),
+                SizedBox(width: 68, child: _buildSortableHeaderCell('Class', 'class_name')),
                 const SizedBox(width: 8),
-                SizedBox(width: 88, child: _buildHeaderCell('Subject')),
+                SizedBox(width: 88, child: _buildSortableHeaderCell('Subject', 'subject')),
                 const SizedBox(width: 8),
-                SizedBox(width: 90, child: _buildHeaderCell('Chapter')),
+                SizedBox(width: 90, child: _buildSortableHeaderCell('Chapter', 'chapter')),
                 const SizedBox(width: 8),
-                SizedBox(width: 68, child: _buildHeaderCell('Difficulty')),
+                SizedBox(width: 68, child: _buildSortableHeaderCell('Difficulty', 'difficulty')),
                 const SizedBox(width: 8),
-                SizedBox(width: 44, child: _buildHeaderCell('Marks')),
+                SizedBox(width: 44, child: _buildSortableHeaderCell('Marks', 'marks')),
                 const SizedBox(width: 8),
                 SizedBox(width: 84, child: _buildHeaderCell('Actions', align: TextAlign.center)),
               ],
@@ -1378,6 +1517,40 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
         fontWeight: FontWeight.w700,
         color: const Color(0xFF64748B),
         letterSpacing: 0.2,
+      ),
+    );
+  }
+
+  Widget _buildSortableHeaderCell(String text, String sortKey, {TextAlign align = TextAlign.left}) {
+    final isActive = _sortBy == sortKey;
+    return InkWell(
+      onTap: () => _toggleSort(sortKey),
+      borderRadius: BorderRadius.circular(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              text,
+              textAlign: align,
+              overflow: TextOverflow.ellipsis,
+              style: _font(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isActive ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(
+            isActive
+                ? (_sortOrder == 'asc' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                : Icons.unfold_more_rounded,
+            size: 13,
+            color: isActive ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+          ),
+        ],
       ),
     );
   }

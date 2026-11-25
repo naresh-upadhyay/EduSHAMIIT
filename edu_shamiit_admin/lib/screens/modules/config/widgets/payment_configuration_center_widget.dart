@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:edu_shamiit_core/screens/payment_management/services/payment_management_api_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class PaymentConfigurationCenterWidget extends StatefulWidget {
@@ -9,10 +8,12 @@ class PaymentConfigurationCenterWidget extends StatefulWidget {
   const PaymentConfigurationCenterWidget({super.key, required this.isDark});
 
   @override
-  State<PaymentConfigurationCenterWidget> createState() => _PaymentConfigurationCenterWidgetState();
+  State<PaymentConfigurationCenterWidget> createState() =>
+      _PaymentConfigurationCenterWidgetState();
 }
 
-class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationCenterWidget> {
+class _PaymentConfigurationCenterWidgetState
+    extends State<PaymentConfigurationCenterWidget> {
   int _activeSubTab = 0;
   bool _loading = true;
   String? _errorMessage;
@@ -26,8 +27,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   // Controllers for General
   final TextEditingController _instNameCtrl = TextEditingController();
   final TextEditingController _descCtrl = TextEditingController();
-  final TextEditingController _refPrefixCtrl = TextEditingController(text: 'EDU');
-  final TextEditingController _recPrefixCtrl = TextEditingController(text: 'REC-2026-');
+  final TextEditingController _refPrefixCtrl =
+      TextEditingController(text: 'EDU');
+  final TextEditingController _recPrefixCtrl =
+      TextEditingController(text: 'REC-2026-');
   String _currency = 'INR';
   String _defaultMethod = 'UPI';
   bool _onlineCollectionEnabled = true;
@@ -68,13 +71,20 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       _errorMessage = null;
     });
 
-    final data = await PaymentManagementApiService.instance.getInstitutionPaymentConfiguration();
+    final data = await PaymentManagementApiService.instance
+        .getInstitutionPaymentConfiguration();
     if (!mounted) return;
 
     if (data != null && data['success'] == true) {
       final gen = Map<String, dynamic>.from(data['general_settings'] ?? {});
-      final upis = (data['upi_accounts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
-      final banks = (data['bank_accounts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+      final upis = (data['upi_accounts'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
+      final banks = (data['bank_accounts'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e))
+              .toList() ??
+          [];
       final bridge = Map<String, dynamic>.from(data['bridge_status'] ?? {});
 
       setState(() {
@@ -86,8 +96,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _onlineCollectionEnabled = gen['online_collection_enabled'] ?? true;
         _currency = gen['base_currency'] ?? 'INR';
         _defaultMethod = gen['default_payment_method'] ?? 'UPI';
-        _instNameCtrl.text = gen['institution_display_name'] ?? 'Shami Innovation Academy';
-        _descCtrl.text = gen['payment_description'] ?? 'Academic Tuition & Institutional Fee Collection';
+        _instNameCtrl.text =
+            gen['institution_display_name'] ?? 'Shami Innovation Academy';
+        _descCtrl.text = gen['payment_description'] ??
+            'Academic Tuition & Institutional Fee Collection';
         _refPrefixCtrl.text = gen['reference_prefix'] ?? 'EDU';
         _recPrefixCtrl.text = gen['receipt_prefix'] ?? 'REC-2026-';
         _allowPartial = gen['allow_partial_payments'] ?? true;
@@ -114,7 +126,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   }
 
   Future<void> _saveGeneralSettings() async {
-    final ok = await PaymentManagementApiService.instance.updatePaymentGeneralSettings({
+    final ok = await PaymentManagementApiService.instance
+        .updatePaymentGeneralSettings({
       'online_collection_enabled': _onlineCollectionEnabled,
       'base_currency': _currency,
       'default_payment_method': _defaultMethod,
@@ -134,7 +147,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'General Payment Settings saved successfully!' : 'Failed to save settings'),
+          content: Text(ok
+              ? 'General Payment Settings saved successfully!'
+              : 'Failed to save settings'),
           backgroundColor: ok ? const Color(0xFF16A34A) : Colors.red,
         ),
       );
@@ -142,7 +157,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   }
 
   Future<void> _saveQrBehaviourSettings() async {
-    final ok = await PaymentManagementApiService.instance.updateQrBehaviourSettings({
+    final ok =
+        await PaymentManagementApiService.instance.updateQrBehaviourSettings({
       'qr_validity_minutes': _qrValidityMins,
       'grace_period_minutes': _gracePeriodMins,
       'unique_paise_enabled': _uniquePaiseEnabled,
@@ -154,7 +170,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ok ? 'QR Expiry & Unique-Paise Engine settings saved!' : 'Failed to save settings'),
+          content: Text(ok
+              ? 'QR Expiry & Unique-Paise Engine settings saved!'
+              : 'Failed to save settings'),
           backgroundColor: ok ? const Color(0xFF16A34A) : Colors.red,
         ),
       );
@@ -190,7 +208,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('Loading Payment Configuration Centre...', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text('Loading Payment Configuration Centre...',
+                  style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
             ],
           ),
         ),
@@ -211,12 +233,19 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                const Icon(Icons.error_outline_rounded,
+                    color: Colors.redAccent, size: 20),
                 const SizedBox(width: 10),
-                Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13))),
+                Expanded(
+                    child: Text(_errorMessage!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 13))),
                 TextButton(
                   onPressed: _loadConfig,
-                  child: const Text('Retry', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  child: const Text('Retry',
+                      style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -227,7 +256,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -241,26 +271,45 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                     onTap: () => setState(() => _activeSubTab = idx),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFF2563EB)
-                            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                            : (isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                          color: isSelected
+                              ? const Color(0xFF2563EB)
+                              : (isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(t['icon'] as IconData, size: 16, color: isSelected ? Colors.white : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                          Icon(t['icon'] as IconData,
+                              size: 16,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B))),
                           const SizedBox(width: 6),
                           Text(
                             t['label'] as String,
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A)),
                             ),
                           ),
                         ],
@@ -316,7 +365,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _buildCard(
           isDark,
           title: 'Institutional Payment Policies',
-          subtitle: 'Configure online fee collection, currencies, tender defaults, and billing rules.',
+          subtitle:
+              'Configure online fee collection, currencies, tender defaults, and billing rules.',
           child: Column(
             children: [
               _buildSwitchRow(
@@ -334,7 +384,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       'Base Currency',
                       _currency,
                       ['INR', 'USD', 'EUR', 'AED', 'GBP'],
-                      (v) { if (v != null) setState(() => _currency = v); },
+                      (v) {
+                        if (v != null) setState(() => _currency = v);
+                      },
                       isDark,
                     ),
                   ),
@@ -343,8 +395,15 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                     child: _buildDropdown(
                       'Default Payment Method',
                       _defaultMethod,
-                      ['UPI', 'Direct Bank Transfer', 'Cash Counter', 'Cheque/DD'],
-                      (v) { if (v != null) setState(() => _defaultMethod = v); },
+                      [
+                        'UPI',
+                        'Direct Bank Transfer',
+                        'Cash Counter',
+                        'Cheque/DD'
+                      ],
+                      (v) {
+                        if (v != null) setState(() => _defaultMethod = v);
+                      },
                       isDark,
                     ),
                   ),
@@ -353,46 +412,89 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildTextField('Institution Display Name', _instNameCtrl, isDark, 'e.g. Shami Innovation Academy')),
+                  Expanded(
+                      child: _buildTextField(
+                          'Institution Display Name',
+                          _instNameCtrl,
+                          isDark,
+                          'e.g. Shami Innovation Academy')),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField('Payment Description for Parents', _descCtrl, isDark, 'e.g. Academic Tuition & General Fees')),
+                  Expanded(
+                      child: _buildTextField(
+                          'Payment Description for Parents',
+                          _descCtrl,
+                          isDark,
+                          'e.g. Academic Tuition & General Fees')),
                 ],
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildTextField('Payment Intent Prefix', _refPrefixCtrl, isDark, 'e.g. EDU')),
+                  Expanded(
+                      child: _buildTextField('Payment Intent Prefix',
+                          _refPrefixCtrl, isDark, 'e.g. EDU')),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField('Receipt Number Prefix', _recPrefixCtrl, isDark, 'e.g. REC-2026-')),
+                  Expanded(
+                      child: _buildTextField('Receipt Number Prefix',
+                          _recPrefixCtrl, isDark, 'e.g. REC-2026-')),
                 ],
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-
         _buildCard(
           isDark,
           title: 'Transaction & Clearance Permissions',
-          subtitle: 'Enable or disable partial payments, advances, self-pay, and offline entry.',
+          subtitle:
+              'Enable or disable partial payments, advances, self-pay, and offline entry.',
           child: Column(
             children: [
-              _buildSwitchRow('Allow Partial Fee Payments', 'Students can pay invoices in multiple installments', _allowPartial, (v) => setState(() => _allowPartial = v), isDark),
+              _buildSwitchRow(
+                  'Allow Partial Fee Payments',
+                  'Students can pay invoices in multiple installments',
+                  _allowPartial,
+                  (v) => setState(() => _allowPartial = v),
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Allow Advance Payments', 'Permit excess payments credited as future fee advance', _allowAdvance, (v) => setState(() => _allowAdvance = v), isDark),
+              _buildSwitchRow(
+                  'Allow Advance Payments',
+                  'Permit excess payments credited as future fee advance',
+                  _allowAdvance,
+                  (v) => setState(() => _allowAdvance = v),
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Allow Multiple Invoice Settlement', 'Combine multiple fee invoices in a single transaction', _allowMultiple, (v) => setState(() => _allowMultiple = v), isDark),
+              _buildSwitchRow(
+                  'Allow Multiple Invoice Settlement',
+                  'Combine multiple fee invoices in a single transaction',
+                  _allowMultiple,
+                  (v) => setState(() => _allowMultiple = v),
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Allow Student/Parent Self-Payment', 'Show "Pay Fee" dynamic QR button in student & parent login dashboards', _allowSelfPay, (v) => setState(() => _allowSelfPay = v), isDark),
+              _buildSwitchRow(
+                  'Allow Student/Parent Self-Payment',
+                  'Show "Pay Fee" dynamic QR button in student & parent login dashboards',
+                  _allowSelfPay,
+                  (v) => setState(() => _allowSelfPay = v),
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Allow Counter Offline Entry', 'Cashiers can record cash, cheques, and DDs at the institution fee counter', _allowOffline, (v) => setState(() => _allowOffline = v), isDark),
+              _buildSwitchRow(
+                  'Allow Counter Offline Entry',
+                  'Cashiers can record cash, cheques, and DDs at the institution fee counter',
+                  _allowOffline,
+                  (v) => setState(() => _allowOffline = v),
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Direct Bank Transfer (NEFT/RTGS)', 'Show official institution bank account for direct wire transfers', _directBankEnabled, (v) => setState(() => _directBankEnabled = v), isDark),
+              _buildSwitchRow(
+                  'Direct Bank Transfer (NEFT/RTGS)',
+                  'Show official institution bank account for direct wire transfers',
+                  _directBankEnabled,
+                  (v) => setState(() => _directBankEnabled = v),
+                  isDark),
             ],
           ),
         ),
         const SizedBox(height: 20),
-
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton.icon(
@@ -400,10 +502,12 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             icon: const Icon(Icons.save_rounded, size: 18),
-            label: const Text('Save General Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+            label: const Text('Save General Settings',
+                style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: _saveGeneralSettings,
           ),
         ),
@@ -425,17 +529,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Institutional UPI Receiving Accounts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                const Text('Institutional UPI Receiving Accounts',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text('Money paid via Dynamic UPI QR arrives directly in these verified accounts.', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                Text(
+                    'Money paid via Dynamic UPI QR arrives directly in these verified accounts.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
               ],
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Add UPI VPA'),
@@ -444,9 +558,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           ],
         ),
         const SizedBox(height: 16),
-
         if (_upiAccounts.isEmpty)
-          _buildEmptyState('No UPI Accounts Configured', 'Click "+ Add UPI VPA" to register your institution\'s receiving UPI ID.', isDark)
+          _buildEmptyState(
+              'No UPI Accounts Configured',
+              'Click "+ Add UPI VPA" to register your institution\'s receiving UPI ID.',
+              isDark)
         else
           ..._upiAccounts.map((acc) => _buildUpiAccountCard(acc, isDark)),
       ],
@@ -467,15 +583,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDefault ? const Color(0xFF2563EB) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+        border: Border.all(
+            color: isDefault
+                ? const Color(0xFF2563EB)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.qr_code_2_rounded, color: Color(0xFF2563EB), size: 28),
+            decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.qr_code_2_rounded,
+                color: Color(0xFF2563EB), size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -484,52 +606,88 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               children: [
                 Row(
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(width: 8),
                     if (isDefault)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF16A34A).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                        child: const Text('DEFAULT RECEIVING VPA', style: TextStyle(color: Color(0xFF16A34A), fontSize: 10, fontWeight: FontWeight.w800)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF16A34A).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4)),
+                        child: const Text('DEFAULT RECEIVING VPA',
+                            style: TextStyle(
+                                color: Color(0xFF16A34A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800)),
                       ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('UPI ID: ', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                    Text(vpa, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                    Text('UPI ID: ',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
+                    Text(vpa,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2563EB))),
                     const SizedBox(width: 4),
                     InkWell(
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: vpa));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('VPA copied!'), duration: Duration(seconds: 1)));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('VPA copied!'),
+                                duration: Duration(seconds: 1)));
                       },
-                      child: const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF2563EB)),
+                      child: const Icon(Icons.copy_rounded,
+                          size: 14, color: Color(0xFF2563EB)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text('Beneficiary: $beneficiary • Bank: $bank', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                Text('Beneficiary: $beneficiary • Bank: $bank',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
                 if ((acc['device_id'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                          color: (isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+                          border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF475569)
+                                  : const Color(0xFFCBD5E1)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.phone_android_rounded, size: 12, color: Color(0xFF2563EB)),
+                            const Icon(Icons.phone_android_rounded,
+                                size: 12, color: Color(0xFF2563EB)),
                             const SizedBox(width: 4),
                             Text(
                               'Terminal: ${acc['device_id']}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -538,29 +696,40 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       InkWell(
                         onTap: () async {
                           final did = acc['device_id'].toString();
-                          final res = await PaymentManagementApiService.instance.testDeviceActive(did);
+                          final res = await PaymentManagementApiService.instance
+                              .testDeviceActive(did);
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(res['message'] ?? 'Device checked'),
-                                backgroundColor: res['is_active'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                content:
+                                    Text(res['message'] ?? 'Device checked'),
+                                backgroundColor: res['is_active'] == true
+                                    ? const Color(0xFF16A34A)
+                                    : Colors.orange,
                                 duration: const Duration(seconds: 4),
                               ),
                             );
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            color:
+                                const Color(0xFF2563EB).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.sensors, size: 12, color: Color(0xFF2563EB)),
+                              Icon(Icons.sensors,
+                                  size: 12, color: Color(0xFF2563EB)),
                               SizedBox(width: 4),
-                              Text('Test Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                              Text('Test Active',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2563EB))),
                             ],
                           ),
                         ),
@@ -581,25 +750,34 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               const SizedBox(width: 8),
               if (!isDefault)
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8)),
                   onPressed: () async {
-                    await PaymentManagementApiService.instance.setDefaultUpiAccount(id);
+                    await PaymentManagementApiService.instance
+                        .setDefaultUpiAccount(id);
                     _loadConfig();
                   },
-                  child: const Text('Set Default', style: TextStyle(fontSize: 11)),
+                  child:
+                      const Text('Set Default', style: TextStyle(fontSize: 11)),
                 ),
               const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Edit UPI Account Details',
-                icon: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB), size: 18),
+                icon: const Icon(Icons.edit_outlined,
+                    color: Color(0xFF2563EB), size: 18),
                 onPressed: () => _showEditUpiAccountDialog(acc, isDark),
               ),
               const SizedBox(width: 2),
               IconButton(
                 tooltip: 'Deactivate / Delete',
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: Colors.red, size: 20),
                 onPressed: () async {
-                  await PaymentManagementApiService.instance.deactivateUpiAccount(id);
+                  await PaymentManagementApiService.instance
+                      .deactivateUpiAccount(id);
                   _loadConfig();
                 },
               ),
@@ -613,14 +791,19 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   void _showAddUpiAccountDialog(bool isDark) {
     final vpaCtrl = TextEditingController();
     final nameCtrl = TextEditingController(text: 'Campus Fee Collection UPI');
-    final benCtrl = TextEditingController(text: _instNameCtrl.text.isNotEmpty ? _instNameCtrl.text : 'Shami Innovation Academy');
+    final benCtrl = TextEditingController(
+        text: _instNameCtrl.text.isNotEmpty
+            ? _instNameCtrl.text
+            : 'Shami Innovation Academy');
     final bankCtrl = TextEditingController(text: 'State Bank of India');
 
     // Extract registered devices for this institution
     final registeredDevices = (_bridgeStatus['devices'] as List?)
             ?.map((e) => Map<String, dynamic>.from(e))
             .toList() ??
-        (_bridgeStatus['device'] != null ? [Map<String, dynamic>.from(_bridgeStatus['device'])] : []);
+        (_bridgeStatus['device'] != null
+            ? [Map<String, dynamic>.from(_bridgeStatus['device'])]
+            : []);
 
     String initialDeviceId = registeredDevices.isNotEmpty
         ? (registeredDevices.first['device_id']?.toString() ?? 'PB-DEV-WEB001')
@@ -636,8 +819,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add Institutional UPI VPA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Institutional UPI VPA',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 480,
             child: SingleChildScrollView(
@@ -645,13 +830,17 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildTextField('UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
+                  _buildTextField(
+                      'UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
                   const SizedBox(height: 12),
-                  _buildTextField('Account Nickname', nameCtrl, isDark, 'e.g. Counter 1 UPI'),
+                  _buildTextField('Account Nickname', nameCtrl, isDark,
+                      'e.g. Counter 1 UPI'),
                   const SizedBox(height: 12),
-                  _buildTextField('Beneficiary Name', benCtrl, isDark, 'Official Account Holder Name'),
+                  _buildTextField('Beneficiary Name', benCtrl, isDark,
+                      'Official Account Holder Name'),
                   const SizedBox(height: 12),
-                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
+                  _buildTextField(
+                      'Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
                   const SizedBox(height: 12),
 
                   // Device ID & Background Active Test
@@ -660,7 +849,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -669,21 +860,30 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: AppSearchableDropdown<String>.fromMenuItems(
-                          value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
+                          value: registeredDevices
+                                  .any((d) => d['device_id'] == deviceCtrl.text)
                               ? deviceCtrl.text
                               : null,
-                          hint: const Text('Select Registered Device Terminal', style: TextStyle(fontSize: 12)),
+                          hint: const Text('Select Registered Device Terminal',
+                              style: TextStyle(fontSize: 12)),
                           isExpanded: true,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          dropdownColor:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
                           items: registeredDevices.map((d) {
                             final did = d['device_id'].toString();
-                            final dname = d['device_name']?.toString() ?? 'Terminal';
+                            final dname =
+                                d['device_name']?.toString() ?? 'Terminal';
                             final isOnline = d['is_online'] == true;
                             return DropdownMenuItem<String>(
                               value: did,
@@ -691,7 +891,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                                 '$dname ($did)${isOnline ? " • Active" : ""}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                             );
@@ -716,9 +918,13 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           decoration: InputDecoration(
                             hintText: 'e.g. PB-DEV-WEB001',
                             filled: true,
-                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            fillColor: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                           ),
                           style: const TextStyle(fontSize: 13),
                           onChanged: (_) {
@@ -731,20 +937,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                           side: const BorderSide(color: Color(0xFF2563EB)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: isTestingDevice
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Color(0xFF2563EB)),
                               )
-                            : const Icon(Icons.sensors, size: 16, color: Color(0xFF2563EB)),
+                            : const Icon(Icons.sensors,
+                                size: 16, color: Color(0xFF2563EB)),
                         label: Text(
                           isTestingDevice ? 'Testing...' : 'Test Device',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.bold),
                         ),
                         onPressed: isTestingDevice
                             ? null
@@ -752,7 +965,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                                 final targetDevId = deviceCtrl.text.trim();
                                 if (targetDevId.isEmpty) return;
                                 setDialogState(() => isTestingDevice = true);
-                                final res = await PaymentManagementApiService.instance.testDeviceActive(targetDevId);
+                                final res = await PaymentManagementApiService
+                                    .instance
+                                    .testDeviceActive(targetDevId);
                                 setDialogState(() {
                                   isTestingDevice = false;
                                   deviceTestResult = res;
@@ -790,13 +1005,16 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              deviceTestResult!['message'] ?? 'Device status received',
+                              deviceTestResult!['message'] ??
+                                  'Device status received',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: deviceTestResult!['is_active'] == true
                                     ? const Color(0xFF16A34A)
-                                    : (isDark ? Colors.orange[200] : Colors.orange[900]),
+                                    : (isDark
+                                        ? Colors.orange[200]
+                                        : Colors.orange[900]),
                               ),
                             ),
                           ),
@@ -809,14 +1027,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                     'Note: Multiple UPI IDs can link to the same terminal device for background notification capture.',
                     style: TextStyle(
                       fontSize: 10,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 12),
                   CheckboxListTile(
-                    title: const Text('Set as Default Receiving UPI Account', style: TextStyle(fontSize: 12)),
+                    title: const Text('Set as Default Receiving UPI Account',
+                        style: TextStyle(fontSize: 12)),
                     value: setAsDefault,
-                    onChanged: (val) => setDialogState(() => setAsDefault = val ?? false),
+                    onChanged: (val) =>
+                        setDialogState(() => setAsDefault = val ?? false),
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
@@ -825,9 +1047,13 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white),
               onPressed: () async {
                 if (vpaCtrl.text.trim().isEmpty) return;
                 await PaymentManagementApiService.instance.createUpiAccount({
@@ -835,7 +1061,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   'display_name': nameCtrl.text.trim(),
                   'beneficiary_name': benCtrl.text.trim(),
                   'bank_name': bankCtrl.text.trim(),
-                  'device_id': deviceCtrl.text.trim().isNotEmpty ? deviceCtrl.text.trim() : null,
+                  'device_id': deviceCtrl.text.trim().isNotEmpty
+                      ? deviceCtrl.text.trim()
+                      : null,
                   'is_default': setAsDefault,
                 });
                 if (ctx.mounted) Navigator.of(ctx).pop();
@@ -852,16 +1080,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   void _showEditUpiAccountDialog(Map<String, dynamic> acc, bool isDark) {
     final id = acc['id']?.toString() ?? '';
     final vpaCtrl = TextEditingController(text: acc['vpa']?.toString() ?? '');
-    final nameCtrl = TextEditingController(text: acc['display_name']?.toString() ?? '');
-    final benCtrl = TextEditingController(text: acc['beneficiary_name']?.toString() ?? '');
-    final bankCtrl = TextEditingController(text: acc['bank_name']?.toString() ?? 'State Bank of India');
+    final nameCtrl =
+        TextEditingController(text: acc['display_name']?.toString() ?? '');
+    final benCtrl =
+        TextEditingController(text: acc['beneficiary_name']?.toString() ?? '');
+    final bankCtrl = TextEditingController(
+        text: acc['bank_name']?.toString() ?? 'State Bank of India');
     final currentDeviceId = acc['device_id']?.toString() ?? '';
 
     // Extract registered devices for this institution
     final registeredDevices = (_bridgeStatus['devices'] as List?)
             ?.map((e) => Map<String, dynamic>.from(e))
             .toList() ??
-        (_bridgeStatus['device'] != null ? [Map<String, dynamic>.from(_bridgeStatus['device'])] : []);
+        (_bridgeStatus['device'] != null
+            ? [Map<String, dynamic>.from(_bridgeStatus['device'])]
+            : []);
 
     final deviceCtrl = TextEditingController(text: currentDeviceId);
     bool setAsDefault = acc['is_default'] == true;
@@ -873,8 +1106,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Edit Institutional UPI VPA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Institutional UPI VPA',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 480,
             child: SingleChildScrollView(
@@ -882,13 +1117,17 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildTextField('UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
+                  _buildTextField(
+                      'UPI VPA / ID', vpaCtrl, isDark, 'e.g. schoolname@sbi'),
                   const SizedBox(height: 12),
-                  _buildTextField('Account Nickname', nameCtrl, isDark, 'e.g. Campus Fee Collection UPI'),
+                  _buildTextField('Account Nickname', nameCtrl, isDark,
+                      'e.g. Campus Fee Collection UPI'),
                   const SizedBox(height: 12),
-                  _buildTextField('Beneficiary Name', benCtrl, isDark, 'Official Account Holder Name'),
+                  _buildTextField('Beneficiary Name', benCtrl, isDark,
+                      'Official Account Holder Name'),
                   const SizedBox(height: 12),
-                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
+                  _buildTextField(
+                      'Bank Name', bankCtrl, isDark, 'e.g. HDFC Bank, SBI'),
                   const SizedBox(height: 12),
 
                   // Device ID & Background Active Test
@@ -897,7 +1136,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -906,21 +1147,30 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: AppSearchableDropdown<String>.fromMenuItems(
-                          value: registeredDevices.any((d) => d['device_id'] == deviceCtrl.text)
+                          value: registeredDevices
+                                  .any((d) => d['device_id'] == deviceCtrl.text)
                               ? deviceCtrl.text
                               : null,
-                          hint: const Text('Select Registered Device Terminal', style: TextStyle(fontSize: 12)),
+                          hint: const Text('Select Registered Device Terminal',
+                              style: TextStyle(fontSize: 12)),
                           isExpanded: true,
-                          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          dropdownColor:
+                              isDark ? const Color(0xFF1E293B) : Colors.white,
                           items: registeredDevices.map((d) {
                             final did = d['device_id'].toString();
-                            final dname = d['device_name']?.toString() ?? 'Terminal';
+                            final dname =
+                                d['device_name']?.toString() ?? 'Terminal';
                             final isOnline = d['is_online'] == true;
                             return DropdownMenuItem<String>(
                               value: did,
@@ -928,7 +1178,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                                 '$dname ($did)${isOnline ? " • Active" : ""}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                               ),
                             );
@@ -953,9 +1205,13 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           decoration: InputDecoration(
                             hintText: 'e.g. PB-DEV-WEB001',
                             filled: true,
-                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            fillColor: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                           ),
                           style: const TextStyle(fontSize: 13),
                           onChanged: (_) {
@@ -968,20 +1224,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                           side: const BorderSide(color: Color(0xFF2563EB)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: isTestingDevice
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Color(0xFF2563EB)),
                               )
-                            : const Icon(Icons.sensors, size: 16, color: Color(0xFF2563EB)),
+                            : const Icon(Icons.sensors,
+                                size: 16, color: Color(0xFF2563EB)),
                         label: Text(
                           isTestingDevice ? 'Testing...' : 'Test Device',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.bold),
                         ),
                         onPressed: isTestingDevice
                             ? null
@@ -989,7 +1252,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                                 final targetDevId = deviceCtrl.text.trim();
                                 if (targetDevId.isEmpty) return;
                                 setDialogState(() => isTestingDevice = true);
-                                final res = await PaymentManagementApiService.instance.testDeviceActive(targetDevId);
+                                final res = await PaymentManagementApiService
+                                    .instance
+                                    .testDeviceActive(targetDevId);
                                 setDialogState(() {
                                   isTestingDevice = false;
                                   deviceTestResult = res;
@@ -1027,13 +1292,16 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              deviceTestResult!['message'] ?? 'Device status received',
+                              deviceTestResult!['message'] ??
+                                  'Device status received',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: deviceTestResult!['is_active'] == true
                                     ? const Color(0xFF16A34A)
-                                    : (isDark ? Colors.orange[200] : Colors.orange[900]),
+                                    : (isDark
+                                        ? Colors.orange[200]
+                                        : Colors.orange[900]),
                               ),
                             ),
                           ),
@@ -1043,9 +1311,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   ],
                   const SizedBox(height: 6),
                   CheckboxListTile(
-                    title: const Text('Set as Default Receiving UPI Account', style: TextStyle(fontSize: 12)),
+                    title: const Text('Set as Default Receiving UPI Account',
+                        style: TextStyle(fontSize: 12)),
                     value: setAsDefault,
-                    onChanged: (val) => setDialogState(() => setAsDefault = val ?? false),
+                    onChanged: (val) =>
+                        setDialogState(() => setAsDefault = val ?? false),
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
@@ -1054,17 +1324,24 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white),
               onPressed: () async {
                 if (vpaCtrl.text.trim().isEmpty) return;
-                final ok = await PaymentManagementApiService.instance.updateUpiAccount(id, {
+                final ok = await PaymentManagementApiService.instance
+                    .updateUpiAccount(id, {
                   'vpa': vpaCtrl.text.trim(),
                   'display_name': nameCtrl.text.trim(),
                   'beneficiary_name': benCtrl.text.trim(),
                   'bank_name': bankCtrl.text.trim(),
-                  'device_id': deviceCtrl.text.trim().isNotEmpty ? deviceCtrl.text.trim() : null,
+                  'device_id': deviceCtrl.text.trim().isNotEmpty
+                      ? deviceCtrl.text.trim()
+                      : null,
                   'is_default': setAsDefault,
                 });
                 if (ctx.mounted) Navigator.of(ctx).pop();
@@ -1072,7 +1349,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 if (ok) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('UPI account details updated successfully!'),
+                      content:
+                          Text('UPI account details updated successfully!'),
                       backgroundColor: Color(0xFF16A34A),
                       duration: Duration(seconds: 3),
                     ),
@@ -1090,8 +1368,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
 
   void _showQrPreviewDialog(String vpa, String beneficiary, bool isDark) {
     final cleanVpa = vpa.trim().isNotEmpty ? vpa.trim() : 'school@upi';
-    final cleanBeneficiary = beneficiary.trim().isNotEmpty ? beneficiary.trim() : 'EduSHAMIIT Institution';
-    final sampleUri = 'upi://pay?pa=$cleanVpa&pn=${Uri.encodeComponent(cleanBeneficiary)}&cu=INR&tn=Institutional%20Fee%20QR';
+    final cleanBeneficiary = beneficiary.trim().isNotEmpty
+        ? beneficiary.trim()
+        : 'EduSHAMIIT Institution';
+    final sampleUri =
+        'upi://pay?pa=$cleanVpa&pn=${Uri.encodeComponent(cleanBeneficiary)}&cu=INR&tn=Institutional%20Fee%20QR';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1109,7 +1390,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   Expanded(
                     child: Text(
                       'VPA QR Preview: $cleanVpa',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1125,7 +1407,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
                 child: SizedBox(
                   width: 190,
@@ -1136,13 +1421,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                       version: QrVersions.auto,
                       size: 190,
                       backgroundColor: Colors.white,
-                      eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0F172A)),
-                      dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0F172A)),
+                      eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF0F172A)),
+                      dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF0F172A)),
                       errorStateBuilder: (cxt, err) => Center(
                         child: Text(
                           'Unable to render QR: $err',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red, fontSize: 11),
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 11),
                         ),
                       ),
                     ),
@@ -1152,13 +1442,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               const SizedBox(height: 14),
               Text(
                 'Beneficiary: $cleanBeneficiary',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 'Scan to verify payee details in your UPI application.',
-                style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 18),
@@ -1168,7 +1463,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: () => Navigator.of(ctx).pop(),
@@ -1196,17 +1492,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Institutional Bank Accounts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                const Text('Institutional Bank Accounts',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text('Manage direct settlement accounts for wire transfer, NEFT, RTGS, and IMPS.', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                Text(
+                    'Manage direct settlement accounts for wire transfer, NEFT, RTGS, and IMPS.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
               ],
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D9488),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Add Bank Account'),
@@ -1215,9 +1521,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           ],
         ),
         const SizedBox(height: 16),
-
         if (_bankAccounts.isEmpty)
-          _buildEmptyState('No Bank Accounts Configured', 'Click "+ Add Bank Account" to configure institutional receiving bank details.', isDark)
+          _buildEmptyState(
+              'No Bank Accounts Configured',
+              'Click "+ Add Bank Account" to configure institutional receiving bank details.',
+              isDark)
         else
           ..._bankAccounts.map((b) => _buildBankAccountCard(b, isDark)),
       ],
@@ -1235,7 +1543,9 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     final campus = b['campus_name'] ?? 'All Campuses';
     final isDefault = b['is_default'] == true;
     final isUnmasked = _unmaskedBankAccounts.contains(id);
-    final displayedAccNum = isUnmasked ? (b['account_number'] ?? '39871234567') : (b['masked_account_number'] ?? '****4321');
+    final displayedAccNum = isUnmasked
+        ? (b['account_number'] ?? '39871234567')
+        : (b['masked_account_number'] ?? '****4321');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1243,15 +1553,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDefault ? const Color(0xFF0D9488) : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
+        border: Border.all(
+            color: isDefault
+                ? const Color(0xFF0D9488)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFF0D9488).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.account_balance_rounded, color: Color(0xFF0D9488), size: 28),
+            decoration: BoxDecoration(
+                color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.account_balance_rounded,
+                color: Color(0xFF0D9488), size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1260,27 +1576,51 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               children: [
                 Row(
                   children: [
-                    Text(nickname, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(nickname,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                     const SizedBox(width: 8),
                     if (isDefault)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF0D9488).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                        child: const Text('DEFAULT SETTLEMENT ACCOUNT', style: TextStyle(color: Color(0xFF0D9488), fontSize: 10, fontWeight: FontWeight.w800)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF0D9488).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4)),
+                        child: const Text('DEFAULT SETTLEMENT ACCOUNT',
+                            style: TextStyle(
+                                color: Color(0xFF0D9488),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800)),
                       ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Text('Bank: $bankName ($branch) • $accType Account', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                    Text('Bank: $bankName ($branch) • $accType Account',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('Account No: ', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                    Text(displayedAccNum, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
+                    Text('Account No: ',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
+                    Text(displayedAccNum,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'monospace')),
                     const SizedBox(width: 6),
                     InkWell(
                       onTap: () {
@@ -1292,15 +1632,32 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           }
                         });
                       },
-                      child: Icon(isUnmasked ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: const Color(0xFF2563EB)),
+                      child: Icon(
+                          isUnmasked
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          size: 16,
+                          color: const Color(0xFF2563EB)),
                     ),
                     const SizedBox(width: 16),
-                    Text('IFSC: ', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
-                    Text(ifsc, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    Text('IFSC: ',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B))),
+                    Text(ifsc,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700)),
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text('Beneficiary: $holder • Campus: $campus', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                Text('Beneficiary: $holder • Campus: $campus',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B))),
               ],
             ),
           ),
@@ -1308,25 +1665,34 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             children: [
               if (!isDefault)
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D9488),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8)),
                   onPressed: () async {
-                    await PaymentManagementApiService.instance.setDefaultBankAccount(id);
+                    await PaymentManagementApiService.instance
+                        .setDefaultBankAccount(id);
                     _loadConfig();
                   },
-                  child: const Text('Set Default', style: TextStyle(fontSize: 11)),
+                  child:
+                      const Text('Set Default', style: TextStyle(fontSize: 11)),
                 ),
               const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Edit Bank Account Details',
-                icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D9488), size: 18),
+                icon: const Icon(Icons.edit_outlined,
+                    color: Color(0xFF0D9488), size: 18),
                 onPressed: () => _showEditBankAccountDialog(b, isDark),
               ),
               const SizedBox(width: 2),
               IconButton(
                 tooltip: 'Deactivate / Delete',
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: Colors.red, size: 20),
                 onPressed: () async {
-                  await PaymentManagementApiService.instance.deactivateBankAccount(id);
+                  await PaymentManagementApiService.instance
+                      .deactivateBankAccount(id);
                   _loadConfig();
                 },
               ),
@@ -1351,30 +1717,41 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Add Institutional Bank Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        title: const Text('Add Institutional Bank Account',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         content: SizedBox(
           width: 480,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTextField('Account Nickname', nickCtrl, isDark, 'e.g. Tuition Fee Account'),
+                _buildTextField('Account Nickname', nickCtrl, isDark,
+                    'e.g. Tuition Fee Account'),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(child: _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. SBI, HDFC')),
+                    Expanded(
+                        child: _buildTextField(
+                            'Bank Name', bankCtrl, isDark, 'e.g. SBI, HDFC')),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildTextField('Branch Name', branchCtrl, isDark, 'Branch')),
+                    Expanded(
+                        child: _buildTextField(
+                            'Branch Name', branchCtrl, isDark, 'Branch')),
                   ],
                 ),
                 const SizedBox(height: 10),
-                _buildTextField('Account Holder / Beneficiary Name', holderCtrl, isDark, 'Official Institutional Entity Name'),
+                _buildTextField('Account Holder / Beneficiary Name', holderCtrl,
+                    isDark, 'Official Institutional Entity Name'),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(child: _buildTextField('Account Number', numCtrl, isDark, 'Enter Bank Account Number')),
+                    Expanded(
+                        child: _buildTextField('Account Number', numCtrl,
+                            isDark, 'Enter Bank Account Number')),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildTextField('IFSC Code', ifscCtrl, isDark, 'e.g. SBIN0001234')),
+                    Expanded(
+                        child: _buildTextField(
+                            'IFSC Code', ifscCtrl, isDark, 'e.g. SBIN0001234')),
                   ],
                 ),
               ],
@@ -1382,9 +1759,13 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D9488),
+                foregroundColor: Colors.white),
             onPressed: () async {
               if (numCtrl.text.trim().isEmpty) return;
               await PaymentManagementApiService.instance.createBankAccount({
@@ -1408,12 +1789,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
 
   void _showEditBankAccountDialog(Map<String, dynamic> acc, bool isDark) {
     final id = acc['id']?.toString() ?? '';
-    final nickCtrl = TextEditingController(text: acc['account_nickname']?.toString() ?? '');
-    final bankCtrl = TextEditingController(text: acc['bank_name']?.toString() ?? 'State Bank of India');
-    final branchCtrl = TextEditingController(text: acc['branch_name']?.toString() ?? 'Main Branch');
-    final holderCtrl = TextEditingController(text: acc['account_holder_name']?.toString() ?? _instNameCtrl.text);
-    final numCtrl = TextEditingController(text: acc['account_number']?.toString() ?? '');
-    final ifscCtrl = TextEditingController(text: acc['ifsc_code']?.toString() ?? 'SBIN0001234');
+    final nickCtrl =
+        TextEditingController(text: acc['account_nickname']?.toString() ?? '');
+    final bankCtrl = TextEditingController(
+        text: acc['bank_name']?.toString() ?? 'State Bank of India');
+    final branchCtrl = TextEditingController(
+        text: acc['branch_name']?.toString() ?? 'Main Branch');
+    final holderCtrl = TextEditingController(
+        text: acc['account_holder_name']?.toString() ?? _instNameCtrl.text);
+    final numCtrl =
+        TextEditingController(text: acc['account_number']?.toString() ?? '');
+    final ifscCtrl = TextEditingController(
+        text: acc['ifsc_code']?.toString() ?? 'SBIN0001234');
     String type = acc['account_type']?.toString() ?? 'Current';
 
     showDialog(
@@ -1421,8 +1808,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Edit Institutional Bank Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Institutional Bank Account',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 480,
             child: SingleChildScrollView(
@@ -1430,19 +1819,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildTextField('Account Nickname', nickCtrl, isDark, 'e.g. Tuition Fee Account'),
+                  _buildTextField('Account Nickname', nickCtrl, isDark,
+                      'e.g. Tuition Fee Account'),
                   const SizedBox(height: 12),
-                  _buildTextField('Bank Name', bankCtrl, isDark, 'e.g. State Bank of India'),
+                  _buildTextField('Bank Name', bankCtrl, isDark,
+                      'e.g. State Bank of India'),
                   const SizedBox(height: 12),
-                  _buildTextField('Branch Name', branchCtrl, isDark, 'e.g. Main Branch, MG Road'),
+                  _buildTextField('Branch Name', branchCtrl, isDark,
+                      'e.g. Main Branch, MG Road'),
                   const SizedBox(height: 12),
-                  _buildTextField('Account Holder / Beneficiary Name', holderCtrl, isDark, 'Official Name registered with Bank'),
+                  _buildTextField('Account Holder / Beneficiary Name',
+                      holderCtrl, isDark, 'Official Name registered with Bank'),
                   const SizedBox(height: 12),
-                  _buildTextField('Account Number', numCtrl, isDark, 'Full Bank Account Number'),
+                  _buildTextField('Account Number', numCtrl, isDark,
+                      'Full Bank Account Number'),
                   const SizedBox(height: 12),
-                  _buildTextField('IFSC Code', ifscCtrl, isDark, '11-character IFSC'),
+                  _buildTextField(
+                      'IFSC Code', ifscCtrl, isDark, '11-character IFSC'),
                   const SizedBox(height: 12),
-                  _buildDropdown('Account Type', type, ['Current', 'Savings', 'Overdraft'], (val) {
+                  _buildDropdown(
+                      'Account Type', type, ['Current', 'Savings', 'Overdraft'],
+                      (val) {
                     if (val != null) setDialogState(() => type = val);
                   }, isDark),
                 ],
@@ -1450,12 +1847,17 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  foregroundColor: Colors.white),
               onPressed: () async {
                 if (numCtrl.text.trim().isEmpty) return;
-                final ok = await PaymentManagementApiService.instance.updateBankAccount(id, {
+                final ok = await PaymentManagementApiService.instance
+                    .updateBankAccount(id, {
                   'account_nickname': nickCtrl.text.trim(),
                   'bank_name': bankCtrl.text.trim(),
                   'branch_name': branchCtrl.text.trim(),
@@ -1470,7 +1872,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 if (ok) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Bank account details updated successfully!'),
+                      content:
+                          Text('Bank account details updated successfully!'),
                       backgroundColor: Color(0xFF0D9488),
                       duration: Duration(seconds: 3),
                     ),
@@ -1497,7 +1900,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _buildCard(
           isDark,
           title: 'Direct Bank Transfer (NEFT / RTGS / IMPS) Policy',
-          subtitle: 'Configure wire instructions shown to parents and UTR verification workflow.',
+          subtitle:
+              'Configure wire instructions shown to parents and UTR verification workflow.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1509,25 +1913,45 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                 isDark,
               ),
               const Divider(height: 24),
-              const Text('INSTRUCTIONS SHOWN TO STUDENTS & PARENTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0D9488))),
+              const Text('INSTRUCTIONS SHOWN TO STUDENTS & PARENTS',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0D9488))),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('1. Transfer the fee amount using your bank app via NEFT, RTGS, or IMPS.', style: TextStyle(fontSize: 12)),
+                    Text(
+                        '1. Transfer the fee amount using your bank app via NEFT, RTGS, or IMPS.',
+                        style: TextStyle(fontSize: 12)),
                     SizedBox(height: 4),
-                    Text('2. Mention Student Admission Number and Invoice Number in the Transfer Remarks.', style: TextStyle(fontSize: 12)),
+                    Text(
+                        '2. Mention Student Admission Number and Invoice Number in the Transfer Remarks.',
+                        style: TextStyle(fontSize: 12)),
                     SizedBox(height: 4),
-                    Text('3. Immediately submit the 12-digit UTR transaction reference in the portal.', style: TextStyle(fontSize: 12)),
+                    Text(
+                        '3. Immediately submit the 12-digit UTR transaction reference in the portal.',
+                        style: TextStyle(fontSize: 12)),
                     SizedBox(height: 4),
-                    Text('4. Accounts clearance takes 2-4 hours upon bank credit.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
+                    Text(
+                        '4. Accounts clearance takes 2-4 hours upon bank credit.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF16A34A))),
                   ],
                 ),
               ),
@@ -1543,7 +1967,10 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   // =========================================================================
 
   Widget _buildPaymentBridgeTab(bool isDark) {
-    final devList = (_bridgeStatus['devices'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+    final devList = (_bridgeStatus['devices'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        [];
     if (devList.isEmpty && _bridgeStatus['device'] != null) {
       devList.add(Map<String, dynamic>.from(_bridgeStatus['device']));
     }
@@ -1559,13 +1986,17 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           )
         else
           ...devList.map((dev) {
-            final isOnline = dev['is_online'] == true || dev['status'] == 'ACTIVE';
+            final isOnline =
+                dev['is_online'] == true || dev['status'] == 'ACTIVE';
             final devId = dev['device_id']?.toString() ?? 'PB-DEV-WEB001';
-            final devName = dev['device_name']?.toString() ?? 'Shami Academy Payment Terminal';
+            final devName = dev['device_name']?.toString() ??
+                'Shami Academy Payment Terminal';
             final model = dev['model']?.toString() ?? 'Mobile / Web Terminal';
             final listenerRunning = dev['listener_service_running'] == true;
             final notifGranted = dev['notification_access_granted'] == true;
-            final battery = dev['battery_level'] != null ? '${dev['battery_level']}%' : '100%';
+            final battery = dev['battery_level'] != null
+                ? '${dev['battery_level']}%'
+                : '100%';
 
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -1573,7 +2004,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                border: Border.all(
+                    color: isOnline ? const Color(0xFF16A34A) : Colors.red),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1586,12 +2018,23 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           Container(
                             width: 10,
                             height: 10,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isOnline
+                                    ? const Color(0xFF16A34A)
+                                    : Colors.red),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            isOnline ? 'PAYMENT BRIDGE TERMINAL: ONLINE' : 'PAYMENT BRIDGE TERMINAL: OFFLINE',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: isOnline ? const Color(0xFF16A34A) : Colors.red),
+                            isOnline
+                                ? 'PAYMENT BRIDGE TERMINAL: ONLINE'
+                                : 'PAYMENT BRIDGE TERMINAL: OFFLINE',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: isOnline
+                                    ? const Color(0xFF16A34A)
+                                    : Colors.red),
                           ),
                         ],
                       ),
@@ -1599,18 +2042,29 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         children: [
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               side: const BorderSide(color: Color(0xFF16A34A)),
                             ),
-                            icon: const Icon(Icons.sensors, size: 16, color: Color(0xFF16A34A)),
-                            label: const Text('Test Background Active', style: TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
+                            icon: const Icon(Icons.sensors,
+                                size: 16, color: Color(0xFF16A34A)),
+                            label: const Text('Test Background Active',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF16A34A),
+                                    fontWeight: FontWeight.bold)),
                             onPressed: () async {
-                              final res = await PaymentManagementApiService.instance.testDeviceActive(devId);
+                              final res = await PaymentManagementApiService
+                                  .instance
+                                  .testDeviceActive(devId);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(res['message'] ?? 'Device status checked'),
-                                    backgroundColor: res['is_active'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                    content: Text(res['message'] ??
+                                        'Device status checked'),
+                                    backgroundColor: res['is_active'] == true
+                                        ? const Color(0xFF16A34A)
+                                        : Colors.orange,
                                     duration: const Duration(seconds: 4),
                                   ),
                                 );
@@ -1620,18 +2074,27 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                           const SizedBox(width: 8),
                           OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
                               side: const BorderSide(color: Color(0xFF2563EB)),
                             ),
-                            icon: const Icon(Icons.network_ping_rounded, size: 16, color: Color(0xFF2563EB)),
-                            label: const Text('Test Connection Ping', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB))),
+                            icon: const Icon(Icons.network_ping_rounded,
+                                size: 16, color: Color(0xFF2563EB)),
+                            label: const Text('Test Connection Ping',
+                                style: TextStyle(
+                                    fontSize: 12, color: Color(0xFF2563EB))),
                             onPressed: () async {
-                              final ping = await PaymentManagementApiService.instance.testBridgeConnection();
+                              final ping = await PaymentManagementApiService
+                                  .instance
+                                  .testBridgeConnection();
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(ping['message'] ?? 'Ping response received'),
-                                    backgroundColor: ping['connected'] == true ? const Color(0xFF16A34A) : Colors.orange,
+                                    content: Text(ping['message'] ??
+                                        'Ping response received'),
+                                    backgroundColor: ping['connected'] == true
+                                        ? const Color(0xFF16A34A)
+                                        : Colors.orange,
                                   ),
                                 );
                               }
@@ -1648,11 +2111,23 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Terminal Device', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            Text('Terminal Device',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))),
                             const SizedBox(height: 2),
-                            Text('$devName ($devId)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                            Text('$devName ($devId)',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 13)),
                             const SizedBox(height: 2),
-                            Text('Hardware: $model', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            Text('Hardware: $model',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))),
                           ],
                         ),
                       ),
@@ -1660,24 +2135,37 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Notification Listener Access', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            Text('Notification Listener Access',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))),
                             const SizedBox(height: 2),
                             Row(
                               children: [
                                 Icon(
-                                  notifGranted ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
-                                  color: notifGranted ? const Color(0xFF16A34A) : Colors.orange,
+                                  notifGranted
+                                      ? Icons.check_circle_rounded
+                                      : Icons.warning_amber_rounded,
+                                  color: notifGranted
+                                      ? const Color(0xFF16A34A)
+                                      : Colors.orange,
                                   size: 15,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   notifGranted
-                                      ? (listenerRunning ? 'Granted & Active 24/7' : 'Permission Granted (Service Paused)')
+                                      ? (listenerRunning
+                                          ? 'Granted & Active 24/7'
+                                          : 'Permission Granted (Service Paused)')
                                       : 'Permission Missing',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
-                                    color: notifGranted ? const Color(0xFF16A34A) : Colors.orange,
+                                    color: notifGranted
+                                        ? const Color(0xFF16A34A)
+                                        : Colors.orange,
                                   ),
                                 ),
                               ],
@@ -1694,9 +2182,16 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Battery & Power State', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            Text('Battery & Power State',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))),
                             const SizedBox(height: 2),
-                            Text('Battery: $battery • Unrestricted (No Sleep)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                            Text('Battery: $battery • Unrestricted (No Sleep)',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -1704,9 +2199,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('FastAPI WebSocket Sync', style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+                            Text('FastAPI WebSocket Sync',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))),
                             const SizedBox(height: 2),
-                            const Text('Connected: /api/v1/payment-bridge/ws', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2563EB))),
+                            const Text('Connected: /api/v1/payment-bridge/ws',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: Color(0xFF2563EB))),
                           ],
                         ),
                       ),
@@ -1717,17 +2221,18 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             );
           }),
         const SizedBox(height: 16),
-
         _buildCard(
           isDark,
           title: 'Monitored UPI Applications',
-          subtitle: 'The Android listener extracts payments from notifications sent by these apps.',
+          subtitle:
+              'The Android listener extracts payments from notifications sent by these apps.',
           child: Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
               _appChip('PhonePe', 'com.phonepe.app', true),
-              _appChip('Google Pay', 'com.google.android.apps.nbu.paisa.user', true),
+              _appChip(
+                  'Google Pay', 'com.google.android.apps.nbu.paisa.user', true),
               _appChip('Paytm', 'net.one97.paytm', true),
               _appChip('BHIM UPI', 'in.org.npci.upiapp', true),
               _appChip('Generic Bank UPI', 'Third-Party Bank UPIs', true),
@@ -1735,14 +2240,16 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           ),
         ),
         const SizedBox(height: 16),
-
         _buildCard(
           isDark,
           title: 'Financial Security & Compliance Architecture',
-          subtitle: 'EduSHAMIIT Payment Bridge follows strict non-authoritative banking rules.',
+          subtitle:
+              'EduSHAMIIT Payment Bridge follows strict non-authoritative banking rules.',
           child: Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8)),
             child: const Text(
               '1. Android notifications are non-authoritative financial evidence.\n'
               '2. Notifications create verified candidates and update the screen in real-time via WebSockets.\n'
@@ -1767,9 +2274,14 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 14),
+          const Icon(Icons.check_circle_rounded,
+              color: Color(0xFF16A34A), size: 14),
           const SizedBox(width: 6),
-          Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF16A34A))),
+          Text(name,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: Color(0xFF16A34A))),
         ],
       ),
     );
@@ -1786,7 +2298,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _buildCard(
           isDark,
           title: 'Unique-Paise Engine & Dynamic QR Timers',
-          subtitle: 'Configure the 5-minute QR countdown, 2-minute grace period, and 10-minute collision lookback.',
+          subtitle:
+              'Configure the 5-minute QR countdown, 2-minute grace period, and 10-minute collision lookback.',
           child: Column(
             children: [
               _buildSwitchRow(
@@ -1800,11 +2313,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               Row(
                 children: [
                   Expanded(
-                    child: _buildNumberField('QR Validity Timer (Minutes)', _qrValidityMins, (v) => setState(() => _qrValidityMins = v), isDark, hint: '5'),
+                    child: _buildNumberField(
+                        'QR Validity Timer (Minutes)',
+                        _qrValidityMins,
+                        (v) => setState(() => _qrValidityMins = v),
+                        isDark,
+                        hint: '5'),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildNumberField('Confirmation Grace Period (Minutes)', _gracePeriodMins, (v) => setState(() => _gracePeriodMins = v), isDark, hint: '2'),
+                    child: _buildNumberField(
+                        'Confirmation Grace Period (Minutes)',
+                        _gracePeriodMins,
+                        (v) => setState(() => _gracePeriodMins = v),
+                        isDark,
+                        hint: '2'),
                   ),
                 ],
               ),
@@ -1812,11 +2335,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               Row(
                 children: [
                   Expanded(
-                    child: _buildNumberField('Uniqueness Lookback Window (Minutes)', _uniquePaiseWindowMins, (v) => setState(() => _uniquePaiseWindowMins = v), isDark, hint: '10'),
+                    child: _buildNumberField(
+                        'Uniqueness Lookback Window (Minutes)',
+                        _uniquePaiseWindowMins,
+                        (v) => setState(() => _uniquePaiseWindowMins = v),
+                        isDark,
+                        hint: '10'),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildNumberField('Maximum Additional Paise Permitted', _maxAdditionalPaise, (v) => setState(() => _maxAdditionalPaise = v), isDark, hint: '99'),
+                    child: _buildNumberField(
+                        'Maximum Additional Paise Permitted',
+                        _maxAdditionalPaise,
+                        (v) => setState(() => _maxAdditionalPaise = v),
+                        isDark,
+                        hint: '99'),
                   ),
                 ],
               ),
@@ -1832,11 +2365,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           ),
         ),
         const SizedBox(height: 16),
-
         _buildCard(
           isDark,
           title: 'Lifecycle & Reassurance SLA',
-          subtitle: 'Guaranteed behavior sequence when student pays via Dynamic QR.',
+          subtitle:
+              'Guaranteed behavior sequence when student pays via Dynamic QR.',
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -1846,17 +2379,30 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('LIFECYCLE TIMELINE: 5 MIN + 2 MIN GRACE = 7 MINUTES TOTAL', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF2563EB))),
+                const Text(
+                    'LIFECYCLE TIMELINE: 5 MIN + 2 MIN GRACE = 7 MINUTES TOTAL',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: Color(0xFF2563EB))),
                 const SizedBox(height: 8),
-                _timelineRow('00:00 - 05:00', 'QR Code Active: Countdown displays live. WebSocket listens for Payment Bridge event.', isDark),
-                _timelineRow('05:00 - 07:00', 'Grace Period: QR expires from screen. System waits 2 extra minutes for network delays.', isDark),
-                _timelineRow('07:00+', 'Timeout Reassurance: Student submitted UTR option shown. Guaranteed 7-day refund policy for duplicates.', isDark),
+                _timelineRow(
+                    '00:00 - 05:00',
+                    'QR Code Active: Countdown displays live. WebSocket listens for Payment Bridge event.',
+                    isDark),
+                _timelineRow(
+                    '05:00 - 07:00',
+                    'Grace Period: QR expires from screen. System waits 2 extra minutes for network delays.',
+                    isDark),
+                _timelineRow(
+                    '07:00+',
+                    'Timeout Reassurance: Student submitted UTR option shown. Guaranteed 7-day refund policy for duplicates.',
+                    isDark),
               ],
             ),
           ),
         ),
         const SizedBox(height: 20),
-
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton.icon(
@@ -1864,10 +2410,12 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             icon: const Icon(Icons.save_rounded, size: 18),
-            label: const Text('Save Behaviour Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+            label: const Text('Save Behaviour Settings',
+                style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: _saveQrBehaviourSettings,
           ),
         ),
@@ -1883,11 +2431,23 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-            child: Text(time, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+            decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4)),
+            child: Text(time,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2563EB))),
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(desc, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)))),
+          Expanded(
+              child: Text(desc,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)))),
         ],
       ),
     );
@@ -1904,16 +2464,33 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _buildCard(
           isDark,
           title: 'Fee Receipts & Automated Parent Alerts',
-          subtitle: 'Configure thermal 80mm slip format, school logo branding, and multi-channel notification dispatch.',
+          subtitle:
+              'Configure thermal 80mm slip format, school logo branding, and multi-channel notification dispatch.',
           child: Column(
             children: [
-              _buildTextField('Receipt Number Format', _recPrefixCtrl, isDark, 'REC-2026-'),
+              _buildTextField(
+                  'Receipt Number Format', _recPrefixCtrl, isDark, 'REC-2026-'),
               const Divider(height: 24),
-              _buildSwitchRow('Auto Email PDF Fee Receipt', 'Send official digital receipt to student and parent email on confirmation', true, (_) {}, isDark),
+              _buildSwitchRow(
+                  'Auto Email PDF Fee Receipt',
+                  'Send official digital receipt to student and parent email on confirmation',
+                  true,
+                  (_) {},
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('Auto SMS Transaction Confirmation', 'Send SMS alert with transaction UTR and cleared balance', true, (_) {}, isDark),
+              _buildSwitchRow(
+                  'Auto SMS Transaction Confirmation',
+                  'Send SMS alert with transaction UTR and cleared balance',
+                  true,
+                  (_) {},
+                  isDark),
               const Divider(height: 20),
-              _buildSwitchRow('WhatsApp Payment Slip Notification', 'Deliver instantaneous payment confirmation via official WhatsApp API', true, (_) {}, isDark),
+              _buildSwitchRow(
+                  'WhatsApp Payment Slip Notification',
+                  'Deliver instantaneous payment confirmation via official WhatsApp API',
+                  true,
+                  (_) {},
+                  isDark),
             ],
           ),
         ),
@@ -1932,25 +2509,55 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
         _buildCard(
           isDark,
           title: 'Payment Subsystem Role-Based Permissions Matrix',
-          subtitle: 'Strict separation of maker-checker controls for payment configurations and refunds.',
+          subtitle:
+              'Strict separation of maker-checker controls for payment configurations and refunds.',
           child: Table(
-            border: TableBorder.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: TableBorder.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             children: [
               TableRow(
-                decoration: BoxDecoration(color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF1F5F9)),
                 children: const [
-                  Padding(padding: EdgeInsets.all(8), child: Text('Permission', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Super Admin', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Finance Admin', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Counter Cashier', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Student / Parent', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Permission',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Super Admin',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Finance Admin',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Counter Cashier',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12))),
+                  Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Student / Parent',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12))),
                 ],
               ),
               _permRow('Collect Fee (Dynamic QR)', true, true, true, true),
-              _permRow('Add/Edit UPI & Bank Accounts', true, true, false, false),
-              _permRow('Reveal Full Bank Account No.', true, true, false, false),
-              _permRow('Verify UTR & Manual Reconciliation', true, true, false, false),
-              _permRow('Approve Refunds & Void Transactions', true, false, false, false),
+              _permRow(
+                  'Add/Edit UPI & Bank Accounts', true, true, false, false),
+              _permRow(
+                  'Reveal Full Bank Account No.', true, true, false, false),
+              _permRow('Verify UTR & Manual Reconciliation', true, true, false,
+                  false),
+              _permRow('Approve Refunds & Void Transactions', true, false,
+                  false, false),
             ],
           ),
         ),
@@ -1961,11 +2568,21 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   TableRow _permRow(String title, bool sa, bool fa, bool c, bool sp) {
     return TableRow(
       children: [
-        Padding(padding: const EdgeInsets.all(8), child: Text(title, style: const TextStyle(fontSize: 11))),
-        Center(child: Icon(sa ? Icons.check_circle_rounded : Icons.cancel_rounded, color: sa ? Colors.green : Colors.grey, size: 16)),
-        Center(child: Icon(fa ? Icons.check_circle_rounded : Icons.cancel_rounded, color: fa ? Colors.green : Colors.grey, size: 16)),
-        Center(child: Icon(c ? Icons.check_circle_rounded : Icons.cancel_rounded, color: c ? Colors.green : Colors.grey, size: 16)),
-        Center(child: Icon(sp ? Icons.check_circle_rounded : Icons.cancel_rounded, color: sp ? Colors.green : Colors.grey, size: 16)),
+        Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(title, style: const TextStyle(fontSize: 11))),
+        Center(
+            child: Icon(sa ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: sa ? Colors.green : Colors.grey, size: 16)),
+        Center(
+            child: Icon(fa ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: fa ? Colors.green : Colors.grey, size: 16)),
+        Center(
+            child: Icon(c ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: c ? Colors.green : Colors.grey, size: 16)),
+        Center(
+            child: Icon(sp ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: sp ? Colors.green : Colors.grey, size: 16)),
       ],
     );
   }
@@ -1980,28 +2597,45 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       children: [
         Row(
           children: [
-            Expanded(child: _kpiMini('Online UPI Today', '₹ 3,16,750', const Color(0xFF16A34A), isDark)),
+            Expanded(
+                child: _kpiMini('Online UPI Today', '₹ 3,16,750',
+                    const Color(0xFF16A34A), isDark)),
             const SizedBox(width: 12),
-            Expanded(child: _kpiMini('Direct Bank Transfers', '₹ 84,000', const Color(0xFF0D9488), isDark)),
+            Expanded(
+                child: _kpiMini('Direct Bank Transfers', '₹ 84,000',
+                    const Color(0xFF0D9488), isDark)),
             const SizedBox(width: 12),
-            Expanded(child: _kpiMini('Active Payment Intents', '2 Intents', const Color(0xFF2563EB), isDark)),
+            Expanded(
+                child: _kpiMini('Active Payment Intents', '2 Intents',
+                    const Color(0xFF2563EB), isDark)),
             const SizedBox(width: 12),
-            Expanded(child: _kpiMini('Bridge Ingestions', '142 Events', const Color(0xFF8B5CF6), isDark)),
+            Expanded(
+                child: _kpiMini('Bridge Ingestions', '142 Events',
+                    const Color(0xFF8B5CF6), isDark)),
           ],
         ),
         const SizedBox(height: 16),
-
         _buildCard(
           isDark,
           title: 'Immutable Payment Audit Trail',
-          subtitle: 'All payment intent creations, unique paise allocations, and Bridge notifications are logged.',
+          subtitle:
+              'All payment intent creations, unique paise allocations, and Bridge notifications are logged.',
           child: Column(
             children: [
-              _auditRow('PAYMENT_INTENT_CREATED', 'Allocated 2 unique paise for intent EDU202611160012 (₹ 12,500.02)', '10:14 AM'),
+              _auditRow(
+                  'PAYMENT_INTENT_CREATED',
+                  'Allocated 2 unique paise for intent EDU202611160012 (₹ 12,500.02)',
+                  '10:14 AM'),
               const Divider(height: 12),
-              _auditRow('NOTIFICATION_INGESTED', 'Payment Bridge captured PhonePe UPI Ref 438729106731 for ₹ 12,500.02', '10:15 AM'),
+              _auditRow(
+                  'NOTIFICATION_INGESTED',
+                  'Payment Bridge captured PhonePe UPI Ref 438729106731 for ₹ 12,500.02',
+                  '10:15 AM'),
               const Divider(height: 12),
-              _auditRow('VERIFIED_SUCCESS', 'Candidate matched! Student fee invoice settled. Receipt REC-2026-63075 issued.', '10:15 AM'),
+              _auditRow(
+                  'VERIFIED_SUCCESS',
+                  'Candidate matched! Student fee invoice settled. Receipt REC-2026-63075 issued.',
+                  '10:15 AM'),
             ],
           ),
         ),
@@ -2015,14 +2649,22 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B))),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w800, color: color)),
         ],
       ),
     );
@@ -2033,8 +2675,14 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(color: const Color(0xFF2563EB).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
-          child: Text(action, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF2563EB))),
+          decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4)),
+          child: Text(action,
+              style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2563EB))),
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(detail, style: const TextStyle(fontSize: 12))),
@@ -2047,20 +2695,31 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
   // HELPER WIDGETS
   // =========================================================================
 
-  Widget _buildCard(bool isDark, {required String title, required String subtitle, required Widget child}) {
+  Widget _buildCard(bool isDark,
+      {required String title,
+      required String subtitle,
+      required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
           const SizedBox(height: 2),
-          Text(subtitle, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          Text(subtitle,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B))),
           const SizedBox(height: 18),
           child,
         ],
@@ -2068,20 +2727,29 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController ctrl, bool isDark, String hint) {
+  Widget _buildTextField(
+      String label, TextEditingController ctrl, bool isDark, String hint) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B))),
         const SizedBox(height: 6),
         TextFormField(
           controller: ctrl,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            fillColor:
+                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           style: const TextStyle(fontSize: 13),
         ),
@@ -2089,12 +2757,20 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     );
   }
 
-  Widget _buildNumberField(String label, int value, ValueChanged<int> onChanged, bool isDark, {String hint = ''}) {
+  Widget _buildNumberField(
+      String label, int value, ValueChanged<int> onChanged, bool isDark,
+      {String hint = ''}) {
     final ctrl = TextEditingController(text: value.toString());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B))),
         const SizedBox(height: 6),
         TextFormField(
           controller: ctrl,
@@ -2102,9 +2778,11 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            fillColor:
+                isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
           style: const TextStyle(fontSize: 13),
           onChanged: (val) {
@@ -2116,25 +2794,43 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> items, ValueChanged<String?> onChanged, bool isDark) {
+  Widget _buildDropdown(String label, String value, List<String> items,
+      ValueChanged<String?> onChanged, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B))),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
           ),
           child: DropdownButtonHideUnderline(
             child: AppSearchableDropdown<String>.fromMenuItems(
               value: items.contains(value) ? value : items.first,
               isExpanded: true,
               dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A))))).toList(),
+              items: items
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e,
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A)))))
+                  .toList(),
               onChanged: onChanged,
             ),
           ),
@@ -2143,7 +2839,8 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
     );
   }
 
-  Widget _buildSwitchRow(String title, String subtitle, bool value, ValueChanged<bool> onChanged, bool isDark) {
+  Widget _buildSwitchRow(String title, String subtitle, bool value,
+      ValueChanged<bool> onChanged, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -2151,13 +2848,23 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B))),
             ],
           ),
         ),
-        Switch(value: value, onChanged: onChanged, activeThumbColor: const Color(0xFF2563EB)),
+        Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: const Color(0xFF2563EB)),
       ],
     );
   }
@@ -2168,16 +2875,28 @@ class _PaymentConfigurationCenterWidgetState extends State<PaymentConfigurationC
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 40, color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+            Icon(Icons.account_balance_wallet_outlined,
+                size: 40,
+                color:
+                    isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
             const SizedBox(height: 12),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)), textAlign: TextAlign.center),
+            Text(subtitle,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
+                textAlign: TextAlign.center),
           ],
         ),
       ),

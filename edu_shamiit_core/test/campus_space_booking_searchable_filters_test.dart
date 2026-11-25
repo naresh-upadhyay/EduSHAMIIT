@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/screens/campus/widgets/common/campus_searchable_dropdown.dart';
 import 'package:edu_shamiit_core/screens/campus/models/space_booking_models.dart';
 import 'package:edu_shamiit_core/screens/campus/providers/space_booking_provider.dart';
 
 void main() {
   group('CampusSearchableDropdown Unit & Widget Tests', () {
-    testWidgets('CampusSearchableDropdown renders with default label and item count', (tester) async {
+    testWidgets(
+        'CampusSearchableDropdown renders with default label and item count',
+        (tester) async {
       String selectedValue = 'all';
 
       await tester.pumpWidget(
@@ -91,7 +92,9 @@ void main() {
       expect(find.text('B2 - Science Complex (B)'), findsOneWidget);
     });
 
-    test('SpaceTimelineRoom correctly models domain, building, floor and capacity', () {
+    test(
+        'SpaceTimelineRoom correctly models domain, building, floor and capacity',
+        () {
       final roomJson = {
         'room_id': 'room-101',
         'room_name': 'Grade 4 - Section A',
@@ -134,7 +137,8 @@ void main() {
       expect(room.bookings.first.status, 'Confirmed');
     });
 
-    test('SpaceTimelineRoom models campus facility with spaceDomain facility', () {
+    test('SpaceTimelineRoom models campus facility with spaceDomain facility',
+        () {
       final facilityJson = {
         'room_id': 'fac-spt-01',
         'room_name': 'Olympic Standard Swimming & Athletics Arena',

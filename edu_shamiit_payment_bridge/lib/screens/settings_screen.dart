@@ -187,7 +187,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: _handleLogout,
-                          icon: const Icon(Icons.logout, size: 18, color: AppColors.errorRed),
+                          icon: const Icon(Icons.logout,
+                              size: 18, color: AppColors.errorRed),
                           label: const Text(
                             'Logout from Account',
                             style: TextStyle(
@@ -254,8 +255,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: _buildBadge(
               label: _notificationAccessGranted ? 'Granted' : 'Denied',
               icon: _notificationAccessGranted ? Icons.check : Icons.close,
-              color: _notificationAccessGranted ? AppColors.successGreen : AppColors.errorRed,
-              bgColor: _notificationAccessGranted ? AppColors.successGreenBg : AppColors.errorRedBg,
+              color: _notificationAccessGranted
+                  ? AppColors.successGreen
+                  : AppColors.errorRed,
+              bgColor: _notificationAccessGranted
+                  ? AppColors.successGreenBg
+                  : AppColors.errorRedBg,
               hasChevron: true,
             ),
             onTap: () async {
@@ -277,8 +282,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: _buildBadge(
               label: _listenerRunning ? 'Running' : 'Stopped',
               icon: _listenerRunning ? Icons.check : Icons.pause,
-              color: _listenerRunning ? AppColors.successGreen : AppColors.warningOrange,
-              bgColor: _listenerRunning ? AppColors.successGreenBg : AppColors.warningOrangeBg,
+              color: _listenerRunning
+                  ? AppColors.successGreen
+                  : AppColors.warningOrange,
+              bgColor: _listenerRunning
+                  ? AppColors.successGreenBg
+                  : AppColors.warningOrangeBg,
               hasChevron: true,
             ),
             onTap: () {
@@ -299,7 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Switch(
               value: _autoStartOnBoot,
               activeThumbColor: AppColors.successGreen,
-              activeTrackColor: AppColors.successGreen.withOpacity(0.4),
+              activeTrackColor: AppColors.successGreen.withValues(alpha: 0.4),
               onChanged: (val) {
                 setState(() => _autoStartOnBoot = val);
                 _saveSettings();
@@ -355,32 +364,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               ...apps.map((app) {
                 final isPhonePe = app.name.toLowerCase().contains('phonepe');
-                final isGPay = app.name.toLowerCase().contains('google') || app.name.toLowerCase().contains('gpay');
+                final isGPay = app.name.toLowerCase().contains('google') ||
+                    app.name.toLowerCase().contains('gpay');
                 final isPaytm = app.name.toLowerCase().contains('paytm');
                 final isBhim = app.name.toLowerCase().contains('bhim');
-                final isCanara = app.name.toLowerCase().contains('canara') || app.packageName.contains('canarabank');
-                final isSms = app.name.toLowerCase().contains('sms') || app.name.toLowerCase().contains('message') || app.packageName.contains('messaging') || app.packageName.contains('mms');
+                final isCanara = app.name.toLowerCase().contains('canara') ||
+                    app.packageName.contains('canarabank');
+                final isSms = app.name.toLowerCase().contains('sms') ||
+                    app.name.toLowerCase().contains('message') ||
+                    app.packageName.contains('messaging') ||
+                    app.packageName.contains('mms');
 
                 Color iconBg = const Color(0xFF2563EB);
-                Widget iconContent = const Icon(Icons.payment, color: Colors.white, size: 18);
+                Widget iconContent =
+                    const Icon(Icons.payment, color: Colors.white, size: 18);
                 if (isPhonePe) {
                   iconBg = const Color(0xFF5F259F);
-                  iconContent = const Text('पे', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
+                  iconContent = const Text('पे',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold));
                 } else if (isGPay) {
                   iconBg = const Color(0xFF4285F4);
-                  iconContent = const Text('G', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                  iconContent = const Text('G',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold));
                 } else if (isPaytm) {
                   iconBg = const Color(0xFF002E6E);
-                  iconContent = const Text('P', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                  iconContent = const Text('P',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold));
                 } else if (isBhim) {
                   iconBg = const Color(0xFF00796B);
-                  iconContent = const Text('B', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+                  iconContent = const Text('B',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold));
                 } else if (isCanara) {
                   iconBg = const Color(0xFF003B70);
-                  iconContent = const Text('CB', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold));
+                  iconContent = const Text('CB',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold));
                 } else if (isSms) {
                   iconBg = const Color(0xFF0284C7);
-                  iconContent = const Icon(Icons.sms_outlined, color: Colors.white, size: 18);
+                  iconContent = const Icon(Icons.sms_outlined,
+                      color: Colors.white, size: 18);
                 }
 
                 return Column(
@@ -403,15 +439,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Switch(
                             value: app.isEnabled,
                             activeThumbColor: AppColors.successGreen,
-                            activeTrackColor: AppColors.successGreen.withOpacity(0.4),
+                            activeTrackColor:
+                                AppColors.successGreen.withValues(alpha: 0.4),
                             onChanged: (val) async {
-                              await ApiService().toggleMonitoredApp(app.id, val);
-                              await PlatformBridge.setAppMonitored(app.packageName, val);
+                              await ApiService()
+                                  .toggleMonitoredApp(app.id, val);
+                              await PlatformBridge.setAppMonitored(
+                                  app.packageName, val);
                               _fetch();
                             },
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.errorRed),
+                            icon: const Icon(Icons.delete_outline,
+                                size: 20, color: AppColors.errorRed),
                             tooltip: 'Remove App',
                             onPressed: () async {
                               final confirm = await showDialog<bool>(
@@ -420,10 +460,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   title: const Text('Remove App'),
                                   content: Text('Stop monitoring ${app.name}?'),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                    TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(c, false),
+                                        child: const Text('Cancel')),
                                     ElevatedButton(
                                       onPressed: () => Navigator.pop(c, true),
-                                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed, foregroundColor: Colors.white),
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.errorRed,
+                                          foregroundColor: Colors.white),
                                       child: const Text('Remove'),
                                     ),
                                   ],
@@ -431,7 +476,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               );
                               if (confirm == true) {
                                 await ApiService().deleteMonitoredApp(app.id);
-                                await PlatformBridge.setAppMonitored(app.packageName, false);
+                                await PlatformBridge.setAppMonitored(
+                                    app.packageName, false);
                                 _fetch();
                               }
                             },
@@ -495,20 +541,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: () => _showEditServerUrlDialog(),
               borderRadius: BorderRadius.circular(6),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.08),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                  border: Border.all(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.edit_outlined, size: 14, color: AppColors.primaryBlue),
+                    Icon(Icons.edit_outlined,
+                        size: 14, color: AppColors.primaryBlue),
                     SizedBox(width: 4),
                     Text(
                       'Configure',
-                      style: TextStyle(fontSize: 11, color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primaryBlue,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -522,7 +574,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.vpn_key_outlined,
             iconColor: AppColors.primaryBlue,
             title: 'Unique Device ID (Auto Generated)',
-            subtitle: _deviceId.isNotEmpty ? _deviceId : 'Detecting hardware ID...',
+            subtitle:
+                _deviceId.isNotEmpty ? _deviceId : 'Detecting hardware ID...',
             trailing: InkWell(
               onTap: () {
                 if (_deviceId.isNotEmpty) {
@@ -538,7 +591,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               child: const Padding(
                 padding: EdgeInsets.all(4),
-                child: Icon(Icons.copy, size: 16, color: AppColors.textSecondary),
+                child:
+                    Icon(Icons.copy, size: 16, color: AppColors.textSecondary),
               ),
             ),
           ),
@@ -550,7 +604,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             iconColor: AppColors.primaryBlue,
             title: 'Institution (From Account)',
             subtitle: _institutionName,
-            trailing: const Icon(Icons.verified, size: 16, color: AppColors.successGreen),
+            trailing: const Icon(Icons.verified,
+                size: 16, color: AppColors.successGreen),
           ),
           const Divider(color: AppColors.border, height: 1),
 
@@ -564,7 +619,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: _isTestingConnection ? null : _runConnectionTest,
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primaryBlue),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 minimumSize: Size.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -618,7 +674,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(color: AppColors.border, height: 1),
-
           _buildDropdownTile(
             icon: Icons.refresh,
             title: 'Retry on Failure',
@@ -632,7 +687,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(color: AppColors.border, height: 1),
-
           _buildDropdownTile(
             icon: Icons.shield_outlined,
             title: 'Duplicate Detection Window',
@@ -683,25 +737,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 c = const Color(0xFF1B1B1B);
               } else if (lower.contains('canara')) {
                 c = const Color(0xFF003B70);
-              } else if (lower.contains('sms') || lower.contains('message') || a.packageName.contains('messaging')) {
+              } else if (lower.contains('sms') ||
+                  lower.contains('message') ||
+                  a.packageName.contains('messaging')) {
                 c = const Color(0xFF0284C7);
               }
               apps.add({'name': a.name, 'pkg': a.packageName, 'color': c});
             }
           } else {
             apps.addAll([
-              {'name': 'PhonePe', 'pkg': 'com.phonepe.app', 'color': const Color(0xFF5F259F)},
-              {'name': 'Google Pay', 'pkg': 'com.google.android.apps.nbu.paisa.user', 'color': const Color(0xFF4285F4)},
-              {'name': 'Paytm', 'pkg': 'net.one97.paytm', 'color': const Color(0xFF002E6E)},
-              {'name': 'BHIM UPI', 'pkg': 'in.org.npci.upiapp', 'color': const Color(0xFF00796B)},
-              {'name': 'Cred', 'pkg': 'com.dreamplug.androidapp', 'color': const Color(0xFF1B1B1B)},
-              {'name': 'Canara ai1 (Canara Bank)', 'pkg': 'com.canarabank.mobility', 'color': const Color(0xFF003B70)},
-              {'name': 'SMS / Messages', 'pkg': 'com.google.android.apps.messaging', 'color': const Color(0xFF0284C7)},
+              {
+                'name': 'PhonePe',
+                'pkg': 'com.phonepe.app',
+                'color': const Color(0xFF5F259F)
+              },
+              {
+                'name': 'Google Pay',
+                'pkg': 'com.google.android.apps.nbu.paisa.user',
+                'color': const Color(0xFF4285F4)
+              },
+              {
+                'name': 'Paytm',
+                'pkg': 'net.one97.paytm',
+                'color': const Color(0xFF002E6E)
+              },
+              {
+                'name': 'BHIM UPI',
+                'pkg': 'in.org.npci.upiapp',
+                'color': const Color(0xFF00796B)
+              },
+              {
+                'name': 'Cred',
+                'pkg': 'com.dreamplug.androidapp',
+                'color': const Color(0xFF1B1B1B)
+              },
+              {
+                'name': 'Canara ai1 (Canara Bank)',
+                'pkg': 'com.canarabank.mobility',
+                'color': const Color(0xFF003B70)
+              },
+              {
+                'name': 'SMS / Messages',
+                'pkg': 'com.google.android.apps.messaging',
+                'color': const Color(0xFF0284C7)
+              },
             ]);
           }
 
           if (!apps.any((a) => a['pkg'] == '*')) {
-            apps.add({'name': 'All Other UPI Apps', 'pkg': '*', 'color': AppColors.primaryNavy});
+            apps.add({
+              'name': 'All Other UPI Apps',
+              'pkg': '*',
+              'color': AppColors.primaryNavy
+            });
           }
 
           return Column(
@@ -729,7 +817,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       title: a['name'] as String,
-                      subtitle: a['pkg'] == '*' ? 'Default fallback parser' : a['pkg'] as String,
+                      subtitle: a['pkg'] == '*'
+                          ? 'Default fallback parser'
+                          : a['pkg'] as String,
                       trailing: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -742,12 +832,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           SizedBox(width: 4),
-                          Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary),
+                          Icon(Icons.chevron_right,
+                              size: 16, color: AppColors.textSecondary),
                         ],
                       ),
-                      onTap: () => _showCustomFormatDialog(initialPkg: a['pkg'] as String),
+                      onTap: () => _showCustomFormatDialog(
+                          initialPkg: a['pkg'] as String),
                     ),
-                    if (a != apps.last) const Divider(color: AppColors.border, height: 1),
+                    if (a != apps.last)
+                      const Divider(color: AppColors.border, height: 1),
                   ],
                 );
               }),
@@ -759,7 +852,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCustomFormatDialog({String initialPkg = 'com.phonepe.app'}) {
-    DynamicParserStudioDialog.show(context, initialPackage: initialPkg, onSaved: _fetch);
+    DynamicParserStudioDialog.show(context,
+        initialPackage: initialPkg, onSaved: _fetch);
   }
 
   Widget _buildSettingsTile({
@@ -863,14 +957,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: options.contains(currentValue) ? currentValue : options[0],
+                value:
+                    options.contains(currentValue) ? currentValue : options[0],
                 isDense: true,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
-                icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.textSecondary),
+                icon: const Icon(Icons.keyboard_arrow_down,
+                    size: 16, color: AppColors.textSecondary),
                 items: options.map((opt) {
                   return DropdownMenuItem(
                     value: opt,
@@ -922,7 +1018,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         if (hasChevron) ...[
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary),
+          const Icon(Icons.chevron_right,
+              size: 16, color: AppColors.textSecondary),
         ],
       ],
     );
@@ -969,7 +1066,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ? 'Backend API reachable ($targetUrl)! Ping succeeded.'
                 : 'Connection failed: Target server unreachable ($targetUrl).',
           ),
-          backgroundColor: success ? AppColors.successGreen : AppColors.errorRed,
+          backgroundColor:
+              success ? AppColors.successGreen : AppColors.errorRed,
           duration: const Duration(seconds: 5),
           behavior: SnackBarBehavior.floating,
         ),
@@ -1004,8 +1102,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add Monitored UPI App', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Monitored UPI App',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           content: SizedBox(
             width: 440,
             child: SingleChildScrollView(
@@ -1015,7 +1115,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   const Text(
                     'Quick select popular UPI apps:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -1024,9 +1127,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: presets.map((p) {
                       final isSelected = pkgCtrl.text == p['pkg'];
                       return ChoiceChip(
-                        label: Text(p['name']!, style: const TextStyle(fontSize: 12)),
+                        label: Text(p['name']!,
+                            style: const TextStyle(fontSize: 12)),
                         selected: isSelected,
-                        selectedColor: AppColors.primaryBlue.withOpacity(0.15),
+                        selectedColor:
+                            AppColors.primaryBlue.withValues(alpha: 0.15),
                         onSelected: (val) {
                           setDialogState(() {
                             nameCtrl.text = p['name']!;
@@ -1042,7 +1147,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Application Name (e.g. Cred, PhonePe)',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1051,7 +1157,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Android Package Name (e.g. com.phonepe.app)',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
                 ],
@@ -1072,7 +1179,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (name.isEmpty || pkg.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please enter application name and package name'),
+                            content: Text(
+                                'Please enter application name and package name'),
                             backgroundColor: AppColors.errorRed,
                           ),
                         );
@@ -1091,7 +1199,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             content: Text(ok
                                 ? 'Saved $name to monitoring!'
                                 : 'Added $name locally (server offline)'),
-                            backgroundColor: ok ? AppColors.successGreen : Colors.orange,
+                            backgroundColor:
+                                ok ? AppColors.successGreen : Colors.orange,
                             duration: const Duration(seconds: 3),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -1116,7 +1225,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Configure Backend Server URL', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text('Configure Backend Server URL',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -1133,20 +1243,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 runSpacing: 6,
                 children: [
                   ActionChip(
-                    label: const Text('Local PC (WiFi)', style: TextStyle(fontSize: 11)),
-                    onPressed: () => urlCtrl.text = 'http://192.168.1.8:8082/api/v1/payment-bridge',
+                    label: const Text('Local PC (WiFi)',
+                        style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text =
+                        'http://192.168.1.8:8082/api/v1/payment-bridge',
                   ),
                   ActionChip(
-                    label: const Text('Cloud (Live)', style: TextStyle(fontSize: 11)),
-                    onPressed: () => urlCtrl.text = 'https://eduapi.shamiit.com/api/v1/payment-bridge',
+                    label: const Text('Cloud (Live)',
+                        style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text =
+                        'https://eduapi.shamiit.com/api/v1/payment-bridge',
                   ),
                   ActionChip(
-                    label: const Text('Localhost (Web)', style: TextStyle(fontSize: 11)),
-                    onPressed: () => urlCtrl.text = 'http://localhost:8082/api/v1/payment-bridge',
+                    label: const Text('Localhost (Web)',
+                        style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text =
+                        'http://localhost:8082/api/v1/payment-bridge',
                   ),
                   ActionChip(
-                    label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 11)),
-                    onPressed: () => urlCtrl.text = 'http://10.0.2.2:8082/api/v1/payment-bridge',
+                    label: const Text('Emulator (10.0.2.2)',
+                        style: TextStyle(fontSize: 11)),
+                    onPressed: () => urlCtrl.text =
+                        'http://10.0.2.2:8082/api/v1/payment-bridge',
                   ),
                 ],
               ),
@@ -1156,7 +1274,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Payment Bridge Server URL',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
                 style: const TextStyle(fontSize: 13),
               ),

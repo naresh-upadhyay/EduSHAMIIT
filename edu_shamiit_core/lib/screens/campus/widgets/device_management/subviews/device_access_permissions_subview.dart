@@ -66,8 +66,8 @@ class _DeviceAccessPermissionsSubviewState
   List<Map<String, dynamic>> _dropdownLocations = [];
 
   // Multi-selection state
-  Set<String> _selectedRoleIds = {};
-  Set<String> _selectedUserIds = {};
+  final Set<String> _selectedRoleIds = {};
+  final Set<String> _selectedUserIds = {};
 
   // Selected Role for Right Inspector Panel
   EnterpriseRoleItem? _selectedRole;
@@ -106,11 +106,22 @@ class _DeviceAccessPermissionsSubviewState
     _kpis = AccessPermissionsKpis();
 
     _roleDistribution = [
-      RoleDistributionItem(name: 'Administrator', count: 12, percentage: 5.0, colorHex: '#1677F2'),
-      RoleDistributionItem(name: 'Facility Manager', count: 36, percentage: 15.1, colorHex: '#10B981'),
-      RoleDistributionItem(name: 'Teacher', count: 88, percentage: 37.0, colorHex: '#8B5CF6'),
-      RoleDistributionItem(name: 'Staff', count: 72, percentage: 30.3, colorHex: '#06B6D4'),
-      RoleDistributionItem(name: 'Others', count: 30, percentage: 12.6, colorHex: '#F59E0B'),
+      RoleDistributionItem(
+          name: 'Administrator',
+          count: 12,
+          percentage: 5.0,
+          colorHex: '#1677F2'),
+      RoleDistributionItem(
+          name: 'Facility Manager',
+          count: 36,
+          percentage: 15.1,
+          colorHex: '#10B981'),
+      RoleDistributionItem(
+          name: 'Teacher', count: 88, percentage: 37.0, colorHex: '#8B5CF6'),
+      RoleDistributionItem(
+          name: 'Staff', count: 72, percentage: 30.3, colorHex: '#06B6D4'),
+      RoleDistributionItem(
+          name: 'Others', count: 30, percentage: 12.6, colorHex: '#F59E0B'),
     ];
 
     _permissionCoverage = [
@@ -122,26 +133,119 @@ class _DeviceAccessPermissionsSubviewState
     ];
 
     _dropdownRoles = [
-      {'id': 'c1000000-0000-0000-0000-000000000001', 'name': 'super_admin', 'display_name': 'Super Admin', 'code': 'SUPER_ADMIN'},
-      {'id': 'c1000000-0000-0000-0000-000000000002', 'name': 'device_administrator', 'display_name': 'Device Administrator', 'code': 'DEVICE_ADMIN'},
-      {'id': 'c1000000-0000-0000-0000-000000000003', 'name': 'facility_manager', 'display_name': 'Facility Manager', 'code': 'FACILITY_MANAGER'},
-      {'id': 'c1000000-0000-0000-0000-000000000004', 'name': 'maintenance_staff', 'display_name': 'Maintenance Staff', 'code': 'MAINTENANCE_STAFF'},
-      {'id': 'c1000000-0000-0000-0000-000000000005', 'name': 'teacher', 'display_name': 'Teacher', 'code': 'TEACHER'},
-      {'id': 'c1000000-0000-0000-0000-000000000006', 'name': 'view_only', 'display_name': 'View Only', 'code': 'VIEW_ONLY'},
-      {'id': 'c1000000-0000-0000-0000-000000000007', 'name': 'it_iot_admin', 'display_name': 'IT/IoT Administrator', 'code': 'IT_IOT_ADMIN'},
-      {'id': 'c1000000-0000-0000-0000-000000000008', 'name': 'security', 'display_name': 'Security Head', 'code': 'SECURITY'},
-      {'id': 'c1000000-0000-0000-0000-000000000009', 'name': 'campus_administrator', 'display_name': 'Campus Administrator', 'code': 'CAMPUS_ADMIN'},
+      {
+        'id': 'c1000000-0000-0000-0000-000000000001',
+        'name': 'super_admin',
+        'display_name': 'Super Admin',
+        'code': 'SUPER_ADMIN'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000002',
+        'name': 'device_administrator',
+        'display_name': 'Device Administrator',
+        'code': 'DEVICE_ADMIN'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000003',
+        'name': 'facility_manager',
+        'display_name': 'Facility Manager',
+        'code': 'FACILITY_MANAGER'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000004',
+        'name': 'maintenance_staff',
+        'display_name': 'Maintenance Staff',
+        'code': 'MAINTENANCE_STAFF'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000005',
+        'name': 'teacher',
+        'display_name': 'Teacher',
+        'code': 'TEACHER'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000006',
+        'name': 'view_only',
+        'display_name': 'View Only',
+        'code': 'VIEW_ONLY'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000007',
+        'name': 'it_iot_admin',
+        'display_name': 'IT/IoT Administrator',
+        'code': 'IT_IOT_ADMIN'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000008',
+        'name': 'security',
+        'display_name': 'Security Head',
+        'code': 'SECURITY'
+      },
+      {
+        'id': 'c1000000-0000-0000-0000-000000000009',
+        'name': 'campus_administrator',
+        'display_name': 'Campus Administrator',
+        'code': 'CAMPUS_ADMIN'
+      },
     ];
 
     _dropdownUsers = [
-      {'id': 'u1', 'full_name': 'King Doe', 'email': 'admin@edushamiit.com', 'role': 'Super Admin', 'department': 'Administration'},
-      {'id': 'u2', 'full_name': 'Amit Sharma', 'email': 'amit.sharma@edushamiit.edu', 'role': 'Device Administrator', 'department': 'IT Team'},
-      {'id': 'u3', 'full_name': 'Priya Verma', 'email': 'priya.verma@edushamiit.edu', 'role': 'Facility Manager', 'department': 'Facility Team'},
-      {'id': 'u4', 'full_name': 'Rohan Mehta', 'email': 'rohan.mehta@edushamiit.edu', 'role': 'Teacher', 'department': 'Science Department'},
-      {'id': 'u5', 'full_name': 'Aarav Sharma', 'email': 'aarav.sharma@edushamiit.com', 'role': 'Student', 'department': 'Grade 10'},
-      {'id': 'u6', 'full_name': 'Amit Chauhan', 'email': 'amit.chauhan@school.edu', 'role': 'Hostel Warden', 'department': 'Hostel Operations'},
-      {'id': 'u7', 'full_name': 'Teacher One School A', 'email': 'teacher1@school-a.edu', 'role': 'Teacher', 'department': 'Mathematics'},
-      {'id': 'u8', 'full_name': 'Dr. Universal Tester', 'email': 'universal.tester@edushamiit.edu', 'role': 'Teacher', 'department': 'R&D'},
+      {
+        'id': 'u1',
+        'full_name': 'King Doe',
+        'email': 'admin@edushamiit.com',
+        'role': 'Super Admin',
+        'department': 'Administration'
+      },
+      {
+        'id': 'u2',
+        'full_name': 'Amit Sharma',
+        'email': 'amit.sharma@edushamiit.edu',
+        'role': 'Device Administrator',
+        'department': 'IT Team'
+      },
+      {
+        'id': 'u3',
+        'full_name': 'Priya Verma',
+        'email': 'priya.verma@edushamiit.edu',
+        'role': 'Facility Manager',
+        'department': 'Facility Team'
+      },
+      {
+        'id': 'u4',
+        'full_name': 'Rohan Mehta',
+        'email': 'rohan.mehta@edushamiit.edu',
+        'role': 'Teacher',
+        'department': 'Science Department'
+      },
+      {
+        'id': 'u5',
+        'full_name': 'Aarav Sharma',
+        'email': 'aarav.sharma@edushamiit.com',
+        'role': 'Student',
+        'department': 'Grade 10'
+      },
+      {
+        'id': 'u6',
+        'full_name': 'Amit Chauhan',
+        'email': 'amit.chauhan@school.edu',
+        'role': 'Hostel Warden',
+        'department': 'Hostel Operations'
+      },
+      {
+        'id': 'u7',
+        'full_name': 'Teacher One School A',
+        'email': 'teacher1@school-a.edu',
+        'role': 'Teacher',
+        'department': 'Mathematics'
+      },
+      {
+        'id': 'u8',
+        'full_name': 'Dr. Universal Tester',
+        'email': 'universal.tester@edushamiit.edu',
+        'role': 'Teacher',
+        'department': 'R&D'
+      },
     ];
 
     _dropdownLocations = [
@@ -302,7 +406,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p1',
         policyName: 'Working Hours Access',
         policyCode: 'POL_WORKING_HOURS',
-        description: 'Restricts teacher device operation to instructional hours (07:30 - 17:30)',
+        description:
+            'Restricts teacher device operation to instructional hours (07:30 - 17:30)',
         category: 'Time-Based',
         targetScope: 'Teaching Staff',
         priority: 10,
@@ -312,7 +417,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p2',
         policyName: 'Location-Based Access',
         policyCode: 'POL_LOCATION_BOUND',
-        description: 'Limits facility staff and teachers strictly to assigned rooms/blocks',
+        description:
+            'Limits facility staff and teachers strictly to assigned rooms/blocks',
         category: 'Location-Based',
         targetScope: 'All Operational Roles',
         priority: 20,
@@ -322,7 +428,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p3',
         policyName: 'Restricted Device Access',
         policyCode: 'POL_RESTRICTED_DEV',
-        description: 'Enforces high-privilege access for main power distribution and server racks',
+        description:
+            'Enforces high-privilege access for main power distribution and server racks',
         category: 'Critical Device',
         targetScope: 'Engineering & Utility',
         priority: 30,
@@ -333,7 +440,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p4',
         policyName: 'Bulk Operation Approval',
         policyCode: 'POL_BULK_APPROVAL',
-        description: 'Mandates multi-level approval for any mass operation affecting > 50 devices',
+        description:
+            'Mandates multi-level approval for any mass operation affecting > 50 devices',
         category: 'Approval Workflow',
         targetScope: 'Campus Wide',
         priority: 40,
@@ -344,7 +452,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p5',
         policyName: 'Firmware Update Authorization',
         policyCode: 'POL_OTA_FIRMWARE',
-        description: 'Restricts OTA firmware uploads exclusively to Device & IT Administrators',
+        description:
+            'Restricts OTA firmware uploads exclusively to Device & IT Administrators',
         category: 'Device Security',
         targetScope: 'Fleet Gateways & Meters',
         priority: 50,
@@ -354,7 +463,8 @@ class _DeviceAccessPermissionsSubviewState
         id: 'p6',
         policyName: 'Gateway Restart Protection',
         policyCode: 'POL_GW_RESTART',
-        description: 'Requires confirmation challenge and audit logging before physical gateway reboots',
+        description:
+            'Requires confirmation challenge and audit logging before physical gateway reboots',
         category: 'Gateway Operations',
         targetScope: 'Campus Gateways',
         priority: 60,
@@ -370,7 +480,8 @@ class _DeviceAccessPermissionsSubviewState
         requestedRole: 'Facility Manager',
         requestedScope: 'Laboratories Block (Floors 1-3)',
         duration: '7 Days',
-        justification: 'Conducting annual physics laboratory electrical safety audit',
+        justification:
+            'Conducting annual physics laboratory electrical safety audit',
         priority: 'High',
         status: 'Pending',
       ),
@@ -381,7 +492,8 @@ class _DeviceAccessPermissionsSubviewState
         requestedRole: 'IoT Operator',
         requestedScope: 'Auditorium Block',
         duration: '24 Hours',
-        justification: 'Configuring stage projection and mood lighting for Annual Cultural Festival',
+        justification:
+            'Configuring stage projection and mood lighting for Annual Cultural Festival',
         priority: 'Medium',
         status: 'Pending',
       ),
@@ -403,7 +515,8 @@ class _DeviceAccessPermissionsSubviewState
         requestedRole: 'Teacher',
         requestedScope: 'Smart Class A1-107',
         duration: '1 Semester',
-        justification: 'Assigned additional robotics elective class needing display and power control',
+        justification:
+            'Assigned additional robotics elective class needing display and power control',
         priority: 'Low',
         status: 'Pending',
       ),
@@ -489,9 +602,10 @@ class _DeviceAccessPermissionsSubviewState
   }
 
   // --- API CALLS ---
-  String get _apiBase => widget.apiBaseUrl != null && widget.apiBaseUrl!.isNotEmpty
-      ? '${widget.apiBaseUrl}/v1/devices/access-permissions'
-      : '${AppConfig.apiBaseUrl}/v1/devices/access-permissions';
+  String get _apiBase =>
+      widget.apiBaseUrl != null && widget.apiBaseUrl!.isNotEmpty
+          ? '${widget.apiBaseUrl}/v1/devices/access-permissions'
+          : '${AppConfig.apiBaseUrl}/v1/devices/access-permissions';
 
   Future<Map<String, String>> _getHeaders() async {
     try {
@@ -563,8 +677,10 @@ class _DeviceAccessPermissionsSubviewState
 
     try {
       final usersRes = await http
-          .get(Uri.parse(
-              '$_apiBase/users?page=$_userCurrentPage&page_size=$_userPageSize'), headers: headers)
+          .get(
+              Uri.parse(
+                  '$_apiBase/users?page=$_userCurrentPage&page_size=$_userPageSize'),
+              headers: headers)
           .timeout(const Duration(seconds: 4));
       if (usersRes.statusCode == 200) {
         final data = jsonDecode(usersRes.body);
@@ -591,7 +707,8 @@ class _DeviceAccessPermissionsSubviewState
             _dropdownUsers = List<Map<String, dynamic>>.from(data['users']);
           }
           if (data['locations'] != null) {
-            _dropdownLocations = List<Map<String, dynamic>>.from(data['locations']);
+            _dropdownLocations =
+                List<Map<String, dynamic>>.from(data['locations']);
           }
         }
       }
@@ -601,7 +718,8 @@ class _DeviceAccessPermissionsSubviewState
   }
 
   Future<void> _filterUsersFromBackend() async {
-    if (widget.apiBaseUrl != null && widget.apiBaseUrl!.contains('mock')) return;
+    if (widget.apiBaseUrl != null && widget.apiBaseUrl!.contains('mock'))
+      return;
     final headers = await _getHeaders();
     try {
       final queryParams = <String, String>{
@@ -620,8 +738,11 @@ class _DeviceAccessPermissionsSubviewState
         queryParams['search'] = _userSearchQuery.trim();
       }
 
-      final uri = Uri.parse('$_apiBase/users').replace(queryParameters: queryParams);
-      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 4));
+      final uri =
+          Uri.parse('$_apiBase/users').replace(queryParameters: queryParams);
+      final res = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success'] == true && data['users'] != null) {
@@ -629,7 +750,8 @@ class _DeviceAccessPermissionsSubviewState
             _recentUsers = (data['users'] as List)
                 .map((e) => EnterpriseUserAccessItem.fromJson(e))
                 .toList();
-            _userTotalCount = data['total'] ?? data['total_count'] ?? _recentUsers.length;
+            _userTotalCount =
+                data['total'] ?? data['total_count'] ?? _recentUsers.length;
           });
         }
       }
@@ -642,14 +764,16 @@ class _DeviceAccessPermissionsSubviewState
     final count = _selectedUserIds.length;
     try {
       if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
-        await http.post(
-          Uri.parse('$_apiBase/users/bulk-action'),
-          headers: headers,
-          body: jsonEncode({
-            'action': action,
-            'user_ids': _selectedUserIds.toList(),
-          }),
-        ).timeout(const Duration(seconds: 4));
+        await http
+            .post(
+              Uri.parse('$_apiBase/users/bulk-action'),
+              headers: headers,
+              body: jsonEncode({
+                'action': action,
+                'user_ids': _selectedUserIds.toList(),
+              }),
+            )
+            .timeout(const Duration(seconds: 4));
       }
     } catch (_) {}
 
@@ -671,8 +795,11 @@ class _DeviceAccessPermissionsSubviewState
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Bulk $action completed for $count user${count > 1 ? "s" : ""}!'),
-        backgroundColor: action == 'revoke' ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+        content: Text(
+            'Bulk $action completed for $count user${count > 1 ? "s" : ""}!'),
+        backgroundColor: action == 'revoke'
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
       ),
     );
   }
@@ -688,11 +815,16 @@ class _DeviceAccessPermissionsSubviewState
             Text('Revoke User Access'),
           ],
         ),
-        content: Text('Are you sure you want to revoke campus device access for "${user.userName}"?'),
+        content: Text(
+            'Are you sure you want to revoke campus device access for "${user.userName}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Revoke Access'),
           ),
@@ -705,7 +837,9 @@ class _DeviceAccessPermissionsSubviewState
     if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
       try {
         final headers = await _getHeaders();
-        await http.delete(Uri.parse('$_apiBase/users/${user.id}'), headers: headers).timeout(const Duration(seconds: 4));
+        await http
+            .delete(Uri.parse('$_apiBase/users/${user.id}'), headers: headers)
+            .timeout(const Duration(seconds: 4));
       } catch (_) {}
     }
 
@@ -859,7 +993,8 @@ class _DeviceAccessPermissionsSubviewState
           setState(() => _delegations.insert(0, del));
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Temporary access granted to "${del.delegateeName}"!'),
+              content:
+                  Text('Temporary access granted to "${del.delegateeName}"!'),
               backgroundColor: const Color(0xFF10B981),
             ),
           );
@@ -961,7 +1096,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
@@ -984,12 +1120,16 @@ class _DeviceAccessPermissionsSubviewState
                         children: [
                           Text(
                             'Access & Permissions',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3),
                           ),
                           SizedBox(height: 2),
                           Text(
                             'Define who can access what, and what actions they can perform on campus devices, groups, locations and features.',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                            style: TextStyle(
+                                color: Color(0xFF64748B), fontSize: 12),
                           ),
                         ],
                       ),
@@ -1017,12 +1157,16 @@ class _DeviceAccessPermissionsSubviewState
                     children: [
                       Text(
                         'Access & Permissions',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.4),
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.4),
                       ),
                       SizedBox(height: 4),
                       Text(
                         'Define who can access what, and what actions they can perform on campus devices, groups, locations and features.',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        style:
+                            TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
                   ),
@@ -1042,10 +1186,12 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: const Color(0xFF1677F2).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.2)),
+        border:
+            Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.2)),
       ),
       child: const Center(
-        child: Icon(Icons.verified_user_rounded, color: Color(0xFF1677F2), size: 24),
+        child: Icon(Icons.verified_user_rounded,
+            color: Color(0xFF1677F2), size: 24),
       ),
     );
   }
@@ -1054,15 +1200,20 @@ class _DeviceAccessPermissionsSubviewState
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
         foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
-        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        side: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       onPressed: _isLoading ? null : _fetchDashboardData,
       icon: _isLoading
-          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2))
           : const Icon(Icons.refresh_rounded, size: 16),
-      label: const Text('Refresh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      label: const Text('Refresh',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -1085,9 +1236,11 @@ class _DeviceAccessPermissionsSubviewState
           value: 'role',
           child: Row(
             children: [
-              Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF1677F2)),
+              Icon(Icons.admin_panel_settings_outlined,
+                  size: 18, color: Color(0xFF1677F2)),
               SizedBox(width: 10),
-              Text('Create Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Create Role',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1095,9 +1248,11 @@ class _DeviceAccessPermissionsSubviewState
           value: 'user',
           child: Row(
             children: [
-              Icon(Icons.person_add_outlined, size: 18, color: Color(0xFF10B981)),
+              Icon(Icons.person_add_outlined,
+                  size: 18, color: Color(0xFF10B981)),
               SizedBox(width: 10),
-              Text('Add User Access', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Add User Access',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1105,9 +1260,11 @@ class _DeviceAccessPermissionsSubviewState
           value: 'group',
           child: Row(
             children: [
-              Icon(Icons.group_add_outlined, size: 18, color: Color(0xFF8B5CF6)),
+              Icon(Icons.group_add_outlined,
+                  size: 18, color: Color(0xFF8B5CF6)),
               SizedBox(width: 10),
-              Text('Create Group', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Create Group',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1118,7 +1275,8 @@ class _DeviceAccessPermissionsSubviewState
             children: [
               Icon(Icons.shield_outlined, size: 18, color: Color(0xFFEF4444)),
               SizedBox(width: 10),
-              Text('Define Policy', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('Define Policy',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -1144,12 +1302,16 @@ class _DeviceAccessPermissionsSubviewState
             Flexible(
               child: Text(
                 'Add User / Role',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.white70),
+            Icon(Icons.arrow_drop_down_rounded,
+                size: 18, color: Colors.white70),
           ],
         ),
       ),
@@ -1161,12 +1323,18 @@ class _DeviceAccessPermissionsSubviewState
   // ============================================================================
   Widget _buildTopKpiCards(bool isDark, double width) {
     final cards = [
-      _buildKpiCard('Total Users', '${_kpis.totalUsers}', '', Icons.people_outline_rounded, const Color(0xFF1677F2), isDark),
-      _buildKpiCard('Roles', '${_kpis.totalRoles}', '', Icons.badge_outlined, const Color(0xFF1677F2), isDark),
-      _buildKpiCard('Permission Policies', '${_kpis.permissionPolicies}', '', Icons.shield_outlined, const Color(0xFFEF4444), isDark),
-      _buildKpiCard('User Groups', '${_kpis.userGroups}', '', Icons.groups_outlined, const Color(0xFF1677F2), isDark),
-      _buildKpiCard('Pending Requests', '${_kpis.pendingRequests}', '', Icons.pending_actions_rounded, const Color(0xFFF59E0B), isDark),
-      _buildKpiCard('Access Health', _kpis.accessHealth, '', Icons.check_circle_outline_rounded, const Color(0xFF10B981), isDark),
+      _buildKpiCard('Total Users', '${_kpis.totalUsers}', '',
+          Icons.people_outline_rounded, const Color(0xFF1677F2), isDark),
+      _buildKpiCard('Roles', '${_kpis.totalRoles}', '', Icons.badge_outlined,
+          const Color(0xFF1677F2), isDark),
+      _buildKpiCard('Permission Policies', '${_kpis.permissionPolicies}', '',
+          Icons.shield_outlined, const Color(0xFFEF4444), isDark),
+      _buildKpiCard('User Groups', '${_kpis.userGroups}', '',
+          Icons.groups_outlined, const Color(0xFF1677F2), isDark),
+      _buildKpiCard('Pending Requests', '${_kpis.pendingRequests}', '',
+          Icons.pending_actions_rounded, const Color(0xFFF59E0B), isDark),
+      _buildKpiCard('Access Health', _kpis.accessHealth, '',
+          Icons.check_circle_outline_rounded, const Color(0xFF10B981), isDark),
     ];
 
     if (width < 750) {
@@ -1174,14 +1342,16 @@ class _DeviceAccessPermissionsSubviewState
       return Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+        children:
+            cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
       );
     } else if (width < 1200) {
       final cardWidth = (width - 56) / 3;
       return Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
+        children:
+            cards.map((c) => SizedBox(width: cardWidth, child: c)).toList(),
       );
     }
 
@@ -1197,13 +1367,15 @@ class _DeviceAccessPermissionsSubviewState
     );
   }
 
-  Widget _buildKpiCard(String title, String mainValue, String subValue, IconData icon, Color color, bool isDark) {
+  Widget _buildKpiCard(String title, String mainValue, String subValue,
+      IconData icon, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
@@ -1231,7 +1403,10 @@ class _DeviceAccessPermissionsSubviewState
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
@@ -1241,12 +1416,18 @@ class _DeviceAccessPermissionsSubviewState
                   children: [
                     Text(
                       mainValue,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.3),
                     ),
                     if (subValue.isNotEmpty)
                       Text(
                         subValue,
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: color),
                       ),
                   ],
                 ),
@@ -1266,7 +1447,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -1279,9 +1461,11 @@ class _DeviceAccessPermissionsSubviewState
               onTap: () => setState(() => _selectedSubTab = i),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF1677F2) : Colors.transparent,
+                  color:
+                      isSelected ? const Color(0xFF1677F2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -1291,7 +1475,9 @@ class _DeviceAccessPermissionsSubviewState
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     color: isSelected
                         ? Colors.white
-                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                        : (isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569)),
                   ),
                 ),
               ),
@@ -1420,14 +1606,19 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF1677F2), shape: BoxShape.circle)),
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFF1677F2), shape: BoxShape.circle)),
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
@@ -1454,16 +1645,22 @@ class _DeviceAccessPermissionsSubviewState
                         children: [
                           CustomPaint(
                             size: const Size(120, 120),
-                            painter: _RoleDonutPainter(items: _roleDistribution),
+                            painter:
+                                _RoleDonutPainter(items: _roleDistribution),
                           ),
                           Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 '${_kpis.totalUsers}',
-                                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                                style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5),
                               ),
-                              const Text('Users', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                              const Text('Users',
+                                  style: TextStyle(
+                                      fontSize: 10, color: Color(0xFF64748B))),
                             ],
                           ),
                         ],
@@ -1482,11 +1679,22 @@ class _DeviceAccessPermissionsSubviewState
                         padding: const EdgeInsets.symmetric(vertical: 2.5),
                         child: Row(
                           children: [
-                            Container(width: 7, height: 7, decoration: BoxDecoration(color: _hexToColor(item.colorHex), shape: BoxShape.circle)),
+                            Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                    color: _hexToColor(item.colorHex),
+                                    shape: BoxShape.circle)),
                             const SizedBox(width: 6),
-                            Flexible(child: Text(item.name, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis)),
+                            Flexible(
+                                child: Text(item.name,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Color(0xFF64748B)),
+                                    overflow: TextOverflow.ellipsis)),
                             const Spacer(),
-                            Text('${item.count} (${item.percentage}%)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            Text('${item.count} (${item.percentage}%)',
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       );
@@ -1509,7 +1717,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1543,13 +1752,17 @@ class _DeviceAccessPermissionsSubviewState
                         Flexible(
                           child: Text(
                             item.domain,
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 11.5, fontWeight: FontWeight.w600),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Text(
                           '${item.percentage}%',
-                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF1677F2)),
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1677F2)),
                         ),
                       ],
                     ),
@@ -1559,8 +1772,11 @@ class _DeviceAccessPermissionsSubviewState
                       child: LinearProgressIndicator(
                         value: item.percentage / 100.0,
                         minHeight: 6,
-                        backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1677F2)),
+                        backgroundColor: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF1677F2)),
                       ),
                     ),
                   ],
@@ -1576,12 +1792,36 @@ class _DeviceAccessPermissionsSubviewState
   // CARD 3: Quick Actions (3x2 Grid)
   Widget _buildQuickActionsCard(bool isDark) {
     final actions = [
-      {'title': 'Create Role', 'icon': Icons.person_add_alt_1_outlined, 'fn': () => _openCreateRoleWizard()},
-      {'title': 'Add User Access', 'icon': Icons.person_add_outlined, 'fn': () => _openAssignUserAccessModal()},
-      {'title': 'Create Group', 'icon': Icons.group_add_outlined, 'fn': () => _openCreateGroupModal()},
-      {'title': 'Define Policy', 'icon': Icons.shield_outlined, 'fn': () => _openDefinePolicyModal()},
-      {'title': 'Access Request', 'icon': Icons.assignment_outlined, 'fn': () => _openAccessRequestModal()},
-      {'title': 'View Audit Logs', 'icon': Icons.fact_check_outlined, 'fn': () => setState(() => _selectedSubTab = 8)},
+      {
+        'title': 'Create Role',
+        'icon': Icons.person_add_alt_1_outlined,
+        'fn': () => _openCreateRoleWizard()
+      },
+      {
+        'title': 'Add User Access',
+        'icon': Icons.person_add_outlined,
+        'fn': () => _openAssignUserAccessModal()
+      },
+      {
+        'title': 'Create Group',
+        'icon': Icons.group_add_outlined,
+        'fn': () => _openCreateGroupModal()
+      },
+      {
+        'title': 'Define Policy',
+        'icon': Icons.shield_outlined,
+        'fn': () => _openDefinePolicyModal()
+      },
+      {
+        'title': 'Access Request',
+        'icon': Icons.assignment_outlined,
+        'fn': () => _openAccessRequestModal()
+      },
+      {
+        'title': 'View Audit Logs',
+        'icon': Icons.fact_check_outlined,
+        'fn': () => setState(() => _selectedSubTab = 8)
+      },
     ];
 
     return Container(
@@ -1590,7 +1830,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1622,21 +1863,28 @@ class _DeviceAccessPermissionsSubviewState
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
                     ),
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(act['icon'] as IconData, color: const Color(0xFF1677F2), size: 20),
+                        Icon(act['icon'] as IconData,
+                            color: const Color(0xFF1677F2), size: 20),
                         const SizedBox(height: 6),
                         Flexible(
                           child: Text(
                             act['title'] as String,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 10.5, fontWeight: FontWeight.w600),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1678,16 +1926,22 @@ class _DeviceAccessPermissionsSubviewState
     final currentRolePage = _rolesCurrentPage.clamp(1, totalRolePages);
     final startRoleIdx = (currentRolePage - 1) * _rolesPageSize;
     final endRoleIdx = (startRoleIdx + _rolesPageSize).clamp(0, totalRoles);
-    final pagedRoles = totalRoles > 0 ? sortedRoles.sublist(startRoleIdx, endRoleIdx) : <EnterpriseRoleItem>[];
+    final pagedRoles = totalRoles > 0
+        ? sortedRoles.sublist(startRoleIdx, endRoleIdx)
+        : <EnterpriseRoleItem>[];
 
-    final isAllSelected = pagedRoles.isNotEmpty && pagedRoles.every((r) => _selectedRoleIds.contains(r.id));
-    final isSomeSelected = pagedRoles.any((r) => _selectedRoleIds.contains(r.id)) && !isAllSelected;
+    final isAllSelected = pagedRoles.isNotEmpty &&
+        pagedRoles.every((r) => _selectedRoleIds.contains(r.id));
+    final isSomeSelected =
+        pagedRoles.any((r) => _selectedRoleIds.contains(r.id)) &&
+            !isAllSelected;
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1701,12 +1955,14 @@ class _DeviceAccessPermissionsSubviewState
                 Expanded(
                   child: Row(
                     children: [
-                      const Icon(Icons.badge_outlined, color: Color(0xFF1677F2), size: 18),
+                      const Icon(Icons.badge_outlined,
+                          color: Color(0xFF1677F2), size: 18),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           'Roles ($totalRoles)',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13.5),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -1719,8 +1975,13 @@ class _DeviceAccessPermissionsSubviewState
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('View All', style: TextStyle(color: Color(0xFF1677F2), fontSize: 12, fontWeight: FontWeight.w600)),
-                      Icon(Icons.arrow_forward_rounded, color: Color(0xFF1677F2), size: 14),
+                      Text('View All',
+                          style: TextStyle(
+                              color: Color(0xFF1677F2),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                      Icon(Icons.arrow_forward_rounded,
+                          color: Color(0xFF1677F2), size: 14),
                     ],
                   ),
                 ),
@@ -1737,7 +1998,8 @@ class _DeviceAccessPermissionsSubviewState
               decoration: BoxDecoration(
                 color: const Color(0xFF1677F2).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
               ),
               child: Wrap(
                 alignment: WrapAlignment.spaceBetween,
@@ -1748,11 +2010,15 @@ class _DeviceAccessPermissionsSubviewState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF1677F2), size: 16),
+                      const Icon(Icons.check_circle_outline_rounded,
+                          color: Color(0xFF1677F2), size: 16),
                       const SizedBox(width: 8),
                       Text(
                         '${_selectedRoleIds.length} of $totalRoles roles selected',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1677F2)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                            color: Color(0xFF1677F2)),
                       ),
                     ],
                   ),
@@ -1764,35 +2030,45 @@ class _DeviceAccessPermissionsSubviewState
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF1677F2),
                           side: const BorderSide(color: Color(0xFF1677F2)),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Assigning policies to ${_selectedRoleIds.length} roles...')),
+                            SnackBar(
+                                content: Text(
+                                    'Assigning policies to ${_selectedRoleIds.length} roles...')),
                           );
                         },
                         icon: const Icon(Icons.shield_outlined, size: 14),
-                        label: const Text('Assign Policy', style: TextStyle(fontSize: 11.5)),
+                        label: const Text('Assign Policy',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1677F2),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Exported ${_selectedRoleIds.length} roles.')),
+                            SnackBar(
+                                content: Text(
+                                    'Exported ${_selectedRoleIds.length} roles.')),
                           );
                         },
                         icon: const Icon(Icons.download_rounded, size: 14),
-                        label: const Text('Export Selected', style: TextStyle(fontSize: 11.5)),
+                        label: const Text('Export Selected',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                       TextButton(
-                        onPressed: () => setState(() => _selectedRoleIds.clear()),
-                        child: const Text('Deselect All', style: TextStyle(fontSize: 11.5)),
+                        onPressed: () =>
+                            setState(() => _selectedRoleIds.clear()),
+                        child: const Text('Deselect All',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                     ],
                   ),
@@ -1813,7 +2089,8 @@ class _DeviceAccessPermissionsSubviewState
               columns: [
                 DataColumn(
                   label: Checkbox(
-                    value: isAllSelected ? true : (isSomeSelected ? null : false),
+                    value:
+                        isAllSelected ? true : (isSomeSelected ? null : false),
                     tristate: true,
                     activeColor: const Color(0xFF1677F2),
                     onChanged: (val) {
@@ -1844,20 +2121,29 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Role Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Role Name',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _roleSortColumn == 'role_name'
-                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_roleSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _roleSortColumn == 'role_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _roleSortColumn == 'role_name'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const DataColumn(label: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const DataColumn(
+                    label: Text('Description',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
                 DataColumn(
                   label: InkWell(
                     onTap: () {
@@ -1873,20 +2159,29 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Users', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Users',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _roleSortColumn == 'users_count'
-                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_roleSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _roleSortColumn == 'users_count' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _roleSortColumn == 'users_count'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const DataColumn(label: Text('Key Permissions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const DataColumn(
+                    label: Text('Key Permissions',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
                 DataColumn(
                   label: InkWell(
                     onTap: () {
@@ -1902,20 +2197,29 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Status',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _roleSortColumn == 'status'
-                              ? (_roleSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_roleSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _roleSortColumn == 'status' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _roleSortColumn == 'status'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const DataColumn(
+                    label: Text('Actions',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
               ],
               rows: pagedRoles.map((r) {
                 final isSelected = _selectedRole?.id == r.id;
@@ -1949,12 +2253,16 @@ class _DeviceAccessPermissionsSubviewState
                                 ? Icons.security_rounded
                                 : (r.roleName == 'Facility Manager'
                                     ? Icons.business_rounded
-                                    : (r.roleName == 'Teacher' ? Icons.school_rounded : Icons.person_outline_rounded)),
+                                    : (r.roleName == 'Teacher'
+                                        ? Icons.school_rounded
+                                        : Icons.person_outline_rounded)),
                             color: const Color(0xFF1677F2),
                             size: 16,
                           ),
                           const SizedBox(width: 8),
-                          Text(r.roleName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(r.roleName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -1963,7 +2271,8 @@ class _DeviceAccessPermissionsSubviewState
                         width: 220,
                         child: Text(
                           r.description,
-                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                              fontSize: 11.5, color: Color(0xFF64748B)),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -1971,38 +2280,50 @@ class _DeviceAccessPermissionsSubviewState
                     DataCell(
                       Text(
                         '${r.usersCount}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1677F2).withValues(alpha: 0.08),
+                          color:
+                              const Color(0xFF1677F2).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           r.keyPermissions,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1677F2)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1677F2)),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFF10B981).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 12),
+                            const Icon(Icons.check_circle_rounded,
+                                color: Color(0xFF10B981), size: 12),
                             const SizedBox(width: 4),
                             Text(
                               r.status,
-                              style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -2013,7 +2334,8 @@ class _DeviceAccessPermissionsSubviewState
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1677F2)),
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 16, color: Color(0xFF1677F2)),
                             onPressed: () => _openCreateRoleWizard(r),
                             tooltip: 'Edit Role',
                             padding: EdgeInsets.zero,
@@ -2021,7 +2343,8 @@ class _DeviceAccessPermissionsSubviewState
                           ),
                           const SizedBox(width: 8),
                           PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert_rounded, size: 16, color: Color(0xFF64748B)),
+                            icon: const Icon(Icons.more_vert_rounded,
+                                size: 16, color: Color(0xFF64748B)),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onSelected: (action) {
@@ -2030,8 +2353,11 @@ class _DeviceAccessPermissionsSubviewState
                               }
                             },
                             itemBuilder: (ctx) => [
-                              const PopupMenuItem(value: 'duplicate', child: Text('Duplicate Role')),
-                              const PopupMenuItem(value: 'export', child: Text('Export JSON')),
+                              const PopupMenuItem(
+                                  value: 'duplicate',
+                                  child: Text('Duplicate Role')),
+                              const PopupMenuItem(
+                                  value: 'export', child: Text('Export JSON')),
                             ],
                           ),
                         ],
@@ -2055,19 +2381,24 @@ class _DeviceAccessPermissionsSubviewState
               children: [
                 Text(
                   'Showing ${totalRoles == 0 ? 0 : startRoleIdx + 1} - $endRoleIdx of $totalRoles roles',
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                 ),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                    const Text('Rows per page:',
+                        style: TextStyle(
+                            fontSize: 11.5, color: Color(0xFF64748B))),
                     DropdownButtonHideUnderline(
                       child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _rolesPageSize,
                         isDense: true,
-                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark ? Colors.white : Colors.black87),
                         items: const [
                           DropdownMenuItem(value: 5, child: Text('5')),
                           DropdownMenuItem(value: 10, child: Text('10')),
@@ -2087,23 +2418,34 @@ class _DeviceAccessPermissionsSubviewState
                     const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                      onPressed: _rolesCurrentPage > 1 ? () => setState(() => _rolesCurrentPage--) : null,
+                      onPressed: _rolesCurrentPage > 1
+                          ? () => setState(() => _rolesCurrentPage--)
+                          : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1677F2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text('$_rolesCurrentPage', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text('$_rolesCurrentPage',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
                     ),
-                    Text('of $totalRolePages', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                    Text('of $totalRolePages',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF64748B))),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                      onPressed: _rolesCurrentPage < totalRolePages ? () => setState(() => _rolesCurrentPage++) : null,
+                      onPressed: _rolesCurrentPage < totalRolePages
+                          ? () => setState(() => _rolesCurrentPage++)
+                          : null,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -2124,7 +2466,9 @@ class _DeviceAccessPermissionsSubviewState
     // Filter users locally or against current fetch
     final filteredUsers = _recentUsers.where((u) {
       if (_selectedRoleFilter != 'All Roles') {
-        if (!u.roleName.toLowerCase().contains(_selectedRoleFilter.toLowerCase())) {
+        if (!u.roleName
+            .toLowerCase()
+            .contains(_selectedRoleFilter.toLowerCase())) {
           return false;
         }
       }
@@ -2135,7 +2479,8 @@ class _DeviceAccessPermissionsSubviewState
       }
       if (_userSearchQuery.trim().isNotEmpty) {
         final q = _userSearchQuery.toLowerCase();
-        if (!u.userName.toLowerCase().contains(q) && !u.email.toLowerCase().contains(q)) {
+        if (!u.userName.toLowerCase().contains(q) &&
+            !u.email.toLowerCase().contains(q)) {
           return false;
         }
       }
@@ -2166,10 +2511,15 @@ class _DeviceAccessPermissionsSubviewState
     final currentUserPage = _userCurrentPage.clamp(1, totalUserPages);
     final startUserIdx = (currentUserPage - 1) * _userPageSize;
     final endUserIdx = (startUserIdx + _userPageSize).clamp(0, totalUsers);
-    final pagedUsers = totalUsers > 0 ? filteredUsers.sublist(startUserIdx, endUserIdx) : <EnterpriseUserAccessItem>[];
+    final pagedUsers = totalUsers > 0
+        ? filteredUsers.sublist(startUserIdx, endUserIdx)
+        : <EnterpriseUserAccessItem>[];
 
-    final isAllSelected = pagedUsers.isNotEmpty && pagedUsers.every((u) => _selectedUserIds.contains(u.id));
-    final isSomeSelected = pagedUsers.any((u) => _selectedUserIds.contains(u.id)) && !isAllSelected;
+    final isAllSelected = pagedUsers.isNotEmpty &&
+        pagedUsers.every((u) => _selectedUserIds.contains(u.id));
+    final isSomeSelected =
+        pagedUsers.any((u) => _selectedUserIds.contains(u.id)) &&
+            !isAllSelected;
 
     // Available roles for filter dropdown
     final filterRoleNames = <String>{'All Roles'};
@@ -2179,14 +2529,22 @@ class _DeviceAccessPermissionsSubviewState
         if (dname != null) filterRoleNames.add(dname.toString());
       }
     } else {
-      filterRoleNames.addAll(['Super Admin', 'Device Administrator', 'Facility Manager', 'Teacher', 'Maintenance Staff', 'Security Officer']);
+      filterRoleNames.addAll([
+        'Super Admin',
+        'Device Administrator',
+        'Facility Manager',
+        'Teacher',
+        'Maintenance Staff',
+        'Security Officer'
+      ]);
     }
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2203,19 +2561,22 @@ class _DeviceAccessPermissionsSubviewState
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.person_outline_rounded, color: Color(0xFF1677F2), size: 18),
+                    const Icon(Icons.person_outline_rounded,
+                        color: Color(0xFF1677F2), size: 18),
                     const SizedBox(width: 8),
                     const Flexible(
                       child: Text(
                         'User Access (Recent)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13.5),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       '($totalUsers)',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -2229,16 +2590,24 @@ class _DeviceAccessPermissionsSubviewState
                       height: 32,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: AppSearchableDropdown<String>.fromMenuItems(
-                          value: filterRoleNames.contains(_selectedRoleFilter) ? _selectedRoleFilter : 'All Roles',
+                          value: filterRoleNames.contains(_selectedRoleFilter)
+                              ? _selectedRoleFilter
+                              : 'All Roles',
                           isDense: true,
-                          style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.white : Colors.black87),
                           items: filterRoleNames.map((r) {
-                            return DropdownMenuItem<String>(value: r, child: Text(r));
+                            return DropdownMenuItem<String>(
+                                value: r, child: Text(r));
                           }).toList(),
                           onChanged: (v) {
                             if (v != null) {
@@ -2257,18 +2626,26 @@ class _DeviceAccessPermissionsSubviewState
                       height: 32,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                        border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1)),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: AppSearchableDropdown<String>.fromMenuItems(
                           value: _selectedStatusFilter,
                           isDense: true,
-                          style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.white : Colors.black87),
                           items: const [
-                            DropdownMenuItem(value: 'All Status', child: Text('All Status')),
-                            DropdownMenuItem(value: 'Active', child: Text('Active')),
-                            DropdownMenuItem(value: 'Suspended', child: Text('Suspended')),
+                            DropdownMenuItem(
+                                value: 'All Status', child: Text('All Status')),
+                            DropdownMenuItem(
+                                value: 'Active', child: Text('Active')),
+                            DropdownMenuItem(
+                                value: 'Suspended', child: Text('Suspended')),
                           ],
                           onChanged: (v) {
                             if (v != null) {
@@ -2290,10 +2667,13 @@ class _DeviceAccessPermissionsSubviewState
                         decoration: InputDecoration(
                           hintText: 'Search by user name or email...',
                           hintStyle: const TextStyle(fontSize: 10.5),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 14),
+                          prefixIcon:
+                              const Icon(Icons.search_rounded, size: 14),
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 8),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6)),
                         ),
                         onChanged: (v) {
                           setState(() {
@@ -2307,12 +2687,14 @@ class _DeviceAccessPermissionsSubviewState
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         visualDensity: VisualDensity.compact,
                       ),
                       onPressed: () => _openAssignUserAccessModal(),
                       icon: const Icon(Icons.person_add_rounded, size: 14),
-                      label: const Text('Assign User Access', style: TextStyle(fontSize: 11.5)),
+                      label: const Text('Assign User Access',
+                          style: TextStyle(fontSize: 11.5)),
                     ),
                   ],
                 ),
@@ -2329,7 +2711,8 @@ class _DeviceAccessPermissionsSubviewState
               decoration: BoxDecoration(
                 color: const Color(0xFF1677F2).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: const Color(0xFF1677F2).withValues(alpha: 0.3)),
               ),
               child: Wrap(
                 alignment: WrapAlignment.spaceBetween,
@@ -2340,11 +2723,15 @@ class _DeviceAccessPermissionsSubviewState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF1677F2), size: 16),
+                      const Icon(Icons.check_circle_outline_rounded,
+                          color: Color(0xFF1677F2), size: 16),
                       const SizedBox(width: 8),
                       Text(
                         '${_selectedUserIds.length} of $totalUsers users selected',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF1677F2)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                            color: Color(0xFF1677F2)),
                       ),
                     ],
                   ),
@@ -2356,38 +2743,49 @@ class _DeviceAccessPermissionsSubviewState
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: () => _executeBulkUserAction('activate'),
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 14),
-                        label: const Text('Activate Selected', style: TextStyle(fontSize: 11.5)),
+                        icon: const Icon(Icons.check_circle_outline_rounded,
+                            size: 14),
+                        label: const Text('Activate Selected',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF59E0B),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: () => _executeBulkUserAction('deactivate'),
-                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 14),
-                        label: const Text('Deactivate Selected', style: TextStyle(fontSize: 11.5)),
+                        icon: const Icon(Icons.pause_circle_outline_rounded,
+                            size: 14),
+                        label: const Text('Deactivate Selected',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFEF4444),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           visualDensity: VisualDensity.compact,
                         ),
                         onPressed: () => _executeBulkUserAction('revoke'),
-                        icon: const Icon(Icons.delete_outline_rounded, size: 14),
-                        label: const Text('Revoke Selected', style: TextStyle(fontSize: 11.5)),
+                        icon:
+                            const Icon(Icons.delete_outline_rounded, size: 14),
+                        label: const Text('Revoke Selected',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                       TextButton(
-                        onPressed: () => setState(() => _selectedUserIds.clear()),
-                        child: const Text('Deselect All', style: TextStyle(fontSize: 11.5)),
+                        onPressed: () =>
+                            setState(() => _selectedUserIds.clear()),
+                        child: const Text('Deselect All',
+                            style: TextStyle(fontSize: 11.5)),
                       ),
                     ],
                   ),
@@ -2408,7 +2806,8 @@ class _DeviceAccessPermissionsSubviewState
               columns: [
                 DataColumn(
                   label: Checkbox(
-                    value: isAllSelected ? true : (isSomeSelected ? null : false),
+                    value:
+                        isAllSelected ? true : (isSomeSelected ? null : false),
                     tristate: true,
                     activeColor: const Color(0xFF1677F2),
                     onChanged: (val) {
@@ -2439,14 +2838,20 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('User Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('User Name',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _userSortColumn == 'user_name'
-                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_userSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _userSortColumn == 'user_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _userSortColumn == 'user_name'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
@@ -2467,20 +2872,29 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Role', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Role',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _userSortColumn == 'role_name'
-                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_userSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _userSortColumn == 'role_name' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _userSortColumn == 'role_name'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const DataColumn(label: Text('User Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const DataColumn(
+                    label: Text('User Group',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
                 DataColumn(
                   label: InkWell(
                     onTap: () {
@@ -2496,14 +2910,20 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Location Scope', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Location Scope',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _userSortColumn == 'location_scope'
-                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_userSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _userSortColumn == 'location_scope' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _userSortColumn == 'location_scope'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
@@ -2524,14 +2944,20 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Status',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _userSortColumn == 'status'
-                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_userSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _userSortColumn == 'status' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _userSortColumn == 'status'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
@@ -2552,20 +2978,29 @@ class _DeviceAccessPermissionsSubviewState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Last Login', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('Last Login',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(width: 4),
                         Icon(
                           _userSortColumn == 'last_login'
-                              ? (_userSortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+                              ? (_userSortAsc
+                                  ? Icons.arrow_upward_rounded
+                                  : Icons.arrow_downward_rounded)
                               : Icons.unfold_more_rounded,
                           size: 14,
-                          color: _userSortColumn == 'last_login' ? const Color(0xFF1677F2) : const Color(0xFF94A3B8),
+                          color: _userSortColumn == 'last_login'
+                              ? const Color(0xFF1677F2)
+                              : const Color(0xFF94A3B8),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const DataColumn(
+                    label: Text('Actions',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
               ],
               rows: pagedUsers.map((u) {
                 final isChecked = _selectedUserIds.contains(u.id);
@@ -2592,10 +3027,16 @@ class _DeviceAccessPermissionsSubviewState
                         children: [
                           CircleAvatar(
                             radius: 12,
-                            backgroundColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                            backgroundColor:
+                                const Color(0xFF1677F2).withValues(alpha: 0.1),
                             child: Text(
-                              u.userName.isNotEmpty ? u.userName[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1677F2)),
+                              u.userName.isNotEmpty
+                                  ? u.userName[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1677F2)),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -2603,9 +3044,15 @@ class _DeviceAccessPermissionsSubviewState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(u.userName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                              Text(u.userName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
                               if (u.email.isNotEmpty)
-                                Text(u.email, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                Text(u.email,
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF64748B))),
                             ],
                           ),
                         ],
@@ -2613,31 +3060,41 @@ class _DeviceAccessPermissionsSubviewState
                     ),
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1677F2).withValues(alpha: 0.08),
+                          color:
+                              const Color(0xFF1677F2).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           u.roleName,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1677F2)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF1677F2)),
                         ),
                       ),
                     ),
-                    DataCell(Text(u.groupName, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                    DataCell(Text(u.groupName,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B)))),
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF64748B)),
+                          const Icon(Icons.location_on_outlined,
+                              size: 13, color: Color(0xFF64748B)),
                           const SizedBox(width: 4),
-                          Text(u.locationScope, style: const TextStyle(fontSize: 11.5)),
+                          Text(u.locationScope,
+                              style: const TextStyle(fontSize: 11.5)),
                         ],
                       ),
                     ),
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: u.status == 'Active'
                               ? const Color(0xFF10B981).withValues(alpha: 0.12)
@@ -2648,15 +3105,21 @@ class _DeviceAccessPermissionsSubviewState
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              u.status == 'Active' ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
-                              color: u.status == 'Active' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                              u.status == 'Active'
+                                  ? Icons.check_circle_rounded
+                                  : Icons.pause_circle_rounded,
+                              color: u.status == 'Active'
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444),
                               size: 12,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               u.status,
                               style: TextStyle(
-                                color: u.status == 'Active' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                color: u.status == 'Active'
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFEF4444),
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -2665,13 +3128,16 @@ class _DeviceAccessPermissionsSubviewState
                         ),
                       ),
                     ),
-                    DataCell(Text(u.lastLogin, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)))),
+                    DataCell(Text(u.lastLogin,
+                        style: const TextStyle(
+                            fontSize: 11.5, color: Color(0xFF64748B)))),
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1677F2)),
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 16, color: Color(0xFF1677F2)),
                             onPressed: () => _openAssignUserAccessModal(u),
                             tooltip: 'Edit Access',
                             padding: EdgeInsets.zero,
@@ -2679,7 +3145,8 @@ class _DeviceAccessPermissionsSubviewState
                           ),
                           const SizedBox(width: 6),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                size: 16, color: Color(0xFFEF4444)),
                             onPressed: () => _revokeSingleUser(u),
                             tooltip: 'Revoke Access',
                             padding: EdgeInsets.zero,
@@ -2706,19 +3173,24 @@ class _DeviceAccessPermissionsSubviewState
               children: [
                 Text(
                   'Showing ${totalUsers == 0 ? 0 : startUserIdx + 1} - $endUserIdx of $totalUsers users',
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                  style:
+                      const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                 ),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    const Text('Rows per page:', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                    const Text('Rows per page:',
+                        style: TextStyle(
+                            fontSize: 11.5, color: Color(0xFF64748B))),
                     DropdownButtonHideUnderline(
                       child: AppSearchableDropdown<int>.fromMenuItems(
                         value: _userPageSize,
                         isDense: true,
-                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white : Colors.black87),
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark ? Colors.white : Colors.black87),
                         items: const [
                           DropdownMenuItem(value: 5, child: Text('5')),
                           DropdownMenuItem(value: 10, child: Text('10')),
@@ -2751,14 +3223,21 @@ class _DeviceAccessPermissionsSubviewState
                     ),
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1677F2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text('$_userCurrentPage', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text('$_userCurrentPage',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
                     ),
-                    Text('of $totalUserPages', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                    Text('of $totalUserPages',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF64748B))),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded, size: 18),
                       onPressed: _userCurrentPage < totalUserPages
@@ -2809,7 +3288,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
@@ -2828,12 +3308,14 @@ class _DeviceAccessPermissionsSubviewState
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.settings_outlined, color: Color(0xFF1677F2), size: 18),
+                    const Icon(Icons.settings_outlined,
+                        color: Color(0xFF1677F2), size: 18),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         'Selected Role – ${role.roleName}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13.5),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -2841,7 +3323,8 @@ class _DeviceAccessPermissionsSubviewState
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1677F2)),
+                icon: const Icon(Icons.edit_outlined,
+                    size: 16, color: Color(0xFF1677F2)),
                 onPressed: () => _openCreateRoleWizard(role),
                 tooltip: 'Edit Role Settings',
                 padding: EdgeInsets.zero,
@@ -2857,7 +3340,10 @@ class _DeviceAccessPermissionsSubviewState
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2870,7 +3356,8 @@ class _DeviceAccessPermissionsSubviewState
                         color: const Color(0xFF1677F2).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.business_rounded, color: Color(0xFF1677F2), size: 22),
+                      child: const Icon(Icons.business_rounded,
+                          color: Color(0xFF1677F2), size: 22),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -2882,30 +3369,42 @@ class _DeviceAccessPermissionsSubviewState
                               Flexible(
                                 child: Text(
                                   role.roleName,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 10),
+                                    Icon(Icons.check_circle_rounded,
+                                        color: Color(0xFF10B981), size: 10),
                                     SizedBox(width: 3),
-                                    Text('Active', style: TextStyle(color: Color(0xFF10B981), fontSize: 9.5, fontWeight: FontWeight.bold)),
+                                    Text('Active',
+                                        style: TextStyle(
+                                            color: Color(0xFF10B981),
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text('Priority: ${role.priority} • ${role.roleCategory}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                          Text(
+                              'Priority: ${role.priority} • ${role.roleCategory}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xFF64748B))),
                         ],
                       ),
                     ),
@@ -2914,7 +3413,8 @@ class _DeviceAccessPermissionsSubviewState
                 const SizedBox(height: 8),
                 Text(
                   role.description,
-                  style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.35),
+                  style: const TextStyle(
+                      fontSize: 11.5, color: Color(0xFF64748B), height: 1.35),
                 ),
               ],
             ),
@@ -2922,19 +3422,22 @@ class _DeviceAccessPermissionsSubviewState
           const SizedBox(height: 14),
 
           // Key Permissions Checklist
-          const Text('Key Permissions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+          const Text('Key Permissions',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
           const SizedBox(height: 8),
           ...keyPermissions.map((perm) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 2.5),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                  const Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF10B981), size: 14),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       perm,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -2945,12 +3448,17 @@ class _DeviceAccessPermissionsSubviewState
           const SizedBox(height: 14),
 
           // Scope & Restrictions
-          const Text('Scope & Restrictions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+          const Text('Scope & Restrictions',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
           const SizedBox(height: 8),
-          _buildScopeRow(Icons.location_on_outlined, 'Location Scope:', role.locationScope),
-          _buildScopeRow(Icons.devices_other_rounded, 'Device Types:', role.deviceTypesScope),
-          _buildScopeRow(Icons.access_time_rounded, 'Time Policy:', role.timePolicy),
-          _buildScopeRow(Icons.language_rounded, 'Access Channel:', role.accessChannel),
+          _buildScopeRow(Icons.location_on_outlined, 'Location Scope:',
+              role.locationScope),
+          _buildScopeRow(Icons.devices_other_rounded, 'Device Types:',
+              role.deviceTypesScope),
+          _buildScopeRow(
+              Icons.access_time_rounded, 'Time Policy:', role.timePolicy),
+          _buildScopeRow(
+              Icons.language_rounded, 'Access Channel:', role.accessChannel),
           const SizedBox(height: 16),
 
           // 5 Accordions
@@ -2958,15 +3466,20 @@ class _DeviceAccessPermissionsSubviewState
             title: 'Permission Matrix (Role × Feature)',
             icon: Icons.grid_view_rounded,
             isExpanded: _accPermissionMatrixExpanded,
-            onToggle: () => setState(() => _accPermissionMatrixExpanded = !_accPermissionMatrixExpanded),
+            onToggle: () => setState(() =>
+                _accPermissionMatrixExpanded = !_accPermissionMatrixExpanded),
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Full resource capabilities configured for this role:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                const Text(
+                    'Full resource capabilities configured for this role:',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 const SizedBox(height: 6),
                 _buildMiniMatrixRow('Device Registry', 'View, Edit, Export'),
-                _buildMiniMatrixRow('Live Control', 'ON/OFF, Parameters, Scene'),
-                _buildMiniMatrixRow('Bulk Operations', 'Restricted (Approval Req.)'),
+                _buildMiniMatrixRow(
+                    'Live Control', 'ON/OFF, Parameters, Scene'),
+                _buildMiniMatrixRow(
+                    'Bulk Operations', 'Restricted (Approval Req.)'),
                 _buildMiniMatrixRow('Schedules', 'Create, Edit, Pause'),
               ],
             ),
@@ -2975,13 +3488,16 @@ class _DeviceAccessPermissionsSubviewState
             title: 'Access Policies',
             icon: Icons.shield_outlined,
             isExpanded: _accPoliciesExpanded,
-            onToggle: () => setState(() => _accPoliciesExpanded = !_accPoliciesExpanded),
+            onToggle: () =>
+                setState(() => _accPoliciesExpanded = !_accPoliciesExpanded),
             content: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('• POL_LOCATION_BOUND: Enforced on Block A', style: TextStyle(fontSize: 11.5)),
+                Text('• POL_LOCATION_BOUND: Enforced on Block A',
+                    style: TextStyle(fontSize: 11.5)),
                 SizedBox(height: 4),
-                Text('• POL_WORKING_HOURS: Allowed 24x7', style: TextStyle(fontSize: 11.5)),
+                Text('• POL_WORKING_HOURS: Allowed 24x7',
+                    style: TextStyle(fontSize: 11.5)),
               ],
             ),
           ),
@@ -2989,23 +3505,29 @@ class _DeviceAccessPermissionsSubviewState
             title: 'Delegation & Temporary Access',
             icon: Icons.transfer_within_a_station_rounded,
             isExpanded: _accDelegationExpanded,
-            onToggle: () => setState(() => _accDelegationExpanded = !_accDelegationExpanded),
-            content: const Text('1 Active Delegation: Alok Chandra (Ends in 5 days)', style: TextStyle(fontSize: 11.5)),
+            onToggle: () => setState(
+                () => _accDelegationExpanded = !_accDelegationExpanded),
+            content: const Text(
+                '1 Active Delegation: Alok Chandra (Ends in 5 days)',
+                style: TextStyle(fontSize: 11.5)),
           ),
           _buildAccordionItem(
             title: 'Access Requests (4 Pending)',
             icon: Icons.pending_actions_rounded,
             isExpanded: _accRequestsExpanded,
             badgeCount: 4,
-            onToggle: () => setState(() => _accRequestsExpanded = !_accRequestsExpanded),
+            onToggle: () =>
+                setState(() => _accRequestsExpanded = !_accRequestsExpanded),
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('4 requests awaiting administrator review.', style: TextStyle(fontSize: 11.5)),
+                const Text('4 requests awaiting administrator review.',
+                    style: TextStyle(fontSize: 11.5)),
                 const SizedBox(height: 6),
                 OutlinedButton(
                   onPressed: () => setState(() => _selectedSubTab = 7),
-                  child: const Text('Review Requests', style: TextStyle(fontSize: 11)),
+                  child: const Text('Review Requests',
+                      style: TextStyle(fontSize: 11)),
                 ),
               ],
             ),
@@ -3014,8 +3536,11 @@ class _DeviceAccessPermissionsSubviewState
             title: 'Access Audit Logs',
             icon: Icons.fact_check_outlined,
             isExpanded: _accAuditLogsExpanded,
-            onToggle: () => setState(() => _accAuditLogsExpanded = !_accAuditLogsExpanded),
-            content: const Text('Recent role modification recorded at 10 Jan 2025, 02:15 PM by Amit Sharma.', style: TextStyle(fontSize: 11.5)),
+            onToggle: () =>
+                setState(() => _accAuditLogsExpanded = !_accAuditLogsExpanded),
+            content: const Text(
+                'Recent role modification recorded at 10 Jan 2025, 02:15 PM by Amit Sharma.',
+                style: TextStyle(fontSize: 11.5)),
           ),
         ],
       ),
@@ -3030,12 +3555,14 @@ class _DeviceAccessPermissionsSubviewState
         children: [
           Icon(icon, size: 14, color: const Color(0xFF64748B)),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+          Text(label,
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
           const SizedBox(width: 4),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+              style:
+                  const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -3050,8 +3577,11 @@ class _DeviceAccessPermissionsSubviewState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(resource, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          Text(perms, style: const TextStyle(fontSize: 10.5, color: Color(0xFF1677F2))),
+          Text(resource,
+              style:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(perms,
+              style: const TextStyle(fontSize: 10.5, color: Color(0xFF1677F2))),
         ],
       ),
     );
@@ -3085,26 +3615,33 @@ class _DeviceAccessPermissionsSubviewState
                   Expanded(
                     child: Text(
                       title,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (badgeCount != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF59E0B),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '$badgeCount',
-                        style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(width: 6),
                   ],
                   Icon(
-                    isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
                     size: 16,
                     color: const Color(0xFF64748B),
                   ),
@@ -3135,9 +3672,12 @@ class _DeviceAccessPermissionsSubviewState
           spacing: 10,
           runSpacing: 8,
           children: [
-            const Text('Institutional Roles Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Institutional Roles Catalog',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1677F2),
+                  foregroundColor: Colors.white),
               onPressed: () => _openCreateRoleWizard(),
               icon: const Icon(Icons.add_rounded, size: 16),
               label: const Text('Create Role'),
@@ -3163,9 +3703,12 @@ class _DeviceAccessPermissionsSubviewState
           spacing: 10,
           runSpacing: 8,
           children: [
-            const Text('User Access Directory & Assignment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('User Access Directory & Assignment',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white),
               onPressed: () => _openAssignUserAccessModal(),
               icon: const Icon(Icons.person_add_rounded, size: 16),
               label: const Text('Assign User Access'),
@@ -3187,7 +3730,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3198,9 +3742,12 @@ class _DeviceAccessPermissionsSubviewState
             spacing: 10,
             runSpacing: 8,
             children: [
-              const Text('18 Active User Groups', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('18 Active User Groups',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1677F2),
+                    foregroundColor: Colors.white),
                 onPressed: _openCreateGroupModal,
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Create Group'),
@@ -3215,11 +3762,16 @@ class _DeviceAccessPermissionsSubviewState
                 ? _groups.map((g) => _buildGroupCard(g, isDark)).toList()
                 : [
                     _buildFallbackGroupCard('IT Team', 'GRP_IT', 14, isDark),
-                    _buildFallbackGroupCard('Facility Team', 'GRP_FACILITY', 36, isDark),
-                    _buildFallbackGroupCard('Teachers', 'GRP_TEACHERS', 88, isDark),
-                    _buildFallbackGroupCard('Maintenance', 'GRP_MAINTENANCE', 18, isDark),
-                    _buildFallbackGroupCard('Management', 'GRP_MANAGEMENT', 12, isDark),
-                    _buildFallbackGroupCard('Security Team', 'GRP_SECURITY', 12, isDark),
+                    _buildFallbackGroupCard(
+                        'Facility Team', 'GRP_FACILITY', 36, isDark),
+                    _buildFallbackGroupCard(
+                        'Teachers', 'GRP_TEACHERS', 88, isDark),
+                    _buildFallbackGroupCard(
+                        'Maintenance', 'GRP_MAINTENANCE', 18, isDark),
+                    _buildFallbackGroupCard(
+                        'Management', 'GRP_MANAGEMENT', 12, isDark),
+                    _buildFallbackGroupCard(
+                        'Security Team', 'GRP_SECURITY', 12, isDark),
                   ],
           ),
         ],
@@ -3234,7 +3786,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3242,29 +3795,42 @@ class _DeviceAccessPermissionsSubviewState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(child: Text(g.groupName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+              Flexible(
+                  child: Text(g.groupName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
-                child: Text('${g.memberCount} users', style: const TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text('${g.memberCount} users',
+                    style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(g.description, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          Text(g.description,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
         ],
       ),
     );
   }
 
-  Widget _buildFallbackGroupCard(String name, String code, int members, bool isDark) {
+  Widget _buildFallbackGroupCard(
+      String name, String code, int members, bool isDark) {
     return Container(
       width: 260,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3272,16 +3838,27 @@ class _DeviceAccessPermissionsSubviewState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+              Flexible(
+                  child: Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
-                child: Text('$members users', style: const TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text('$members users',
+                    style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text('Code: $code', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          Text('Code: $code',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
         ],
       ),
     );
@@ -3309,7 +3886,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3323,17 +3901,25 @@ class _DeviceAccessPermissionsSubviewState
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Dynamic Permission Matrix – Role: ${_selectedRole?.roleName ?? "Facility Manager"}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                      'Dynamic Permission Matrix – Role: ${_selectedRole?.roleName ?? "Facility Manager"}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 4),
-                  const Text('Configure resource-level actions (RBAC & ABAC Enforcement)', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                  const Text(
+                      'Configure resource-level actions (RBAC & ABAC Enforcement)',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
                 ],
               ),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1677F2),
+                    foregroundColor: Colors.white),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Permission Matrix saved successfully!'), backgroundColor: Color(0xFF10B981)),
+                    const SnackBar(
+                        content: Text('Permission Matrix saved successfully!'),
+                        backgroundColor: Color(0xFF10B981)),
                   );
                 },
                 icon: const Icon(Icons.save_rounded, size: 16),
@@ -3351,28 +3937,82 @@ class _DeviceAccessPermissionsSubviewState
               horizontalMargin: 12,
               columnSpacing: 20,
               columns: const [
-                DataColumn(label: Text('Resource / Module', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Create', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Edit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Delete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Execute', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Control', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Approve', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                DataColumn(label: Text('Export', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Resource / Module',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('View',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Create',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Edit',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Delete',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Execute',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Control',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Approve',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
+                DataColumn(
+                    label: Text('Export',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12))),
               ],
               rows: resources.map((res) {
                 return DataRow(
                   cells: [
-                    DataCell(Text(res, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                    DataCell(Checkbox(value: true, onChanged: (_) {}, activeColor: const Color(0xFF10B981))),
-                    DataCell(Checkbox(value: res.contains('Schedule'), onChanged: (_) {}, activeColor: const Color(0xFF1677F2))),
-                    DataCell(Checkbox(value: res.contains('Control') || res.contains('Schedule'), onChanged: (_) {}, activeColor: const Color(0xFF1677F2))),
-                    DataCell(Checkbox(value: false, onChanged: (_) {}, activeColor: const Color(0xFFEF4444))),
-                    DataCell(Checkbox(value: res.contains('Control') || res.contains('Scene'), onChanged: (_) {}, activeColor: const Color(0xFF10B981))),
-                    DataCell(Checkbox(value: res.contains('Control'), onChanged: (_) {}, activeColor: const Color(0xFF10B981))),
-                    DataCell(Checkbox(value: res.contains('Schedule'), onChanged: (_) {}, activeColor: const Color(0xFFF59E0B))),
-                    DataCell(Checkbox(value: res.contains('Usage') || res.contains('Audit'), onChanged: (_) {}, activeColor: const Color(0xFF1677F2))),
+                    DataCell(Text(res,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 12))),
+                    DataCell(Checkbox(
+                        value: true,
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF10B981))),
+                    DataCell(Checkbox(
+                        value: res.contains('Schedule'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF1677F2))),
+                    DataCell(Checkbox(
+                        value:
+                            res.contains('Control') || res.contains('Schedule'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF1677F2))),
+                    DataCell(Checkbox(
+                        value: false,
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFFEF4444))),
+                    DataCell(Checkbox(
+                        value: res.contains('Control') || res.contains('Scene'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF10B981))),
+                    DataCell(Checkbox(
+                        value: res.contains('Control'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF10B981))),
+                    DataCell(Checkbox(
+                        value: res.contains('Schedule'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFFF59E0B))),
+                    DataCell(Checkbox(
+                        value: res.contains('Usage') || res.contains('Audit'),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF1677F2))),
                   ],
                 );
               }).toList(),
@@ -3392,7 +4032,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3403,9 +4044,12 @@ class _DeviceAccessPermissionsSubviewState
             spacing: 10,
             runSpacing: 8,
             children: [
-              const Text('Configured ABAC Policies (6 Active)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Configured ABAC Policies (6 Active)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1677F2),
+                    foregroundColor: Colors.white),
                 onPressed: _openDefinePolicyModal,
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Define Policy'),
@@ -3418,13 +4062,18 @@ class _DeviceAccessPermissionsSubviewState
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.shield_outlined, color: Color(0xFF1677F2), size: 20),
+                  const Icon(Icons.shield_outlined,
+                      color: Color(0xFF1677F2), size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -3432,17 +4081,32 @@ class _DeviceAccessPermissionsSubviewState
                       children: [
                         Row(
                           children: [
-                            Flexible(child: Text(p.policyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                            Flexible(
+                                child: Text(p.policyName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
+                                    overflow: TextOverflow.ellipsis)),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: const Color(0xFF1677F2).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                              child: Text(p.category, style: const TextStyle(fontSize: 10, color: Color(0xFF1677F2), fontWeight: FontWeight.bold)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: const Color(0xFF1677F2)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4)),
+                              child: Text(p.category,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF1677F2),
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(p.description, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                        Text(p.description,
+                            style: const TextStyle(
+                                fontSize: 11.5, color: Color(0xFF64748B))),
                       ],
                     ),
                   ),
@@ -3484,7 +4148,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3495,9 +4160,12 @@ class _DeviceAccessPermissionsSubviewState
             spacing: 10,
             runSpacing: 8,
             children: [
-              const Text('Active Temporary Delegations', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Active Temporary Delegations',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1677F2),
+                    foregroundColor: Colors.white),
                 onPressed: _openCreateDelegationModal,
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Grant Temporary Access'),
@@ -3510,30 +4178,50 @@ class _DeviceAccessPermissionsSubviewState
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.transfer_within_a_station_rounded, color: Color(0xFF1677F2), size: 20),
+                  const Icon(Icons.transfer_within_a_station_rounded,
+                      color: Color(0xFF1677F2), size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Delegatee: ${d.delegateeName} (${d.assignedRole})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(
+                            'Delegatee: ${d.delegateeName} (${d.assignedRole})',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text('Scope: ${d.locationScope} • Delegated by: ${d.delegatorName}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                        Text(
+                            'Scope: ${d.locationScope} • Delegated by: ${d.delegatorName}',
+                            style: const TextStyle(
+                                fontSize: 11.5, color: Color(0xFF64748B))),
                         const SizedBox(height: 2),
-                        Text('Reason: ${d.reason}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                        Text('Reason: ${d.reason}',
+                            style: const TextStyle(
+                                fontSize: 11, fontStyle: FontStyle.italic)),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                    child: Text(d.status, style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Text(d.status,
+                        style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -3553,7 +4241,8 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3564,9 +4253,12 @@ class _DeviceAccessPermissionsSubviewState
             spacing: 10,
             runSpacing: 8,
             children: [
-              const Text('Pending Access & Privilege Requests (4)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Pending Access & Privilege Requests (4)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1677F2),
+                    foregroundColor: Colors.white),
                 onPressed: _openAccessRequestModal,
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Submit Request'),
@@ -3580,13 +4272,18 @@ class _DeviceAccessPermissionsSubviewState
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.pending_actions_rounded, color: Color(0xFFF59E0B), size: 24),
+                  const Icon(Icons.pending_actions_rounded,
+                      color: Color(0xFFF59E0B), size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -3594,34 +4291,50 @@ class _DeviceAccessPermissionsSubviewState
                       children: [
                         Row(
                           children: [
-                            Text(req.requestCode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1677F2))),
+                            Text(req.requestCode,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: Color(0xFF1677F2))),
                             const SizedBox(width: 8),
-                            Text('Requester: ${req.requesterName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Requester: ${req.requesterName}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text('Role: ${req.requestedRole} • Scope: ${req.requestedScope} • Duration: ${req.duration}',
-                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                        Text(
+                            'Role: ${req.requestedRole} • Scope: ${req.requestedScope} • Duration: ${req.duration}',
+                            style: const TextStyle(
+                                fontSize: 11.5, color: Color(0xFF64748B))),
                         const SizedBox(height: 4),
-                        Text('Justification: "${req.justification}"', style: const TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic)),
+                        Text('Justification: "${req.justification}"',
+                            style: const TextStyle(
+                                fontSize: 11.5, fontStyle: FontStyle.italic)),
                       ],
                     ),
                   ),
                   if (isPending) ...[
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white),
                       onPressed: () => _approveRequest(req),
-                      child: const Text('Approve', style: TextStyle(fontSize: 11)),
+                      child:
+                          const Text('Approve', style: TextStyle(fontSize: 11)),
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFEF4444)),
                       onPressed: () => _rejectRequest(req),
-                      child: const Text('Reject', style: TextStyle(fontSize: 11)),
+                      child:
+                          const Text('Reject', style: TextStyle(fontSize: 11)),
                     ),
                   ] else ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: req.status == 'Approved'
                             ? const Color(0xFF10B981).withValues(alpha: 0.12)
@@ -3631,7 +4344,9 @@ class _DeviceAccessPermissionsSubviewState
                       child: Text(
                         req.status,
                         style: TextStyle(
-                          color: req.status == 'Approved' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          color: req.status == 'Approved'
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -3656,14 +4371,17 @@ class _DeviceAccessPermissionsSubviewState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Security & Access Audit Trail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text('Security & Access Audit Trail',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 6),
-          const Text('Immutable, tamper-evident chronological log of authorization decisions and role alterations.',
+          const Text(
+              'Immutable, tamper-evident chronological log of authorization decisions and role alterations.',
               style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
           const SizedBox(height: 14),
           ..._auditLogs.map((log) {
@@ -3671,15 +4389,23 @@ class _DeviceAccessPermissionsSubviewState
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
                   Icon(
-                    log.status == 'Success' ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
-                    color: log.status == 'Success' ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                    log.status == 'Success'
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.cancel_outlined,
+                    color: log.status == 'Success'
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFEF4444),
                     size: 18,
                   ),
                   const SizedBox(width: 10),
@@ -3687,14 +4413,20 @@ class _DeviceAccessPermissionsSubviewState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${log.action} – ${log.target}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                        Text('${log.action} – ${log.target}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12.5)),
                         const SizedBox(height: 2),
-                        Text('Actor: ${log.actorName} (${log.roleName}) • IP: ${log.ipAddress} • Correlation: ${log.correlationId}',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                        Text(
+                            'Actor: ${log.actorName} (${log.roleName}) • IP: ${log.ipAddress} • Correlation: ${log.correlationId}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF64748B))),
                       ],
                     ),
                   ),
-                  Text(log.timestamp, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  Text(log.timestamp,
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF64748B))),
                 ],
               ),
             );
@@ -3788,9 +4520,13 @@ class _CreateRoleDialogState extends State<_CreateRoleDialog> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: widget.roleToEdit?.roleName ?? 'Campus Energy Specialist');
-    _codeCtrl = TextEditingController(text: widget.roleToEdit?.roleCode ?? 'CAMPUS_ENERGY_SPEC');
-    _descCtrl = TextEditingController(text: widget.roleToEdit?.description ?? 'Supervises smart meter schedules and telemetry.');
+    _nameCtrl = TextEditingController(
+        text: widget.roleToEdit?.roleName ?? 'Campus Energy Specialist');
+    _codeCtrl = TextEditingController(
+        text: widget.roleToEdit?.roleCode ?? 'CAMPUS_ENERGY_SPEC');
+    _descCtrl = TextEditingController(
+        text: widget.roleToEdit?.description ??
+            'Supervises smart meter schedules and telemetry.');
   }
 
   @override
@@ -3809,28 +4545,47 @@ class _CreateRoleDialogState extends State<_CreateRoleDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Role Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Role Name',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _nameCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Role Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Role Code',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _codeCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _codeCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Description',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _descCtrl, maxLines: 2, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _descCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Location Scope', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Location Scope',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _location,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'Assigned Locations', child: Text('Assigned Locations')),
-                DropdownMenuItem(value: 'Entire Institution', child: Text('Entire Institution')),
-                DropdownMenuItem(value: 'Academic Block A', child: Text('Academic Block A')),
+                DropdownMenuItem(
+                    value: 'Assigned Locations',
+                    child: Text('Assigned Locations')),
+                DropdownMenuItem(
+                    value: 'Entire Institution',
+                    child: Text('Entire Institution')),
+                DropdownMenuItem(
+                    value: 'Academic Block A', child: Text('Academic Block A')),
               ],
               onChanged: (v) => setState(() => _location = v!),
             ),
@@ -3838,12 +4593,17 @@ class _CreateRoleDialogState extends State<_CreateRoleDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1677F2),
+              foregroundColor: Colors.white),
           onPressed: () {
             final role = EnterpriseRoleItem(
-              id: widget.roleToEdit?.id ?? 'c1000000-${DateTime.now().millisecondsSinceEpoch}',
+              id: widget.roleToEdit?.id ??
+                  'c1000000-${DateTime.now().millisecondsSinceEpoch}',
               roleName: _nameCtrl.text.trim(),
               roleCode: _codeCtrl.text.trim(),
               description: _descCtrl.text.trim(),
@@ -3882,7 +4642,8 @@ class _AssignUserAccessDialog extends StatefulWidget {
   });
 
   @override
-  State<_AssignUserAccessDialog> createState() => _AssignUserAccessDialogState();
+  State<_AssignUserAccessDialog> createState() =>
+      _AssignUserAccessDialogState();
 }
 
 class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
@@ -3920,8 +4681,12 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
         'department': widget.user!.groupName,
       };
       for (final r in widget.dropdownRoles) {
-        if ((r['display_name'] != null && r['display_name'].toString().toLowerCase() == _selectedRoleName.toLowerCase()) ||
-            (r['name'] != null && r['name'].toString().toLowerCase() == _selectedRoleName.toLowerCase())) {
+        if ((r['display_name'] != null &&
+                r['display_name'].toString().toLowerCase() ==
+                    _selectedRoleName.toLowerCase()) ||
+            (r['name'] != null &&
+                r['name'].toString().toLowerCase() ==
+                    _selectedRoleName.toLowerCase())) {
           _selectedRoleId = r['id']?.toString();
           break;
         }
@@ -3934,42 +4699,55 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
       if (widget.dropdownRoles.isNotEmpty) {
         final r = widget.dropdownRoles.first;
         _selectedRoleId = r['id']?.toString();
-        _selectedRoleName = r['display_name'] ?? r['name'] ?? 'Facility Manager';
+        _selectedRoleName =
+            r['display_name'] ?? r['name'] ?? 'Facility Manager';
       }
     }
   }
 
   Future<void> _submitAssignment() async {
-    final userId = _selectedUserId ?? widget.user?.id ?? 'u-${DateTime.now().millisecondsSinceEpoch}';
-    final userName = _selectedUser?['full_name']?.toString() ?? widget.user?.userName ?? 'User';
-    final userEmail = _selectedUser?['email']?.toString() ?? widget.user?.email ?? '';
-    final groupName = _selectedUser?['department']?.toString() ?? widget.user?.groupName ?? 'General';
-    final roleId = _selectedRoleId ?? (widget.roles.isNotEmpty ? widget.roles.first.id : 'role-1');
+    final userId = _selectedUserId ??
+        widget.user?.id ??
+        'u-${DateTime.now().millisecondsSinceEpoch}';
+    final userName = _selectedUser?['full_name']?.toString() ??
+        widget.user?.userName ??
+        'User';
+    final userEmail =
+        _selectedUser?['email']?.toString() ?? widget.user?.email ?? '';
+    final groupName = _selectedUser?['department']?.toString() ??
+        widget.user?.groupName ??
+        'General';
+    final roleId = _selectedRoleId ??
+        (widget.roles.isNotEmpty ? widget.roles.first.id : 'role-1');
 
     setState(() => _isSaving = true);
 
     if (widget.apiBaseUrl != null && !widget.apiBaseUrl!.contains('mock')) {
       try {
-        final token = (await SharedPreferences.getInstance()).getString('auth_token');
-        final targetUrl = '${widget.apiBaseUrl}/access-permissions/users/assign';
-        await http.post(
-          Uri.parse(targetUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            if (token != null) 'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'user_id': userId,
-            'role_id': roleId,
-            'role_name': _selectedRoleName,
-            'location_scope': _selectedScope,
-            'access_level': _selectedAccessLevel,
-            'department': groupName,
-            'feature_permissions': _selectedFeatures.toList(),
-            'status': 'Active',
-          }),
-        ).timeout(const Duration(seconds: 4));
+        final token =
+            (await SharedPreferences.getInstance()).getString('auth_token');
+        final targetUrl =
+            '${widget.apiBaseUrl}/access-permissions/users/assign';
+        await http
+            .post(
+              Uri.parse(targetUrl),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                if (token != null) 'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({
+                'user_id': userId,
+                'role_id': roleId,
+                'role_name': _selectedRoleName,
+                'location_scope': _selectedScope,
+                'access_level': _selectedAccessLevel,
+                'department': groupName,
+                'feature_permissions': _selectedFeatures.toList(),
+                'status': 'Active',
+              }),
+            )
+            .timeout(const Duration(seconds: 4));
       } catch (_) {}
     }
 
@@ -4009,10 +4787,13 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               color: const Color(0xFF10B981).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(Icons.person_add_outlined, color: Color(0xFF10B981), size: 20),
+            child: const Icon(Icons.person_add_outlined,
+                color: Color(0xFF10B981), size: 20),
           ),
           const SizedBox(width: 10),
-          Text(widget.user != null ? 'Edit User Device Access' : 'Assign Device Access Permissions'),
+          Text(widget.user != null
+              ? 'Edit User Device Access'
+              : 'Assign Device Access Permissions'),
         ],
       ),
       content: SizedBox(
@@ -4023,15 +4804,22 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // User Selection
-              const Text('1. Institutional User (from User Management)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const Text('1. Institutional User (from User Management)',
+                  style:
+                      TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               if (widget.user != null)
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(
                     children: [
@@ -4039,8 +4827,13 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                         radius: 14,
                         backgroundColor: const Color(0xFF1677F2),
                         child: Text(
-                          widget.user!.userName.isNotEmpty ? widget.user!.userName[0].toUpperCase() : 'U',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          widget.user!.userName.isNotEmpty
+                              ? widget.user!.userName[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -4048,8 +4841,12 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.user!.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text(widget.user!.email, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                            Text(widget.user!.userName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(widget.user!.email,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF64748B))),
                           ],
                         ),
                       ),
@@ -4063,8 +4860,10 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                     hintStyle: const TextStyle(fontSize: 11.5),
                     prefixIcon: const Icon(Icons.search_rounded, size: 16),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6)),
                   ),
                   onChanged: (v) => setState(() => _userSearch = v),
                 ),
@@ -4073,39 +4872,66 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                   height: 120,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                    border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1)),
                   ),
                   child: filteredUsers.isEmpty
-                      ? const Center(child: Text('No users found', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))))
+                      ? const Center(
+                          child: Text('No users found',
+                              style: TextStyle(
+                                  fontSize: 11.5, color: Color(0xFF64748B))))
                       : ListView.separated(
                           itemCount: filteredUsers.length,
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (ctx, idx) {
                             final u = filteredUsers[idx];
-                            final isSel = _selectedUserId == u['id']?.toString();
+                            final isSel =
+                                _selectedUserId == u['id']?.toString();
                             return ListTile(
                               dense: true,
                               selected: isSel,
-                              selectedTileColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                              selectedTileColor: const Color(0xFF1677F2)
+                                  .withValues(alpha: 0.1),
                               leading: CircleAvatar(
                                 radius: 12,
-                                backgroundColor: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                                backgroundColor: const Color(0xFF1677F2)
+                                    .withValues(alpha: 0.1),
                                 child: Text(
-                                  (u['full_name'] != null && u['full_name'].toString().isNotEmpty)
-                                      ? u['full_name'].toString()[0].toUpperCase()
+                                  (u['full_name'] != null &&
+                                          u['full_name'].toString().isNotEmpty)
+                                      ? u['full_name']
+                                          .toString()[0]
+                                          .toUpperCase()
                                       : 'U',
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1677F2)),
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1677F2)),
                                 ),
                               ),
-                              title: Text(u['full_name']?.toString() ?? 'User', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              subtitle: Text(u['email']?.toString() ?? '', style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                              title: Text(u['full_name']?.toString() ?? 'User',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600)),
+                              subtitle: Text(u['email']?.toString() ?? '',
+                                  style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: Color(0xFF64748B))),
                               trailing: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1677F2).withValues(alpha: 0.1),
+                                  color: const Color(0xFF1677F2)
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Text(u['role']?.toString() ?? 'Role', style: const TextStyle(fontSize: 9.5, color: Color(0xFF1677F2), fontWeight: FontWeight.w500)),
+                                child: Text(u['role']?.toString() ?? 'Role',
+                                    style: const TextStyle(
+                                        fontSize: 9.5,
+                                        color: Color(0xFF1677F2),
+                                        fontWeight: FontWeight.w500)),
                               ),
                               onTap: () {
                                 setState(() {
@@ -4121,12 +4947,20 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               const SizedBox(height: 14),
 
               // Role Selection
-              const Text('2. Assign Institutional Role (from Roles Management)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const Text('2. Assign Institutional Role (from Roles Management)',
+                  style:
+                      TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               AppSearchableDropdownFormField<String>.fromMenuItems(
-                value: _selectedRoleId ?? (widget.dropdownRoles.isNotEmpty ? widget.dropdownRoles.first['id']?.toString() : null),
+                value: _selectedRoleId ??
+                    (widget.dropdownRoles.isNotEmpty
+                        ? widget.dropdownRoles.first['id']?.toString()
+                        : null),
                 isDense: true,
-                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
                 items: widget.dropdownRoles.map((r) {
                   final dname = r['display_name'] ?? r['name'] ?? 'Role';
                   return DropdownMenuItem<String>(
@@ -4134,7 +4968,8 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF1677F2)),
+                        const Icon(Icons.shield_outlined,
+                            size: 14, color: Color(0xFF1677F2)),
                         const SizedBox(width: 8),
                         Text(dname, style: const TextStyle(fontSize: 12)),
                       ],
@@ -4145,8 +4980,12 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                   if (v != null) {
                     setState(() {
                       _selectedRoleId = v;
-                      final match = widget.dropdownRoles.firstWhere((r) => r['id']?.toString() == v, orElse: () => {});
-                      _selectedRoleName = match['display_name'] ?? match['name'] ?? 'Facility Manager';
+                      final match = widget.dropdownRoles.firstWhere(
+                          (r) => r['id']?.toString() == v,
+                          orElse: () => {});
+                      _selectedRoleName = match['display_name'] ??
+                          match['name'] ??
+                          'Facility Manager';
                     });
                   }
                 },
@@ -4154,22 +4993,42 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               const SizedBox(height: 14),
 
               // Location Scope Selection
-              const Text('3. Location Scope (from Buildings)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const Text('3. Location Scope (from Buildings)',
+                  style:
+                      TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _selectedScope,
                 isDense: true,
-                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
                 items: (widget.dropdownLocations.isNotEmpty
-                        ? widget.dropdownLocations.map((l) => l['name']?.toString() ?? 'All Locations').toSet().toList()
-                        : ['All Locations', 'Academic Block (A)', 'Academic Block (B)', 'Admin Block', 'Library Block', 'Laboratories Block', 'Auditorium Block', 'Sports Complex', 'Hostel Block A'])
+                        ? widget.dropdownLocations
+                            .map(
+                                (l) => l['name']?.toString() ?? 'All Locations')
+                            .toSet()
+                            .toList()
+                        : [
+                            'All Locations',
+                            'Academic Block (A)',
+                            'Academic Block (B)',
+                            'Admin Block',
+                            'Library Block',
+                            'Laboratories Block',
+                            'Auditorium Block',
+                            'Sports Complex',
+                            'Hostel Block A'
+                          ])
                     .map((loc) {
                   return DropdownMenuItem<String>(
                     value: loc,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF10B981)),
+                        const Icon(Icons.location_on_outlined,
+                            size: 14, color: Color(0xFF10B981)),
                         const SizedBox(width: 8),
                         Text(loc, style: const TextStyle(fontSize: 12)),
                       ],
@@ -4183,17 +5042,34 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               const SizedBox(height: 14),
 
               // Access Level
-              const Text('4. Access Level', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const Text('4. Access Level',
+                  style:
+                      TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               AppSearchableDropdownFormField<String>.fromMenuItems(
                 value: _selectedAccessLevel,
                 isDense: true,
-                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
                 items: const [
-                  DropdownMenuItem(value: 'Full Control', child: Text('Full Control (Read, Write, Execute, Admin)', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'Operator', child: Text('Operator (Read, Live Control, Schedules)', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'Monitor Only', child: Text('Monitor Only (Telemetry, Read Only)', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'Restricted', child: Text('Restricted (Single Room or Emergency)', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(
+                      value: 'Full Control',
+                      child: Text('Full Control (Read, Write, Execute, Admin)',
+                          style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(
+                      value: 'Operator',
+                      child: Text('Operator (Read, Live Control, Schedules)',
+                          style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(
+                      value: 'Monitor Only',
+                      child: Text('Monitor Only (Telemetry, Read Only)',
+                          style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(
+                      value: 'Restricted',
+                      child: Text('Restricted (Single Room or Emergency)',
+                          style: TextStyle(fontSize: 12))),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _selectedAccessLevel = v);
@@ -4205,7 +5081,9 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('5. Feature Permissions', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                  const Text('5. Feature Permissions',
+                      style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.bold)),
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -4225,8 +5103,14 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                         }
                       });
                     },
-                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
-                    child: Text(_selectedFeatures.length == 8 ? 'Clear All' : 'Select All', style: const TextStyle(fontSize: 11.5)),
+                    style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero),
+                    child: Text(
+                        _selectedFeatures.length == 8
+                            ? 'Clear All'
+                            : 'Select All',
+                        style: const TextStyle(fontSize: 11.5)),
                   ),
                 ],
               ),
@@ -4246,7 +5130,10 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
                 ].map((feat) {
                   final isChecked = _selectedFeatures.contains(feat);
                   return FilterChip(
-                    label: Text(feat, style: TextStyle(fontSize: 11, color: isChecked ? Colors.white : null)),
+                    label: Text(feat,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: isChecked ? Colors.white : null)),
                     selected: isChecked,
                     selectedColor: const Color(0xFF10B981),
                     checkmarkColor: Colors.white,
@@ -4267,12 +5154,20 @@ class _AssignUserAccessDialogState extends State<_AssignUserAccessDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white),
           onPressed: _isSaving ? null : _submitAssignment,
           child: _isSaving
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : const Text('Confirm Assignment'),
         ),
       ],
@@ -4291,9 +5186,11 @@ class _CreateGroupDialog extends StatefulWidget {
 }
 
 class _CreateGroupDialogState extends State<_CreateGroupDialog> {
-  final _nameCtrl = TextEditingController(text: 'Science Laboratory Supervisors');
+  final _nameCtrl =
+      TextEditingController(text: 'Science Laboratory Supervisors');
   final _codeCtrl = TextEditingController(text: 'GRP_SCIENCE_LAB');
-  final _descCtrl = TextEditingController(text: 'Staff in charge of physics and chemistry safety switches');
+  final _descCtrl = TextEditingController(
+      text: 'Staff in charge of physics and chemistry safety switches');
 
   @override
   Widget build(BuildContext context) {
@@ -4311,24 +5208,41 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Group Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Group Name',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _nameCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Group Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Group Code',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _codeCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _codeCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Description',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _descCtrl, maxLines: 2, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _descCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white),
           onPressed: () {
             final grp = EnterpriseUserGroupItem(
               id: 'd1000000-${DateTime.now().millisecondsSinceEpoch}',
@@ -4358,9 +5272,12 @@ class _DefinePolicyDialog extends StatefulWidget {
 }
 
 class _DefinePolicyDialogState extends State<_DefinePolicyDialog> {
-  final _nameCtrl = TextEditingController(text: 'Elevated Emergency Gate Lockdown');
+  final _nameCtrl =
+      TextEditingController(text: 'Elevated Emergency Gate Lockdown');
   final _codeCtrl = TextEditingController(text: 'POL_EMERGENCY_LOCK');
-  final _descCtrl = TextEditingController(text: 'Permits campus security chief to issue global gate lock during alert');
+  final _descCtrl = TextEditingController(
+      text:
+          'Permits campus security chief to issue global gate lock during alert');
   String _category = 'Emergency Access';
 
   @override
@@ -4379,35 +5296,53 @@ class _DefinePolicyDialogState extends State<_DefinePolicyDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Policy Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Policy Name',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _nameCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Policy Category', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Policy Category',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _category,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'Emergency Access', child: Text('Emergency Access')),
-                DropdownMenuItem(value: 'Time-Based', child: Text('Time-Based')),
-                DropdownMenuItem(value: 'Location-Based', child: Text('Location-Based')),
-                DropdownMenuItem(value: 'Critical Device', child: Text('Critical Device')),
+                DropdownMenuItem(
+                    value: 'Emergency Access', child: Text('Emergency Access')),
+                DropdownMenuItem(
+                    value: 'Time-Based', child: Text('Time-Based')),
+                DropdownMenuItem(
+                    value: 'Location-Based', child: Text('Location-Based')),
+                DropdownMenuItem(
+                    value: 'Critical Device', child: Text('Critical Device')),
               ],
               onChanged: (v) => setState(() => _category = v!),
             ),
             const SizedBox(height: 10),
-            const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Description',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _descCtrl, maxLines: 2, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _descCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white),
           onPressed: () {
             final pol = AccessPolicyItem(
               id: 'f1000000-${DateTime.now().millisecondsSinceEpoch}',
@@ -4433,7 +5368,8 @@ class _AccessRequestDialog extends StatefulWidget {
   final List<EnterpriseRoleItem> roles;
   final ValueChanged<AccessRequestItem> onRequestSubmitted;
 
-  const _AccessRequestDialog({required this.roles, required this.onRequestSubmitted});
+  const _AccessRequestDialog(
+      {required this.roles, required this.onRequestSubmitted});
 
   @override
   State<_AccessRequestDialog> createState() => _AccessRequestDialogState();
@@ -4442,7 +5378,8 @@ class _AccessRequestDialog extends StatefulWidget {
 class _AccessRequestDialogState extends State<_AccessRequestDialog> {
   final _requesterCtrl = TextEditingController(text: 'Ananya Deshmukh');
   final _scopeCtrl = TextEditingController(text: 'Laboratories Block Floor 2');
-  final _justCtrl = TextEditingController(text: 'Conducting robotics workshop requiring power switches');
+  final _justCtrl = TextEditingController(
+      text: 'Conducting robotics workshop requiring power switches');
   String _role = 'Facility Manager';
   final String _duration = '3 Days';
 
@@ -4462,38 +5399,58 @@ class _AccessRequestDialogState extends State<_AccessRequestDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Requester Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Requester Name',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _requesterCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _requesterCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Requested Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Requested Role',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _role,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'Facility Manager', child: Text('Facility Manager')),
-                DropdownMenuItem(value: 'IoT Operator', child: Text('IoT Operator')),
+                DropdownMenuItem(
+                    value: 'Facility Manager', child: Text('Facility Manager')),
+                DropdownMenuItem(
+                    value: 'IoT Operator', child: Text('IoT Operator')),
                 DropdownMenuItem(value: 'Teacher', child: Text('Teacher')),
               ],
               onChanged: (v) => setState(() => _role = v!),
             ),
             const SizedBox(height: 10),
-            const Text('Location Scope', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Location Scope',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _scopeCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _scopeCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Justification', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Justification',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _justCtrl, maxLines: 2, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _justCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1677F2),
+              foregroundColor: Colors.white),
           onPressed: () {
             final req = AccessRequestItem(
               id: 'a1000000-${DateTime.now().millisecondsSinceEpoch}',
@@ -4520,17 +5477,20 @@ class _CreateDelegationDialog extends StatefulWidget {
   final List<EnterpriseRoleItem> roles;
   final ValueChanged<AccessDelegationItem> onDelegationCreated;
 
-  const _CreateDelegationDialog({required this.roles, required this.onDelegationCreated});
+  const _CreateDelegationDialog(
+      {required this.roles, required this.onDelegationCreated});
 
   @override
-  State<_CreateDelegationDialog> createState() => _CreateDelegationDialogState();
+  State<_CreateDelegationDialog> createState() =>
+      _CreateDelegationDialogState();
 }
 
 class _CreateDelegationDialogState extends State<_CreateDelegationDialog> {
   final _delCtrl = TextEditingController(text: 'Suresh Raina');
   final _emailCtrl = TextEditingController(text: 'suresh.r@schneider.com');
   final _scopeCtrl = TextEditingController(text: 'Sports Complex Floodlights');
-  final _reasonCtrl = TextEditingController(text: 'Inter-college cricket tournament lighting setup');
+  final _reasonCtrl = TextEditingController(
+      text: 'Inter-college cricket tournament lighting setup');
   String _role = 'Maintenance Staff';
 
   @override
@@ -4538,7 +5498,8 @@ class _CreateDelegationDialogState extends State<_CreateDelegationDialog> {
     return AlertDialog(
       title: const Row(
         children: [
-          Icon(Icons.transfer_within_a_station_rounded, color: Color(0xFF1677F2)),
+          Icon(Icons.transfer_within_a_station_rounded,
+              color: Color(0xFF1677F2)),
           SizedBox(width: 8),
           Text('Grant Temporary Delegation'),
         ],
@@ -4549,38 +5510,60 @@ class _CreateDelegationDialogState extends State<_CreateDelegationDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Delegatee Name (Vendor / Contractor)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Delegatee Name (Vendor / Contractor)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _delCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _delCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Assigned Role', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Assigned Role',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             AppSearchableDropdownFormField<String>.fromMenuItems(
               initialValue: _role,
               isDense: true,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'Maintenance Staff', child: Text('Maintenance Staff')),
-                DropdownMenuItem(value: 'Facility Manager', child: Text('Facility Manager')),
-                DropdownMenuItem(value: 'IoT Operator', child: Text('IoT Operator')),
+                DropdownMenuItem(
+                    value: 'Maintenance Staff',
+                    child: Text('Maintenance Staff')),
+                DropdownMenuItem(
+                    value: 'Facility Manager', child: Text('Facility Manager')),
+                DropdownMenuItem(
+                    value: 'IoT Operator', child: Text('IoT Operator')),
               ],
               onChanged: (v) => setState(() => _role = v!),
             ),
             const SizedBox(height: 10),
-            const Text('Location Scope', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Location Scope',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _scopeCtrl, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _scopeCtrl,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
             const SizedBox(height: 10),
-            const Text('Business Reason', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const Text('Business Reason',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            TextField(controller: _reasonCtrl, maxLines: 2, decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)),
+            TextField(
+                controller: _reasonCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                    border: OutlineInputBorder(), isDense: true)),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677F2), foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1677F2),
+              foregroundColor: Colors.white),
           onPressed: () {
             final del = AccessDelegationItem(
               id: 'b2000000-${DateTime.now().millisecondsSinceEpoch}',

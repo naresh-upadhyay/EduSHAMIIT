@@ -366,11 +366,15 @@ class HostelLeaveService {
     String? academicYear,
     int page = 1,
     int pageSize = 10,
+    String sortBy = 'generated_at',
+    String sortOrder = 'DESC',
   }) async {
     try {
       final query = <String, dynamic>{
         'page': page,
         'page_size': pageSize,
+        'sort_by': sortBy,
+        'sort_order': sortOrder,
       };
       if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
       if (status != null && status.trim().isNotEmpty && status != 'All Status') query['status'] = status.trim().toUpperCase();

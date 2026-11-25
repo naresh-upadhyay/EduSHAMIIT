@@ -400,12 +400,12 @@ class _VisitorsDataTableState extends ConsumerState<VisitorsDataTable> {
                             if (_visibleColumns.contains('Type'))
                               _buildSortableHeaderCell(
                                 title: 'Type',
-                                sortKey: 'category',
+                                sortKey: 'visitor_type',
                                 width: 85,
                                 currentSortBy: state.visitsSortBy,
                                 currentSortOrder: state.visitsSortOrder,
                                 baseStyle: headerStyle,
-                                onTap: () => notifier.sortVisits('category'),
+                                onTap: () => notifier.sortVisits('visitor_type'),
                               ),
                             if (_visibleColumns.contains('Purpose'))
                               _buildSortableHeaderCell(
@@ -440,22 +440,22 @@ class _VisitorsDataTableState extends ConsumerState<VisitorsDataTable> {
                             if (_visibleColumns.contains('Check In'))
                               _buildSortableHeaderCell(
                                 title: 'Check In',
-                                sortKey: 'entry_time',
+                                sortKey: 'check_in_at',
                                 width: 125,
                                 currentSortBy: state.visitsSortBy,
                                 currentSortOrder: state.visitsSortOrder,
                                 baseStyle: headerStyle,
-                                onTap: () => notifier.sortVisits('entry_time'),
+                                onTap: () => notifier.sortVisits('check_in_at'),
                               ),
                             if (_visibleColumns.contains('Expected Out'))
                               _buildSortableHeaderCell(
                                 title: 'Expected Out',
-                                sortKey: 'expected_exit_time',
+                                sortKey: 'expected_out_at',
                                 width: 125,
                                 currentSortBy: state.visitsSortBy,
                                 currentSortOrder: state.visitsSortOrder,
                                 baseStyle: headerStyle,
-                                onTap: () => notifier.sortVisits('expected_exit_time'),
+                                onTap: () => notifier.sortVisits('expected_out_at'),
                               ),
                             if (_visibleColumns.contains('Status'))
                               _buildSortableHeaderCell(

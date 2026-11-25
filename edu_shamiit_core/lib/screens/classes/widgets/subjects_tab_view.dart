@@ -783,6 +783,7 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                     constraints: BoxConstraints(minWidth: tableWidth),
                     child: DataTable(
                       showCheckboxColumn: false,
+                      sortAscending: state.subjectSortOrder.toUpperCase() == 'ASC',
                       headingRowColor: WidgetStateProperty.all(
                         isDark
                             ? const Color(0xFF0F172A).withValues(alpha: 0.6)
@@ -801,15 +802,15 @@ class _SubjectsTabViewState extends ConsumerState<SubjectsTabView> {
                       horizontalMargin: 20,
                       columnSpacing: 18,
                       columns: [
-                        const DataColumn(label: Text('SUBJECT NAME')),
-                        const DataColumn(label: Text('SUBJECT CODE')),
-                        const DataColumn(label: Text('TYPE')),
+                        DataColumn(label: const Text('SUBJECT NAME'), onSort: (_, asc) => notifier.setSubjectSort('name', asc)),
+                        DataColumn(label: const Text('SUBJECT CODE'), onSort: (_, asc) => notifier.setSubjectSort('code', asc)),
+                        DataColumn(label: const Text('TYPE'), onSort: (_, asc) => notifier.setSubjectSort('type', asc)),
                         const DataColumn(label: Text('CLASSES')),
                         const DataColumn(label: Text('ASSIGNED SECTIONS')),
                         const DataColumn(label: Text('TEACHERS')),
                         const DataColumn(label: Text('REQUIREMENT')),
-                        const DataColumn(label: Text('STATUS')),
-                        const DataColumn(label: Text('LAST UPDATED')),
+                        DataColumn(label: const Text('STATUS'), onSort: (_, asc) => notifier.setSubjectSort('status', asc)),
+                        DataColumn(label: const Text('LAST UPDATED'), onSort: (_, asc) => notifier.setSubjectSort('updated_at', asc)),
                         if (!isTeacher)
                           const DataColumn(label: Text('ACTIONS')),
                       ],

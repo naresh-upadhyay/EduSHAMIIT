@@ -22,13 +22,16 @@ CREATE TABLE IF NOT EXISTS public.sprint_retrospective_entry_votes (
 CREATE INDEX IF NOT EXISTS idx_retro_votes_entry ON public.sprint_retrospective_entry_votes(entry_id);
 CREATE INDEX IF NOT EXISTS idx_retro_votes_user ON public.sprint_retrospective_entry_votes(user_id);
 
--- 2. Reset anomalous test card votes down to 1 and register initial vote
+-- 2. Reset anomalous test card votes down to 1 and register initial vote (only if entry & user exist)
 UPDATE public.sprint_retrospective_entries
 SET votes = 1
 WHERE id = '4e9c53ab-061a-4548-a308-c8d2c5e34754';
 
 INSERT INTO public.sprint_retrospective_entry_votes (entry_id, user_id)
-VALUES ('4e9c53ab-061a-4548-a308-c8d2c5e34754', '5198c4b0-f1cb-45db-9649-41688d0438ba')
+SELECT e.id, p.id
+FROM public.sprint_retrospective_entries e
+JOIN public.profiles p ON p.id = '5198c4b0-f1cb-45db-9649-41688d0438ba'
+WHERE e.id = '4e9c53ab-061a-4548-a308-c8d2c5e34754'
 ON CONFLICT (entry_id, user_id) DO NOTHING;
 
 -- 3. Update sp_manage_sprint_retrospective_entry_v2 with toggle upvote/unvote

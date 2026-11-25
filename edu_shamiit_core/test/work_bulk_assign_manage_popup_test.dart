@@ -7,7 +7,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final mockUsers = [
-    WorkAssigneeModel(
+    const WorkAssigneeModel(
       id: 'u-1',
       userId: 'u-1',
       fullName: 'Archana Shukla',
@@ -15,7 +15,7 @@ void main() {
       email: 'archana@school.com',
       department: 'Mathematics',
     ),
-    WorkAssigneeModel(
+    const WorkAssigneeModel(
       id: 'u-2',
       userId: 'u-2',
       fullName: 'King Doe',
@@ -23,7 +23,7 @@ void main() {
       email: 'king@school.com',
       department: 'Administration',
     ),
-    WorkAssigneeModel(
+    const WorkAssigneeModel(
       id: 'u-3',
       userId: 'u-3',
       fullName: 'Amit Kumar',
@@ -33,7 +33,9 @@ void main() {
     ),
   ];
 
-  testWidgets('WorkFilterHelper.openManageAssigneesDialog renders and applies multi-assignees', (tester) async {
+  testWidgets(
+      'WorkFilterHelper.openManageAssigneesDialog renders and applies multi-assignees',
+      (tester) async {
     List<String> appliedItemIds = [];
     List<String> appliedUserIds = [];
     List<WorkAssigneeModel> appliedUsers = [];
@@ -81,7 +83,9 @@ void main() {
 
     // Verify search field exists
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Search teachers, students, staff by name, role, email...'), findsOneWidget);
+    expect(
+        find.text('Search teachers, students, staff by name, role, email...'),
+        findsOneWidget);
 
     // Verify role filter chips exist
     expect(find.text('All Roles'), findsOneWidget);
@@ -92,7 +96,8 @@ void main() {
     expect(find.text('Archana Shukla'), findsOneWidget);
     expect(find.text('King Doe'), findsOneWidget);
     expect(find.text('Amit Kumar'), findsOneWidget);
-    expect(find.text('TEACHER • Mathematics • archana@school.com'), findsOneWidget);
+    expect(find.text('TEACHER • Mathematics • archana@school.com'),
+        findsOneWidget);
 
     // Select second user (King Doe)
     final kingCheckbox = find.widgetWithText(CheckboxListTile, 'King Doe');
@@ -114,7 +119,8 @@ void main() {
     expect(appliedUsers.length, equals(2));
   });
 
-  testWidgets('WorkFilterHelper.openManageAssigneesDialog Clear all works', (tester) async {
+  testWidgets('WorkFilterHelper.openManageAssigneesDialog Clear all works',
+      (tester) async {
     List<String> appliedUserIds = ['should-be-cleared'];
 
     await tester.pumpWidget(

@@ -109,17 +109,21 @@ class _RecordingEditDialogState extends ConsumerState<RecordingEditDialog> {
     final classMap = <String, Map<String, dynamic>>{};
     for (final c in classState.availableClasses) {
       if (c.id.isNotEmpty && c.name.isNotEmpty) {
-        classMap[c.id] = {
+        classMap[c.id] = <String, dynamic>{
           'id': c.id,
           'name': c.name,
-          'sections': c.sections.map((s) => {'id': s.id, 'name': s.name}).toList(),
-          'subjects': c.subjects.map((sub) => {'id': sub.id, 'name': sub.name}).toList(),
+          'sections': c.sections
+              .map<Map<String, dynamic>>((s) => <String, dynamic>{'id': s.id, 'name': s.name})
+              .toList(),
+          'subjects': c.subjects
+              .map<Map<String, dynamic>>((sub) => <String, dynamic>{'id': sub.id, 'name': sub.name})
+              .toList(),
         };
       }
     }
     if (meta != null) {
       for (final c in meta.classes) {
-        classMap.putIfAbsent(c.id, () => {
+        classMap.putIfAbsent(c.id, () => <String, dynamic>{
           'id': c.id,
           'name': c.name,
           'sections': <Map<String, dynamic>>[],
@@ -129,13 +133,13 @@ class _RecordingEditDialogState extends ConsumerState<RecordingEditDialog> {
       for (final s in meta.sections) {
         final existing = classMap[s.classId]?['sections'] as List<Map<String, dynamic>>?;
         if (existing != null && !existing.any((e) => e['id'] == s.id)) {
-          existing.add({'id': s.id, 'name': s.name});
+          existing.add(<String, dynamic>{'id': s.id, 'name': s.name});
         }
       }
       for (final cs in meta.classSubjects) {
         final existing = classMap[cs.classId]?['subjects'] as List<Map<String, dynamic>>?;
         if (existing != null && !existing.any((e) => e['id'] == cs.subjectId)) {
-          existing.add({'id': cs.subjectId, 'name': cs.subjectName});
+          existing.add(<String, dynamic>{'id': cs.subjectId, 'name': cs.subjectName});
         }
       }
     }

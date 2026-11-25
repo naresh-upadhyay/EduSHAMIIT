@@ -83,6 +83,8 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   int _currentPage = 1;
   int _pageSize = 10;
   String _searchQuery = "";
+  String _sortBy = "created_at";
+  bool _sortAsc = false;
   
   // Selected Filters
   String _selectedTab = "All Alerts"; // All Alerts, Unread, Critical, Warning, Info, Resolved
@@ -141,6 +143,8 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       final queryParams = {
         "page": _currentPage,
         "page_size": _pageSize,
+        "sort_by": _sortBy,
+        "sort_order": _sortAsc ? "asc" : "desc",
         if (_searchQuery.isNotEmpty) "search": _searchQuery,
         if (_selectedCategory != "All Categories") "category": _selectedCategory,
         if (_selectedTab != "All Alerts") "priority": _selectedTab,
@@ -1031,20 +1035,65 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
             ),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Row(
               children: [
-                Expanded(flex: 3, child: Align(alignment: Alignment.centerLeft, child: Text('Alert Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                Expanded(flex: 2, child: Center(child: Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                Expanded(flex: 2, child: Center(child: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                Expanded(flex: 2, child: Center(child: Text('Created At', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                Expanded(flex: 2, child: Center(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                Expanded(flex: 3, child: _buildSortableAlertHeader('Alert Title', 'title', alignLeft: true)),
+                Expanded(flex: 2, child: _buildSortableAlertHeader('Category', 'category')),
+                Expanded(flex: 2, child: _buildSortableAlertHeader('Priority', 'priority')),
+                Expanded(flex: 2, child: _buildSortableAlertHeader('Created At', 'created_at')),
+                Expanded(flex: 2, child: _buildSortableAlertHeader('Status', 'status')),
               ],
             ),
           ),
           const SizedBox(width: 88, child: Center(child: Text('Action', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
         ],
       ),
+    );
+  }
+
+  Widget _buildSortableAlertHeader(String label, String colKey, {bool alignLeft = false}) {
+    final isActive = _sortBy == colKey;
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: isActive ? const Color(0xFF4F46E5) : null,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Icon(
+          isActive
+              ? (_sortAsc ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)
+              : Icons.unfold_more_rounded,
+          size: 13,
+          color: isActive ? const Color(0xFF4F46E5) : Colors.grey,
+        ),
+      ],
+    );
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (_sortBy == colKey) {
+            _sortAsc = !_sortAsc;
+          } else {
+            _sortBy = colKey;
+            _sortAsc = colKey != 'created_at';
+          }
+          _currentPage = 1;
+        });
+        _fetchAlertsData();
+      },
+      child: alignLeft
+          ? Align(alignment: Alignment.centerLeft, child: row)
+          : Center(child: row),
     );
   }
 

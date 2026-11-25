@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/widgets/admin_bottom_nav.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:html' as html;
 import 'dart:async';
@@ -336,7 +335,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Future<void> _fetchModules() async {
     try {
-      final res = await ApiService().get('/admin/schools/modules/all', useCache: false);
+      final res =
+          await ApiService().get('/admin/schools/modules/all', useCache: false);
       if (res['success'] == true) {
         if (!mounted) return;
         setState(() {
@@ -348,18 +348,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       final role = user?['role']?.toString().toLowerCase();
       final schoolId = user?['school_id']?.toString();
       if (role == 'director' && schoolId != null) {
-        final schoolRes = await ApiService().get('/admin/schools', useCache: false);
+        final schoolRes =
+            await ApiService().get('/admin/schools', useCache: false);
         if (schoolRes['success'] == true && mounted) {
           final schools = schoolRes['data']['schools'] as List<dynamic>? ?? [];
-          final currentSchool = schools.firstWhere((s) => s['id'] == schoolId, orElse: () => null);
+          final currentSchool = schools.firstWhere((s) => s['id'] == schoolId,
+              orElse: () => null);
           if (currentSchool != null) {
             setState(() {
-              _schoolToggles = currentSchool['module_toggles'] as Map<String, dynamic>? ?? {};
+              _schoolToggles =
+                  currentSchool['module_toggles'] as Map<String, dynamic>? ??
+                      {};
             });
           }
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _isLoadingModules = false;
@@ -385,70 +389,123 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           (location == '/driver/timetable' && route == '/admin/calendar')) {
         return i;
       }
-      if ((location.startsWith('/admin/messaging') || location.startsWith('/admin/messages')) && route == '/admin/messaging') {
+      if ((location.startsWith('/admin/messaging') ||
+              location.startsWith('/admin/messages')) &&
+          route == '/admin/messaging') {
         return i;
       }
       if (location.startsWith('/admin/ai-chat') && route == '/admin/ai-chat') {
         return i;
       }
-      if (location.startsWith('/admin/documents') && route == '/admin/documents') {
+      if (location.startsWith('/admin/documents') &&
+          route == '/admin/documents') {
         return i;
       }
-      if (location.startsWith('/admin/hr') && (route.startsWith('/admin/hr') || items[i].label == 'HR Suite')) {
+      if (location.startsWith('/admin/hr') &&
+          (route.startsWith('/admin/hr') || items[i].label == 'HR Suite')) {
         return i;
       }
-      if ((location.startsWith('/admin/classes') || location.startsWith('/classes')) && (route.startsWith('/admin/classes') || items[i].label == 'Classes & Facilities')) {
+      if ((location.startsWith('/admin/classes') ||
+              location.startsWith('/classes')) &&
+          (route.startsWith('/admin/classes') ||
+              items[i].label == 'Classes & Facilities')) {
         return i;
       }
-      if ((location.startsWith('/admin/library') || location.startsWith('/library')) && (route.startsWith('/admin/library') || items[i].label == 'Library Management')) {
+      if ((location.startsWith('/admin/library') ||
+              location.startsWith('/library')) &&
+          (route.startsWith('/admin/library') ||
+              items[i].label == 'Library Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/hostel') || location.startsWith('/hostel')) && (route.startsWith('/admin/hostel') || items[i].label == 'Hostel Management')) {
+      if ((location.startsWith('/admin/hostel') ||
+              location.startsWith('/hostel')) &&
+          (route.startsWith('/admin/hostel') ||
+              items[i].label == 'Hostel Management')) {
         return i;
       }
-      if (location.startsWith('/admin/roles') && (route.startsWith('/admin/roles') || items[i].label == 'Roles & Permissions')) {
+      if (location.startsWith('/admin/roles') &&
+          (route.startsWith('/admin/roles') ||
+              items[i].label == 'Roles & Permissions')) {
         return i;
       }
-      if (location.startsWith('/admin/modules') && (route.startsWith('/admin/modules') || items[i].label == 'Module Management')) {
+      if (location.startsWith('/admin/modules') &&
+          (route.startsWith('/admin/modules') ||
+              items[i].label == 'Module Management')) {
         return i;
       }
-      if (location.startsWith('/admin/fleet') && (route.startsWith('/admin/fleet') || items[i].label == 'Fleet Management')) {
+      if (location.startsWith('/admin/fleet') &&
+          (route.startsWith('/admin/fleet') ||
+              items[i].label == 'Fleet Management')) {
         return i;
       }
-      if (location.startsWith('/admin/driver-management') && (route.startsWith('/admin/driver-management') || items[i].label == 'Driver Management')) {
+      if (location.startsWith('/admin/driver-management') &&
+          (route.startsWith('/admin/driver-management') ||
+              items[i].label == 'Driver Management')) {
         return i;
       }
-      if (location.startsWith('/admin/route-management') && (route.startsWith('/admin/route-management') || items[i].label == 'Route Management')) {
+      if (location.startsWith('/admin/route-management') &&
+          (route.startsWith('/admin/route-management') ||
+              items[i].label == 'Route Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/attendance') || location.startsWith('/attendance')) && (route.startsWith('/admin/attendance') || items[i].label == 'Attendance Hub')) {
+      if ((location.startsWith('/admin/attendance') ||
+              location.startsWith('/attendance')) &&
+          (route.startsWith('/admin/attendance') ||
+              items[i].label == 'Attendance Hub')) {
         return i;
       }
-      if ((location.startsWith('/admin/live-classes') || location.startsWith('/live-classes')) && (route.startsWith('/admin/live-classes') || items[i].label == 'Live Class Management')) {
+      if ((location.startsWith('/admin/live-classes') ||
+              location.startsWith('/live-classes')) &&
+          (route.startsWith('/admin/live-classes') ||
+              items[i].label == 'Live Class Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/visitors') || location.startsWith('/visitors')) && (route.startsWith('/admin/visitors') || items[i].label == 'Visitors Management')) {
+      if ((location.startsWith('/admin/visitors') ||
+              location.startsWith('/visitors')) &&
+          (route.startsWith('/admin/visitors') ||
+              items[i].label == 'Visitors Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/inventory') || location.startsWith('/inventory')) && (route.startsWith('/admin/inventory') || items[i].label == 'Inventory Management')) {
+      if ((location.startsWith('/admin/inventory') ||
+              location.startsWith('/inventory')) &&
+          (route.startsWith('/admin/inventory') ||
+              items[i].label == 'Inventory Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/campus') || location.startsWith('/campus')) && (route.startsWith('/admin/campus') || items[i].label == 'Campus Management')) {
+      if ((location.startsWith('/admin/campus') ||
+              location.startsWith('/campus')) &&
+          (route.startsWith('/admin/campus') ||
+              items[i].label == 'Campus Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/exams') || location.startsWith('/exams')) && (route.startsWith('/admin/exams') || items[i].label == 'Exams Management')) {
+      if ((location.startsWith('/admin/exams') ||
+              location.startsWith('/exams')) &&
+          (route.startsWith('/admin/exams') ||
+              items[i].label == 'Exams Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/announcements') || location.startsWith('/admin/notices') || location.startsWith('/notices')) && (route.startsWith('/admin/announcements') || items[i].label == 'Announcements')) {
+      if ((location.startsWith('/admin/announcements') ||
+              location.startsWith('/admin/notices') ||
+              location.startsWith('/notices')) &&
+          (route.startsWith('/admin/announcements') ||
+              items[i].label == 'Announcements')) {
         return i;
       }
-      if ((location.startsWith('/admin/student-fees') || location.startsWith('/student-fees')) && (route.startsWith('/admin/student-fees') || items[i].label == 'Student Fee Management')) {
+      if ((location.startsWith('/admin/student-fees') ||
+              location.startsWith('/student-fees')) &&
+          (route.startsWith('/admin/student-fees') ||
+              items[i].label == 'Student Fee Management')) {
         return i;
       }
-      if ((location.startsWith('/admin/staff-salary') || location.startsWith('/staff-salary')) && (route.startsWith('/admin/staff-salary') || items[i].label == 'Staff Salary Management')) {
+      if ((location.startsWith('/admin/staff-salary') ||
+              location.startsWith('/staff-salary')) &&
+          (route.startsWith('/admin/staff-salary') ||
+              items[i].label == 'Staff Salary Management')) {
         return i;
       }
-      if (location.startsWith('/admin/config') && (route.startsWith('/admin/config') || items[i].label == 'System Config')) {
+      if (location.startsWith('/admin/config') &&
+          (route.startsWith('/admin/config') ||
+              items[i].label == 'System Config')) {
         return i;
       }
       if (location.startsWith(route) && route.length > maxLen) {
@@ -492,24 +549,68 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // Auto-collapse inactive expandable sections so left navigation NEVER stays stuck open across route changes
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isWorkRoute = location.startsWith('/admin/work') || currentUrl.contains('/admin/work') || location.startsWith('/work') || currentUrl.contains('/work');
-    final isFleetRoute = location.startsWith('/admin/fleet') || currentUrl.contains('/admin/fleet');
-    final isDriverRoute = location.startsWith('/admin/driver-management') || currentUrl.contains('/admin/driver-management');
-    final isRouteRoute = location.startsWith('/admin/route-management') || currentUrl.contains('/admin/route-management');
-    final isHrRoute = location.startsWith('/admin/hr') || currentUrl.contains('/admin/hr') || location.startsWith('/hr') || currentUrl.contains('/hr');
-    final isClassesRoute = location.startsWith('/admin/classes') || currentUrl.contains('/admin/classes') || location.startsWith('/classes') || currentUrl.contains('/classes');
-    final isLibraryRoute = location.startsWith('/admin/library') || currentUrl.contains('/admin/library') || location.startsWith('/library') || currentUrl.contains('/library');
-    final isHostelRoute = location.startsWith('/admin/hostel') || currentUrl.contains('/admin/hostel') || location.startsWith('/hostel') || currentUrl.contains('/hostel');
-    final isRolesRoute = location.startsWith('/admin/roles') || currentUrl.contains('/admin/roles');
-    final isModulesRoute = location.startsWith('/admin/modules') || currentUrl.contains('/admin/modules');
-    final isAttendanceRoute = location.startsWith('/admin/attendance') || currentUrl.contains('/admin/attendance') || location.startsWith('/attendance') || currentUrl.contains('/attendance');
-    final isLiveClassRoute = location.startsWith('/admin/live-classes') || currentUrl.contains('/admin/live-classes') || location.startsWith('/live-classes') || currentUrl.contains('/live-classes');
-    final isVisitorsRoute = location.startsWith('/admin/visitors') || currentUrl.contains('/admin/visitors') || location.startsWith('/visitors') || currentUrl.contains('/visitors');
-    final isInventoryRoute = location.startsWith('/admin/inventory') || currentUrl.contains('/admin/inventory') || location.startsWith('/inventory') || currentUrl.contains('/inventory');
-    final isCampusRoute = location.startsWith('/admin/campus') || currentUrl.contains('/admin/campus') || location.startsWith('/campus') || currentUrl.contains('/campus');
-    final isExamsRoute = location.startsWith('/admin/exams') || currentUrl.contains('/admin/exams') || location.startsWith('/exams') || currentUrl.contains('/exams');
-    final isAnnouncementsRoute = location.startsWith('/admin/announcements') || currentUrl.contains('/admin/announcements') || location.startsWith('/admin/notices') || currentUrl.contains('/admin/notices') || location.startsWith('/notices') || currentUrl.contains('/notices');
-    final isSystemConfigRoute = location.startsWith('/admin/config') || currentUrl.contains('/admin/config');
+    final isWorkRoute = location.startsWith('/admin/work') ||
+        currentUrl.contains('/admin/work') ||
+        location.startsWith('/work') ||
+        currentUrl.contains('/work');
+    final isFleetRoute = location.startsWith('/admin/fleet') ||
+        currentUrl.contains('/admin/fleet');
+    final isDriverRoute = location.startsWith('/admin/driver-management') ||
+        currentUrl.contains('/admin/driver-management');
+    final isRouteRoute = location.startsWith('/admin/route-management') ||
+        currentUrl.contains('/admin/route-management');
+    final isHrRoute = location.startsWith('/admin/hr') ||
+        currentUrl.contains('/admin/hr') ||
+        location.startsWith('/hr') ||
+        currentUrl.contains('/hr');
+    final isClassesRoute = location.startsWith('/admin/classes') ||
+        currentUrl.contains('/admin/classes') ||
+        location.startsWith('/classes') ||
+        currentUrl.contains('/classes');
+    final isLibraryRoute = location.startsWith('/admin/library') ||
+        currentUrl.contains('/admin/library') ||
+        location.startsWith('/library') ||
+        currentUrl.contains('/library');
+    final isHostelRoute = location.startsWith('/admin/hostel') ||
+        currentUrl.contains('/admin/hostel') ||
+        location.startsWith('/hostel') ||
+        currentUrl.contains('/hostel');
+    final isRolesRoute = location.startsWith('/admin/roles') ||
+        currentUrl.contains('/admin/roles');
+    final isModulesRoute = location.startsWith('/admin/modules') ||
+        currentUrl.contains('/admin/modules');
+    final isAttendanceRoute = location.startsWith('/admin/attendance') ||
+        currentUrl.contains('/admin/attendance') ||
+        location.startsWith('/attendance') ||
+        currentUrl.contains('/attendance');
+    final isLiveClassRoute = location.startsWith('/admin/live-classes') ||
+        currentUrl.contains('/admin/live-classes') ||
+        location.startsWith('/live-classes') ||
+        currentUrl.contains('/live-classes');
+    final isVisitorsRoute = location.startsWith('/admin/visitors') ||
+        currentUrl.contains('/admin/visitors') ||
+        location.startsWith('/visitors') ||
+        currentUrl.contains('/visitors');
+    final isInventoryRoute = location.startsWith('/admin/inventory') ||
+        currentUrl.contains('/admin/inventory') ||
+        location.startsWith('/inventory') ||
+        currentUrl.contains('/inventory');
+    final isCampusRoute = location.startsWith('/admin/campus') ||
+        currentUrl.contains('/admin/campus') ||
+        location.startsWith('/campus') ||
+        currentUrl.contains('/campus');
+    final isExamsRoute = location.startsWith('/admin/exams') ||
+        currentUrl.contains('/admin/exams') ||
+        location.startsWith('/exams') ||
+        currentUrl.contains('/exams');
+    final isAnnouncementsRoute = location.startsWith('/admin/announcements') ||
+        currentUrl.contains('/admin/announcements') ||
+        location.startsWith('/admin/notices') ||
+        currentUrl.contains('/admin/notices') ||
+        location.startsWith('/notices') ||
+        currentUrl.contains('/notices');
+    final isSystemConfigRoute = location.startsWith('/admin/config') ||
+        currentUrl.contains('/admin/config');
 
     // Only auto-expand active sections when the route actually changes (Accordion style: only 1 section open)
     final currentRoutePath = location.split('?').first;
@@ -575,7 +676,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       if (_navSearchQuery.trim().isNotEmpty) {
         final query = _navSearchQuery.trim().toLowerCase();
         final matchesLabel = item.label.toLowerCase().contains(query);
-        final matchesSection = _getSectionHeader(item.section).toLowerCase().contains(query);
+        final matchesSection =
+            _getSectionHeader(item.section).toLowerCase().contains(query);
         if (!matchesLabel && !matchesSection) {
           return false;
         }
@@ -587,201 +689,217 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       }
 
       // Live Class Management is accessible for administration and teaching staff
-      if (item.route == '/admin/live-classes' || item.route.startsWith('/admin/live-classes')) {
+      if (item.route == '/admin/live-classes' ||
+          item.route.startsWith('/admin/live-classes')) {
         return true;
       }
 
       // Role based permissions
-      if (role == 'super_admin' || role == 'superadmin' || role == 'admin' || role == 'school_admin') {
+      if (role == 'super_admin' ||
+          role == 'superadmin' ||
+          role == 'admin' ||
+          role == 'school_admin') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route == '/admin/schools' ||
-               item.route == '/admin/users' ||
-               item.route.startsWith('/admin/hr') ||
-               item.route == '/admin/classes' ||
-               item.route == '/admin/attendance' ||
-               item.route == '/admin/live-classes' ||
-               item.route == '/admin/library' ||
-               item.route.startsWith('/admin/hostel') ||
-               item.route.startsWith('/admin/visitors') ||
-               item.route.startsWith('/admin/inventory') ||
-               item.route.startsWith('/admin/campus') ||
-               item.route == '/admin/campus' ||
-               item.route.startsWith('/admin/exams') ||
-               item.route == '/admin/infra' ||
-               item.route == '/admin/roles' ||
-               item.route == '/admin/config' ||
-               item.route == '/admin/modules' ||
-               item.route == '/admin/lookups' ||
-               item.route == '/admin/automations' ||
-               item.route == '/admin/insights' ||
-               item.route == '/admin/apis' ||
-               item.route == '/admin/vault' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/announcements' ||
-               item.route == '/admin/audit-log' ||
-               item.route == '/admin/support' ||
-               item.route == '/admin/contact-queries' ||
-               item.route == '/admin/my-profile' ||
-               item.route == '/admin/vehicle-dashboard' ||
-               item.route.startsWith('/admin/fleet') ||
-               item.route == '/admin/driver-management' ||
-               item.route == '/admin/route-management' ||
-               item.route == '/admin/trips-schedule' ||
-               item.route == '/admin/stops' ||
-               item.route == '/admin/student-fees' ||
-               item.route == '/admin/staff-salary';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route == '/admin/schools' ||
+            item.route == '/admin/users' ||
+            item.route.startsWith('/admin/hr') ||
+            item.route == '/admin/classes' ||
+            item.route == '/admin/attendance' ||
+            item.route == '/admin/live-classes' ||
+            item.route == '/admin/library' ||
+            item.route.startsWith('/admin/hostel') ||
+            item.route.startsWith('/admin/visitors') ||
+            item.route.startsWith('/admin/inventory') ||
+            item.route.startsWith('/admin/campus') ||
+            item.route == '/admin/campus' ||
+            item.route.startsWith('/admin/exams') ||
+            item.route == '/admin/infra' ||
+            item.route == '/admin/roles' ||
+            item.route == '/admin/config' ||
+            item.route == '/admin/modules' ||
+            item.route == '/admin/lookups' ||
+            item.route == '/admin/automations' ||
+            item.route == '/admin/insights' ||
+            item.route == '/admin/apis' ||
+            item.route == '/admin/vault' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/announcements' ||
+            item.route == '/admin/audit-log' ||
+            item.route == '/admin/support' ||
+            item.route == '/admin/contact-queries' ||
+            item.route == '/admin/my-profile' ||
+            item.route == '/admin/vehicle-dashboard' ||
+            item.route.startsWith('/admin/fleet') ||
+            item.route == '/admin/driver-management' ||
+            item.route == '/admin/route-management' ||
+            item.route == '/admin/trips-schedule' ||
+            item.route == '/admin/stops' ||
+            item.route == '/admin/student-fees' ||
+            item.route == '/admin/staff-salary';
       } else if (role == 'director' || role == 'principal') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route == '/admin/users' ||
-               item.route.startsWith('/admin/hr') ||
-               item.route == '/admin/classes' ||
-               item.route == '/admin/attendance' ||
-               item.route == '/admin/live-classes' ||
-               item.route == '/admin/library' ||
-               item.route.startsWith('/admin/hostel') ||
-               item.route.startsWith('/admin/visitors') ||
-               item.route.startsWith('/admin/inventory') ||
-               item.route.startsWith('/admin/campus') ||
-               item.route == '/admin/campus' ||
-               item.route.startsWith('/admin/exams') ||
-               item.route == '/admin/roles' ||
-               item.route == '/admin/lookups' ||
-               item.route == '/admin/finance' ||
-               item.route == '/admin/defaulters' ||
-               item.route == '/admin/student-fees' ||
-               item.route == '/admin/staff-salary' ||
-               item.route == '/admin/staff' ||
-               item.route == '/admin/admissions' ||
-               item.route == '/admin/gate-scanner' ||
-               item.route == '/admin/system-control' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/announcements' ||
-               item.route == '/admin/support' ||
-               item.route == '/admin/my-profile' ||
-               item.route == '/admin/vehicle-dashboard' ||
-               item.route.startsWith('/admin/fleet') ||
-               item.route == '/admin/driver-management' ||
-               item.route == '/admin/route-management' ||
-               item.route == '/admin/trips-schedule' ||
-               item.route == '/admin/stops';
-      } else if (role == 'hostel_warden' || role == 'warden' || role == 'hostel_manager' || role == 'caretaker') {
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route == '/admin/users' ||
+            item.route.startsWith('/admin/hr') ||
+            item.route == '/admin/classes' ||
+            item.route == '/admin/attendance' ||
+            item.route == '/admin/live-classes' ||
+            item.route == '/admin/library' ||
+            item.route.startsWith('/admin/hostel') ||
+            item.route.startsWith('/admin/visitors') ||
+            item.route.startsWith('/admin/inventory') ||
+            item.route.startsWith('/admin/campus') ||
+            item.route == '/admin/campus' ||
+            item.route.startsWith('/admin/exams') ||
+            item.route == '/admin/roles' ||
+            item.route == '/admin/lookups' ||
+            item.route == '/admin/finance' ||
+            item.route == '/admin/defaulters' ||
+            item.route == '/admin/student-fees' ||
+            item.route == '/admin/staff-salary' ||
+            item.route == '/admin/staff' ||
+            item.route == '/admin/admissions' ||
+            item.route == '/admin/gate-scanner' ||
+            item.route == '/admin/system-control' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/announcements' ||
+            item.route == '/admin/support' ||
+            item.route == '/admin/my-profile' ||
+            item.route == '/admin/vehicle-dashboard' ||
+            item.route.startsWith('/admin/fleet') ||
+            item.route == '/admin/driver-management' ||
+            item.route == '/admin/route-management' ||
+            item.route == '/admin/trips-schedule' ||
+            item.route == '/admin/stops';
+      } else if (role == 'hostel_warden' ||
+          role == 'warden' ||
+          role == 'hostel_manager' ||
+          role == 'caretaker') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/hostel') ||
-               item.route.startsWith('/admin/visitors') ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/hostel') ||
+            item.route.startsWith('/admin/visitors') ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'hr') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/hr') ||
-               item.route == '/admin/staff' ||
-               item.route == '/admin/staff-salary' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/hr') ||
+            item.route == '/admin/staff' ||
+            item.route == '/admin/staff-salary' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'finance' || role == 'accountant') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/inventory') ||
-               item.route == '/admin/finance' ||
-               item.route == '/admin/defaulters' ||
-               item.route == '/admin/student-fees' ||
-               item.route == '/admin/staff-salary' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
-      } else if (role == 'inventory_manager' || role == 'store_keeper' || role == 'inventory') {
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/inventory') ||
+            item.route == '/admin/finance' ||
+            item.route == '/admin/defaulters' ||
+            item.route == '/admin/student-fees' ||
+            item.route == '/admin/staff-salary' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
+      } else if (role == 'inventory_manager' ||
+          role == 'store_keeper' ||
+          role == 'inventory') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/inventory') ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/inventory') ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'librarian') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route == '/admin/library' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route == '/admin/library' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'transport') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile' ||
-               item.route == '/admin/vehicle-dashboard' ||
-               item.route.startsWith('/admin/fleet') ||
-               item.route == '/admin/driver-management' ||
-               item.route == '/admin/route-management' ||
-               item.route == '/admin/trips-schedule' ||
-               item.route == '/admin/stops';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile' ||
+            item.route == '/admin/vehicle-dashboard' ||
+            item.route.startsWith('/admin/fleet') ||
+            item.route == '/admin/driver-management' ||
+            item.route == '/admin/route-management' ||
+            item.route == '/admin/trips-schedule' ||
+            item.route == '/admin/stops';
       } else if (role == 'driver') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/driver/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/driver/dashboard' ||
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'exam_ctrl' || role == 'exam_controller') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/exams') ||
-               item.route == '/admin/classes' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/exams') ||
+            item.route == '/admin/classes' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       } else if (role == 'teacher') {
         return item.route == '/admin/dashboard' ||
-               item.route == '/admin/calendar' ||
-               item.route == '/admin/messaging' ||
-               item.route == '/admin/ai-chat' ||
-               item.route == '/admin/documents' ||
-               item.route.startsWith('/admin/exams') ||
-               item.route == '/admin/classes' ||
-               item.route == '/admin/attendance' ||
-               item.route == '/admin/live-classes' ||
-               item.route == '/admin/alerts-notifications' ||
-               item.route == '/admin/emergency' ||
-               item.route == '/admin/my-profile';
+            item.route == '/admin/calendar' ||
+            item.route == '/admin/messaging' ||
+            item.route == '/admin/ai-chat' ||
+            item.route == '/admin/documents' ||
+            item.route.startsWith('/admin/exams') ||
+            item.route == '/admin/classes' ||
+            item.route == '/admin/attendance' ||
+            item.route == '/admin/live-classes' ||
+            item.route == '/admin/alerts-notifications' ||
+            item.route == '/admin/emergency' ||
+            item.route == '/admin/my-profile';
       }
-      return item.route == '/admin/dashboard' || item.route == '/admin/calendar' || item.route == '/admin/messaging' || item.route == '/admin/ai-chat' || item.route == '/admin/documents' || item.route == '/admin/alerts-notifications' || item.route == '/admin/emergency' || item.route == '/admin/my-profile';
+      return item.route == '/admin/dashboard' ||
+          item.route == '/admin/calendar' ||
+          item.route == '/admin/messaging' ||
+          item.route == '/admin/ai-chat' ||
+          item.route == '/admin/documents' ||
+          item.route == '/admin/alerts-notifications' ||
+          item.route == '/admin/emergency' ||
+          item.route == '/admin/my-profile';
     }).toList();
 
     final selected = _selectedIndex(location, filteredItems);
@@ -826,7 +944,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ],
         ),
         floatingActionButton: AiFab(
-          gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
+          gradient: const LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
           onPressed: () => _showAiAssistantDialog(context),
         ),
       );
@@ -866,12 +985,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     onTap: () => _scaffoldKey.currentState?.openDrawer(),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+                        color: isDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.9)
+                            : Colors.white.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFCBD5E1),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -884,14 +1008,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.menu_rounded, size: 16, color: Color(0xFF4F46E5)),
+                          const Icon(Icons.menu_rounded,
+                              size: 16, color: Color(0xFF4F46E5)),
                           const SizedBox(width: 6),
                           Text(
                             'Menu',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                               fontFamily: 'Outfit',
                             ),
                           ),
@@ -909,7 +1036,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         floatingActionButton: AiFab(
-          gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
+          gradient: const LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
           onPressed: () => _showAiAssistantDialog(context),
         ),
       );
@@ -945,10 +1073,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             Container(
               height: 36,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
                 ),
               ),
               child: TextField(
@@ -963,12 +1094,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   hintText: 'Search modules...',
                   hintStyle: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
                     size: 16,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -989,7 +1124,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 padding: const EdgeInsets.only(top: 4, bottom: 4),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(2),
-                  child: const LinearProgressIndicator(minHeight: 2, color: Color(0xFF4F46E5)),
+                  child: const LinearProgressIndicator(
+                      minHeight: 2, color: Color(0xFF4F46E5)),
                 ),
               ),
             const SizedBox(height: 14),
@@ -1006,7 +1142,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 // Section Headers
                 Widget? header;
                 final currentSection = item.section;
-                final prevSection = index > 0 ? filteredItems[index - 1].section : null;
+                final prevSection =
+                    index > 0 ? filteredItems[index - 1].section : null;
 
                 if (prevSection != currentSection && showLabels) {
                   final headerText = _getSectionHeader(currentSection);
@@ -1020,7 +1157,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: Text(
                       headerText,
                       style: TextStyle(
-                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
                         fontSize: 9.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.1,
@@ -1031,7 +1170,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                 // Expandable Option Tiles (Default collapsed)
                 if (item.label == 'Fleet Management') {
-                  final expandableTile = _buildExpandableFleetTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableFleetTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,7 +1182,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Driver Management') {
-                  final expandableTile = _buildExpandableDriverTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableDriverTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,7 +1194,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Route Management') {
-                  final expandableTile = _buildExpandableRouteTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableRouteTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1064,7 +1206,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Work Management') {
-                  final expandableTile = _buildExpandableWorkTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableWorkTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,7 +1218,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'HR Suite') {
-                  final expandableTile = _buildExpandableHrTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableHrTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1086,7 +1230,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Classes & Facilities') {
-                  final expandableTile = _buildExpandableClassesTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableClassesTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1097,7 +1242,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Library Management') {
-                  final expandableTile = _buildExpandableLibraryTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableLibraryTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1108,7 +1254,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Hostel Management') {
-                  final expandableTile = _buildExpandableHostelTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableHostelTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1119,7 +1266,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Roles & Permissions') {
-                  final expandableTile = _buildExpandableRolesTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableRolesTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1130,7 +1278,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Module Management') {
-                  final expandableTile = _buildExpandableModulesTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableModulesTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1141,7 +1290,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Attendance Hub') {
-                  final expandableTile = _buildExpandableAttendanceTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableAttendanceTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1152,7 +1302,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Live Class Management') {
-                  final expandableTile = _buildExpandableLiveClassTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableLiveClassTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1163,7 +1314,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Visitors Management') {
-                  final expandableTile = _buildExpandableVisitorsTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableVisitorsTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1174,7 +1326,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Inventory Management') {
-                  final expandableTile = _buildExpandableInventoryTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableInventoryTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1185,7 +1338,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Campus Management') {
-                  final expandableTile = _buildExpandableCampusTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableCampusTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,7 +1350,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Exams Management') {
-                  final expandableTile = _buildExpandableExamsTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableExamsTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1207,7 +1362,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'Announcements') {
-                  final expandableTile = _buildExpandableAnnouncementsTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableAnnouncementsTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1218,7 +1374,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 }
 
                 if (item.label == 'System Config') {
-                  final expandableTile = _buildExpandableSystemConfigTile(isDark, showLabels, location, isDrawer);
+                  final expandableTile = _buildExpandableSystemConfigTile(
+                      isDark, showLabels, location, isDrawer);
                   if (header != null) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1351,7 +1508,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       child: Text(
                         config?.systemName ?? 'EduSHAMIIT ERP',
                         style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                           fontFamily: 'Outfit',
@@ -1420,7 +1578,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 item.icon,
                 color: isSelected
                     ? primaryColor
-                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    : (isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B)),
                 size: 20,
               ),
             ),
@@ -1455,17 +1615,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   onTap: onTap,
                   borderRadius: BorderRadius.horizontal(
                     left: const Radius.circular(8),
-                    right: trailing == null ? const Radius.circular(8) : Radius.zero,
+                    right: trailing == null
+                        ? const Radius.circular(8)
+                        : Radius.zero,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.5, horizontal: 10),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.5, horizontal: 10),
                     child: Row(
                       children: [
                         Icon(
                           item.icon,
                           color: isSelected
                               ? primaryColor
-                              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                              : (isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B)),
                           size: 19,
                         ),
                         const SizedBox(width: 10),
@@ -1475,8 +1640,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             style: TextStyle(
                               color: isSelected
                                   ? primaryColor
-                                  : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569)),
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  : (isDark
+                                      ? const Color(0xFFE2E8F0)
+                                      : const Color(0xFF475569)),
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                               fontSize: 12.5,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -1524,24 +1693,60 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   void _expandOnlySection(String sectionKey) {
     _collapseAllSections();
     switch (sectionKey) {
-      case 'work': _isWorkExpanded = true; break;
-      case 'fleet': _isFleetExpanded = true; break;
-      case 'driver': _isDriverExpanded = true; break;
-      case 'route': _isRouteExpanded = true; break;
-      case 'hr': _isHrExpanded = true; break;
-      case 'classes': _isClassesExpanded = true; break;
-      case 'library': _isLibraryExpanded = true; break;
-      case 'hostel': _isHostelExpanded = true; break;
-      case 'roles': _isRolesExpanded = true; break;
-      case 'modules': _isModulesExpanded = true; break;
-      case 'attendance': _isAttendanceExpanded = true; break;
-      case 'live_classes': _isLiveClassExpanded = true; break;
-      case 'visitors': _isVisitorsExpanded = true; break;
-      case 'inventory': _isInventoryExpanded = true; break;
-      case 'campus': _isCampusExpanded = true; break;
-      case 'exams': _isExamsExpanded = true; break;
-      case 'announcements': _isAnnouncementsExpanded = true; break;
-      case 'config': _isSystemConfigExpanded = true; break;
+      case 'work':
+        _isWorkExpanded = true;
+        break;
+      case 'fleet':
+        _isFleetExpanded = true;
+        break;
+      case 'driver':
+        _isDriverExpanded = true;
+        break;
+      case 'route':
+        _isRouteExpanded = true;
+        break;
+      case 'hr':
+        _isHrExpanded = true;
+        break;
+      case 'classes':
+        _isClassesExpanded = true;
+        break;
+      case 'library':
+        _isLibraryExpanded = true;
+        break;
+      case 'hostel':
+        _isHostelExpanded = true;
+        break;
+      case 'roles':
+        _isRolesExpanded = true;
+        break;
+      case 'modules':
+        _isModulesExpanded = true;
+        break;
+      case 'attendance':
+        _isAttendanceExpanded = true;
+        break;
+      case 'live_classes':
+        _isLiveClassExpanded = true;
+        break;
+      case 'visitors':
+        _isVisitorsExpanded = true;
+        break;
+      case 'inventory':
+        _isInventoryExpanded = true;
+        break;
+      case 'campus':
+        _isCampusExpanded = true;
+        break;
+      case 'exams':
+        _isExamsExpanded = true;
+        break;
+      case 'announcements':
+        _isAnnouncementsExpanded = true;
+        break;
+      case 'config':
+        _isSystemConfigExpanded = true;
+        break;
     }
   }
 
@@ -1549,24 +1754,60 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     setState(() {
       bool isCurrentlyOpen = false;
       switch (sectionKey) {
-        case 'work': isCurrentlyOpen = _isWorkExpanded; break;
-        case 'fleet': isCurrentlyOpen = _isFleetExpanded; break;
-        case 'driver': isCurrentlyOpen = _isDriverExpanded; break;
-        case 'route': isCurrentlyOpen = _isRouteExpanded; break;
-        case 'hr': isCurrentlyOpen = _isHrExpanded; break;
-        case 'classes': isCurrentlyOpen = _isClassesExpanded; break;
-        case 'library': isCurrentlyOpen = _isLibraryExpanded; break;
-        case 'hostel': isCurrentlyOpen = _isHostelExpanded; break;
-        case 'roles': isCurrentlyOpen = _isRolesExpanded; break;
-        case 'modules': isCurrentlyOpen = _isModulesExpanded; break;
-        case 'attendance': isCurrentlyOpen = _isAttendanceExpanded; break;
-        case 'live_classes': isCurrentlyOpen = _isLiveClassExpanded; break;
-        case 'visitors': isCurrentlyOpen = _isVisitorsExpanded; break;
-      case 'inventory': isCurrentlyOpen = _isInventoryExpanded; break;
-      case 'campus': isCurrentlyOpen = _isCampusExpanded; break;
-      case 'exams': isCurrentlyOpen = _isExamsExpanded; break;
-        case 'announcements': isCurrentlyOpen = _isAnnouncementsExpanded; break;
-        case 'config': isCurrentlyOpen = _isSystemConfigExpanded; break;
+        case 'work':
+          isCurrentlyOpen = _isWorkExpanded;
+          break;
+        case 'fleet':
+          isCurrentlyOpen = _isFleetExpanded;
+          break;
+        case 'driver':
+          isCurrentlyOpen = _isDriverExpanded;
+          break;
+        case 'route':
+          isCurrentlyOpen = _isRouteExpanded;
+          break;
+        case 'hr':
+          isCurrentlyOpen = _isHrExpanded;
+          break;
+        case 'classes':
+          isCurrentlyOpen = _isClassesExpanded;
+          break;
+        case 'library':
+          isCurrentlyOpen = _isLibraryExpanded;
+          break;
+        case 'hostel':
+          isCurrentlyOpen = _isHostelExpanded;
+          break;
+        case 'roles':
+          isCurrentlyOpen = _isRolesExpanded;
+          break;
+        case 'modules':
+          isCurrentlyOpen = _isModulesExpanded;
+          break;
+        case 'attendance':
+          isCurrentlyOpen = _isAttendanceExpanded;
+          break;
+        case 'live_classes':
+          isCurrentlyOpen = _isLiveClassExpanded;
+          break;
+        case 'visitors':
+          isCurrentlyOpen = _isVisitorsExpanded;
+          break;
+        case 'inventory':
+          isCurrentlyOpen = _isInventoryExpanded;
+          break;
+        case 'campus':
+          isCurrentlyOpen = _isCampusExpanded;
+          break;
+        case 'exams':
+          isCurrentlyOpen = _isExamsExpanded;
+          break;
+        case 'announcements':
+          isCurrentlyOpen = _isAnnouncementsExpanded;
+          break;
+        case 'config':
+          isCurrentlyOpen = _isSystemConfigExpanded;
+          break;
       }
 
       if (isCurrentlyOpen) {
@@ -1603,7 +1844,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Icons.chevron_right_rounded,
               color: isRouteActive
                   ? const Color(0xFF4F46E5)
-                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  : (isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
               size: 18,
             ),
           ),
@@ -1612,11 +1855,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildProfileFooter(bool isDark, Map<String, dynamic>? user, String userName, bool showLabels, bool isDrawer) {
+  Widget _buildProfileFooter(bool isDark, Map<String, dynamic>? user,
+      String userName, bool showLabels, bool isDrawer) {
     final role = user?['role']?.toString().toLowerCase() ?? 'super_admin';
     if (!showLabels) {
       return Tooltip(
-        message: "$userName\n${_roleLabels[role] ?? role.toUpperCase().replaceAll('_', ' ')}",
+        message:
+            "$userName\n${_roleLabels[role] ?? role.toUpperCase().replaceAll('_', ' ')}",
         preferBelow: false,
         child: Center(
           child: InkWell(
@@ -1648,11 +1893,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               },
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                      backgroundColor:
+                          const Color(0xFF4F46E5).withValues(alpha: 0.1),
                       backgroundImage: user?['avatar_url'] != null
                           ? NetworkImage(user!['avatar_url'].toString())
                           : null,
@@ -1668,7 +1915,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           Text(
                             userName,
                             style: TextStyle(
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12),
                             overflow: TextOverflow.ellipsis,
@@ -1705,7 +1954,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               SizedBox(width: 8),
               Text('Shami — AI Admin Assistant',
                   style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
             ],
           ),
           content: Column(
@@ -1722,7 +1973,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'e.g., Send notice to 10A, check collections...',
-                  hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  hintStyle:
+                      const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                   filled: true,
                   fillColor: const Color(0xFF0B0D19),
                   border: OutlineInputBorder(
@@ -1758,10 +2010,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildExpandableFleetTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableFleetTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isFleetRoute = location.startsWith('/admin/fleet') || currentUrl.contains('/admin/fleet');
-    final activeTab = int.tryParse(Uri.tryParse(currentUrl)?.queryParameters['tab'] ?? Uri.tryParse(location)?.queryParameters['tab'] ?? '0') ?? 0;
+    final isFleetRoute = location.startsWith('/admin/fleet') ||
+        currentUrl.contains('/admin/fleet');
+    final activeTab = int.tryParse(
+            Uri.tryParse(currentUrl)?.queryParameters['tab'] ??
+                Uri.tryParse(location)?.queryParameters['tab'] ??
+                '0') ??
+        0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1795,19 +2053,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isFleetExpanded && showLabels) ...[
-          _buildSubTile('Overview', '/admin/fleet', 0, isFleetRoute && activeTab == 0, isDark, isDrawer, 'fleet'),
-          _buildSubTile('Vehicles', '/admin/fleet', 1, isFleetRoute && activeTab == 1, isDark, isDrawer, 'fleet'),
-          _buildSubTile('Vehicle Categories', '/admin/fleet', 2, isFleetRoute && activeTab == 2, isDark, isDrawer, 'fleet'),
-          _buildSubTile('Vehicle Documents', '/admin/fleet', 3, isFleetRoute && activeTab == 3, isDark, isDrawer, 'fleet'),
+          _buildSubTile('Overview', '/admin/fleet', 0,
+              isFleetRoute && activeTab == 0, isDark, isDrawer, 'fleet'),
+          _buildSubTile('Vehicles', '/admin/fleet', 1,
+              isFleetRoute && activeTab == 1, isDark, isDrawer, 'fleet'),
+          _buildSubTile('Vehicle Categories', '/admin/fleet', 2,
+              isFleetRoute && activeTab == 2, isDark, isDrawer, 'fleet'),
+          _buildSubTile('Vehicle Documents', '/admin/fleet', 3,
+              isFleetRoute && activeTab == 3, isDark, isDrawer, 'fleet'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableDriverTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableDriverTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isDriverRoute = location.startsWith('/admin/driver-management') || currentUrl.contains('/admin/driver-management');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isDriverRoute = location.startsWith('/admin/driver-management') ||
+        currentUrl.contains('/admin/driver-management');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1841,20 +2106,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isDriverExpanded && showLabels) ...[
-          _buildSubTile('Driver List', '/admin/driver-management', 0, isDriverRoute && activeTab == 0, isDark, isDrawer, 'driver'),
-          _buildSubTile('License & Documents', '/admin/driver-management', 1, isDriverRoute && activeTab == 1, isDark, isDrawer, 'driver'),
-          _buildSubTile('Performance', '/admin/driver-management', 2, isDriverRoute && activeTab == 2, isDark, isDrawer, 'driver'),
-          _buildSubTile('Training', '/admin/driver-management', 3, isDriverRoute && activeTab == 3, isDark, isDrawer, 'driver'),
-          _buildSubTile('Violations', '/admin/driver-management', 4, isDriverRoute && activeTab == 4, isDark, isDrawer, 'driver'),
+          _buildSubTile('Driver List', '/admin/driver-management', 0,
+              isDriverRoute && activeTab == 0, isDark, isDrawer, 'driver'),
+          _buildSubTile('License & Documents', '/admin/driver-management', 1,
+              isDriverRoute && activeTab == 1, isDark, isDrawer, 'driver'),
+          _buildSubTile('Performance', '/admin/driver-management', 2,
+              isDriverRoute && activeTab == 2, isDark, isDrawer, 'driver'),
+          _buildSubTile('Training', '/admin/driver-management', 3,
+              isDriverRoute && activeTab == 3, isDark, isDrawer, 'driver'),
+          _buildSubTile('Violations', '/admin/driver-management', 4,
+              isDriverRoute && activeTab == 4, isDark, isDrawer, 'driver'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableRouteTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableRouteTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isRouteRoute = location.startsWith('/admin/route-management') || currentUrl.contains('/admin/route-management');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isRouteRoute = location.startsWith('/admin/route-management') ||
+        currentUrl.contains('/admin/route-management');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1888,20 +2161,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isRouteExpanded && showLabels) ...[
-          _buildSubTile('Overview', '/admin/route-management', 0, isRouteRoute && activeTab == 0, isDark, isDrawer, 'route'),
-          _buildSubTile('Route Management', '/admin/route-management', 1, isRouteRoute && activeTab == 1, isDark, isDrawer, 'route'),
-          _buildSubTile('Live Tracking', '/admin/route-management', 2, isRouteRoute && activeTab == 2, isDark, isDrawer, 'route'),
-          _buildSubTile('Route Reports', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark, isDrawer, 'route'),
-          _buildSubTile('Stops', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark, isDrawer, 'route'),
-          _buildSubTile('Passenger Assignment', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark, isDrawer, 'route'),
+          _buildSubTile('Overview', '/admin/route-management', 0,
+              isRouteRoute && activeTab == 0, isDark, isDrawer, 'route'),
+          _buildSubTile('Route Management', '/admin/route-management', 1,
+              isRouteRoute && activeTab == 1, isDark, isDrawer, 'route'),
+          _buildSubTile('Live Tracking', '/admin/route-management', 2,
+              isRouteRoute && activeTab == 2, isDark, isDrawer, 'route'),
+          _buildSubTile('Route Reports', '/admin/route-management', 3,
+              isRouteRoute && activeTab == 3, isDark, isDrawer, 'route'),
+          _buildSubTile('Stops', '/admin/route-management', 4,
+              isRouteRoute && activeTab == 4, isDark, isDrawer, 'route'),
+          _buildSubTile('Passenger Assignment', '/admin/route-management', 5,
+              isRouteRoute && activeTab == 5, isDark, isDrawer, 'route'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableHrTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableHrTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isHrRoute = location.startsWith('/admin/hr') || currentUrl.contains('/admin/hr') || location.startsWith('/hr') || currentUrl.contains('/hr');
+    final isHrRoute = location.startsWith('/admin/hr') ||
+        currentUrl.contains('/admin/hr') ||
+        location.startsWith('/hr') ||
+        currentUrl.contains('/hr');
 
     var cleanPath = Uri.tryParse(location)?.path ?? location;
     if ((cleanPath.isEmpty || cleanPath == '/') && kIsWeb) {
@@ -1910,15 +2193,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     final String activeHrSub;
-    if (cleanPath.startsWith('/admin/hr/recruitment') || cleanPath.startsWith('/hr/recruitment')) {
+    if (cleanPath.startsWith('/admin/hr/recruitment') ||
+        cleanPath.startsWith('/hr/recruitment')) {
       activeHrSub = 'recruitment';
-    } else if (cleanPath.startsWith('/admin/hr/onboarding') || cleanPath.startsWith('/hr/onboarding')) {
+    } else if (cleanPath.startsWith('/admin/hr/onboarding') ||
+        cleanPath.startsWith('/hr/onboarding')) {
       activeHrSub = 'onboarding';
-    } else if (cleanPath.startsWith('/admin/hr/training') || cleanPath.startsWith('/hr/training')) {
+    } else if (cleanPath.startsWith('/admin/hr/training') ||
+        cleanPath.startsWith('/hr/training')) {
       activeHrSub = 'training';
-    } else if (cleanPath.startsWith('/admin/hr/policies') || cleanPath.startsWith('/hr/policies')) {
+    } else if (cleanPath.startsWith('/admin/hr/policies') ||
+        cleanPath.startsWith('/hr/policies')) {
       activeHrSub = 'policies';
-    } else if (cleanPath.startsWith('/admin/hr') || cleanPath.startsWith('/hr')) {
+    } else if (cleanPath.startsWith('/admin/hr') ||
+        cleanPath.startsWith('/hr')) {
       activeHrSub = 'overview';
     } else {
       activeHrSub = '';
@@ -1956,20 +2244,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isHrExpanded && showLabels) ...[
-          _buildHrRouteSubTile('Overview', '/admin/hr/overview', activeHrSub == 'overview', isDark, isDrawer),
-          _buildHrRouteSubTile('Recruitment', '/admin/hr/recruitment', activeHrSub == 'recruitment', isDark, isDrawer),
-          _buildHrRouteSubTile('Onboarding', '/admin/hr/onboarding', activeHrSub == 'onboarding', isDark, isDrawer),
-          _buildHrRouteSubTile('Training & Learning', '/admin/hr/training', activeHrSub == 'training', isDark, isDrawer),
-          _buildHrRouteSubTile('Policies & Documents', '/admin/hr/policies', activeHrSub == 'policies', isDark, isDrawer),
+          _buildHrRouteSubTile('Overview', '/admin/hr/overview',
+              activeHrSub == 'overview', isDark, isDrawer),
+          _buildHrRouteSubTile('Recruitment', '/admin/hr/recruitment',
+              activeHrSub == 'recruitment', isDark, isDrawer),
+          _buildHrRouteSubTile('Onboarding', '/admin/hr/onboarding',
+              activeHrSub == 'onboarding', isDark, isDrawer),
+          _buildHrRouteSubTile('Training & Learning', '/admin/hr/training',
+              activeHrSub == 'training', isDark, isDrawer),
+          _buildHrRouteSubTile('Policies & Documents', '/admin/hr/policies',
+              activeHrSub == 'policies', isDark, isDrawer),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableClassesTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableClassesTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isClassesRoute = location.startsWith('/admin/classes') || currentUrl.contains('/admin/classes') || location.startsWith('/classes') || currentUrl.contains('/classes');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isClassesRoute = location.startsWith('/admin/classes') ||
+        currentUrl.contains('/admin/classes') ||
+        location.startsWith('/classes') ||
+        currentUrl.contains('/classes');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2003,22 +2301,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isClassesExpanded && showLabels) ...[
-          _buildSubTile('Classes', '/admin/classes', 0, isClassesRoute && activeTab == 0, isDark, isDrawer, 'classes'),
-          _buildSubTile('Sections', '/admin/classes', 1, isClassesRoute && activeTab == 1, isDark, isDrawer, 'classes'),
-          _buildSubTile('Subjects', '/admin/classes', 2, isClassesRoute && activeTab == 2, isDark, isDrawer, 'classes'),
+          _buildSubTile('Classes', '/admin/classes', 0,
+              isClassesRoute && activeTab == 0, isDark, isDrawer, 'classes'),
+          _buildSubTile('Sections', '/admin/classes', 1,
+              isClassesRoute && activeTab == 1, isDark, isDrawer, 'classes'),
+          _buildSubTile('Subjects', '/admin/classes', 2,
+              isClassesRoute && activeTab == 2, isDark, isDrawer, 'classes'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableWorkTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableWorkTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isWorkRoute = location.startsWith('/admin/work') || currentUrl.contains('/admin/work') || location.startsWith('/work') || currentUrl.contains('/work');
-    int activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
-    if (location.startsWith('/admin/work/list') || currentUrl.contains('/admin/work/list')) activeTab = 1;
-    if (location.startsWith('/admin/work/backlog') || currentUrl.contains('/admin/work/backlog')) activeTab = 2;
-    if (location.startsWith('/admin/work/sprints') || currentUrl.contains('/admin/work/sprints')) activeTab = 3;
-    if (location.startsWith('/admin/work/team') || currentUrl.contains('/admin/work/team')) activeTab = 4;
+    final isWorkRoute = location.startsWith('/admin/work') ||
+        currentUrl.contains('/admin/work') ||
+        location.startsWith('/work') ||
+        currentUrl.contains('/work');
+    int activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    if (location.startsWith('/admin/work/list') ||
+        currentUrl.contains('/admin/work/list')) activeTab = 1;
+    if (location.startsWith('/admin/work/backlog') ||
+        currentUrl.contains('/admin/work/backlog')) activeTab = 2;
+    if (location.startsWith('/admin/work/sprints') ||
+        currentUrl.contains('/admin/work/sprints')) activeTab = 3;
+    if (location.startsWith('/admin/work/team') ||
+        currentUrl.contains('/admin/work/team')) activeTab = 4;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2052,20 +2362,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isWorkExpanded && showLabels) ...[
-          _buildSubTile('Board', '/admin/work', 0, isWorkRoute && activeTab == 0, isDark, isDrawer, 'work'),
-          _buildSubTile('List', '/admin/work', 1, isWorkRoute && activeTab == 1, isDark, isDrawer, 'work'),
-          _buildSubTile('Backlog', '/admin/work', 2, isWorkRoute && activeTab == 2, isDark, isDrawer, 'work'),
-          _buildSubTile('Sprints', '/admin/work', 3, isWorkRoute && activeTab == 3, isDark, isDrawer, 'work'),
-          _buildSubTile('Team', '/admin/work', 4, isWorkRoute && activeTab == 4, isDark, isDrawer, 'work'),
+          _buildSubTile('Board', '/admin/work', 0,
+              isWorkRoute && activeTab == 0, isDark, isDrawer, 'work'),
+          _buildSubTile('List', '/admin/work', 1, isWorkRoute && activeTab == 1,
+              isDark, isDrawer, 'work'),
+          _buildSubTile('Backlog', '/admin/work', 2,
+              isWorkRoute && activeTab == 2, isDark, isDrawer, 'work'),
+          _buildSubTile('Sprints', '/admin/work', 3,
+              isWorkRoute && activeTab == 3, isDark, isDrawer, 'work'),
+          _buildSubTile('Team', '/admin/work', 4, isWorkRoute && activeTab == 4,
+              isDark, isDrawer, 'work'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableLibraryTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableLibraryTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isLibraryRoute = location.startsWith('/admin/library') || currentUrl.contains('/admin/library') || location.startsWith('/library') || currentUrl.contains('/library');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isLibraryRoute = location.startsWith('/admin/library') ||
+        currentUrl.contains('/admin/library') ||
+        location.startsWith('/library') ||
+        currentUrl.contains('/library');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2099,18 +2419,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isLibraryExpanded && showLabels) ...[
-          _buildSubTile('Books', '/admin/library', 0, isLibraryRoute && activeTab == 0, isDark, isDrawer, 'library'),
-          _buildSubTile('Members', '/admin/library', 1, isLibraryRoute && activeTab == 1, isDark, isDrawer, 'library'),
-          _buildSubTile('Issue / Return', '/admin/library', 2, isLibraryRoute && activeTab == 2, isDark, isDrawer, 'library'),
-          _buildSubTile('Requests', '/admin/library', 3, isLibraryRoute && activeTab == 3, isDark, isDrawer, 'library'),
+          _buildSubTile('Books', '/admin/library', 0,
+              isLibraryRoute && activeTab == 0, isDark, isDrawer, 'library'),
+          _buildSubTile('Members', '/admin/library', 1,
+              isLibraryRoute && activeTab == 1, isDark, isDrawer, 'library'),
+          _buildSubTile('Issue / Return', '/admin/library', 2,
+              isLibraryRoute && activeTab == 2, isDark, isDrawer, 'library'),
+          _buildSubTile('Requests', '/admin/library', 3,
+              isLibraryRoute && activeTab == 3, isDark, isDrawer, 'library'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableHostelTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableHostelTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isHostelRoute = location.startsWith('/admin/hostel') || currentUrl.contains('/admin/hostel') || location.startsWith('/hostel') || currentUrl.contains('/hostel');
+    final isHostelRoute = location.startsWith('/admin/hostel') ||
+        currentUrl.contains('/admin/hostel') ||
+        location.startsWith('/hostel') ||
+        currentUrl.contains('/hostel');
     int activeTab = 0;
     try {
       final locUri = Uri.parse(location);
@@ -2161,23 +2489,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isHostelExpanded && showLabels) ...[
-          _buildSubTile('Overview', '/admin/hostel', 0, isHostelRoute && activeTab == 0, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Rooms & Allocation', '/admin/hostel', 1, isHostelRoute && activeTab == 1, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Hostel Students', '/admin/hostel', 2, isHostelRoute && activeTab == 2, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Staff Management', '/admin/hostel', 3, isHostelRoute && activeTab == 3, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Fees & Billing', '/admin/hostel', 4, isHostelRoute && activeTab == 4, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Leave & Outing', '/admin/hostel', 5, isHostelRoute && activeTab == 5, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Complaints', '/admin/hostel', 6, isHostelRoute && activeTab == 6, isDark, isDrawer, 'hostel'),
-          _buildSubTile('Reports', '/admin/hostel', 7, isHostelRoute && activeTab == 7, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Overview', '/admin/hostel', 0,
+              isHostelRoute && activeTab == 0, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Rooms & Allocation', '/admin/hostel', 1,
+              isHostelRoute && activeTab == 1, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Hostel Students', '/admin/hostel', 2,
+              isHostelRoute && activeTab == 2, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Staff Management', '/admin/hostel', 3,
+              isHostelRoute && activeTab == 3, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Fees & Billing', '/admin/hostel', 4,
+              isHostelRoute && activeTab == 4, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Leave & Outing', '/admin/hostel', 5,
+              isHostelRoute && activeTab == 5, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Complaints', '/admin/hostel', 6,
+              isHostelRoute && activeTab == 6, isDark, isDrawer, 'hostel'),
+          _buildSubTile('Reports', '/admin/hostel', 7,
+              isHostelRoute && activeTab == 7, isDark, isDrawer, 'hostel'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableRolesTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableRolesTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isRolesRoute = location.startsWith('/admin/roles') || currentUrl.contains('/admin/roles');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isRolesRoute = location.startsWith('/admin/roles') ||
+        currentUrl.contains('/admin/roles');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2211,19 +2550,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isRolesExpanded && showLabels) ...[
-          _buildSubTile('Roles', '/admin/roles', 0, isRolesRoute && activeTab == 0, isDark, isDrawer, 'roles'),
-          _buildSubTile('Role Hierarchy', '/admin/roles', 1, isRolesRoute && activeTab == 1, isDark, isDrawer, 'roles'),
-          _buildSubTile('Assign Permissions', '/admin/roles', 2, isRolesRoute && activeTab == 2, isDark, isDrawer, 'roles'),
-          _buildSubTile('Drafted Permissions', '/admin/roles', 3, isRolesRoute && activeTab == 3, isDark, isDrawer, 'roles'),
+          _buildSubTile('Roles', '/admin/roles', 0,
+              isRolesRoute && activeTab == 0, isDark, isDrawer, 'roles'),
+          _buildSubTile('Role Hierarchy', '/admin/roles', 1,
+              isRolesRoute && activeTab == 1, isDark, isDrawer, 'roles'),
+          _buildSubTile('Assign Permissions', '/admin/roles', 2,
+              isRolesRoute && activeTab == 2, isDark, isDrawer, 'roles'),
+          _buildSubTile('Drafted Permissions', '/admin/roles', 3,
+              isRolesRoute && activeTab == 3, isDark, isDrawer, 'roles'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableModulesTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableModulesTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isModulesRoute = location.startsWith('/admin/modules') || currentUrl.contains('/admin/modules');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isModulesRoute = location.startsWith('/admin/modules') ||
+        currentUrl.contains('/admin/modules');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2257,19 +2603,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isModulesExpanded && showLabels) ...[
-          _buildSubTile('All Modules', '/admin/modules', 0, isModulesRoute && activeTab == 0, isDark, isDrawer, 'modules'),
-          _buildSubTile('Module Categories', '/admin/modules', 1, isModulesRoute && activeTab == 1, isDark, isDrawer, 'modules'),
-          _buildSubTile('Assign Modules', '/admin/modules', 2, isModulesRoute && activeTab == 2, isDark, isDrawer, 'modules'),
-          _buildSubTile('Module Requests', '/admin/modules', 3, isModulesRoute && activeTab == 3, isDark, isDrawer, 'modules'),
+          _buildSubTile('All Modules', '/admin/modules', 0,
+              isModulesRoute && activeTab == 0, isDark, isDrawer, 'modules'),
+          _buildSubTile('Module Categories', '/admin/modules', 1,
+              isModulesRoute && activeTab == 1, isDark, isDrawer, 'modules'),
+          _buildSubTile('Assign Modules', '/admin/modules', 2,
+              isModulesRoute && activeTab == 2, isDark, isDrawer, 'modules'),
+          _buildSubTile('Module Requests', '/admin/modules', 3,
+              isModulesRoute && activeTab == 3, isDark, isDrawer, 'modules'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableAttendanceTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableAttendanceTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isAttendanceRoute = location.startsWith('/admin/attendance') || currentUrl.contains('/admin/attendance') || location.startsWith('/attendance') || currentUrl.contains('/attendance');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isAttendanceRoute = location.startsWith('/admin/attendance') ||
+        currentUrl.contains('/admin/attendance') ||
+        location.startsWith('/attendance') ||
+        currentUrl.contains('/attendance');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2303,20 +2658,66 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isAttendanceExpanded && showLabels) ...[
-          _buildSubTile('Daily Attendance', '/admin/attendance', 0, isAttendanceRoute && activeTab == 0, isDark, isDrawer, 'attendance'),
-          _buildSubTile('Staff Attendance', '/admin/attendance', 1, isAttendanceRoute && activeTab == 1, isDark, isDrawer, 'attendance'),
-          _buildSubTile('Leave & Permissions', '/admin/attendance', 2, isAttendanceRoute && activeTab == 2, isDark, isDrawer, 'attendance'),
-          _buildSubTile('Bulk Operations', '/admin/attendance', 3, isAttendanceRoute && activeTab == 3, isDark, isDrawer, 'attendance'),
-          _buildSubTile('Attendance Insights', '/admin/attendance', 4, isAttendanceRoute && activeTab == 4, isDark, isDrawer, 'attendance'),
-          _buildSubTile('Settings', '/admin/attendance', 5, isAttendanceRoute && activeTab == 5, isDark, isDrawer, 'attendance'),
+          _buildSubTile(
+              'Daily Attendance',
+              '/admin/attendance',
+              0,
+              isAttendanceRoute && activeTab == 0,
+              isDark,
+              isDrawer,
+              'attendance'),
+          _buildSubTile(
+              'Staff Attendance',
+              '/admin/attendance',
+              1,
+              isAttendanceRoute && activeTab == 1,
+              isDark,
+              isDrawer,
+              'attendance'),
+          _buildSubTile(
+              'Leave & Permissions',
+              '/admin/attendance',
+              2,
+              isAttendanceRoute && activeTab == 2,
+              isDark,
+              isDrawer,
+              'attendance'),
+          _buildSubTile(
+              'Bulk Operations',
+              '/admin/attendance',
+              3,
+              isAttendanceRoute && activeTab == 3,
+              isDark,
+              isDrawer,
+              'attendance'),
+          _buildSubTile(
+              'Attendance Insights',
+              '/admin/attendance',
+              4,
+              isAttendanceRoute && activeTab == 4,
+              isDark,
+              isDrawer,
+              'attendance'),
+          _buildSubTile(
+              'Settings',
+              '/admin/attendance',
+              5,
+              isAttendanceRoute && activeTab == 5,
+              isDark,
+              isDrawer,
+              'attendance'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableLiveClassTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableLiveClassTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isLiveClassRoute = location.startsWith('/admin/live-classes') || currentUrl.contains('/admin/live-classes') || location.startsWith('/live-classes') || currentUrl.contains('/live-classes');
+    final isLiveClassRoute = location.startsWith('/admin/live-classes') ||
+        currentUrl.contains('/admin/live-classes') ||
+        location.startsWith('/live-classes') ||
+        currentUrl.contains('/live-classes');
     int activeTab = 0;
     try {
       final locUri = Uri.parse(location);
@@ -2336,7 +2737,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         location.endsWith('/whiteboard') ||
         currentUrl.endsWith('/whiteboard')) {
       activeTab = 2;
-    } else if (location.endsWith('/recordings') || currentUrl.endsWith('/recordings')) {
+    } else if (location.endsWith('/recordings') ||
+        currentUrl.endsWith('/recordings')) {
       activeTab = 1;
     } else if (location.endsWith('/join') || currentUrl.endsWith('/join')) {
       activeTab = 0;
@@ -2374,18 +2776,42 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isLiveClassExpanded && showLabels) ...[
-          _buildSubTile('Join & Conduct', '/admin/live-classes', 0, isLiveClassRoute && activeTab == 0, isDark, isDrawer, 'live_classes'),
-          _buildSubTile('Recordings', '/admin/live-classes', 1, isLiveClassRoute && activeTab == 1, isDark, isDrawer, 'live_classes'),
-          _buildSubTile('White Board', '/admin/live-classes', 2, isLiveClassRoute && activeTab == 2, isDark, isDrawer, 'live_classes'),
+          _buildSubTile(
+              'Join & Conduct',
+              '/admin/live-classes',
+              0,
+              isLiveClassRoute && activeTab == 0,
+              isDark,
+              isDrawer,
+              'live_classes'),
+          _buildSubTile(
+              'Recordings',
+              '/admin/live-classes',
+              1,
+              isLiveClassRoute && activeTab == 1,
+              isDark,
+              isDrawer,
+              'live_classes'),
+          _buildSubTile(
+              'White Board',
+              '/admin/live-classes',
+              2,
+              isLiveClassRoute && activeTab == 2,
+              isDark,
+              isDrawer,
+              'live_classes'),
         ],
       ],
     );
   }
 
-  
-  Widget _buildExpandableExamsTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableExamsTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isExamsRoute = location.startsWith('/admin/exams') || currentUrl.contains('/admin/exams') || location.startsWith('/exams') || currentUrl.contains('/exams');
+    final isExamsRoute = location.startsWith('/admin/exams') ||
+        currentUrl.contains('/admin/exams') ||
+        location.startsWith('/exams') ||
+        currentUrl.contains('/exams');
 
     final isQuestionBank = location.contains('/question-bank');
     final isPaperBuilder = location.contains('/paper-builder');
@@ -2423,15 +2849,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isExamsExpanded && showLabels) ...[
-          _buildSubTileDirect('Scheduled Exams', '/admin/exams', isScheduled, isDark, isDrawer, 'exams'),
-          _buildSubTileDirect('Question Bank', '/admin/exams/question-bank', isQuestionBank, isDark, isDrawer, 'exams'),
-          _buildSubTileDirect('Paper Builder', '/admin/exams/paper-builder', isPaperBuilder, isDark, isDrawer, 'exams'),
+          _buildSubTileDirect('Scheduled Exams', '/admin/exams', isScheduled,
+              isDark, isDrawer, 'exams'),
+          _buildSubTileDirect('Question Bank', '/admin/exams/question-bank',
+              isQuestionBank, isDark, isDrawer, 'exams'),
+          _buildSubTileDirect('Paper Builder', '/admin/exams/paper-builder',
+              isPaperBuilder, isDark, isDrawer, 'exams'),
         ],
       ],
     );
   }
 
-  Widget _buildSubTileDirect(String label, String directRoute, bool isSelected, bool isDark, bool isDrawer, [String? sectionKey]) {
+  Widget _buildSubTileDirect(String label, String directRoute, bool isSelected,
+      bool isDark, bool isDrawer,
+      [String? sectionKey]) {
     final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
@@ -2464,7 +2895,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2474,8 +2909,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     style: TextStyle(
                       color: isSelected
                           ? primaryColor
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -2490,11 +2928,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-
-  Widget _buildExpandableCampusTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableCampusTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isCampusRoute = location.startsWith('/admin/campus') || currentUrl.contains('/admin/campus') || location.startsWith('/campus') || currentUrl.contains('/campus');
-    final activeTab = int.tryParse(Uri.tryParse(currentUrl)?.queryParameters['tab'] ?? Uri.tryParse(location)?.queryParameters['tab'] ?? '0') ?? 0;
+    final isCampusRoute = location.startsWith('/admin/campus') ||
+        currentUrl.contains('/admin/campus') ||
+        location.startsWith('/campus') ||
+        currentUrl.contains('/campus');
+    final activeTab = int.tryParse(
+            Uri.tryParse(currentUrl)?.queryParameters['tab'] ??
+                Uri.tryParse(location)?.queryParameters['tab'] ??
+                '0') ??
+        0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2528,23 +2973,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isCampusExpanded && showLabels) ...[
-          _buildSubTile('Buildings & Rooms', '/admin/campus', 0, isCampusRoute && activeTab == 0, isDark, isDrawer, 'campus'),
-          _buildSubTile('Facilities', '/admin/campus', 1, isCampusRoute && activeTab == 1, isDark, isDrawer, 'campus'),
-          _buildSubTile('Space Booking', '/admin/campus', 2, isCampusRoute && activeTab == 2, isDark, isDrawer, 'campus'),
-          _buildSubTile('Maintenance', '/admin/campus', 3, isCampusRoute && activeTab == 3, isDark, isDrawer, 'campus'),
-          _buildSubTile('Safety & Compliance', '/admin/campus', 4, isCampusRoute && activeTab == 4, isDark, isDrawer, 'campus'),
-          _buildSubTile('Device Management & Control', '/admin/campus', 5, isCampusRoute && activeTab == 5, isDark, isDrawer, 'campus'),
-          _buildSubTile('Utilities & Services', '/admin/campus', 6, isCampusRoute && activeTab == 6, isDark, isDrawer, 'campus'),
-          _buildSubTile('Reports', '/admin/campus', 7, isCampusRoute && activeTab == 7, isDark, isDrawer, 'campus'),
+          _buildSubTile('Buildings & Rooms', '/admin/campus', 0,
+              isCampusRoute && activeTab == 0, isDark, isDrawer, 'campus'),
+          _buildSubTile('Facilities', '/admin/campus', 1,
+              isCampusRoute && activeTab == 1, isDark, isDrawer, 'campus'),
+          _buildSubTile('Space Booking', '/admin/campus', 2,
+              isCampusRoute && activeTab == 2, isDark, isDrawer, 'campus'),
+          _buildSubTile('Maintenance', '/admin/campus', 3,
+              isCampusRoute && activeTab == 3, isDark, isDrawer, 'campus'),
+          _buildSubTile('Safety & Compliance', '/admin/campus', 4,
+              isCampusRoute && activeTab == 4, isDark, isDrawer, 'campus'),
+          _buildSubTile('Device Management & Control', '/admin/campus', 5,
+              isCampusRoute && activeTab == 5, isDark, isDrawer, 'campus'),
+          _buildSubTile('Utilities & Services', '/admin/campus', 6,
+              isCampusRoute && activeTab == 6, isDark, isDrawer, 'campus'),
+          _buildSubTile('Reports', '/admin/campus', 7,
+              isCampusRoute && activeTab == 7, isDark, isDrawer, 'campus'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableInventoryTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableInventoryTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isInventoryRoute = location.startsWith('/admin/inventory') || currentUrl.contains('/admin/inventory') || location.startsWith('/inventory') || currentUrl.contains('/inventory');
-    final activeTab = int.tryParse(Uri.tryParse(currentUrl)?.queryParameters['tab'] ?? Uri.tryParse(location)?.queryParameters['tab'] ?? '0') ?? 0;
+    final isInventoryRoute = location.startsWith('/admin/inventory') ||
+        currentUrl.contains('/admin/inventory') ||
+        location.startsWith('/inventory') ||
+        currentUrl.contains('/inventory');
+    final activeTab = int.tryParse(
+            Uri.tryParse(currentUrl)?.queryParameters['tab'] ??
+                Uri.tryParse(location)?.queryParameters['tab'] ??
+                '0') ??
+        0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2578,19 +3039,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isInventoryExpanded && showLabels) ...[
-          _buildSubTile('Stock Overview', '/admin/inventory', 0, isInventoryRoute && activeTab == 0, isDark, isDrawer, 'inventory'),
-          _buildSubTile('Recent Transactions', '/admin/inventory', 1, isInventoryRoute && activeTab == 1, isDark, isDrawer, 'inventory'),
-          _buildSubTile('Purchase Orders', '/admin/inventory', 2, isInventoryRoute && activeTab == 2, isDark, isDrawer, 'inventory'),
-          _buildSubTile('Sales Orders', '/admin/inventory', 3, isInventoryRoute && activeTab == 3, isDark, isDrawer, 'inventory'),
+          _buildSubTile(
+              'Stock Overview',
+              '/admin/inventory',
+              0,
+              isInventoryRoute && activeTab == 0,
+              isDark,
+              isDrawer,
+              'inventory'),
+          _buildSubTile(
+              'Recent Transactions',
+              '/admin/inventory',
+              1,
+              isInventoryRoute && activeTab == 1,
+              isDark,
+              isDrawer,
+              'inventory'),
+          _buildSubTile(
+              'Purchase Orders',
+              '/admin/inventory',
+              2,
+              isInventoryRoute && activeTab == 2,
+              isDark,
+              isDrawer,
+              'inventory'),
+          _buildSubTile(
+              'Sales Orders',
+              '/admin/inventory',
+              3,
+              isInventoryRoute && activeTab == 3,
+              isDark,
+              isDrawer,
+              'inventory'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableVisitorsTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableVisitorsTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isVisitorsRoute = location.startsWith('/admin/visitors') || currentUrl.contains('/admin/visitors') || location.startsWith('/visitors') || currentUrl.contains('/visitors');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isVisitorsRoute = location.startsWith('/admin/visitors') ||
+        currentUrl.contains('/admin/visitors') ||
+        location.startsWith('/visitors') ||
+        currentUrl.contains('/visitors');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2624,18 +3118,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isVisitorsExpanded && showLabels) ...[
-          _buildSubTile('All Visitors', '/admin/visitors', 0, isVisitorsRoute && activeTab == 0, isDark, isDrawer, 'visitors'),
-          _buildSubTile('Scheduled Visitors', '/admin/visitors', 1, isVisitorsRoute && activeTab == 1, isDark, isDrawer, 'visitors'),
-          _buildSubTile('Blacklisted Visitors', '/admin/visitors', 2, isVisitorsRoute && activeTab == 2, isDark, isDrawer, 'visitors'),
+          _buildSubTile('All Visitors', '/admin/visitors', 0,
+              isVisitorsRoute && activeTab == 0, isDark, isDrawer, 'visitors'),
+          _buildSubTile('Scheduled Visitors', '/admin/visitors', 1,
+              isVisitorsRoute && activeTab == 1, isDark, isDrawer, 'visitors'),
+          _buildSubTile('Blacklisted Visitors', '/admin/visitors', 2,
+              isVisitorsRoute && activeTab == 2, isDark, isDrawer, 'visitors'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableAnnouncementsTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableAnnouncementsTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isAnnouncementsRoute = location.startsWith('/admin/announcements') || currentUrl.contains('/admin/announcements') || location.startsWith('/admin/notices') || currentUrl.contains('/admin/notices') || location.startsWith('/notices') || currentUrl.contains('/notices');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isAnnouncementsRoute = location.startsWith('/admin/announcements') ||
+        currentUrl.contains('/admin/announcements') ||
+        location.startsWith('/admin/notices') ||
+        currentUrl.contains('/admin/notices') ||
+        location.startsWith('/notices') ||
+        currentUrl.contains('/notices');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2669,24 +3173,90 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isAnnouncementsExpanded && showLabels) ...[
-          _buildSubTile('All Notices', '/admin/announcements', 0, isAnnouncementsRoute && activeTab == 0, isDark, isDrawer, 'announcements'),
-          _buildSubTile('My Notices', '/admin/announcements', 1, isAnnouncementsRoute && activeTab == 1, isDark, isDrawer, 'announcements'),
-          _buildSubTile('School Notices', '/admin/announcements', 2, isAnnouncementsRoute && activeTab == 2, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Department Notices', '/admin/announcements', 3, isAnnouncementsRoute && activeTab == 3, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Drafts', '/admin/announcements', 4, isAnnouncementsRoute && activeTab == 4, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Scheduled', '/admin/announcements', 5, isAnnouncementsRoute && activeTab == 5, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Pending Approval', '/admin/announcements', 6, isAnnouncementsRoute && activeTab == 6, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Expired', '/admin/announcements', 7, isAnnouncementsRoute && activeTab == 7, isDark, isDrawer, 'announcements'),
-          _buildSubTile('Archived', '/admin/announcements', 8, isAnnouncementsRoute && activeTab == 8, isDark, isDrawer, 'announcements'),
+          _buildSubTile(
+              'All Notices',
+              '/admin/announcements',
+              0,
+              isAnnouncementsRoute && activeTab == 0,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'My Notices',
+              '/admin/announcements',
+              1,
+              isAnnouncementsRoute && activeTab == 1,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'School Notices',
+              '/admin/announcements',
+              2,
+              isAnnouncementsRoute && activeTab == 2,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Department Notices',
+              '/admin/announcements',
+              3,
+              isAnnouncementsRoute && activeTab == 3,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Drafts',
+              '/admin/announcements',
+              4,
+              isAnnouncementsRoute && activeTab == 4,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Scheduled',
+              '/admin/announcements',
+              5,
+              isAnnouncementsRoute && activeTab == 5,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Pending Approval',
+              '/admin/announcements',
+              6,
+              isAnnouncementsRoute && activeTab == 6,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Expired',
+              '/admin/announcements',
+              7,
+              isAnnouncementsRoute && activeTab == 7,
+              isDark,
+              isDrawer,
+              'announcements'),
+          _buildSubTile(
+              'Archived',
+              '/admin/announcements',
+              8,
+              isAnnouncementsRoute && activeTab == 8,
+              isDark,
+              isDrawer,
+              'announcements'),
         ],
       ],
     );
   }
 
-  Widget _buildExpandableSystemConfigTile(bool isDark, bool showLabels, String location, bool isDrawer) {
+  Widget _buildExpandableSystemConfigTile(
+      bool isDark, bool showLabels, String location, bool isDrawer) {
     final currentUrl = kIsWeb ? html.window.location.href : location;
-    final isSystemConfigRoute = location.startsWith('/admin/config') || currentUrl.contains('/admin/config');
-    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
+    final isSystemConfigRoute = location.startsWith('/admin/config') ||
+        currentUrl.contains('/admin/config');
+    final activeTab =
+        int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2720,23 +3290,101 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isSystemConfigExpanded && showLabels) ...[
-          _buildSubTile('General Settings', '/admin/config', 0, isSystemConfigRoute && activeTab == 0, isDark, isDrawer, 'config'),
-          _buildSubTile('Security', '/admin/config', 1, isSystemConfigRoute && activeTab == 1, isDark, isDrawer, 'config'),
-          _buildSubTile('Email & SMS', '/admin/config', 2, isSystemConfigRoute && activeTab == 2, isDark, isDrawer, 'config'),
-          _buildSubTile('Modules', '/admin/config', 3, isSystemConfigRoute && activeTab == 3, isDark, isDrawer, 'config'),
-          _buildSubTile('Appearance', '/admin/config', 4, isSystemConfigRoute && activeTab == 4, isDark, isDrawer, 'config'),
-          _buildSubTile('Payments', '/admin/config', 5, isSystemConfigRoute && activeTab == 5, isDark, isDrawer, 'config'),
-          _buildSubTile('Integrations', '/admin/config', 6, isSystemConfigRoute && activeTab == 6, isDark, isDrawer, 'config'),
-          _buildSubTile('Backup & Restore', '/admin/config', 7, isSystemConfigRoute && activeTab == 7, isDark, isDrawer, 'config'),
-          _buildSubTile('Advanced', '/admin/config', 8, isSystemConfigRoute && activeTab == 8, isDark, isDrawer, 'config'),
-          _buildSubTile('Login Page', '/admin/config', 9, isSystemConfigRoute && activeTab == 9, isDark, isDrawer, 'config'),
-          _buildSubTile('Footer Settings', '/admin/config', 10, isSystemConfigRoute && activeTab == 10, isDark, isDrawer, 'config'),
+          _buildSubTile(
+              'General Settings',
+              '/admin/config',
+              0,
+              isSystemConfigRoute && activeTab == 0,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Security',
+              '/admin/config',
+              1,
+              isSystemConfigRoute && activeTab == 1,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Email & SMS',
+              '/admin/config',
+              2,
+              isSystemConfigRoute && activeTab == 2,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Modules',
+              '/admin/config',
+              3,
+              isSystemConfigRoute && activeTab == 3,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Appearance',
+              '/admin/config',
+              4,
+              isSystemConfigRoute && activeTab == 4,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Payments',
+              '/admin/config',
+              5,
+              isSystemConfigRoute && activeTab == 5,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Integrations',
+              '/admin/config',
+              6,
+              isSystemConfigRoute && activeTab == 6,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Backup & Restore',
+              '/admin/config',
+              7,
+              isSystemConfigRoute && activeTab == 7,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Advanced',
+              '/admin/config',
+              8,
+              isSystemConfigRoute && activeTab == 8,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Login Page',
+              '/admin/config',
+              9,
+              isSystemConfigRoute && activeTab == 9,
+              isDark,
+              isDrawer,
+              'config'),
+          _buildSubTile(
+              'Footer Settings',
+              '/admin/config',
+              10,
+              isSystemConfigRoute && activeTab == 10,
+              isDark,
+              isDrawer,
+              'config'),
         ],
       ],
     );
   }
 
-  Widget _buildHrRouteSubTile(String label, String route, bool isSelected, bool isDark, bool isDrawer) {
+  Widget _buildHrRouteSubTile(
+      String label, String route, bool isSelected, bool isDark, bool isDrawer) {
     final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
@@ -2774,7 +3422,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2784,8 +3436,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     style: TextStyle(
                       color: isSelected
                           ? primaryColor
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -2800,7 +3455,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildSubTile(String label, String baseRoute, int tabIndex, bool isSelected, bool isDark, bool isDrawer, [String? sectionKey]) {
+  Widget _buildSubTile(String label, String baseRoute, int tabIndex,
+      bool isSelected, bool isDark, bool isDrawer,
+      [String? sectionKey]) {
     final primaryColor = Theme.of(context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(left: 20, bottom: 2),
@@ -2816,7 +3473,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             if (kIsWeb) {
               Future.microtask(() {
                 try {
-                  html.window.history.replaceState(null, '', '$baseRoute?tab=$tabIndex');
+                  html.window.history
+                      .replaceState(null, '', '$baseRoute?tab=$tabIndex');
                   html.window.dispatchEvent(html.CustomEvent('tab_changed'));
                 } catch (_) {}
               });
@@ -2841,7 +3499,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? primaryColor : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+                    color: isSelected
+                        ? primaryColor
+                        : (isDark
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFFCBD5E1)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2851,8 +3513,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     style: TextStyle(
                       color: isSelected
                           ? primaryColor
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          : (isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B)),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 11.5,
                     ),
                     overflow: TextOverflow.ellipsis,

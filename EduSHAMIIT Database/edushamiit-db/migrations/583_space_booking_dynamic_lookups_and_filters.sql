@@ -6,10 +6,25 @@
 
 DO $$
 DECLARE
-    v_school_id UUID := '11111111-1111-1111-1111-111111111111';
-    v_admin_id UUID := '10000000-0000-0000-0000-000000000001';
+    v_school_id UUID;
+    v_admin_id UUID;
     v_key_id UUID;
 BEGIN
+    SELECT id INTO v_school_id
+    FROM public.schools
+    ORDER BY (id = '11111111-1111-1111-1111-111111111111') DESC, created_at ASC
+    LIMIT 1;
+
+    IF v_school_id IS NULL THEN
+        RETURN;
+    END IF;
+
+    SELECT id INTO v_admin_id
+    FROM public.profiles
+    ORDER BY (id = '10000000-0000-0000-0000-000000000001') DESC,
+             (role = 'super_admin') DESC,
+             created_at ASC
+    LIMIT 1;
     -- 1. BOOKING_PURPOSE
     SELECT id INTO v_key_id FROM public.lookup_keys WHERE key_code = 'BOOKING_PURPOSE' AND school_id = v_school_id;
     IF v_key_id IS NULL THEN

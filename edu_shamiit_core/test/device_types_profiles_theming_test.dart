@@ -37,7 +37,8 @@ void main() {
     profileType: 'custom',
     manufacturer: 'Hikvision',
     model: 'DS-2CD2143G2-I',
-    description: 'High-definition 1080p surveillance streaming with automated sleep during exams',
+    description:
+        'High-definition 1080p surveillance streaming with automated sleep during exams',
     version: '1.2.0',
     status: 'active',
     isDefault: true,
@@ -50,7 +51,8 @@ void main() {
     code: 'CAM_PTZ_4K',
     categoryName: 'Security',
     systemCategory: 'Security & Surveillance',
-    description: 'Ultra high-definition pan-tilt-zoom optical camera for campus corridors and perimeters',
+    description:
+        'Ultra high-definition pan-tilt-zoom optical camera for campus corridors and perimeters',
     icon: 'videocam',
     color: '#DC2626',
     protocol: 'ONVIF',
@@ -74,7 +76,8 @@ void main() {
     dataType: 'object',
     category: 'Security',
     icon: 'control_camera',
-    description: 'Real-time pan, tilt, and continuous optical zoom manipulation for surveillance units',
+    description:
+        'Real-time pan, tilt, and continuous optical zoom manipulation for surveillance units',
   );
 
   const sampleScene = DeviceSceneItem(
@@ -94,7 +97,7 @@ void main() {
     colorHex: '#2563EB',
   );
 
-  final testState = DeviceManagementState(
+  const testState = DeviceManagementState(
     isLoading: false,
     isTypesLoading: false,
     typesProfilesKpis: const DeviceTypesProfilesKpis(
@@ -123,19 +126,22 @@ void main() {
     final state = customState ?? testState;
     return ProviderScope(
       overrides: [
-        deviceManagementProvider.overrideWith((ref) => FakeDeviceManagementNotifier(state)),
+        deviceManagementProvider
+            .overrideWith((ref) => FakeDeviceManagementNotifier(state)),
       ],
       child: MaterialApp(
         themeMode: themeMode,
         theme: ThemeData(
           brightness: Brightness.light,
           scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB), brightness: Brightness.light),
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF2563EB), brightness: Brightness.light),
         ),
         darkTheme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF0F172A),
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB), brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF2563EB), brightness: Brightness.dark),
         ),
         home: Scaffold(
           body: child,
@@ -145,7 +151,8 @@ void main() {
   }
 
   group('Device Types & Profiles Theming Tests', () {
-    testWidgets('DeviceTypesProfilesSubview renders cleanly in Dark Theme', (tester) async {
+    testWidgets('DeviceTypesProfilesSubview renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
       await tester.pumpWidget(
@@ -178,7 +185,8 @@ void main() {
       expect(find.text('Capabilities'), findsOneWidget);
     });
 
-    testWidgets('DeviceTypesProfilesSubview renders cleanly in Light Theme', (tester) async {
+    testWidgets('DeviceTypesProfilesSubview renders cleanly in Light Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
       await tester.pumpWidget(
@@ -196,10 +204,12 @@ void main() {
       expect(find.byType(TextField), findsWidgets);
     });
 
-    testWidgets('Control Profiles (Tab 2) renders cleanly in Dark Theme', (tester) async {
+    testWidgets('Control Profiles (Tab 2) renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
-      final stateWithTab2 = testState.copyWith(typesActiveSubTab: 'Control Profiles (82)');
+      final stateWithTab2 =
+          testState.copyWith(typesActiveSubTab: 'Control Profiles (82)');
 
       await tester.pumpWidget(
         createTestWidget(
@@ -212,14 +222,17 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('All Control Profiles (1)'), findsOneWidget);
-      expect(find.text('Classroom Standard Surveillance Profile'), findsOneWidget);
+      expect(
+          find.text('Classroom Standard Surveillance Profile'), findsOneWidget);
       expect(find.text('Deploy'), findsOneWidget);
     });
 
-    testWidgets('Capability Templates (Tab 3) renders cleanly in Dark Theme', (tester) async {
+    testWidgets('Capability Templates (Tab 3) renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
-      final stateWithTab3 = testState.copyWith(typesActiveSubTab: 'Capability Templates');
+      final stateWithTab3 =
+          testState.copyWith(typesActiveSubTab: 'Capability Templates');
 
       await tester.pumpWidget(
         createTestWidget(
@@ -235,10 +248,12 @@ void main() {
       expect(find.text('PTZ Control Joystick'), findsOneWidget);
     });
 
-    testWidgets('Presets & Scenes (Tab 4) renders cleanly in Dark Theme', (tester) async {
+    testWidgets('Presets & Scenes (Tab 4) renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
-      final stateWithTab4 = testState.copyWith(typesActiveSubTab: 'Presets & Scenes');
+      final stateWithTab4 =
+          testState.copyWith(typesActiveSubTab: 'Presets & Scenes');
 
       await tester.pumpWidget(
         createTestWidget(
@@ -250,11 +265,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Configured Presets & Operational Scenes'), findsOneWidget);
+      expect(
+          find.text('Configured Presets & Operational Scenes'), findsOneWidget);
       expect(find.text('Class Start'), findsOneWidget);
     });
 
-    testWidgets('CreateEditDeviceProfileDialog renders cleanly in Dark Theme', (tester) async {
+    testWidgets('CreateEditDeviceProfileDialog renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(900, 800));
 
       await tester.pumpWidget(
@@ -274,7 +291,8 @@ void main() {
       expect(find.text('Save Changes'), findsOneWidget);
     });
 
-    testWidgets('DeployDeviceProfileDialog renders cleanly in Dark Theme', (tester) async {
+    testWidgets('DeployDeviceProfileDialog renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(900, 800));
 
       await tester.pumpWidget(
@@ -296,7 +314,9 @@ void main() {
       expect(find.text('Confirm & Deploy'), findsOneWidget);
     });
 
-    testWidgets('CreateEditDeviceTypeWizardDialog renders cleanly in Dark Theme', (tester) async {
+    testWidgets(
+        'CreateEditDeviceTypeWizardDialog renders cleanly in Dark Theme',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 800));
 
       await tester.pumpWidget(
@@ -311,7 +331,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Edit Device Type: 4K PTZ Surveillance Camera'), findsOneWidget);
+      expect(find.text('Edit Device Type: 4K PTZ Surveillance Camera'),
+          findsOneWidget);
       expect(find.text('1. Basic Specifications'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
     });

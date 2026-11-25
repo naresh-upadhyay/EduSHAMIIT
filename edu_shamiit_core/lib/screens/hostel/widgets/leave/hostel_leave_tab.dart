@@ -267,19 +267,46 @@ class _HostelLeaveTabState extends ConsumerState<HostelLeaveTab> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
+                    sortColumnIndex: const {
+                      'pass_number': 0,
+                      'student_name': 1,
+                      'hostel_name': 2,
+                      'request_type': 3,
+                      'valid_from': 4,
+                      'status': 5,
+                    }[state.gatePassesSortBy],
+                    sortAscending: state.gatePassesSortOrder == 'ASC',
                     columnSpacing: 24,
                     horizontalMargin: 20,
                     headingRowHeight: 44,
                     dataRowMinHeight: 52,
                     dataRowMaxHeight: 56,
-                    columns: const [
-                      DataColumn(label: Text('Pass Number', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Resident Student', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Hostel / Room', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Type & Destination', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Validity Period', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
-                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                    columns: [
+                      DataColumn(
+                        label: const Text('Pass Number', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('pass_number'),
+                      ),
+                      DataColumn(
+                        label: const Text('Resident Student', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('student_name'),
+                      ),
+                      DataColumn(
+                        label: const Text('Hostel / Room', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('hostel_name'),
+                      ),
+                      DataColumn(
+                        label: const Text('Type & Destination', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('request_type'),
+                      ),
+                      DataColumn(
+                        label: const Text('Validity Period', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('valid_from'),
+                      ),
+                      DataColumn(
+                        label: const Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        onSort: (_, __) => notifier.setGatePassSort('status'),
+                      ),
+                      const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
                     ],
                     rows: passes.map((pass) {
                       Color statusColor;

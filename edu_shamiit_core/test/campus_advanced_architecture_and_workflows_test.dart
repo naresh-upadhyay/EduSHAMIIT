@@ -14,7 +14,8 @@ import 'package:edu_shamiit_core/screens/campus/widgets/space_booking/dialogs/cr
 import 'package:edu_shamiit_core/screens/campus/services/campus_api_service.dart';
 
 class FakeUtilitiesNotifier extends UtilitiesNotifier {
-  FakeUtilitiesNotifier(UtilitiesState initialState) : super(CampusApiService.instance) {
+  FakeUtilitiesNotifier(UtilitiesState initialState)
+      : super(CampusApiService.instance) {
     state = initialState;
   }
   @override
@@ -22,9 +23,12 @@ class FakeUtilitiesNotifier extends UtilitiesNotifier {
 }
 
 void main() {
-  group('Campus Management Advanced Architecture & Riverpod State Verification', () {
-    test('FacilitiesState and FacilitiesNotifier filtering and pagination operations', () {
-      final state = const FacilitiesState(
+  group('Campus Management Advanced Architecture & Riverpod State Verification',
+      () {
+    test(
+        'FacilitiesState and FacilitiesNotifier filtering and pagination operations',
+        () {
+      const state = FacilitiesState(
         facilities: [
           {
             'id': 'fac-1',
@@ -51,7 +55,8 @@ void main() {
       );
 
       expect(state.facilities.length, 3);
-      final filtered = state.facilities.where((f) => f['status'] == 'Operational').toList();
+      final filtered =
+          state.facilities.where((f) => f['status'] == 'Operational').toList();
       expect(filtered.length, 1);
       expect(filtered.first['name'], 'Robotics Lab');
 
@@ -104,7 +109,9 @@ void main() {
       expect(updated.timeRange, 'Last 7 Days');
     });
 
-    testWidgets('CreateEditBookingDialog honors preselectedRoomId from Facilities bridge', (tester) async {
+    testWidgets(
+        'CreateEditBookingDialog honors preselectedRoomId from Facilities bridge',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
 
       await tester.pumpWidget(
@@ -124,7 +131,9 @@ void main() {
       expect(find.text('Book a Campus Space'), findsOneWidget);
     });
 
-    testWidgets('RoomsSubtabView renders 2D Spatial Floorplan Blueprint (viewMode 2)', (tester) async {
+    testWidgets(
+        'RoomsSubtabView renders 2D Spatial Floorplan Blueprint (viewMode 2)',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
 
       final dummyRooms = [
@@ -207,7 +216,9 @@ void main() {
       expect(find.text('40 Cap'), findsOneWidget);
     });
 
-    testWidgets('FacilitiesTabView renders without throwing and displays KPI cards', (tester) async {
+    testWidgets(
+        'FacilitiesTabView renders without throwing and displays KPI cards',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
 
       await tester.pumpWidget(
@@ -226,22 +237,24 @@ void main() {
       expect(find.text('Operational'), findsWidgets);
     });
 
-    testWidgets('UtilitiesServicesTabView renders with tariff projections and anomaly banner when present', (tester) async {
+    testWidgets(
+        'UtilitiesServicesTabView renders with tariff projections and anomaly banner when present',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             utilitiesProvider.overrideWith((ref) => FakeUtilitiesNotifier(
-              const UtilitiesState(
-                tariffKwh: 9.50,
-                tariffDiesel: 89.00,
-                latestAnomaly: {
-                  'is_anomaly': true,
-                  'ticket_code': 'MT-UTL-0089',
-                },
-              ),
-            )),
+                  const UtilitiesState(
+                    tariffKwh: 9.50,
+                    tariffDiesel: 89.00,
+                    latestAnomaly: {
+                      'is_anomaly': true,
+                      'ticket_code': 'MT-UTL-0089',
+                    },
+                  ),
+                )),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -253,13 +266,16 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Automated Utility Surge Detected (>1.5x Baseline)'), findsOneWidget);
+      expect(find.text('Automated Utility Surge Detected (>1.5x Baseline)'),
+          findsOneWidget);
       expect(find.text('View Work Order'), findsOneWidget);
       expect(find.text('Grid Power Load'), findsOneWidget);
       expect(find.text('Solar Generation'), findsOneWidget);
     });
 
-    testWidgets('CampusReportsTabView renders with dual export options: CSV and Executive PDF Dossier', (tester) async {
+    testWidgets(
+        'CampusReportsTabView renders with dual export options: CSV and Executive PDF Dossier',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1280, 800));
 
       await tester.pumpWidget(

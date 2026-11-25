@@ -10,7 +10,7 @@ import 'package:edu_shamiit_core/screens/campus/widgets/dialogs/room_details_dra
 
 void main() {
   group('Room Details Drawer & Maintenance Actions Test Suite', () {
-    final sampleBuilding = BuildingModel(
+    const sampleBuilding = BuildingModel(
       id: 'bld-1',
       schoolId: 'sch-1',
       name: 'Academic Block A',
@@ -21,7 +21,7 @@ void main() {
       status: 'Active',
     );
 
-    final sampleRoom = RoomModel(
+    const sampleRoom = RoomModel(
       id: 'room-1',
       schoolId: 'sch-1',
       buildingId: 'bld-1',
@@ -48,7 +48,9 @@ void main() {
       isDifferentlyAbledAccessible: true,
     );
 
-    testWidgets('RoomDetailsDrawer renders modern capacity meter, maintenance section and no Allocate button', (tester) async {
+    testWidgets(
+        'RoomDetailsDrawer renders modern capacity meter, maintenance section and no Allocate button',
+        (tester) async {
       bool editTapped = false;
       bool maintenanceTapped = false;
 
@@ -57,8 +59,10 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifier(CampusApiService.instance)),
-            spaceBookingProvider.overrideWith((ref) => SpaceBookingNotifier(SpaceBookingApiService.instance)),
+            campusProvider.overrideWith(
+                (ref) => CampusNotifier(CampusApiService.instance)),
+            spaceBookingProvider.overrideWith(
+                (ref) => SpaceBookingNotifier(SpaceBookingApiService.instance)),
           ],
           child: MaterialApp(
             home: Scaffold(
@@ -107,10 +111,12 @@ void main() {
       expect(editTapped, isTrue);
     });
 
-    testWidgets('RoomDetailsDrawer updates live in real-time when room prop changes', (tester) async {
+    testWidgets(
+        'RoomDetailsDrawer updates live in real-time when room prop changes',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1200, 900));
 
-      final updatedRoom = RoomModel(
+      const updatedRoom = RoomModel(
         id: 'room-1',
         schoolId: 'sch-1',
         buildingId: 'bld-1',
@@ -140,8 +146,10 @@ void main() {
       Widget buildWidget(RoomModel room) {
         return ProviderScope(
           overrides: [
-            campusProvider.overrideWith((ref) => CampusNotifier(CampusApiService.instance)),
-            spaceBookingProvider.overrideWith((ref) => SpaceBookingNotifier(SpaceBookingApiService.instance)),
+            campusProvider.overrideWith(
+                (ref) => CampusNotifier(CampusApiService.instance)),
+            spaceBookingProvider.overrideWith(
+                (ref) => SpaceBookingNotifier(SpaceBookingApiService.instance)),
           ],
           child: MaterialApp(
             home: Scaffold(

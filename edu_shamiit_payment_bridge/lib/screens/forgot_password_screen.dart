@@ -89,12 +89,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
                   ],
-                  border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
                 ),
                 child: Form(
                   key: _formKey,
@@ -104,8 +105,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Center(
                         child: Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEEF2FF),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEEF2FF),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -136,10 +137,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
                       if (_errorMessage != null) ...[
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(10),
@@ -147,7 +148,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                              const Icon(Icons.error_outline,
+                                  color: Color(0xFFEF4444), size: 18),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
@@ -164,7 +166,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                         const SizedBox(height: 18),
                       ],
-
                       Text(
                         'Email Address',
                         style: GoogleFonts.outfit(
@@ -177,31 +178,38 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: const Color(0xFF0F172A)),
                         decoration: InputDecoration(
                           hintText: 'Enter your email address',
-                          hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF94A3B8), size: 18),
+                          hintStyle: GoogleFonts.dmSans(
+                              color: const Color(0xFF94A3B8), fontSize: 13),
+                          prefixIcon: const Icon(Icons.email_outlined,
+                              color: Color(0xFF94A3B8), size: 18),
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF6366F1), width: 1.5),
                           ),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Email is required';
                           }
-                          final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+                          final emailRegex = RegExp(
+                              r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
                           if (!emailRegex.hasMatch(value.trim())) {
                             return 'Please enter a valid email';
                           }
@@ -209,7 +217,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         },
                       ),
                       const SizedBox(height: 24),
-
                       SizedBox(
                         height: 48,
                         child: ElevatedButton(
@@ -217,7 +224,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6366F1),
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
                           child: _isLoading
@@ -226,7 +234,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
                                   ),
                                 )
                               : Text(
