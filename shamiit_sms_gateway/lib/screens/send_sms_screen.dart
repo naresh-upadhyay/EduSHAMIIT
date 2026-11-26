@@ -343,7 +343,12 @@ class _SendSmsScreenState extends State<SendSmsScreen> {
 
   Widget _buildComposeTab(SmsEncodingInfo enc) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        28 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
       children: [
         const Text('Recipients', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         const SizedBox(height: 6),
@@ -725,7 +730,12 @@ class _SendSmsScreenState extends State<SendSmsScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        24 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
       itemCount: _templates.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, idx) {
@@ -783,7 +793,12 @@ class _SendSmsScreenState extends State<SendSmsScreen> {
                   action: ElevatedButton(onPressed: _loadContacts, child: const Text('Load Contacts')),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
+                    24 + MediaQuery.viewPaddingOf(context).bottom,
+                  ),
                   itemCount: _contacts.length,
                   itemBuilder: (_, idx) {
                     final c = _contacts[idx];

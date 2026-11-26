@@ -83,9 +83,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           children: [
             const AppTopBar(title: 'Verify OTP', showBackButton: true),
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 440),
                     child: StatusCard(
@@ -183,6 +185,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                     ),
                   ),
+                ),
                 ),
               ),
             ),

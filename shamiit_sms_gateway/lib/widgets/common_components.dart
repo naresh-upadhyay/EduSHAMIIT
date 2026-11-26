@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../models/sms_models.dart';
@@ -390,52 +391,54 @@ class InfoMetricRow extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 4,
-                child: Text(
-                  label,
-                  style: TextStyle(fontSize: 12.5, color: labelColor),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 12.5, color: labelColor),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 6,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (statusIcon != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Icon(
-                          statusIcon,
-                          size: 15,
-                          color: statusColor ?? AppColors.primaryBlue,
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.56),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (statusIcon != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Icon(
+                            statusIcon,
+                            size: 15,
+                            color: statusColor ?? AppColors.primaryBlue,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                      ],
+                      Flexible(
+                        child: Text(
+                          value,
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: monospace ? 'monospace' : null,
+                            color: valColor,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 5),
                     ],
-                    Flexible(
-                      child: Text(
-                        value,
-                        textAlign: TextAlign.right,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: monospace ? 'monospace' : null,
-                          color: valColor,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         if (showDivider) const Divider(height: 1),
@@ -1020,13 +1023,15 @@ Future<T?> showAppBottomSheet<T>({
     useSafeArea: true,
     builder: (ctx) {
       final isDark = Theme.of(ctx).brightness == Brightness.dark;
-      final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+      final viewInsetsBottom = MediaQuery.viewInsetsOf(ctx).bottom;
+      final viewPaddingBottom = MediaQuery.viewPaddingOf(ctx).bottom;
+      final effectiveBottom = math.max(viewInsetsBottom, viewPaddingBottom);
       return ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
         ),
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 4, 20, 20 + bottomInset),
+          padding: EdgeInsets.fromLTRB(20, 4, 20, 20 + effectiveBottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

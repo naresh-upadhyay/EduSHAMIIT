@@ -137,75 +137,86 @@ class SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          StatusCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: AppColors.purpleBg,
-                    child: Icon(Icons.key_rounded, color: AppColors.purple, size: 20),
+          Builder(
+            builder: (sheetCtx) {
+              final isDark = Theme.of(sheetCtx).brightness == Brightness.dark;
+              return StatusCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isDark ? AppColors.purple.withValues(alpha: 0.18) : AppColors.purpleBg,
+                        child: const Icon(Icons.key_rounded, color: AppColors.purple, size: 20),
+                      ),
+                      title: const Text('Renew Device Token', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: const Text('Rotate cryptographic device auth token', style: TextStyle(fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await ApiService().renewDeviceToken();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Device token rotated successfully'), backgroundColor: AppColors.successGreen),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Token renewal error: $e'), backgroundColor: AppColors.errorRed),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: CircleAvatar(
+                        backgroundColor: isDark ? AppColors.errorRed.withValues(alpha: 0.18) : AppColors.errorRedBg,
+                        child: const Icon(Icons.emergency_rounded, color: AppColors.errorRed, size: 20),
+                      ),
+                      title: const Text('Emergency Gateway Disable', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: const Text('Immediately halt all outgoing SMS', style: TextStyle(fontSize: 12)),
+                      value: emergencyDisabled,
+                      onChanged: (v) async {
+                        Navigator.pop(ctx);
+                        await ApiService().setEmergencyDisable(v);
+                        refresh();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Builder(
+            builder: (sheetCtx) {
+              final isDark = Theme.of(sheetCtx).brightness == Brightness.dark;
+              final errColor = isDark ? const Color(0xFFFF6B6B) : AppColors.errorRed;
+              return SizedBox(
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.logout_rounded, color: errColor),
+                  label: Text('Logout Session', style: TextStyle(color: errColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: errColor.withValues(alpha: 0.75)),
                   ),
-                  title: const Text('Renew Device Token', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  subtitle: const Text('Rotate cryptographic device auth token', style: TextStyle(fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () async {
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    try {
-                      await ApiService().renewDeviceToken();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Device token rotated successfully'), backgroundColor: AppColors.successGreen),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Token renewal error: $e'), backgroundColor: AppColors.errorRed),
-                        );
-                      }
+                    await ApiService().logout();
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (_) => false,
+                      );
                     }
                   },
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const CircleAvatar(
-                    backgroundColor: AppColors.errorRedBg,
-                    child: Icon(Icons.emergency_rounded, color: AppColors.errorRed, size: 20),
-                  ),
-                  title: const Text('Emergency Gateway Disable', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  subtitle: const Text('Immediately halt all outgoing SMS', style: TextStyle(fontSize: 12)),
-                  value: emergencyDisabled,
-                  onChanged: (v) async {
-                    Navigator.pop(ctx);
-                    await ApiService().setEmergencyDisable(v);
-                    refresh();
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 46,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.logout_rounded, color: AppColors.errorRed),
-              label: const Text('Logout Session', style: TextStyle(color: AppColors.errorRed)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.errorRed),
-              ),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await ApiService().logout();
-                if (mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (_) => false,
-                  );
-                }
-              },
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -688,7 +699,7 @@ class _SettingsRow extends StatelessWidget {
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
       trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: AppColors.mutedText),
       onTap: onTap,
     );

@@ -374,7 +374,12 @@ class _AutomationRulesScreenState extends State<AutomationRulesScreen> {
                               ),
                             )
                           : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 84),
+                              padding: EdgeInsets.fromLTRB(
+                                16,
+                                4,
+                                16,
+                                92 + MediaQuery.viewPaddingOf(context).bottom,
+                              ),
                               itemCount: _rules.length,
                               separatorBuilder: (_, __) => const SizedBox(height: 10),
                               itemBuilder: (_, idx) {

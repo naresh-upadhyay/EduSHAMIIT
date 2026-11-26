@@ -82,7 +82,12 @@ class _MessageDetailsScreenState extends State<MessageDetailsScreen> {
               child: msg == null
                   ? const LoadingState()
                   : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        4,
+                        16,
+                        24 + MediaQuery.viewPaddingOf(context).bottom,
+                      ),
                       children: [
                         StatusCard(
                           child: Column(

@@ -16,7 +16,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
             const AppTopBar(title: 'Privacy & SMS Policy', showBackButton: true),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  4,
+                  16,
+                  24 + MediaQuery.viewPaddingOf(context).bottom,
+                ),
                 children: [
                   StatusCard(
                     child: Row(

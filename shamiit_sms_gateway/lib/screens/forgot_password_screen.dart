@@ -64,9 +64,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           children: [
             const AppTopBar(title: 'Forgot Password', showBackButton: true),
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 440),
                     child: StatusCard(
@@ -142,6 +144,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ),
                   ),
+                ),
                 ),
               ),
             ),

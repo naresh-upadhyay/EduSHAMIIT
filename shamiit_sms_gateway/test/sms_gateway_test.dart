@@ -172,4 +172,84 @@ void main() {
       expect(api.displayServerHost, equals('https://eduapi.shamiit.com'));
     });
   });
+
+  group('Edge-to-Edge & Overflow Protection', () {
+    testWidgets('showAppBottomSheet clears 3-button system navigation bar', (tester) async {
+      const navBarHeight = 48.0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(400, 800),
+              viewPadding: EdgeInsets.only(bottom: navBarHeight),
+              padding: EdgeInsets.only(bottom: navBarHeight),
+            ),
+            child: Builder(
+              builder: (ctx) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      showAppBottomSheet(
+                        context: ctx,
+                        icon: Icons.tune_rounded,
+                        title: 'Gateway Settings',
+                        builder: (_) => SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            child: const Text('Save & Sync Settings'),
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Open Sheet'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      final btnRect = tester.getRect(find.widgetWithText(ElevatedButton, 'Save & Sync Settings'));
+      expect(btnRect.bottom, lessThanOrEqualTo(800.0 - navBarHeight - 16.0));
+    });
+
+    testWidgets('InfoMetricRow renders long permission label on single line and bounds long URLs', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const Scaffold(
+            body: SizedBox(
+              width: 340,
+              child: Column(
+                children: [
+                  InfoMetricRow(
+                    label: 'READ_PHONE_STATE',
+                    value: 'Granted',
+                    statusIcon: Icons.check_circle_rounded,
+                  ),
+                  InfoMetricRow(
+                    label: 'Server Endpoint',
+                    value: 'https://eduapi.shamiit.com/very/long/endpoint/path/test',
+                    monospace: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('READ_PHONE_STATE'), findsOneWidget);
+      expect(find.text('Granted'), findsOneWidget);
+      // Verify READ_PHONE_STATE is single-line height (< 24px) rather than wrapped onto 2 lines
+      expect(tester.getSize(find.text('READ_PHONE_STATE')).height, lessThan(24.0));
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

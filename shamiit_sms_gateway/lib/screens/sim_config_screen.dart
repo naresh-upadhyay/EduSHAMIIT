@@ -306,7 +306,12 @@ class _SimConfigScreenState extends State<SimConfigScreen> {
                           ),
                         )
                       : ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            4,
+                            16,
+                            28 + MediaQuery.viewPaddingOf(context).bottom,
+                          ),
                           children: [
                             // Discovered SIM Cards
                             Row(
